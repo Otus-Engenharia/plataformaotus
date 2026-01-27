@@ -266,12 +266,24 @@ app.get(
     })(req, res, next);
   },
   async (req, res) => {
+    console.log('✅ [OAuth Callback] Autenticação bem-sucedida!');
+    console.log('   Usuário:', req.user?.email || 'N/A');
+    console.log('   Sessão ID:', req.sessionID);
+    console.log('   Sessão salva?', req.session ? 'Sim' : 'Não');
+    
     // Registra o login
     if (req.user) {
       await logAction(req, 'login', 'auth', null, 'Login no sistema');
     }
-    // Redireciona para o frontend após login bem-sucedido
-    res.redirect(FRONTEND_URL);
+    
+    // Força salvar a sessão antes de redirecionar
+    req.session.save((err) => {
+      if (err) {
+        console.error('❌ Erro ao salvar sessão:', err);
+      }
+      console.log('✅ Sessão salva! Redirecionando para:', FRONTEND_URL);
+      res.redirect(FRONTEND_URL);
+    });
   }
 );
 
