@@ -17,6 +17,17 @@ function OKRsView() {
   const [selectedLevel, setSelectedLevel] = useState('todos'); // todos, empresa, time, individual
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingOkr, setEditingOkr] = useState(null);
+  const [formData, setFormData] = useState({
+    titulo: '',
+    descricao: '',
+    nivel: 'empresa',
+    responsavel: '',
+    quarter: 'Q1-2025',
+    data_inicio: '',
+    data_fim: '',
+    keyResults: [{ descricao: '', meta: '', atual: '', unidade: '%' }]
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchOKRs();
@@ -140,12 +151,128 @@ function OKRsView() {
 
   const handleAddOKR = () => {
     setEditingOkr(null);
+    setFormData({
+      titulo: '',
+      descricao: '',
+      nivel: 'empresa',
+      responsavel: '',
+      quarter: selectedQuarter,
+      data_inicio: '',
+      data_fim: '',
+      keyResults: [{ descricao: '', meta: '', atual: '', unidade: '%' }]
+    });
     setShowAddModal(true);
   };
 
   const handleEditOKR = (okr) => {
     setEditingOkr(okr);
+    setFormData({
+      titulo: okr.titulo || '',
+      descricao: okr.descricao || '',
+      nivel: okr.nivel || 'empresa',
+      responsavel: okr.responsavel || '',
+      quarter: okr.quarter || selectedQuarter,
+      data_inicio: okr.data_inicio || '',
+      data_fim: okr.data_fim || '',
+      keyResults: okr.keyResults && okr.keyResults.length > 0 
+        ? okr.keyResults.map(kr => ({
+            descricao: kr.descricao || '',
+            meta: kr.meta || '',
+            atual: kr.atual || '',
+            unidade: kr.unidade || '%'
+          }))
+        : [{ descricao: '', meta: '', atual: '', unidade: '%' }]
+    });
     setShowAddModal(true);
+  };
+
+  const handleSaveOKR = async () => {
+    try {
+      setSaving(true);
+      
+      // Validação básica
+      if (!formData.titulo || !formData.responsavel || !formData.quarter) {
+        alert('Preencha todos os campos obrigatórios');
+        return;
+      }
+
+      const okrPayload = {
+        titulo: formData.titulo,
+        descricao: formData.descricao,
+        nivel: formData.nivel,
+        responsavel: formData.responsavel,
+        quarter: formData.quarter,
+        data_inicio: formData.data_inicio || null,
+        data_fim: formData.data_fim || null,
+        keyResults: formData.keyResults
+          .filter(kr => kr.descricao && kr.meta)
+          .map(kr => ({
+            descricao: kr.descricao,
+            meta: parseFloat(kr.meta) || 0,
+            atual: parseFloat(kr.atual) || 0,
+            unidade: kr.unidade || '%'
+          }))
+      };
+
+      if (editingOkr) {
+        // Editar OKR existente
+        await axios.put(`${API_URL}/api/okrs/${editingOkr.id}`, okrPayload, {
+          withCredentials: true,
+        });
+      } else {
+        // Criar novo OKR
+        await axios.post(`${API_URL}/api/okrs`, okrPayload, {
+          withCredentials: true,
+        });
+      }
+
+      setShowAddModal(false);
+      fetchOKRs(); // Recarrega a lista
+    } catch (error) {
+      console.error('Erro ao salvar OKR:', error);
+      alert(error.response?.data?.error || 'Erro ao salvar OKR');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteOKR = async (okrId) => {
+    if (!confirm('Tem certeza que deseja deletar este OKR?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API_URL}/api/okrs/${okrId}`, {
+        withCredentials: true,
+      });
+      fetchOKRs(); // Recarrega a lista
+    } catch (error) {
+      console.error('Erro ao deletar OKR:', error);
+      alert(error.response?.data?.error || 'Erro ao deletar OKR');
+    }
+  };
+
+  const handleAddKeyResult = () => {
+    setFormData({
+      ...formData,
+      keyResults: [...formData.keyResults, { descricao: '', meta: '', atual: '', unidade: '%' }]
+    });
+  };
+
+  const handleRemoveKeyResult = (index) => {
+    setFormData({
+      ...formData,
+      keyResults: formData.keyResults.filter((_, i) => i !== index)
+    });
+  };
+
+  const handleKeyResultChange = (index, field, value) => {
+    const newKeyResults = [...formData.keyResults];
+    newKeyResults[index][field] = value;
+    setFormData({
+      ...formData,
+      keyResults: newKeyResults
+    });
   };
 
   if (loading) {
@@ -282,6 +409,12 @@ function OKRsView() {
                 >
                   Editar
                 </button>
+                <button 
+                  className="btn-delete-okr"
+                  onClick={() => handleDeleteOKR(okr.id)}
+                >
+                  Deletar
+                </button>
               </div>
             </div>
           ))
@@ -297,10 +430,159 @@ function OKRsView() {
               <button className="modal-close" onClick={() => setShowAddModal(false)}>×</button>
             </div>
             <div className="modal-body">
-              <p className="modal-note">
-                <strong>Nota:</strong> A funcionalidade de adicionar/editar OKRs será implementada em breve.
-                Esta interface está preparada para integração com o backend.
-              </p>
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveOKR(); }}>
+                <div className="form-group">
+                  <label>Título *</label>
+                  <input
+                    type="text"
+                    value={formData.titulo}
+                    onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
+                    required
+                    placeholder="Ex: Aumentar satisfação do cliente"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Descrição</label>
+                  <textarea
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    rows="3"
+                    placeholder="Descrição detalhada do OKR"
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Nível *</label>
+                    <select
+                      value={formData.nivel}
+                      onChange={(e) => setFormData({ ...formData, nivel: e.target.value })}
+                      required
+                    >
+                      <option value="empresa">Empresa</option>
+                      <option value="time">Time</option>
+                      <option value="individual">Individual</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Responsável *</label>
+                    <input
+                      type="text"
+                      value={formData.responsavel}
+                      onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
+                      required
+                      placeholder="Nome do responsável"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Trimestre *</label>
+                    <select
+                      value={formData.quarter}
+                      onChange={(e) => setFormData({ ...formData, quarter: e.target.value })}
+                      required
+                    >
+                      <option value="Q1-2025">Q1 2025</option>
+                      <option value="Q2-2025">Q2 2025</option>
+                      <option value="Q3-2025">Q3 2025</option>
+                      <option value="Q4-2025">Q4 2025</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Data Início</label>
+                    <input
+                      type="date"
+                      value={formData.data_inicio}
+                      onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Data Fim</label>
+                    <input
+                      type="date"
+                      value={formData.data_fim}
+                      onChange={(e) => setFormData({ ...formData, data_fim: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <div className="key-results-header">
+                    <label>Key Results (Resultados Chave)</label>
+                    <button type="button" onClick={handleAddKeyResult} className="btn-add-kr">
+                      + Adicionar Key Result
+                    </button>
+                  </div>
+                  {formData.keyResults.map((kr, index) => (
+                    <div key={index} className="key-result-item">
+                      <div className="form-row">
+                        <div className="form-group flex-2">
+                          <input
+                            type="text"
+                            value={kr.descricao}
+                            onChange={(e) => handleKeyResultChange(index, 'descricao', e.target.value)}
+                            placeholder="Descrição do Key Result"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <input
+                            type="number"
+                            value={kr.meta}
+                            onChange={(e) => handleKeyResultChange(index, 'meta', e.target.value)}
+                            placeholder="Meta"
+                            step="0.01"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <input
+                            type="number"
+                            value={kr.atual}
+                            onChange={(e) => handleKeyResultChange(index, 'atual', e.target.value)}
+                            placeholder="Atual"
+                            step="0.01"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <select
+                            value={kr.unidade}
+                            onChange={(e) => handleKeyResultChange(index, 'unidade', e.target.value)}
+                          >
+                            <option value="%">%</option>
+                            <option value="pontos">Pontos</option>
+                            <option value="dias">Dias</option>
+                            <option value="unidades">Unidades</option>
+                            <option value="R$">R$</option>
+                          </select>
+                        </div>
+                        {formData.keyResults.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveKeyResult(index)}
+                            className="btn-remove-kr"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="modal-actions">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="btn-cancel">
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn-save" disabled={saving}>
+                    {saving ? 'Salvando...' : editingOkr ? 'Atualizar' : 'Criar OKR'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
