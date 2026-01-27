@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS public.okrs (
 );
 
 -- Índices para melhor performance
-CREATE INDEX idx_okrs_quarter ON public.okrs(quarter);
-CREATE INDEX idx_okrs_nivel ON public.okrs(nivel);
-CREATE INDEX idx_okrs_status ON public.okrs(status);
-CREATE INDEX idx_okrs_responsavel ON public.okrs(responsavel);
+CREATE INDEX IF NOT EXISTS idx_okrs_quarter ON public.okrs(quarter);
+CREATE INDEX IF NOT EXISTS idx_okrs_nivel ON public.okrs(nivel);
+CREATE INDEX IF NOT EXISTS idx_okrs_status ON public.okrs(status);
+CREATE INDEX IF NOT EXISTS idx_okrs_responsavel ON public.okrs(responsavel);
 
 -- Comentários
 COMMENT ON TABLE public.okrs IS 'Objetivos e Resultados Chave (OKRs) da empresa';
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS public.key_results (
 );
 
 -- Índices
-CREATE INDEX idx_key_results_okr_id ON public.key_results(okr_id);
+CREATE INDEX IF NOT EXISTS idx_key_results_okr_id ON public.key_results(okr_id);
 
 -- Comentários
 COMMENT ON TABLE public.key_results IS 'Resultados Chave (KRs) vinculados aos OKRs';
@@ -88,10 +88,10 @@ CREATE TABLE IF NOT EXISTS public.indicadores (
 );
 
 -- Índices
-CREATE INDEX idx_indicadores_categoria ON public.indicadores(categoria);
-CREATE INDEX idx_indicadores_periodo ON public.indicadores(periodo);
-CREATE INDEX idx_indicadores_ativo ON public.indicadores(ativo);
-CREATE INDEX idx_indicadores_data_referencia ON public.indicadores(data_referencia);
+CREATE INDEX IF NOT EXISTS idx_indicadores_categoria ON public.indicadores(categoria);
+CREATE INDEX IF NOT EXISTS idx_indicadores_periodo ON public.indicadores(periodo);
+CREATE INDEX IF NOT EXISTS idx_indicadores_ativo ON public.indicadores(ativo);
+CREATE INDEX IF NOT EXISTS idx_indicadores_data_referencia ON public.indicadores(data_referencia);
 
 -- Comentários
 COMMENT ON TABLE public.indicadores IS 'Indicadores de desempenho (KPIs) da empresa';
@@ -114,8 +114,8 @@ CREATE TABLE IF NOT EXISTS public.indicadores_historico (
 );
 
 -- Índices
-CREATE INDEX idx_indicadores_historico_indicador_id ON public.indicadores_historico(indicador_id);
-CREATE INDEX idx_indicadores_historico_data ON public.indicadores_historico(data);
+CREATE INDEX IF NOT EXISTS idx_indicadores_historico_indicador_id ON public.indicadores_historico(indicador_id);
+CREATE INDEX IF NOT EXISTS idx_indicadores_historico_data ON public.indicadores_historico(data);
 
 -- Comentários
 COMMENT ON TABLE public.indicadores_historico IS 'Histórico de valores dos indicadores para análise de tendências';
