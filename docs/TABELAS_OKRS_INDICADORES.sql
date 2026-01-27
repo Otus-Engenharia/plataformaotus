@@ -28,6 +28,15 @@ CREATE TABLE IF NOT EXISTS public.okrs (
 -- Adiciona colunas que podem não existir se a tabela foi criada anteriormente
 DO $$ 
 BEGIN
+  -- Adiciona coluna progresso se não existir
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'okrs' 
+                 AND column_name = 'progresso') THEN
+    ALTER TABLE public.okrs ADD COLUMN progresso NUMERIC(5,2) DEFAULT 0 
+      CHECK (progresso >= 0 AND progresso <= 100);
+  END IF;
+  
   -- Adiciona coluna status se não existir
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                  WHERE table_schema = 'public' 
@@ -57,6 +66,27 @@ BEGIN
                  AND table_name = 'okrs' 
                  AND column_name = 'data_fim') THEN
     ALTER TABLE public.okrs ADD COLUMN data_fim DATE;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'okrs' 
+                 AND column_name = 'created_at') THEN
+    ALTER TABLE public.okrs ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'okrs' 
+                 AND column_name = 'updated_at') THEN
+    ALTER TABLE public.okrs ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'okrs' 
+                 AND column_name = 'created_by') THEN
+    ALTER TABLE public.okrs ADD COLUMN created_by TEXT;
   END IF;
 END $$;
 
