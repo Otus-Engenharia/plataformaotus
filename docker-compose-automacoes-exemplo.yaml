@@ -1,0 +1,40 @@
+# =============================================================================
+# EXEMPLO: docker-compose do projeto "automacoes"
+# =============================================================================
+# Este é um EXEMPLO de como deve ficar o docker-compose do automacoes
+# para conectar o nginx na rede compartilhada "otus-shared"
+# =============================================================================
+
+networks:
+  otus-shared:
+    external: true
+    name: otus-shared
+  default:
+    # Rede padrão para n8n e waha continuarem funcionando
+
+services:
+  n8n:
+    # ... suas configurações existentes do n8n ...
+    networks:
+      - default  # n8n continua na rede padrão
+
+  waha:
+    # ... suas configurações existentes do waha ...
+    networks:
+      - default  # waha continua na rede padrão
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - otus-shared  # NOVO: conecta na rede compartilhada
+      - default      # Mantém acesso ao n8n e waha
+    depends_on:
+      - n8n

@@ -1,0 +1,42 @@
+# =============================================================================
+# docker-compose – Plataforma Otus (Relatórios)
+# =============================================================================
+# Projeto Docker separado. Não altera o projeto "automacoes" (n8n, waha, nginx).
+# Porta 3001: só esta aplicação. Os outros continuam em 5678, 3000, 80/443.
+# Hostinger MCP procura por docker-compose.yaml (branch master).
+# =============================================================================
+
+networks:
+  otus-shared:
+    external: true
+    name: otus-shared
+
+services:
+  plataformaotus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: plataformaotus-app
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:3001:3001"
+    env_file:
+      - /docker/plataformaotus/backend/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+    volumes:
+      - /docker/plataformaotus/backend/service-account-key.json:/app/service-account-key.json:ro
+    networks:
+      - otus-shared
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.2"
+          memory: 256M

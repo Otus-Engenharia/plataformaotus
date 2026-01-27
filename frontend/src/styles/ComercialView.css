@@ -1,0 +1,24 @@
+/**
+ * Estilos: Vista de Comercial
+ */
+
+.comercial-container {
+  padding: 2rem;
+}
+
+.comercial-placeholder {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+}
+
+.comercial-placeholder h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.comercial-placeholder p {
+  font-size: 1rem;
+}

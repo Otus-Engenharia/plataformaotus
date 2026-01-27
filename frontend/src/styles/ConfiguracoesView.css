@@ -1,0 +1,57 @@
+/**
+ * Estilos: Vista de Configurações
+ */
+
+.configuracoes-container {
+  padding: 1.5rem 2rem 2.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.configuracoes-header {
+  margin-bottom: 1.5rem;
+}
+
+.configuracoes-header h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.configuracoes-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 1.5rem;
+}
+
+.config-tab-button {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  margin-bottom: -2px;
+  font-family: inherit;
+}
+
+.config-tab-button:hover {
+  color: #1a1a1a;
+}
+
+.config-tab-button.active {
+  color: #1a1a1a;
+  border-bottom-color: #ffcc00;
+}
+
+.configuracoes-content {
+  background: #ffffff;
+  border-radius: 12px;
+  min-height: 400px;
+}

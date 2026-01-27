@@ -1,0 +1,110 @@
+/**
+ * Estilos da vista de Ferramentas
+ */
+
+.ferramentas-container {
+  width: 100%;
+  padding: 2rem;
+}
+
+.ferramentas-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+  margin-top: 0;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.ferramentas-section-divider {
+  height: 2px;
+  background: #e6e6e6;
+  margin: 3rem 0;
+}
+
+.ferramentas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1200px) {
+  .ferramentas-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .ferramentas-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .ferramentas-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ferramentas-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e6e6e6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+}
+
+.ferramentas-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.ferramentas-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.ferramentas-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  word-break: break-all;
+}
+
+.ferramentas-link {
+  color: #0066cc;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.ferramentas-link:hover {
+  color: #0052a3;
+  text-decoration: underline;
+}
+
+.ferramentas-value-link {
+  color: #0066cc;
+}
+
+.ferramentas-empty,
+.ferramentas-loading,
+.ferramentas-error {
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.ferramentas-error {
+  color: #d32f2f;
+}

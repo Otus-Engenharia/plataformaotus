@@ -1,0 +1,475 @@
+/**
+ * Estilos da vista de OKRs
+ * Mantém identidade visual do projeto
+ */
+
+.okrs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.okrs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.okrs-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  margin: 0 0 0.25rem 0;
+  border-bottom: 3px solid #ffdd00;
+  padding-bottom: 0.5rem;
+  display: inline-block;
+}
+
+.okrs-subtitle {
+  font-size: 0.85rem;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+  margin: 0.5rem 0 0 0;
+}
+
+.btn-add-okr {
+  padding: 0.75rem 1.5rem;
+  background: #ffdd00;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-add-okr:hover {
+  background: #ffd700;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-add-okr:active {
+  transform: translateY(0);
+}
+
+/* Filtros */
+.okrs-filters {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.filter-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  background: #ffffff;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-select:hover {
+  border-color: #ffdd00;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.1);
+}
+
+/* Lista de OKRs */
+.okrs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.okr-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.okr-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.okr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 2rem;
+}
+
+.okr-title-section {
+  flex: 1;
+}
+
+.okr-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 0.75rem 0;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.okr-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.okr-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.okr-badge-empresa {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.okr-badge-time {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.okr-badge-individual {
+  background: #e8f5e9;
+  color: #388e3c;
+}
+
+.okr-responsavel,
+.okr-quarter {
+  font-size: 0.85rem;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.okr-progress-section {
+  flex-shrink: 0;
+}
+
+.okr-progress-circle {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.progress-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  line-height: 1.2;
+}
+
+.progress-label {
+  display: block;
+  font-size: 0.7rem;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+  margin-top: 0.25rem;
+}
+
+/* Key Results */
+.okr-key-results {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.key-results-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 1rem 0;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.key-result-item {
+  margin-bottom: 1rem;
+}
+
+.key-result-item:last-child {
+  margin-bottom: 0;
+}
+
+.kr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.kr-descricao {
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  flex: 1;
+}
+
+.kr-progress-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+  margin-left: 1rem;
+}
+
+.kr-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.kr-progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+/* Ações */
+.okr-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-edit-okr {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: #4285F4;
+  border: 1px solid #4285F4;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-edit-okr:hover {
+  background: #4285F4;
+  color: #ffffff;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modal-content {
+  background: #ffffff;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-header h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #737373;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #f0f0f0;
+  color: #1a1a1a;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-note {
+  font-size: 0.9rem;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Empty state */
+.okrs-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* Loading */
+.okrs-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* Nota */
+.okrs-note {
+  background: #fff9e6;
+  border: 1px solid #ffdd00;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.okrs-note p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.okrs-note a {
+  color: #4285F4;
+  text-decoration: none;
+}
+
+.okrs-note a:hover {
+  text-decoration: underline;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .okrs-container {
+    padding: 1rem;
+  }
+
+  .okrs-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .okrs-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .okr-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .okr-progress-section {
+    align-self: center;
+  }
+
+  .kr-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .kr-progress-text {
+    margin-left: 0;
+  }
+
+  .modal-overlay {
+    padding: 1rem;
+  }
+}

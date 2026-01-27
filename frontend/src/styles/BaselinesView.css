@@ -1,0 +1,31 @@
+/**
+ * Estilos da vista de Baselines - Design System Otus
+ */
+
+.baselines-container {
+  width: 100%;
+  min-height: 100vh;
+  padding: 2rem;
+  background: #f5f5f5;
+}
+
+.baselines-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.baselines-content h2 {
+  color: #1a1a1a;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.baselines-content p {
+  color: #666;
+  font-size: 1rem;
+}

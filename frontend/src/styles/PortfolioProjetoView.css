@@ -1,0 +1,106 @@
+/**
+ * Estilos da vista de Portfólio do Projeto
+ */
+
+.portfolio-projeto-container {
+  width: 100%;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.portfolio-projeto-section {
+  margin-bottom: 2.5rem;
+}
+
+.portfolio-projeto-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+  margin-top: 0;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.portfolio-projeto-section-divider {
+  height: 2px;
+  background: #e6e6e6;
+  margin: 2.5rem 0;
+}
+
+.portfolio-projeto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 1400px) {
+  .portfolio-projeto-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1399px) {
+  .portfolio-projeto-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 899px) {
+  .portfolio-projeto-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.portfolio-projeto-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e6e6e6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.portfolio-projeto-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.portfolio-projeto-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  word-break: break-word;
+}
+
+.portfolio-projeto-link {
+  color: #0066cc;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.portfolio-projeto-link:hover {
+  color: #0052a3;
+  text-decoration: underline;
+}
+
+
+.portfolio-projeto-empty,
+.portfolio-projeto-loading,
+.portfolio-projeto-error {
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #737373;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.portfolio-projeto-error {
+  color: #d32f2f;
+}

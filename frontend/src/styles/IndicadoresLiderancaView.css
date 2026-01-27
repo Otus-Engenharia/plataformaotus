@@ -1,0 +1,63 @@
+/**
+ * Estilos da vista de Indicadores Liderança
+ */
+
+.indicadores-lideranca-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.indicadores-lideranca-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #e6e6e6;
+  padding-bottom: 0.5rem;
+}
+
+.indicadores-lideranca-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #737373;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+}
+
+.indicadores-lideranca-tab:hover {
+  color: #1a1a1a;
+  border-bottom-color: rgba(255, 221, 0, 0.4);
+}
+
+.indicadores-lideranca-tab-active {
+  color: #1a1a1a;
+  border-bottom-color: #ffdd00;
+}
+
+.indicadores-lideranca-content {
+  width: 100%;
+}
+
+.indicadores-lideranca-placeholder {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #737373;
+}
+
+.indicadores-lideranca-placeholder h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  margin-bottom: 0.5rem;
+}
+
+.indicadores-lideranca-placeholder p {
+  font-size: 0.9rem;
+  font-family: 'Inter', Verdana, sans-serif;
+}

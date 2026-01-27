@@ -1,0 +1,60 @@
+networks:
+  otus-shared:
+    external: true
+    name: otus-shared
+  default:
+    # Rede padrão para comunicação entre n8n e waha
+
+services:
+  n8n:
+    build:
+      context: .
+      dockerfile: n8n.Dockerfile
+    image: n8n-mpxj:latest
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - N8N_SECURE_COOKIE=false
+      - N8N_HOST=n8n.otusengenharia.com
+      - N8N_PROTOCOL=https
+      - WEBHOOK_TUNNEL_URL=https://n8n.otusengenharia.com
+      - WEBHOOK_URL=https://n8n.otusengenharia.com
+    volumes:
+      - /root/automacoes/n8n_data:/home/node/.n8n
+      - /root/automacoes/shared:/data
+    networks:
+      - default
+
+  waha:
+    image: devlikeapro/waha
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - WHATSAPP_DEFAULT_ENGINE=NOWEB
+      - WHATSAPP_HOOK_EVENTS=message
+      - WHATSAPP_HOOK_URL=http://host.docker.internal:5678/webhook/d36001dd-aaa8-46c9-8c86-bf1a0acdd39e/waha
+    volumes:
+      - /root/automacoes/waha_data:/app/.sessions
+    networks:
+      - default
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - n8n
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      - otus-shared  # Conecta na rede compartilhada para acessar plataformaotus-app
+      - default      # Mantém acesso ao n8n e waha
