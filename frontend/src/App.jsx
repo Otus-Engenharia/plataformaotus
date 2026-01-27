@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
 import IndicadoresLiderancaView from './components/IndicadoresLiderancaView';
@@ -297,9 +297,25 @@ function Sidebar({ collapsed, onToggle, area }) {
 }
 
 function TopBar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isHomeRoute = location.pathname === '/home' || location.pathname === '/';
+  
   return (
     <header className="topbar">
       <div className="topbar-brand">
+        {!isHomeRoute && (
+          <button 
+            onClick={() => navigate('/home')} 
+            className="topbar-home-button"
+            title="Voltar ao início"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <path d="M9 22V12h6v10" />
+            </svg>
+          </button>
+        )}
         <img src="/otus_branca.png" alt="Otus Engenharia" className="nav-logo" />
         <h1 className="topbar-title">Indicadores do Setor de Projeto</h1>
       </div>
@@ -365,10 +381,41 @@ function AppContent() {
   
   const currentArea = getCurrentArea();
   const showSidebar = !isHomeRoute && currentArea !== null;
+  const showTopBar = !isHomeRoute;
+  const showOracle = !isHomeRoute;
   
+  // Tela Home: sem TopBar, sem Sidebar, sem Oráculo
+  if (isHomeRoute) {
+    return (
+      <div className="app">
+        <main className="main-content">
+          <Routes>
+            <Route 
+              path="/home" 
+              element={
+                <ProtectedRoute>
+                  <HomeView />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/home" replace />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </main>
+      </div>
+    );
+  }
+  
+  // Demais páginas: com TopBar, Sidebar (se aplicável), e Oráculo
   return (
     <div className="app app-shell">
-      <TopBar />
+      {showTopBar && <TopBar />}
       <div className="app-body">
         {showSidebar && (
           <Sidebar
@@ -379,22 +426,6 @@ function AppContent() {
         )}
         <main className={`main-content ${showSidebar ? 'main-content-sidebar' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
-            <Route 
-              path="/" 
-              element={
-                <ProtectedRoute>
-                  <Navigate to="/home" replace />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/home" 
-              element={
-                <ProtectedRoute>
-                  <HomeView />
-                </ProtectedRoute>
-              } 
-            />
             <Route 
               path="/indicadores-lideranca" 
               element={
@@ -495,8 +526,8 @@ function AppContent() {
               } 
             />
           </Routes>
-          {/* Oraculo - Assistente LMM (disponível em todas as páginas) */}
-          <OracleChat />
+          {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}
+          {showOracle && <OracleChat />}
         </main>
       </div>
     </div>
