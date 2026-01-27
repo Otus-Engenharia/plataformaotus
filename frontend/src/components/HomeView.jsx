@@ -87,6 +87,7 @@ function HomeView() {
         {/* Logo e título */}
         <div className="home-header">
           <img src="/Otus-logo-300x300.png" alt="Otus Engenharia" className="home-logo" />
+          <div className="home-slogan">Elevando o padrão de se construir</div>
           <h1 className="home-title">Plataforma Otus</h1>
           <p className="home-subtitle">Selecione uma área para começar</p>
         </div>
