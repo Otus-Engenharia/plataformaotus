@@ -26,6 +26,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.otusengenharia.com';
 
+// Confia no proxy reverso (Nginx) para obter IP real do cliente
+app.set('trust proxy', 1);
+
 // Segurança: Headers HTTP com Helmet
 app.use(helmet({
   contentSecurityPolicy: false, // Desabilita CSP para não quebrar o app (pode ser configurado depois)
