@@ -6,10 +6,33 @@
 -- ============================================================
 
 -- ============================================================
+-- LIMPEZA: Remove tabelas, funções e triggers existentes (se houver)
+-- ============================================================
+-- ATENÇÃO: Isso irá deletar TODOS os dados das tabelas!
+-- Execute apenas se não houver dados importantes.
+
+-- Remove triggers primeiro (dependem das tabelas)
+DROP TRIGGER IF EXISTS trigger_update_okr_progress ON public.key_results;
+DROP TRIGGER IF EXISTS set_updated_at_okrs ON public.okrs;
+DROP TRIGGER IF EXISTS set_updated_at_key_results ON public.key_results;
+DROP TRIGGER IF EXISTS set_updated_at_indicadores ON public.indicadores;
+
+-- Remove tabelas (CASCADE remove dependências automaticamente)
+DROP TABLE IF EXISTS public.indicadores_historico CASCADE;
+DROP TABLE IF EXISTS public.key_results CASCADE;
+DROP TABLE IF EXISTS public.okrs CASCADE;
+DROP TABLE IF EXISTS public.indicadores CASCADE;
+
+-- Remove funções
+DROP FUNCTION IF EXISTS update_okr_progress() CASCADE;
+DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
+DROP FUNCTION IF EXISTS calcular_tendencia_indicador(BIGINT) CASCADE;
+
+-- ============================================================
 -- TABELA: okrs
 -- Descrição: Objetivos e Resultados Chave (OKRs)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.okrs (
+CREATE TABLE public.okrs (
   id BIGSERIAL PRIMARY KEY,
   titulo TEXT NOT NULL,
   descricao TEXT,
@@ -24,71 +47,6 @@ CREATE TABLE IF NOT EXISTS public.okrs (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_by TEXT
 );
-
--- Adiciona colunas que podem não existir se a tabela foi criada anteriormente
-DO $$ 
-BEGIN
-  -- Adiciona coluna progresso se não existir
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'okrs' 
-                 AND column_name = 'progresso') THEN
-    ALTER TABLE public.okrs ADD COLUMN progresso NUMERIC(5,2) DEFAULT 0 
-      CHECK (progresso >= 0 AND progresso <= 100);
-  END IF;
-  
-  -- Adiciona coluna status se não existir
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'okrs' 
-                 AND column_name = 'status') THEN
-    ALTER TABLE public.okrs ADD COLUMN status TEXT DEFAULT 'ativo' 
-      CHECK (status IN ('ativo', 'concluido', 'cancelado', 'pausado'));
-  END IF;
-  
-  -- Adiciona outras colunas que podem estar faltando
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'okrs' 
-                 AND column_name = 'descricao') THEN
-    ALTER TABLE public.okrs ADD COLUMN descricao TEXT;
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'okrs' 
-                 AND column_name = 'data_inicio') THEN
-    ALTER TABLE public.okrs ADD COLUMN data_inicio DATE;
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'okrs' 
-                 AND column_name = 'data_fim') THEN
-    ALTER TABLE public.okrs ADD COLUMN data_fim DATE;
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'okrs' 
-                 AND column_name = 'created_at') THEN
-    ALTER TABLE public.okrs ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'okrs' 
-                 AND column_name = 'updated_at') THEN
-    ALTER TABLE public.okrs ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'okrs' 
-                 AND column_name = 'created_by') THEN
-    ALTER TABLE public.okrs ADD COLUMN created_by TEXT;
-  END IF;
-END $$;
 
 -- Índices para melhor performance
 CREATE INDEX IF NOT EXISTS idx_okrs_quarter ON public.okrs(quarter);
@@ -106,7 +64,7 @@ COMMENT ON COLUMN public.okrs.progresso IS 'Percentual de progresso do OKR (0-10
 -- TABELA: key_results
 -- Descrição: Resultados Chave (KRs) vinculados aos OKRs
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.key_results (
+CREATE TABLE public.key_results (
   id BIGSERIAL PRIMARY KEY,
   okr_id BIGINT NOT NULL REFERENCES public.okrs(id) ON DELETE CASCADE,
   descricao TEXT NOT NULL,
@@ -134,7 +92,7 @@ COMMENT ON COLUMN public.key_results.atual IS 'Valor atual alcançado';
 -- TABELA: indicadores
 -- Descrição: Indicadores de desempenho (KPIs)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.indicadores (
+CREATE TABLE public.indicadores (
   id BIGSERIAL PRIMARY KEY,
   nome TEXT NOT NULL,
   descricao TEXT,
@@ -168,7 +126,7 @@ COMMENT ON COLUMN public.indicadores.periodo IS 'Período de medição: mensal, 
 -- TABELA: indicadores_historico
 -- Descrição: Histórico de valores dos indicadores ao longo do tempo
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.indicadores_historico (
+CREATE TABLE public.indicadores_historico (
   id BIGSERIAL PRIMARY KEY,
   indicador_id BIGINT NOT NULL REFERENCES public.indicadores(id) ON DELETE CASCADE,
   valor NUMERIC(10,2) NOT NULL,
