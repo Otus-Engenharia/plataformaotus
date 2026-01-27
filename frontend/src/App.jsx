@@ -326,15 +326,20 @@ function AppContent() {
   }
 
   // 4. Autenticado: mostrar shell (TopBar, Sidebar, rotas)
+  const isHomeRoute = location.pathname === '/home' || location.pathname === '/';
+  const showSidebar = !isHomeRoute;
+  
   return (
     <div className="app app-shell">
       <TopBar />
       <div className="app-body">
-        <Sidebar
-          collapsed={isSidebarCollapsed}
-          onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
-        />
-        <main className={`main-content main-content-sidebar ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
+        {showSidebar && (
+          <Sidebar
+            collapsed={isSidebarCollapsed}
+            onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
+          />
+        )}
+        <main className={`main-content ${showSidebar ? 'main-content-sidebar' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
             <Route 
               path="/" 
