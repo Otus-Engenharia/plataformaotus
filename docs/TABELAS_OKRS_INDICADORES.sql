@@ -25,6 +25,41 @@ CREATE TABLE IF NOT EXISTS public.okrs (
   created_by TEXT
 );
 
+-- Adiciona colunas que podem não existir se a tabela foi criada anteriormente
+DO $$ 
+BEGIN
+  -- Adiciona coluna status se não existir
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'okrs' 
+                 AND column_name = 'status') THEN
+    ALTER TABLE public.okrs ADD COLUMN status TEXT DEFAULT 'ativo' 
+      CHECK (status IN ('ativo', 'concluido', 'cancelado', 'pausado'));
+  END IF;
+  
+  -- Adiciona outras colunas que podem estar faltando
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'okrs' 
+                 AND column_name = 'descricao') THEN
+    ALTER TABLE public.okrs ADD COLUMN descricao TEXT;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'okrs' 
+                 AND column_name = 'data_inicio') THEN
+    ALTER TABLE public.okrs ADD COLUMN data_inicio DATE;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_schema = 'public' 
+                 AND table_name = 'okrs' 
+                 AND column_name = 'data_fim') THEN
+    ALTER TABLE public.okrs ADD COLUMN data_fim DATE;
+  END IF;
+END $$;
+
 -- Índices para melhor performance
 CREATE INDEX IF NOT EXISTS idx_okrs_quarter ON public.okrs(quarter);
 CREATE INDEX IF NOT EXISTS idx_okrs_nivel ON public.okrs(nivel);
