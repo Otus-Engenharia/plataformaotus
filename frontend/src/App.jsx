@@ -18,6 +18,7 @@ import EstudoCustosView from './components/EstudoCustosView';
 import HorasView from './components/HorasView';
 import FormularioPassagemView from './components/FormularioPassagemView';
 import FeedbacksView from './components/FeedbacksView';
+import LogsView from './components/LogsView';
 import HomeView from './components/HomeView';
 import IndicadoresView from './components/IndicadoresView';
 import OKRsView from './components/OKRsView';
@@ -101,7 +102,7 @@ const icons = {
   ),
 };
 
-function Sidebar({ collapsed, onToggle }) {
+function Sidebar({ collapsed, onToggle, area }) {
   const location = useLocation();
   const { user, logout, isDirector, isAdmin, isPrivileged, canAccessFormularioPassagem } = useAuth();
   const linkTitle = (label) => (collapsed ? label : undefined);
@@ -133,91 +134,106 @@ function Sidebar({ collapsed, onToggle }) {
     }
     return `${parts[0]} ${parts[1]}`;
   };
+
+  // Links para área de PROJETOS
+  const projetosLinks = (
+    <>
+      <Link 
+        to="/indicadores-lideranca" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/indicadores-lideranca') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Indicadores Liderança')}
+      >
+        <span className="nav-icon">{icons.indicadoresLideranca}</span>
+        <span className="nav-text">Indicadores Liderança</span>
+      </Link>
+      <Link 
+        to="/horas" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/horas') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Horas')}
+      >
+        <span className="nav-icon">{icons.horas}</span>
+        <span className="nav-text">Horas</span>
+      </Link>
+      <Link 
+        to="/projetos" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/projetos') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Projetos')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Projetos</span>
+      </Link>
+      <Link 
+        to="/cs" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/cs') ? 'nav-link-active' : ''}`}
+        title={linkTitle('CS')}
+      >
+        <span className="nav-icon">{icons.cs}</span>
+        <span className="nav-text">CS</span>
+      </Link>
+      <Link 
+        to="/estudo-de-custos" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/estudo-de-custos') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Estudo de Custos')}
+      >
+        <span className="nav-icon">{icons.estudoCustos}</span>
+        <span className="nav-text">Estudo de Custos</span>
+      </Link>
+      <Link 
+        to="/contatos" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/contatos') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Contatos')}
+      >
+        <span className="nav-icon">{icons.contatos}</span>
+        <span className="nav-text">Contatos</span>
+      </Link>
+      {canAccessFormularioPassagem && (
+        <Link 
+          to="/formulario-passagem" 
+          className={`nav-link nav-link-modern ${location.pathname.startsWith('/formulario-passagem') ? 'nav-link-active' : ''}`}
+          title={linkTitle('Formulário de Passagem')}
+        >
+          <span className="nav-icon">{icons.formularioPassagem}</span>
+          <span className="nav-text">Formulário de Passagem</span>
+        </Link>
+      )}
+      <Link 
+        to="/feedbacks" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/feedbacks') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Feedbacks')}
+      >
+        <span className="nav-icon">{icons.feedbacks}</span>
+        <span className="nav-text">Feedbacks</span>
+      </Link>
+    </>
+  );
+
+  // Links para área de CONFIGURAÇÕES
+  const configuracoesLinks = (
+    <>
+      <Link 
+        to="/acessos" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/acessos') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Acessos')}
+      >
+        <span className="nav-icon">{icons.acessos}</span>
+        <span className="nav-text">Acessos</span>
+      </Link>
+      <Link 
+        to="/logs" 
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/logs') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Logs')}
+      >
+        <span className="nav-icon">{icons.settings}</span>
+        <span className="nav-text">Logs</span>
+      </Link>
+    </>
+  );
+
   return (
     <aside className={`sidebar glass-sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <nav className="sidebar-links">
-        <Link 
-          to="/indicadores-lideranca" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/indicadores-lideranca') ? 'nav-link-active' : ''}`}
-          title={linkTitle('Indicadores Liderança')}
-        >
-          <span className="nav-icon">{icons.indicadoresLideranca}</span>
-          <span className="nav-text">Indicadores Liderança</span>
-        </Link>
-        <Link 
-          to="/horas" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/horas') ? 'nav-link-active' : ''}`}
-          title={linkTitle('Horas')}
-        >
-          <span className="nav-icon">{icons.horas}</span>
-          <span className="nav-text">Horas</span>
-        </Link>
-        <Link 
-          to="/indicadores" 
-          className={`nav-link nav-link-modern ${location.pathname === '/indicadores' ? 'nav-link-active' : ''}`}
-          title={linkTitle('Indicadores')}
-        >
-          <span className="nav-icon">{icons.indicadores}</span>
-          <span className="nav-text">Indicadores</span>
-        </Link>
-        <Link 
-          to="/okrs" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/okrs') ? 'nav-link-active' : ''}`}
-          title={linkTitle('OKRs')}
-        >
-          <span className="nav-icon">{icons.okrs}</span>
-          <span className="nav-text">OKRs</span>
-        </Link>
-        <Link 
-          to="/projetos" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/projetos') ? 'nav-link-active' : ''}`}
-          title={linkTitle('Projetos')}
-        >
-          <span className="nav-icon">{icons.projetos}</span>
-          <span className="nav-text">Projetos</span>
-        </Link>
-        <Link 
-          to="/cs" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/cs') ? 'nav-link-active' : ''}`}
-          title={linkTitle('CS')}
-        >
-          <span className="nav-icon">{icons.cs}</span>
-          <span className="nav-text">CS</span>
-        </Link>
-        <Link 
-          to="/estudo-de-custos" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/estudo-de-custos') ? 'nav-link-active' : ''}`}
-          title={linkTitle('Estudo de Custos')}
-        >
-          <span className="nav-icon">{icons.estudoCustos}</span>
-          <span className="nav-text">Estudo de Custos</span>
-        </Link>
-        <Link 
-          to="/contatos" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/contatos') ? 'nav-link-active' : ''}`}
-          title={linkTitle('Contatos')}
-        >
-          <span className="nav-icon">{icons.contatos}</span>
-          <span className="nav-text">Contatos</span>
-        </Link>
-        {canAccessFormularioPassagem && (
-          <Link 
-            to="/formulario-passagem" 
-            className={`nav-link nav-link-modern ${location.pathname.startsWith('/formulario-passagem') ? 'nav-link-active' : ''}`}
-            title={linkTitle('Formulário de Passagem')}
-          >
-            <span className="nav-icon">{icons.formularioPassagem}</span>
-            <span className="nav-text">Formulário de Passagem</span>
-          </Link>
-        )}
-        <Link 
-          to="/feedbacks" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/feedbacks') ? 'nav-link-active' : ''}`}
-          title={linkTitle('Feedbacks')}
-        >
-          <span className="nav-icon">{icons.feedbacks}</span>
-          <span className="nav-text">Feedbacks</span>
-        </Link>
+        {area === 'projetos' && projetosLinks}
+        {area === 'configuracoes' && configuracoesLinks}
       </nav>
       <button
         type="button"
@@ -327,7 +343,28 @@ function AppContent() {
 
   // 4. Autenticado: mostrar shell (TopBar, Sidebar, rotas)
   const isHomeRoute = location.pathname === '/home' || location.pathname === '/';
-  const showSidebar = !isHomeRoute;
+  
+  // Detectar área atual baseado na rota
+  const getCurrentArea = () => {
+    const path = location.pathname;
+    if (path.startsWith('/indicadores-lideranca') || 
+        path.startsWith('/horas') || 
+        path.startsWith('/projetos') || 
+        path.startsWith('/cs') || 
+        path.startsWith('/estudo-de-custos') || 
+        path.startsWith('/contatos') || 
+        path.startsWith('/formulario-passagem') || 
+        path.startsWith('/feedbacks')) {
+      return 'projetos';
+    }
+    if (path.startsWith('/acessos') || path.startsWith('/logs')) {
+      return 'configuracoes';
+    }
+    return null;
+  };
+  
+  const currentArea = getCurrentArea();
+  const showSidebar = !isHomeRoute && currentArea !== null;
   
   return (
     <div className="app app-shell">
@@ -337,6 +374,7 @@ function AppContent() {
           <Sidebar
             collapsed={isSidebarCollapsed}
             onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
+            area={currentArea}
           />
         )}
         <main className={`main-content ${showSidebar ? 'main-content-sidebar' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
@@ -445,6 +483,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   {isPrivileged ? <ConfiguracoesView /> : <Navigate to="/indicadores-lideranca" replace />}
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/logs" 
+              element={
+                <ProtectedRoute>
+                  {isPrivileged ? <LogsView /> : <Navigate to="/indicadores-lideranca" replace />}
                 </ProtectedRoute>
               } 
             />
