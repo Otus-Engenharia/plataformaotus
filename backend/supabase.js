@@ -621,7 +621,7 @@ export async function fetchOKRs(quarter = null, level = null) {
   }
 
   if (level && level !== 'todos') {
-    query = query.eq('level', level);
+    query = query.eq('nivel', level);
   }
 
   const { data, error } = await query;

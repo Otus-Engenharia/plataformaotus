@@ -382,7 +382,9 @@ function AppContent() {
   const currentArea = getCurrentArea();
   const showSidebar = !isHomeRoute && currentArea !== null;
   const showTopBar = !isHomeRoute;
-  const showOracle = !isHomeRoute;
+  // Não mostrar Oráculo na Home, OKRs e Indicadores
+  const isOKRsOrIndicadoresRoute = location.pathname === '/okrs' || location.pathname === '/indicadores';
+  const showOracle = !isHomeRoute && !isOKRsOrIndicadoresRoute;
   
   // Tela Home: sem TopBar, sem Sidebar, sem Oráculo
   if (isHomeRoute) {
