@@ -210,10 +210,10 @@ app.post('/api/auth/logout', async (req, res) => {
 });
 
 /**
- * Rota: GET /api/debug/env (PROTEGIDO - APENAS ADMIN)
+ * Rota: GET /api/debug/env (TEMPORÁRIO - REMOVER EM PRODUÇÃO)
  * Verifica se as variáveis de ambiente estão carregadas
  */
-app.get('/api/debug/env', ensureAuthenticated, ensurePrivileged, (_req, res) => {
+app.get('/api/debug/env', (_req, res) => {
   res.json({
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? `Presente (${process.env.GOOGLE_CLIENT_ID.substring(0, 20)}...)` : 'AUSENTE',
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? `Presente (${process.env.GOOGLE_CLIENT_SECRET.substring(0, 10)}...)` : 'AUSENTE',
