@@ -51,9 +51,11 @@ app.use(
     secret: process.env.SESSION_SECRET || 'otus-engenharia-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
+    proxy: true, // Necessário quando está atrás de proxy (Nginx)
     cookie: {
       secure: process.env.NODE_ENV === 'production', // HTTPS em produção
       httpOnly: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax', // Permite cookies em redirects
       maxAge: 24 * 60 * 60 * 1000, // 24 horas
     },
   })
