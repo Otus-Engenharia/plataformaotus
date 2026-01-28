@@ -62,6 +62,14 @@ DROP TYPE IF EXISTS public.plan_status CASCADE;
 DROP TYPE IF EXISTS public.consolidation_type CASCADE;
 
 -- ============================================================
+-- INSTRUÇÕES IMPORTANTES
+-- ============================================================
+-- ⚠️ EXECUTE ESTE SCRIPT COMPLETO DE UMA VEZ NO SUPABASE SQL EDITOR
+-- ⚠️ NÃO execute partes isoladas - o script depende da ordem de criação
+-- ⚠️ Se houver erro, execute TODO o script novamente (os DROP IF EXISTS são seguros)
+-- ============================================================
+
+-- ============================================================
 -- 1. ENUMS
 -- ============================================================
 CREATE TYPE public.app_role AS ENUM ('admin', 'leader');
@@ -74,6 +82,7 @@ CREATE TYPE public.consolidation_type AS ENUM ('sum', 'average', 'last_value', '
 -- ============================================================
 -- 2. SECTORS (Setores)
 -- ============================================================
+-- IMPORTANTE: Esta tabela deve ser criada PRIMEIRO (sem dependências)
 CREATE TABLE public.sectors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -85,7 +94,24 @@ CREATE TABLE public.sectors (
 ALTER TABLE public.sectors ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
--- 3. PROFILES (Perfis de Usuários)
+-- 3. POSITIONS (Cargos)
+-- ============================================================
+-- IMPORTANTE: Esta tabela DEVE ser criada ANTES de 'profiles' e 'position_indicators'
+-- pois ambas referenciam esta tabela
+CREATE TABLE IF NOT EXISTS public.positions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT,
+    is_leadership BOOLEAN NOT NULL DEFAULT false,
+    sector_id UUID REFERENCES public.sectors(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.positions ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- 4. PROFILES (Perfis de Usuários)
 -- ============================================================
 CREATE TABLE public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -100,7 +126,7 @@ CREATE TABLE public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
--- 4. USER ROLES (Roles de Usuários)
+-- 5. USER ROLES (Roles de Usuários)
 -- ============================================================
 CREATE TABLE public.user_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -111,21 +137,6 @@ CREATE TABLE public.user_roles (
 );
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
-
--- ============================================================
--- 5. POSITIONS (Cargos)
--- ============================================================
-CREATE TABLE public.positions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    description TEXT,
-    is_leadership BOOLEAN NOT NULL DEFAULT false,
-    sector_id UUID REFERENCES public.sectors(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.positions ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- 6. POSITION_INDICATORS (Templates de Indicadores por Cargo)
@@ -670,5 +681,16 @@ COMMENT ON COLUMN public.indicators.monthly_targets IS 'Metas mensais em formato
 COMMENT ON COLUMN public.position_indicators.monthly_targets IS 'Metas mensais padrão do template';
 
 -- ============================================================
+-- VERIFICAÇÃO FINAL
+-- ============================================================
+-- Execute esta query para verificar se todas as tabelas foram criadas:
+-- SELECT table_name FROM information_schema.tables 
+-- WHERE table_schema = 'public' 
+-- AND table_name IN ('sectors', 'positions', 'profiles', 'user_roles', 'position_indicators', 'indicators', 'check_ins', 'objectives', 'key_results', 'initiatives', 'comments', 'recovery_plans', 'recovery_plan_actions', 'invites')
+-- ORDER BY table_name;
+
+-- ============================================================
 -- FIM DO SCRIPT
 -- ============================================================
+-- ✅ Se você chegou até aqui sem erros, todas as tabelas foram criadas com sucesso!
+-- ✅ Verifique se a tabela 'positions' existe executando: SELECT * FROM public.positions LIMIT 1;
