@@ -63,6 +63,45 @@ function IndicadoresView() {
     fetchIndicadores();
   }, [selectedPeriod, selectedCategory]);
 
+  const getMockData = () => [
+    {
+      id: 1,
+      nome: 'Taxa de Conclusão de Projetos',
+      valor: 85,
+      meta: 90,
+      unidade: '%',
+      categoria: 'projetos',
+      tendencia: 'up',
+    },
+    {
+      id: 2,
+      nome: 'Satisfação do Cliente (NPS)',
+      valor: 72,
+      meta: 80,
+      unidade: 'pontos',
+      categoria: 'operacional',
+      tendencia: 'up',
+    },
+    {
+      id: 3,
+      nome: 'Margem de Lucro',
+      valor: 18.5,
+      meta: 20,
+      unidade: '%',
+      categoria: 'financeiro',
+      tendencia: 'stable',
+    },
+    {
+      id: 4,
+      nome: 'Tempo Médio de Entrega',
+      valor: 45,
+      meta: 40,
+      unidade: 'dias',
+      categoria: 'operacional',
+      tendencia: 'down',
+    },
+  ];
+
   const fetchIndicadores = async () => {
     try {
       setLoading(true);
@@ -70,91 +109,15 @@ function IndicadoresView() {
         params: { period: selectedPeriod, category: selectedCategory },
         withCredentials: true,
       });
-      
+
       if (response.data?.success) {
         setIndicadores(response.data.data || []);
       } else {
-        // Fallback para dados mockados se a tabela ainda não existir
-        setIndicadores([
-        {
-          id: 1,
-          nome: 'Taxa de Conclusão de Projetos',
-          valor: 85,
-          meta: 90,
-          unidade: '%',
-          categoria: 'projetos',
-          tendencia: 'up',
-        },
-        {
-          id: 2,
-          nome: 'Satisfação do Cliente (NPS)',
-          valor: 72,
-          meta: 80,
-          unidade: 'pontos',
-          categoria: 'operacional',
-          tendencia: 'up',
-        },
-        {
-          id: 3,
-          nome: 'Margem de Lucro',
-          valor: 18.5,
-          meta: 20,
-          unidade: '%',
-          categoria: 'financeiro',
-          tendencia: 'stable',
-        },
-        {
-          id: 4,
-          nome: 'Tempo Médio de Entrega',
-          valor: 45,
-          meta: 40,
-          unidade: 'dias',
-          categoria: 'operacional',
-          tendencia: 'down',
-        },
-        ]);
+        setIndicadores(getMockData());
       }
     } catch (error) {
       console.error('Erro ao buscar indicadores:', error);
-      // Em caso de erro (ex: tabela não existe ainda), usa dados mockados
-      setIndicadores([
-        {
-          id: 1,
-          nome: 'Taxa de Conclusão de Projetos',
-          valor: 85,
-          meta: 90,
-          unidade: '%',
-          categoria: 'projetos',
-          tendencia: 'up',
-        },
-        {
-          id: 2,
-          nome: 'Satisfação do Cliente (NPS)',
-          valor: 72,
-          meta: 80,
-          unidade: 'pontos',
-          categoria: 'operacional',
-          tendencia: 'up',
-        },
-        {
-          id: 3,
-          nome: 'Margem de Lucro',
-          valor: 18.5,
-          meta: 20,
-          unidade: '%',
-          categoria: 'financeiro',
-          tendencia: 'stable',
-        },
-        {
-          id: 4,
-          nome: 'Tempo Médio de Entrega',
-          valor: 45,
-          meta: 40,
-          unidade: 'dias',
-          categoria: 'operacional',
-          tendencia: 'down',
-        },
-      ]);
+      setIndicadores(getMockData());
     } finally {
       setLoading(false);
     }
@@ -164,23 +127,18 @@ function IndicadoresView() {
     ? indicadores 
     : indicadores.filter(ind => ind.categoria === selectedCategory);
 
-  const getStatusColor = (indicador) => {
+  function getStatusColor(indicador) {
     const percentual = (indicador.valor / indicador.meta) * 100;
-    if (percentual >= 100) return '#34A853'; // Verde
-    if (percentual >= 80) return '#FBBC05'; // Amarelo
-    return '#EA4335'; // Vermelho
-  };
+    if (percentual >= 100) return '#34A853';
+    if (percentual >= 80) return '#FBBC05';
+    return '#EA4335';
+  }
 
-  const getTendenciaIcon = (tendencia) => {
-    switch (tendencia) {
-      case 'up':
-        return '↑';
-      case 'down':
-        return '↓';
-      default:
-        return '→';
-    }
-  };
+  function getTendenciaIcon(tendencia) {
+    if (tendencia === 'up') return '↑';
+    if (tendencia === 'down') return '↓';
+    return '→';
+  }
 
   const handleAddIndicador = () => {
     setEditingIndicador(null);
@@ -219,8 +177,7 @@ function IndicadoresView() {
   const handleSaveIndicador = async () => {
     try {
       setSaving(true);
-      
-      // Validação básica
+
       if (!formData.nome || formData.valor === '' || !formData.meta || !formData.unidade || !formData.categoria) {
         alert('Preencha todos os campos obrigatórios');
         return;
@@ -240,20 +197,16 @@ function IndicadoresView() {
         ativo: true
       };
 
-      if (editingIndicador) {
-        // Editar Indicador existente
-        await axios.put(`${API_URL}/api/indicadores/${editingIndicador.id}`, indicadorPayload, {
-          withCredentials: true,
-        });
-      } else {
-        // Criar novo Indicador
-        await axios.post(`${API_URL}/api/indicadores`, indicadorPayload, {
-          withCredentials: true,
-        });
-      }
+      const url = editingIndicador
+        ? `${API_URL}/api/indicadores/${editingIndicador.id}`
+        : `${API_URL}/api/indicadores`;
+
+      const method = editingIndicador ? axios.put : axios.post;
+
+      await method(url, indicadorPayload, { withCredentials: true });
 
       setShowAddModal(false);
-      fetchIndicadores(); // Recarrega a lista
+      fetchIndicadores();
     } catch (error) {
       console.error('Erro ao salvar indicador:', error);
       alert(error.response?.data?.error || 'Erro ao salvar indicador');
@@ -278,24 +231,32 @@ function IndicadoresView() {
     }
   };
 
-  // Dados para gráfico de barras
+  // Dados para gráfico de barras com gradientes
   const chartData = {
-    labels: filteredIndicadores.map(ind => ind.nome),
+    labels: filteredIndicadores.map(ind => ind.nome.length > 25 ? ind.nome.substring(0, 25) + '...' : ind.nome),
     datasets: [
       {
         label: 'Valor Atual',
         data: filteredIndicadores.map(ind => ind.valor),
-        backgroundColor: filteredIndicadores.map(ind => getStatusColor(ind)),
+        backgroundColor: filteredIndicadores.map(ind => {
+          const color = getStatusColor(ind);
+          return color === '#34A853' ? 'rgba(52, 168, 83, 0.85)' :
+                 color === '#FBBC05' ? 'rgba(251, 188, 5, 0.85)' :
+                 'rgba(234, 67, 53, 0.85)';
+        }),
         borderColor: filteredIndicadores.map(ind => getStatusColor(ind)),
-        borderWidth: 1,
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false,
       },
       {
         label: 'Meta',
         data: filteredIndicadores.map(ind => ind.meta),
-        backgroundColor: 'rgba(0, 0, 0, 0.1)',
-        borderColor: '#1a1a1a',
+        backgroundColor: 'rgba(255, 221, 0, 0.2)',
+        borderColor: '#ffdd00',
         borderWidth: 2,
-        borderDash: [5, 5],
+        borderRadius: 8,
+        borderSkipped: false,
       },
     ],
   };
@@ -306,21 +267,93 @@ function IndicadoresView() {
     plugins: {
       legend: {
         position: 'top',
+        align: 'end',
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'rectRounded',
+          padding: 20,
+          font: {
+            family: "'Inter', sans-serif",
+            size: 12,
+            weight: '600'
+          },
+          color: '#1a1a1a'
+        }
       },
       tooltip: {
+        backgroundColor: 'rgba(26, 26, 26, 0.95)',
+        titleFont: {
+          family: "'Inter', sans-serif",
+          size: 13,
+          weight: '700'
+        },
+        bodyFont: {
+          family: "'Inter', sans-serif",
+          size: 12
+        },
+        padding: 14,
+        cornerRadius: 10,
+        displayColors: true,
+        boxPadding: 6,
         callbacks: {
+          title: function(context) {
+            return filteredIndicadores[context[0].dataIndex]?.nome || '';
+          },
           label: function(context) {
             const indicador = filteredIndicadores[context.dataIndex];
-            return `${context.dataset.label}: ${context.parsed.y} ${indicador.unidade}`;
+            return ` ${context.dataset.label}: ${context.parsed.y} ${indicador?.unidade || ''}`;
           },
         },
       },
+      datalabels: {
+        display: false
+      }
     },
     scales: {
       y: {
         beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.04)',
+          drawBorder: false
+        },
+        ticks: {
+          font: {
+            family: "'Inter', sans-serif",
+            size: 11,
+            weight: '500'
+          },
+          color: '#737373',
+          padding: 10
+        },
+        border: {
+          display: false
+        }
       },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          font: {
+            family: "'Inter', sans-serif",
+            size: 11,
+            weight: '500'
+          },
+          color: '#737373',
+          maxRotation: 45,
+          minRotation: 0
+        },
+        border: {
+          display: false
+        }
+      }
     },
+    animation: {
+      duration: 800,
+      easing: 'easeOutQuart'
+    },
+    barPercentage: 0.7,
+    categoryPercentage: 0.8
   };
 
   if (loading) {
@@ -580,7 +613,7 @@ function IndicadoresView() {
                     Cancelar
                   </button>
                   <button type="submit" className="btn-save" disabled={saving}>
-                    {saving ? 'Salvando...' : editingIndicador ? 'Atualizar' : 'Criar Indicador'}
+                    {saving ? 'Salvando...' : (editingIndicador ? 'Atualizar' : 'Criar Indicador')}
                   </button>
                 </div>
               </form>

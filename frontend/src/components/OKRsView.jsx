@@ -33,6 +33,46 @@ function OKRsView() {
     fetchOKRs();
   }, [selectedQuarter, selectedLevel]);
 
+  const getMockData = () => [
+    {
+      id: 1,
+      titulo: 'Aumentar satisfação do cliente',
+      nivel: 'empresa',
+      responsavel: 'Diretoria',
+      quarter: 'Q1-2025',
+      progresso: 75,
+      keyResults: [
+        { id: 1, descricao: 'Atingir NPS de 80+', progresso: 90, meta: 80, atual: 72 },
+        { id: 2, descricao: 'Reduzir tempo de resposta em 30%', progresso: 60, meta: 30, atual: 18 },
+        { id: 3, descricao: 'Aumentar taxa de retenção para 95%', progresso: 75, meta: 95, atual: 71 },
+      ],
+    },
+    {
+      id: 2,
+      titulo: 'Melhorar eficiência operacional',
+      nivel: 'time',
+      responsavel: 'Time de Projetos',
+      quarter: 'Q1-2025',
+      progresso: 65,
+      keyResults: [
+        { id: 4, descricao: 'Reduzir tempo médio de entrega em 20%', progresso: 80, meta: 20, atual: 16 },
+        { id: 5, descricao: 'Aumentar taxa de conclusão para 90%', progresso: 50, meta: 90, atual: 45 },
+      ],
+    },
+    {
+      id: 3,
+      titulo: 'Expandir portfólio de clientes',
+      nivel: 'empresa',
+      responsavel: 'Comercial',
+      quarter: 'Q1-2025',
+      progresso: 55,
+      keyResults: [
+        { id: 6, descricao: 'Fechar 10 novos contratos', progresso: 60, meta: 10, atual: 6 },
+        { id: 7, descricao: 'Aumentar receita recorrente em 25%', progresso: 50, meta: 25, atual: 12.5 },
+      ],
+    },
+  ];
+
   const fetchOKRs = async () => {
     try {
       setLoading(true);
@@ -40,93 +80,15 @@ function OKRsView() {
         params: { quarter: selectedQuarter, level: selectedLevel },
         withCredentials: true,
       });
-      
+
       if (response.data?.success) {
         setOkrs(response.data.data || []);
       } else {
-        // Fallback para dados mockados se a tabela ainda não existir
-        setOkrs([
-        {
-          id: 1,
-          titulo: 'Aumentar satisfação do cliente',
-          nivel: 'empresa',
-          responsavel: 'Diretoria',
-          quarter: 'Q1-2025',
-          progresso: 75,
-          keyResults: [
-            { id: 1, descricao: 'Atingir NPS de 80+', progresso: 90, meta: 80, atual: 72 },
-            { id: 2, descricao: 'Reduzir tempo de resposta em 30%', progresso: 60, meta: 30, atual: 18 },
-            { id: 3, descricao: 'Aumentar taxa de retenção para 95%', progresso: 75, meta: 95, atual: 71 },
-          ],
-        },
-        {
-          id: 2,
-          titulo: 'Melhorar eficiência operacional',
-          nivel: 'time',
-          responsavel: 'Time de Projetos',
-          quarter: 'Q1-2025',
-          progresso: 65,
-          keyResults: [
-            { id: 4, descricao: 'Reduzir tempo médio de entrega em 20%', progresso: 80, meta: 20, atual: 16 },
-            { id: 5, descricao: 'Aumentar taxa de conclusão para 90%', progresso: 50, meta: 90, atual: 45 },
-          ],
-        },
-        {
-          id: 3,
-          titulo: 'Expandir portfólio de clientes',
-          nivel: 'empresa',
-          responsavel: 'Comercial',
-          quarter: 'Q1-2025',
-          progresso: 55,
-          keyResults: [
-            { id: 6, descricao: 'Fechar 10 novos contratos', progresso: 60, meta: 10, atual: 6 },
-            { id: 7, descricao: 'Aumentar receita recorrente em 25%', progresso: 50, meta: 25, atual: 12.5 },
-          ],
-        },
-        ]);
+        setOkrs(getMockData());
       }
     } catch (error) {
       console.error('Erro ao buscar OKRs:', error);
-      // Em caso de erro (ex: tabela não existe ainda), usa dados mockados
-      setOkrs([
-        {
-          id: 1,
-          titulo: 'Aumentar satisfação do cliente',
-          nivel: 'empresa',
-          responsavel: 'Diretoria',
-          quarter: 'Q1-2025',
-          progresso: 75,
-          keyResults: [
-            { id: 1, descricao: 'Atingir NPS de 80+', progresso: 90, meta: 80, atual: 72 },
-            { id: 2, descricao: 'Reduzir tempo de resposta em 30%', progresso: 60, meta: 30, atual: 18 },
-            { id: 3, descricao: 'Aumentar taxa de retenção para 95%', progresso: 75, meta: 95, atual: 71 },
-          ],
-        },
-        {
-          id: 2,
-          titulo: 'Melhorar eficiência operacional',
-          nivel: 'time',
-          responsavel: 'Time de Projetos',
-          quarter: 'Q1-2025',
-          progresso: 65,
-          keyResults: [
-            { id: 4, descricao: 'Reduzir tempo médio de entrega em 20%', progresso: 80, meta: 20, atual: 16 },
-            { id: 5, descricao: 'Aumentar taxa de conclusão para 90%', progresso: 50, meta: 90, atual: 45 },
-          ],
-        },
-        {
-          id: 3,
-          titulo: 'Expandir portfólio de clientes',
-          nivel: 'empresa',
-          responsavel: 'Comercial',
-          quarter: 'Q1-2025',
-          progresso: 55,
-          keyResults: [
-            { id: 6, descricao: 'Fechar 10 novos contratos', progresso: 60, meta: 10, atual: 6 },
-            { id: 7, descricao: 'Aumentar receita recorrente em 25%', progresso: 50, meta: 25, atual: 12.5 },
-          ],
-        },
-      ]);
+      setOkrs(getMockData());
     } finally {
       setLoading(false);
     }
@@ -136,18 +98,18 @@ function OKRsView() {
     ? okrs 
     : okrs.filter(okr => okr.nivel === selectedLevel);
 
-  const getProgressColor = (progresso) => {
-    if (progresso >= 80) return '#34A853'; // Verde
-    if (progresso >= 50) return '#FBBC05'; // Amarelo
-    return '#EA4335'; // Vermelho
-  };
+  function getProgressColor(progresso) {
+    if (progresso >= 80) return '#34A853';
+    if (progresso >= 50) return '#FBBC05';
+    return '#EA4335';
+  }
 
-  const getProgressLabel = (progresso) => {
+  function getProgressLabel(progresso) {
     if (progresso >= 100) return 'Concluído';
     if (progresso >= 80) return 'No caminho';
     if (progresso >= 50) return 'Em progresso';
     return 'Atenção necessária';
-  };
+  }
 
   const handleAddOKR = () => {
     setEditingOkr(null);
@@ -189,8 +151,7 @@ function OKRsView() {
   const handleSaveOKR = async () => {
     try {
       setSaving(true);
-      
-      // Validação básica
+
       if (!formData.titulo || !formData.responsavel || !formData.quarter) {
         alert('Preencha todos os campos obrigatórios');
         return;
@@ -214,20 +175,16 @@ function OKRsView() {
           }))
       };
 
-      if (editingOkr) {
-        // Editar OKR existente
-        await axios.put(`${API_URL}/api/okrs/${editingOkr.id}`, okrPayload, {
-          withCredentials: true,
-        });
-      } else {
-        // Criar novo OKR
-        await axios.post(`${API_URL}/api/okrs`, okrPayload, {
-          withCredentials: true,
-        });
-      }
+      const url = editingOkr
+        ? `${API_URL}/api/okrs/${editingOkr.id}`
+        : `${API_URL}/api/okrs`;
+
+      const method = editingOkr ? axios.put : axios.post;
+
+      await method(url, okrPayload, { withCredentials: true });
 
       setShowAddModal(false);
-      fetchOKRs(); // Recarrega a lista
+      fetchOKRs();
     } catch (error) {
       console.error('Erro ao salvar OKR:', error);
       alert(error.response?.data?.error || 'Erro ao salvar OKR');
@@ -579,7 +536,7 @@ function OKRsView() {
                     Cancelar
                   </button>
                   <button type="submit" className="btn-save" disabled={saving}>
-                    {saving ? 'Salvando...' : editingOkr ? 'Atualizar' : 'Criar OKR'}
+                    {saving ? 'Salvando...' : (editingOkr ? 'Atualizar' : 'Criar OKR')}
                   </button>
                 </div>
               </form>

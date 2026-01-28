@@ -149,7 +149,7 @@ function requireAuth(req, res, next) {
  */
 async function logAction(req, actionType, resourceType = null, resourceId = null, resourceName = null, details = null) {
   if (!req.isAuthenticated() || !req.user) {
-    return; // Não loga ações de usuários não autenticados
+    return;
   }
 
   try {
@@ -168,7 +168,6 @@ async function logAction(req, actionType, resourceType = null, resourceId = null
       user_agent: userAgent,
     });
   } catch (error) {
-    // Não interrompe o fluxo se houver erro no log
     console.error('Erro ao registrar log:', error);
   }
 }
@@ -629,9 +628,14 @@ app.put('/api/projetos/cronograma/cobrancas', requireAuth, async (req, res) => {
 const META_RESPOSTAS_NPS = Number(process.env.META_RESPOSTAS_NPS) || 80;
 
 function parseNPS(val) {
-  if (val == null || val === '') return null;
+  if (val == null || val === '') {
+    return null;
+  }
   const n = parseInt(String(val).trim(), 10);
-  return Number.isNaN(n) || n < 0 || n > 10 ? null : n;
+  if (Number.isNaN(n) || n < 0 || n > 10) {
+    return null;
+  }
+  return n;
 }
 
 function aggregateNPS(npsRows, portRows) {
@@ -786,28 +790,48 @@ app.get('/api/estudo-custos', requireAuth, async (req, res) => {
   }
 });
 
-/** Parse duracao (STRING) para horas decimais. */
 function parseDuracaoHoras(duracao) {
-  if (duracao == null || String(duracao).trim() === '') return 0;
+  if (duracao == null || String(duracao).trim() === '') {
+    return 0;
+  }
+
   const s = String(duracao).trim();
   const n = parseFloat(s.replace(',', '.'));
-  if (!Number.isNaN(n)) return n;
+
+  if (!Number.isNaN(n)) {
+    return n;
+  }
+
   const hMatch = s.match(/(\d+)\s*h/i);
   const mMatch = s.match(/(\d+)\s*m/i);
   const h = hMatch ? parseInt(hMatch[1], 10) : 0;
   const m = mMatch ? parseInt(mMatch[1], 10) : 0;
+
   return h + m / 60;
 }
 
-/** BigQuery DATE pode vir como { value: "YYYY-MM-DD" }. Normaliza para string. */
 function toDateString(v) {
-  if (v == null) return null;
-  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
-  if (typeof v === 'object' && v && typeof v.value === 'string') return v.value.slice(0, 10);
+  if (v == null) {
+    return null;
+  }
+
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) {
+    return v.slice(0, 10);
+  }
+
+  if (typeof v === 'object' && v && typeof v.value === 'string') {
+    return v.value.slice(0, 10);
+  }
+
   try {
     const d = new Date(v);
-    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  } catch (_) {}
+    if (!Number.isNaN(d.getTime())) {
+      return d.toISOString().slice(0, 10);
+    }
+  } catch (_) {
+    // Ignore parse errors
+  }
+
   return null;
 }
 
@@ -885,20 +909,21 @@ function aggregateHorasByProjeto(rows) {
     });
 }
 
-/** Retorna data em YYYY-MM-DD. */
 function toISODate(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return `${year}-${month}-${day}`;
 }
 
-/** Intervalo padrão para horas: últimos 12 meses (evita consulta pesada). */
 function defaultHorasDateRange() {
-  const fim = new Date();
-  const inicio = new Date();
-  inicio.setFullYear(inicio.getFullYear() - 1);
-  return { dataInicio: toISODate(inicio), dataFim: toISODate(fim) };
+  const dataFim = new Date();
+  const dataInicio = new Date();
+  dataInicio.setFullYear(dataInicio.getFullYear() - 1);
+  return {
+    dataInicio: toISODate(dataInicio),
+    dataFim: toISODate(dataFim)
+  };
 }
 
 /**
