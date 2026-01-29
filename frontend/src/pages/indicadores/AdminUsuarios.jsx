@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import SearchableDropdown from '../../components/SearchableDropdown';
 import './AdminPages.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -17,12 +18,13 @@ export default function AdminUsuarios() {
   const [filterRole, setFilterRole] = useState('');
   const [filterSetor, setFilterSetor] = useState('');
   const [filterCargo, setFilterCargo] = useState('');
+  const [filterLider, setFilterLider] = useState('');
   const [showOnlyActive, setShowOnlyActive] = useState(true);
 
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({ sector_id: '', position_id: '', role: '' });
+  const [editForm, setEditForm] = useState({ sector_id: '', position_id: '', role: '', leader_id: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -62,9 +64,25 @@ export default function AdminUsuarios() {
   const leadersCount = users.filter(u => u.role === 'leader').length;
   const activeCount = users.filter(u => u.is_active !== false).length;
 
-  // Unique setors and cargos for filter dropdowns
+  // Unique setors for filter dropdown (always show all)
   const uniqueSetors = [...new Set(users.map(u => u.setor?.name).filter(Boolean))].sort();
-  const uniqueCargos = [...new Set(users.map(u => u.cargo?.name).filter(Boolean))].sort();
+
+  // Cargos filtered by selected setor (cascading filter)
+  const uniqueCargos = [...new Set(
+    users
+      .filter(u => !filterSetor || u.setor?.name === filterSetor)
+      .map(u => u.cargo?.name)
+      .filter(Boolean)
+  )].sort();
+
+  // Liders filtered by selected setor and cargo (cascading filter)
+  const uniqueLiders = [...new Set(
+    users
+      .filter(u => !filterSetor || u.setor?.name === filterSetor)
+      .filter(u => !filterCargo || u.cargo?.name === filterCargo)
+      .map(u => u.leader?.name)
+      .filter(Boolean)
+  )].sort();
 
   // Filtered users
   const filteredUsers = users.filter(user => {
@@ -82,15 +100,18 @@ export default function AdminUsuarios() {
     // Cargo filter
     const matchesCargo = !filterCargo || user.cargo?.name === filterCargo;
 
+    // Lider filter
+    const matchesLider = !filterLider || user.leader?.name === filterLider;
+
     // Active status filter
     const isActive = user.is_active !== false;
     const matchesActive = !showOnlyActive || isActive;
 
-    return matchesSearch && matchesRole && matchesSetor && matchesCargo && matchesActive;
+    return matchesSearch && matchesRole && matchesSetor && matchesCargo && matchesLider && matchesActive;
   });
 
   // Check if any filter is active
-  const hasActiveFilters = filterRole || filterSetor || filterCargo || !showOnlyActive;
+  const hasActiveFilters = filterRole || filterSetor || filterCargo || filterLider || !showOnlyActive;
 
   // Clear all filters
   const clearAllFilters = () => {
@@ -98,6 +119,7 @@ export default function AdminUsuarios() {
     setFilterRole('');
     setFilterSetor('');
     setFilterCargo('');
+    setFilterLider('');
     setShowOnlyActive(true);
   };
 
@@ -116,6 +138,13 @@ export default function AdminUsuarios() {
       alert(err.message);
     }
   };
+
+  // Get potential leaders (users with role leader/admin or leadership position)
+  const potentialLeaders = users.filter(u => {
+    const hasLeaderRole = u.role === 'leader' || u.role === 'admin';
+    const isLeadershipPosition = u.cargo?.is_leadership === true || u.cargo?.is_leadership === 'true';
+    return hasLeaderRole || isLeadershipPosition;
+  });
 
   // Update position
   const handleUpdatePosition = async (userId, positionId) => {
@@ -149,12 +178,37 @@ export default function AdminUsuarios() {
     }
   };
 
-  // Toggle user active status
-  const handleToggleUserStatus = async (user) => {
-    const newStatus = user.is_active === false ? true : false;
-    const action = newStatus ? 'reativar' : 'desativar';
+  // Update leader
+  const handleUpdateLeader = async (userId, leaderId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/ind/admin/users/${userId}/leader`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leader_id: leaderId || null })
+      });
+      if (!res.ok) throw new Error('Erro ao atualizar líder');
+      fetchData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
-    if (!confirm(`Deseja ${action} o usuário "${user.name}"?`)) return;
+  // Toggle user active status - optimistic update
+  const handleToggleUserStatus = async (e, user) => {
+    // Prevent any event propagation or default behavior
+    e.preventDefault();
+    e.stopPropagation();
+
+    const newStatus = user.is_active === false ? true : false;
+    const previousStatus = user.is_active;
+
+    // Optimistic update - update UI immediately
+    setUsers(prevUsers =>
+      prevUsers.map(u =>
+        u.id === user.id ? { ...u, is_active: newStatus } : u
+      )
+    );
 
     try {
       const res = await fetch(`${API_URL}/api/ind/admin/users/${user.id}/status`, {
@@ -163,9 +217,18 @@ export default function AdminUsuarios() {
         credentials: 'include',
         body: JSON.stringify({ is_active: newStatus })
       });
-      if (!res.ok) throw new Error(`Erro ao ${action} usuário`);
-      fetchData();
+
+      if (!res.ok) {
+        throw new Error('Erro ao atualizar status');
+      }
+      // Success - UI already updated
     } catch (err) {
+      // Revert on error
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === user.id ? { ...u, is_active: previousStatus } : u
+        )
+      );
       alert(err.message);
     }
   };
@@ -176,7 +239,8 @@ export default function AdminUsuarios() {
     setEditForm({
       sector_id: user.setor?.id || '',
       position_id: user.cargo?.id || '',
-      role: user.role || 'user'
+      role: user.role || 'user',
+      leader_id: user.leader?.id || ''
     });
     setShowEditModal(true);
   };
@@ -207,6 +271,13 @@ export default function AdminUsuarios() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ role: editForm.role })
+      });
+
+      await fetch(`${API_URL}/api/ind/admin/users/${editingUser.id}/leader`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leader_id: editForm.leader_id || null })
       });
 
       setShowEditModal(false);
@@ -374,27 +445,38 @@ export default function AdminUsuarios() {
               <option value="user">Usuário</option>
             </select>
 
-            <select
+            <SearchableDropdown
               value={filterSetor}
-              onChange={(e) => setFilterSetor(e.target.value)}
-              className={`filter-dropdown ${filterSetor ? 'filter-active' : ''}`}
-            >
-              <option value="">Setor</option>
-              {uniqueSetors.map(setor => (
-                <option key={setor} value={setor}>{setor}</option>
-              ))}
-            </select>
+              onChange={(val) => {
+                setFilterSetor(val);
+                setFilterCargo(''); // Reset dependent filters
+                setFilterLider('');
+              }}
+              options={uniqueSetors}
+              placeholder="Setor"
+              count={uniqueSetors.length > 0 ? uniqueSetors.length : null}
+            />
 
-            <select
+            <SearchableDropdown
               value={filterCargo}
-              onChange={(e) => setFilterCargo(e.target.value)}
-              className={`filter-dropdown ${filterCargo ? 'filter-active' : ''}`}
-            >
-              <option value="">Cargo</option>
-              {uniqueCargos.map(cargo => (
-                <option key={cargo} value={cargo}>{cargo}</option>
-              ))}
-            </select>
+              onChange={(val) => {
+                setFilterCargo(val);
+                setFilterLider(''); // Reset dependent filter
+              }}
+              options={uniqueCargos}
+              placeholder="Cargo"
+              disabled={uniqueCargos.length === 0}
+              count={filterSetor && uniqueCargos.length > 0 ? uniqueCargos.length : null}
+            />
+
+            <SearchableDropdown
+              value={filterLider}
+              onChange={(val) => setFilterLider(val)}
+              options={uniqueLiders}
+              placeholder="Líder"
+              disabled={uniqueLiders.length === 0}
+              count={(filterSetor || filterCargo) && uniqueLiders.length > 0 ? uniqueLiders.length : null}
+            />
 
             <button
               type="button"
@@ -424,8 +506,8 @@ export default function AdminUsuarios() {
                 <th className="col-role">Papel</th>
                 <th className="col-sector">Setor</th>
                 <th className="col-position">Cargo</th>
+                <th className="col-leader">Líder</th>
                 <th className="col-status">Status</th>
-                <th className="col-actions"></th>
               </tr>
             </thead>
             <tbody>
@@ -446,96 +528,59 @@ export default function AdminUsuarios() {
                   const isActive = user.is_active !== false;
 
                   return (
-                    <tr key={user.id} className={!isActive ? 'row-disabled' : ''}>
+                    <tr
+                      key={user.id}
+                      className={`user-row ${!isActive ? 'row-disabled' : ''}`}
+                      onClick={() => openEditModal(user)}
+                    >
                       <td className="col-user">
-                        <div className="user-cell-v2">
-                          <div className={`avatar-v2 ${getAvatarClass(user.role)} ${!isActive ? 'avatar-disabled' : ''}`}>
+                        <div className="user-cell-v3">
+                          <div className={`avatar-v3 ${getAvatarClass(user.role)} ${!isActive ? 'avatar-disabled' : ''}`}>
                             {getInitials(user.name)}
                           </div>
-                          <div className="user-meta">
-                            <span className="user-name-v2">
+                          <div className="user-meta-v3">
+                            <span className="user-name-v3">
                               {user.name || 'Sem nome'}
                               {isCurrentUser && <span className="you-badge">você</span>}
                             </span>
-                            <span className="user-email-v2">{user.email}</span>
+                            <span className="user-email-v3">{user.email}</span>
                           </div>
                         </div>
                       </td>
                       <td className="col-role">
-                        <select
-                          value={user.role || 'user'}
-                          onChange={(e) => handleUpdateRole(user.id, e.target.value)}
-                          className={`role-dropdown ${user.role === 'admin' || user.role === 'director' ? 'role-admin' : user.role === 'leader' ? 'role-leader' : ''}`}
-                          disabled={!isActive || isCurrentUser}
-                        >
-                          <option value="user">Usuário</option>
-                          <option value="leader">Líder</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </td>
-                      <td className="col-sector">
-                        <select
-                          value={user.setor?.id || ''}
-                          onChange={(e) => handleUpdateSector(user.id, e.target.value)}
-                          className="field-dropdown"
-                          disabled={!isActive}
-                        >
-                          <option value="">—</option>
-                          {sectors.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="col-position">
-                        <select
-                          value={user.cargo?.id || ''}
-                          onChange={(e) => handleUpdatePosition(user.id, e.target.value)}
-                          className="field-dropdown"
-                          disabled={!isActive}
-                        >
-                          <option value="">—</option>
-                          {positions.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="col-status">
-                        <span className={`status-chip-v2 ${isActive ? 'chip-active' : 'chip-inactive'}`}>
-                          <span className="status-dot-v2"></span>
-                          {isActive ? 'Ativo' : 'Inativo'}
+                        <span className={`role-pill ${user.role === 'admin' || user.role === 'director' ? 'role-pill-admin' : user.role === 'leader' ? 'role-pill-leader' : 'role-pill-user'}`}>
+                          {user.role === 'admin' || user.role === 'director' ? 'Admin' : user.role === 'leader' ? 'Líder' : 'Usuário'}
                         </span>
                       </td>
-                      <td className="col-actions">
-                        <div className="action-buttons">
+                      <td className="col-sector">
+                        <span className="field-text">{user.setor?.name || '—'}</span>
+                      </td>
+                      <td className="col-position">
+                        <span className="field-text">{user.cargo?.name || '—'}</span>
+                      </td>
+                      <td className="col-leader">
+                        <span className="field-text leader-text">
+                          {user.leader?.name || '—'}
+                        </span>
+                      </td>
+                      <td className="col-status" onClick={(e) => e.stopPropagation()}>
+                        {isCurrentUser ? (
+                          <span className={`status-chip-v3 ${isActive ? 'chip-active' : 'chip-inactive'}`}>
+                            <span className="status-dot-v3"></span>
+                            {isActive ? 'Ativo' : 'Inativo'}
+                          </span>
+                        ) : (
                           <button
                             type="button"
-                            className="action-btn"
-                            onClick={() => openEditModal(user)}
-                            title="Editar"
+                            className={`status-toggle-v3 ${isActive ? 'toggle-active' : 'toggle-inactive'}`}
+                            onClick={(e) => handleToggleUserStatus(e, user)}
+                            title={isActive ? 'Clique para desativar' : 'Clique para reativar'}
                           >
-                            <svg viewBox="0 0 24 24" width="16" height="16">
-                              <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                            </svg>
+                            <span className="toggle-track">
+                              <span className="toggle-thumb"></span>
+                            </span>
                           </button>
-                          {!isCurrentUser && (
-                            <button
-                              type="button"
-                              className={`action-btn ${isActive ? 'action-danger' : 'action-success'}`}
-                              onClick={() => handleToggleUserStatus(user)}
-                              title={isActive ? 'Desativar' : 'Reativar'}
-                            >
-                              {isActive ? (
-                                <svg viewBox="0 0 24 24" width="16" height="16">
-                                  <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>
-                                </svg>
-                              ) : (
-                                <svg viewBox="0 0 24 24" width="16" height="16">
-                                  <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                                </svg>
-                              )}
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -617,6 +662,23 @@ export default function AdminUsuarios() {
                     {positions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div className="form-field">
+                <label>Líder {potentialLeaders.length > 0 && <span style={{color: '#888', fontWeight: 'normal'}}>({potentialLeaders.length} disponíveis)</span>}</label>
+                <select
+                  value={editForm.leader_id}
+                  onChange={e => setEditForm({...editForm, leader_id: e.target.value})}
+                >
+                  <option value="">Sem líder</option>
+                  {potentialLeaders.filter(l => l.id !== editingUser?.id).length === 0 ? (
+                    <option disabled>Nenhum líder encontrado</option>
+                  ) : (
+                    potentialLeaders.filter(l => l.id !== editingUser?.id).map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))
+                  )}
+                </select>
               </div>
 
               <div className="modal-footer">

@@ -25,6 +25,7 @@ import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLoading from './components/AuthLoading';
 import OracleChat from './components/OracleChat';
+import BugReportFAB from './components/BugReportFAB';
 import './styles/App.css';
 
 // Lazy load das páginas de indicadores individuais
@@ -37,6 +38,7 @@ const HistoryView = lazy(() => import('./pages/indicadores/HistoryView'));
 const AdminSetores = lazy(() => import('./pages/indicadores/AdminSetores'));
 const AdminUsuarios = lazy(() => import('./pages/indicadores/AdminUsuarios'));
 const AdminCargos = lazy(() => import('./pages/indicadores/AdminCargos'));
+const AdminBugReports = lazy(() => import('./pages/indicadores/AdminBugReports'));
 
 const icons = {
   indicadoresLideranca: (
@@ -144,6 +146,11 @@ const icons = {
   positions: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z" />
+    </svg>
+  ),
+  bugs: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1M12 20c-3.3 0-6-2.7-6-6v-3a6 6 0 0112 0v3c0 3.3-2.7 6-6 6zM12 20v2M3 13h3M18 13h3M6.53 17.47l-2.12 2.12M17.47 17.47l2.12 2.12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
 };
@@ -271,6 +278,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.settings}</span>
         <span className="nav-text">Logs</span>
+      </Link>
+      <Link
+        to="/bug-reports"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/bug-reports') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Bug Reports')}
+      >
+        <span className="nav-icon">{icons.bugs}</span>
+        <span className="nav-text">Bug Reports</span>
       </Link>
     </>
   );
@@ -488,7 +503,7 @@ function AppContent() {
         path.startsWith('/feedbacks')) {
       return 'projetos';
     }
-    if (path.startsWith('/acessos') || path.startsWith('/logs')) {
+    if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports')) {
       return 'configuracoes';
     }
     if (path.startsWith('/ind')) {
@@ -637,6 +652,18 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/bug-reports"
+              element={
+                <ProtectedRoute>
+                  {isPrivileged ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <AdminBugReports />
+                    </Suspense>
+                  ) : <Navigate to="/indicadores-lideranca" replace />}
+                </ProtectedRoute>
+              }
+            />
             {/* Área de Indicadores Individuais */}
             <Route
               path="/ind"
@@ -741,6 +768,8 @@ function AppContent() {
           </Routes>
           {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}
           {showOracle && <OracleChat />}
+          {/* Bug Report FAB - disponível em todas as páginas exceto Home/Login */}
+          <BugReportFAB />
         </main>
       </div>
     </div>

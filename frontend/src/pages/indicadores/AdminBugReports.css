@@ -1,0 +1,580 @@
+/* ========================================
+   ADMIN BUG REPORTS PAGE
+   Design: Clean Light Theme / Otus Yellow
+   ======================================== */
+
+.bug-admin {
+  min-height: 100vh;
+  padding: 32px;
+  background: #f8f9fa;
+}
+
+/* Loading */
+.bug-admin__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 16px;
+  color: #666;
+}
+
+.bug-admin__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(212, 168, 0, 0.2);
+  border-top-color: #d4a800;
+  border-radius: 50%;
+  animation: bug-spin 0.8s linear infinite;
+}
+
+@keyframes bug-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Header */
+.bug-admin__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.bug-admin__title-section h1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.bug-admin__title-section h1 svg {
+  width: 32px;
+  height: 32px;
+  color: #d4a800;
+}
+
+.bug-admin__title-section p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Stats */
+.bug-admin__stats {
+  display: flex;
+  gap: 16px;
+}
+
+.bug-admin__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 24px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  min-width: 100px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.bug-admin__stat-value {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.bug-admin__stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+  margin-top: 4px;
+}
+
+.bug-admin__stat--warning .bug-admin__stat-value {
+  color: #f59e0b;
+}
+
+.bug-admin__stat--info .bug-admin__stat-value {
+  color: #3b82f6;
+}
+
+.bug-admin__stat--success .bug-admin__stat-value {
+  color: #22c55e;
+}
+
+/* Filters */
+.bug-admin__filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.bug-admin__filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bug-admin__filter-group label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+}
+
+.bug-admin__filter-group select,
+.bug-admin__filter-group input {
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #1a1a1a;
+  font-size: 14px;
+  min-width: 140px;
+}
+
+.bug-admin__filter-group select:focus,
+.bug-admin__filter-group input:focus {
+  outline: none;
+  border-color: #d4a800;
+  box-shadow: 0 0 0 3px rgba(212, 168, 0, 0.15);
+}
+
+.bug-admin__filter-group--search {
+  flex: 1;
+}
+
+.bug-admin__filter-group--search input {
+  width: 100%;
+  min-width: 250px;
+}
+
+.bug-admin__refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  color: #92700c;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bug-admin__refresh-btn:hover {
+  background: #fef3c7;
+  border-color: #d4a800;
+}
+
+.bug-admin__refresh-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Content Layout */
+.bug-admin__content {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+}
+
+.bug-admin__content:not(:has(.bug-admin__detail)) {
+  grid-template-columns: 1fr;
+}
+
+/* Table Container */
+.bug-admin__table-container {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.bug-admin__error,
+.bug-admin__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #888;
+  text-align: center;
+}
+
+.bug-admin__empty svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.bug-admin__error button {
+  margin-top: 16px;
+  padding: 8px 20px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  color: #92700c;
+  cursor: pointer;
+}
+
+/* Table */
+.bug-admin__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bug-admin__table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  background: #f9f9f9;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.bug-admin__table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+  font-size: 14px;
+}
+
+.bug-admin__table tr:hover {
+  background: #f9f9f9;
+}
+
+.bug-admin__row--selected {
+  background: #fffbeb !important;
+}
+
+.bug-admin__cell--date {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+}
+
+.bug-admin__cell--title {
+  max-width: 300px;
+}
+
+.bug-admin__title-link {
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.bug-admin__title-link:hover {
+  color: #92700c;
+}
+
+.bug-admin__cell--author {
+  max-width: 180px;
+}
+
+.bug-admin__author-name {
+  display: block;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.bug-admin__author-email {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Type Badge */
+.bug-admin__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.bug-admin__type-icon {
+  font-size: 14px;
+}
+
+/* Status Badge */
+.bug-admin__status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(var(--status-color), 0.15);
+  border: 1px solid var(--status-color);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--status-color);
+}
+
+.bug-admin__status-select {
+  padding: 6px 10px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  color: #1a1a1a;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Detail Panel */
+.bug-admin__detail {
+  position: sticky;
+  top: 32px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.bug-admin__detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.bug-admin__detail-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.bug-admin__detail-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.bug-admin__detail-close:hover {
+  color: #1a1a1a;
+}
+
+.bug-admin__detail-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.bug-admin__detail-content {
+  padding: 20px;
+}
+
+.bug-admin__detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.bug-admin__detail-date {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #888;
+}
+
+.bug-admin__detail-section {
+  margin-bottom: 20px;
+}
+
+.bug-admin__detail-section h4 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+}
+
+.bug-admin__detail-section p {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.bug-admin__detail-section a {
+  color: #92700c;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.bug-admin__detail-section a:hover {
+  text-decoration: underline;
+}
+
+.bug-admin__screenshot {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+}
+
+.bug-admin__detail-section textarea {
+  width: 100%;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #1a1a1a;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.bug-admin__detail-section textarea:focus {
+  outline: none;
+  border-color: #d4a800;
+  box-shadow: 0 0 0 3px rgba(212, 168, 0, 0.15);
+}
+
+.bug-admin__save-notes {
+  margin-top: 8px;
+  padding: 8px 16px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  color: #92700c;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bug-admin__save-notes:hover:not(:disabled) {
+  background: #fef3c7;
+}
+
+.bug-admin__save-notes:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bug-admin__detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.bug-admin__detail-actions label {
+  font-size: 12px;
+  color: #888;
+}
+
+.bug-admin__detail-actions select {
+  flex: 1;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #1a1a1a;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .bug-admin__content {
+    grid-template-columns: 1fr;
+  }
+
+  .bug-admin__detail {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 400px;
+    max-height: 100vh;
+    border-radius: 0;
+    border-left: 1px solid #e5e5e5;
+    z-index: 1000;
+  }
+}
+
+@media (max-width: 768px) {
+  .bug-admin {
+    padding: 16px;
+  }
+
+  .bug-admin__header {
+    flex-direction: column;
+  }
+
+  .bug-admin__stats {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .bug-admin__stat {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  .bug-admin__filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bug-admin__filter-group select,
+  .bug-admin__filter-group input {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .bug-admin__detail {
+    width: 100%;
+    max-width: none;
+  }
+
+  .bug-admin__table {
+    font-size: 13px;
+  }
+
+  .bug-admin__table th,
+  .bug-admin__table td {
+    padding: 10px 12px;
+  }
+}

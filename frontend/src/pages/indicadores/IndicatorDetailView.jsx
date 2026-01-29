@@ -10,6 +10,7 @@ import {
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
 import EditMonthlyTargetsDialog from '../../components/indicadores/dialogs/EditMonthlyTargetsDialog';
 import CreateRecoveryPlanDialog from '../../components/indicadores/dialogs/CreateRecoveryPlanDialog';
+import ViewRecoveryPlanDialog from '../../components/indicadores/dialogs/ViewRecoveryPlanDialog';
 import EditIndicatorDialog from '../../components/indicadores/dialogs/EditIndicatorDialog';
 import './IndicatorDetailView.css';
 
@@ -31,13 +32,16 @@ export default function IndicatorDetailView() {
   const [checkIns, setCheckIns] = useState([]);
   const [recoveryPlans, setRecoveryPlans] = useState([]);
   const [comments, setComments] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showEditTargetsDialog, setShowEditTargetsDialog] = useState(false);
   const [showEditIndicatorDialog, setShowEditIndicatorDialog] = useState(false);
   const [showRecoveryPlanDialog, setShowRecoveryPlanDialog] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(null);
+  const [selectedCheckIn, setSelectedCheckIn] = useState(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -45,6 +49,27 @@ export default function IndicatorDetailView() {
   useEffect(() => {
     fetchIndicador();
   }, [id]);
+
+  // Busca membros da equipe quando o indicador é carregado
+  useEffect(() => {
+    if (indicador?.setor_id) {
+      fetchTeamMembers(indicador.setor_id);
+    }
+  }, [indicador?.setor_id]);
+
+  const fetchTeamMembers = async (setorId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/ind/sectors/${setorId}/team`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTeamMembers(data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar equipe:', err);
+    }
+  };
 
   const fetchIndicador = async () => {
     setLoading(true);
@@ -93,14 +118,31 @@ export default function IndicatorDetailView() {
     }
   };
 
-  const openCheckInDialog = (month = null) => {
+  const openCheckInDialog = (month = null, existingCheckIn = null) => {
     setSelectedMonth(month);
+    setSelectedCheckIn(existingCheckIn);
     setShowCheckInDialog(true);
   };
 
   const closeCheckInDialog = () => {
     setShowCheckInDialog(false);
     setSelectedMonth(null);
+    setSelectedCheckIn(null);
+  };
+
+  const handleDeleteCheckIn = async (checkInId) => {
+    const res = await fetch(`${API_URL}/api/ind/check-ins/${checkInId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Erro ao excluir check-in');
+    }
+
+    closeCheckInDialog();
+    await fetchIndicador();
   };
 
   const handleUpdateMonthlyTargets = async (data) => {
@@ -127,8 +169,10 @@ export default function IndicatorDetailView() {
       credentials: 'include',
       body: JSON.stringify({
         descricao: planData.descricao,
-        acoes: planData.actions.map(a => a.descricao).join('\n'),
+        acoes: JSON.stringify(planData.actions),
         prazo: planData.prazo,
+        mes_referencia: planData.mes_referencia,
+        ano_referencia: planData.ano_referencia,
         status: 'pendente'
       })
     });
@@ -140,6 +184,55 @@ export default function IndicatorDetailView() {
 
     setShowRecoveryPlanDialog(false);
     fetchIndicador();
+  };
+
+  const handleUpdateRecoveryPlan = async (planId, data, skipRefresh = false) => {
+    const res = await fetch(`${API_URL}/api/ind/indicators/${id}/recovery-plans/${planId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Erro ao atualizar plano');
+    }
+
+    // Atualiza a lista local de planos sem refresh completo
+    if (!skipRefresh) {
+      setRecoveryPlans(prev => prev.map(p =>
+        p.id === planId ? { ...p, ...data } : p
+      ));
+    }
+  };
+
+  // Helper para parsear acoes (pode ser JSON, texto simples ou array)
+  const parseAcoes = (acoes) => {
+    if (!acoes) return [];
+    if (Array.isArray(acoes)) return acoes;
+    if (typeof acoes === 'string') {
+      // Tenta parsear como JSON primeiro
+      try {
+        const parsed = JSON.parse(acoes);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        // Se não for JSON válido, converte texto simples para array
+        return acoes.split('\n').filter(a => a.trim()).map(a => ({
+          descricao: a.trim(),
+          concluida: false
+        }));
+      }
+    }
+    return [];
+  };
+
+  const openPlanDialog = (plan) => {
+    setSelectedPlan(plan);
+  };
+
+  const closePlanDialog = () => {
+    setSelectedPlan(null);
   };
 
   const handleEditIndicator = async (data) => {
@@ -184,7 +277,7 @@ export default function IndicatorDetailView() {
   const getScore = () => {
     if (!indicador) return 0;
     return calculateIndicatorScore(
-      indicador.valor_consolidado,
+      indicador.valor,
       indicador.threshold_80,
       indicador.meta,
       indicador.threshold_120,
@@ -208,6 +301,7 @@ export default function IndicatorDetailView() {
         value: checkIn?.valor ?? null,
         notes: checkIn?.notas,
         checkInId: checkIn?.id,
+        checkIn: checkIn || null,
         date: checkIn?.created_at
       };
     });
@@ -358,7 +452,7 @@ export default function IndicatorDetailView() {
                                indicador.consolidation_type === 'average' ? 'Média' : 'Manual'})
                 </span>
                 <span className="value-number value-number--editable">
-                  {formatValue(indicador.valor_consolidado, indicador.metric_type)}
+                  {formatValue(indicador.valor, indicador.metric_type)}
                   <svg viewBox="0 0 24 24" width="14" height="14" className="edit-icon">
                     <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                   </svg>
@@ -478,7 +572,11 @@ export default function IndicatorDetailView() {
                   <div className="value-group">
                     <span className="value-group__label">Realizado</span>
                     {hasValue ? (
-                      <span className="value-group__number">
+                      <span
+                        className="value-group__number value-group__number--clickable"
+                        onClick={() => openCheckInDialog(month.month, month.checkIn)}
+                        title="Clique para editar"
+                      >
                         {formatValue(month.value, indicador.metric_type)}
                         <span className={`value-badge value-badge--${pctColor}`}>
                           {percentage}%
@@ -575,16 +673,100 @@ export default function IndicatorDetailView() {
             <p className="empty-text">Nenhum plano de recuperação</p>
           ) : (
             <div className="recovery-list">
-              {recoveryPlans.map(plan => (
-                <div key={plan.id} className="recovery-item">
-                  <span className={`recovery-status status--${plan.status}`}>
-                    {plan.status === 'pending' && 'Pendente'}
-                    {plan.status === 'in_progress' && 'Em Andamento'}
-                    {plan.status === 'completed' && 'Concluído'}
-                  </span>
-                  <p className="recovery-description">{plan.descricao}</p>
-                </div>
-              ))}
+              {recoveryPlans.map(plan => {
+                const statusLabel = {
+                  pendente: 'Pendente',
+                  em_andamento: 'Em andamento',
+                  concluido: 'Concluído',
+                  cancelado: 'Cancelado',
+                  pending: 'Pendente',
+                  in_progress: 'Em Andamento',
+                  completed: 'Concluído'
+                }[plan.status] || plan.status;
+
+                const planActions = parseAcoes(plan.acoes);
+                const completedCount = planActions.filter(a => a.concluida).length;
+
+                return (
+                  <div key={plan.id} className="recovery-item-expanded">
+                    <div
+                      className="recovery-item__top recovery-item--clickable"
+                      onClick={() => openPlanDialog(plan)}
+                    >
+                      <div className="recovery-item__header">
+                        <span className={`recovery-status status--${plan.status}`}>
+                          {statusLabel}
+                        </span>
+                        {plan.mes_referencia && (
+                          <span className="recovery-reference">
+                            {MONTH_SHORT[(plan.mes_referencia || 1) - 1]}/{plan.ano_referencia || new Date().getFullYear()}
+                          </span>
+                        )}
+                      </div>
+                      <p className="recovery-description">{plan.descricao}</p>
+                      {plan.prazo && (
+                        <span className="recovery-prazo">
+                          <svg viewBox="0 0 24 24" width="12" height="12">
+                            <path fill="currentColor" d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                          </svg>
+                          Prazo: {new Date(plan.prazo).toLocaleDateString('pt-BR')}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Activities section */}
+                    {planActions.length > 0 && (
+                      <div className="recovery-activities">
+                        <div className="recovery-activities__header">
+                          <span className="recovery-activities__title">
+                            Atividades ({completedCount}/{planActions.length})
+                          </span>
+                        </div>
+                        <div className="recovery-activities__list">
+                          {planActions.map((activity, actIdx) => (
+                            <label
+                              key={actIdx}
+                              className={`recovery-activity-item ${activity.concluida ? 'recovery-activity-item--done' : ''}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={activity.concluida || false}
+                                onChange={async (e) => {
+                                  e.stopPropagation();
+                                  const newConcluida = e.target.checked;
+                                  const currentActions = parseAcoes(plan.acoes);
+                                  currentActions[actIdx] = { ...currentActions[actIdx], concluida: newConcluida };
+                                  const newAcoesJson = JSON.stringify(currentActions);
+                                  await handleUpdateRecoveryPlan(plan.id, { acoes: newAcoesJson }, true);
+                                  setRecoveryPlans(prev => prev.map(p =>
+                                    p.id === plan.id ? { ...p, acoes: newAcoesJson } : p
+                                  ));
+                                }}
+                              />
+                              <span className="recovery-activity-check">
+                                <svg viewBox="0 0 24 24" width="12" height="12">
+                                  <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                </svg>
+                              </span>
+                              <div className="recovery-activity-content">
+                                <span className="recovery-activity-text">{activity.descricao}</span>
+                                {activity.responsavel && (
+                                  <span className="recovery-activity-responsible">
+                                    <svg viewBox="0 0 24 24" width="10" height="10">
+                                      <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                    </svg>
+                                    {activity.responsavel}
+                                  </span>
+                                )}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
@@ -596,7 +778,9 @@ export default function IndicatorDetailView() {
           indicador={indicador}
           ano={selectedYear}
           mes={selectedMonth}
+          existingCheckIn={selectedCheckIn}
           onSubmit={handleCreateCheckIn}
+          onDelete={handleDeleteCheckIn}
           onClose={closeCheckInDialog}
         />
       )}
@@ -613,6 +797,7 @@ export default function IndicatorDetailView() {
       {/* Create Recovery Plan Dialog */}
       {showRecoveryPlanDialog && (
         <CreateRecoveryPlanDialog
+          responsaveis={teamMembers}
           indicador={indicador}
           onSubmit={handleCreateRecoveryPlan}
           onClose={() => setShowRecoveryPlanDialog(false)}
@@ -625,6 +810,56 @@ export default function IndicatorDetailView() {
           indicador={indicador}
           onSubmit={handleEditIndicator}
           onClose={() => setShowEditIndicatorDialog(false)}
+        />
+      )}
+
+      {/* View Recovery Plan Dialog */}
+      {selectedPlan && (
+        <ViewRecoveryPlanDialog
+          plan={selectedPlan}
+          responsaveis={teamMembers}
+          onUpdate={async (data) => {
+            await handleUpdateRecoveryPlan(selectedPlan.id, data, true);
+            // Atualiza estados locais sem refresh
+            setSelectedPlan(prev => ({ ...prev, ...data }));
+            setRecoveryPlans(prev => prev.map(p =>
+              p.id === selectedPlan.id ? { ...p, ...data } : p
+            ));
+          }}
+          onAddActivity={async (activity) => {
+            const currentActions = parseAcoes(selectedPlan.acoes);
+            const newActions = [...currentActions, activity];
+            const newAcoesJson = JSON.stringify(newActions);
+            await handleUpdateRecoveryPlan(selectedPlan.id, { acoes: newAcoesJson }, true);
+            // Atualiza estados locais
+            setSelectedPlan(prev => ({ ...prev, acoes: newAcoesJson }));
+            setRecoveryPlans(prev => prev.map(p =>
+              p.id === selectedPlan.id ? { ...p, acoes: newAcoesJson } : p
+            ));
+          }}
+          onToggleActivity={async (index, concluida) => {
+            const currentActions = parseAcoes(selectedPlan.acoes);
+            currentActions[index] = { ...currentActions[index], concluida };
+            const newAcoesJson = JSON.stringify(currentActions);
+            await handleUpdateRecoveryPlan(selectedPlan.id, { acoes: newAcoesJson }, true);
+            // Atualiza estados locais
+            setSelectedPlan(prev => ({ ...prev, acoes: newAcoesJson }));
+            setRecoveryPlans(prev => prev.map(p =>
+              p.id === selectedPlan.id ? { ...p, acoes: newAcoesJson } : p
+            ));
+          }}
+          onDeleteActivity={async (index) => {
+            const currentActions = parseAcoes(selectedPlan.acoes);
+            currentActions.splice(index, 1);
+            const newAcoesJson = JSON.stringify(currentActions);
+            await handleUpdateRecoveryPlan(selectedPlan.id, { acoes: newAcoesJson }, true);
+            // Atualiza estados locais
+            setSelectedPlan(prev => ({ ...prev, acoes: newAcoesJson }));
+            setRecoveryPlans(prev => prev.map(p =>
+              p.id === selectedPlan.id ? { ...p, acoes: newAcoesJson } : p
+            ));
+          }}
+          onClose={closePlanDialog}
         />
       )}
     </div>

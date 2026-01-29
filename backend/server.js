@@ -31,10 +31,10 @@ import {
   fetchPositions, getPositionById, createPosition, updatePosition, deletePosition,
   fetchPositionIndicators, createPositionIndicator, updatePositionIndicator, deletePositionIndicator,
   fetchIndicadoresIndividuais, getIndicadorById, createIndicadorFromTemplate, updateIndicadorIndividual,
-  fetchCheckIns, createCheckIn, updateCheckIn,
+  fetchCheckIns, getCheckInById, createCheckIn, updateCheckIn, deleteCheckIn,
   fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan,
   fetchPeopleWithScores, getPersonById, fetchTeam,
-  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, getUserSectorByEmail,
+  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, getUserSectorByEmail,
   fetchSectorsOverview, fetchHistoryComparison
 } from './supabase.js';
 
@@ -1836,6 +1836,20 @@ app.delete('/api/ind/sectors/:id', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * Rota: GET /api/ind/sectors/:id/team
+ * Retorna membros da equipe de um setor
+ */
+app.get('/api/ind/sectors/:id/team', requireAuth, async (req, res) => {
+  try {
+    const team = await fetchTeam(req.params.id);
+    res.json({ success: true, data: team });
+  } catch (error) {
+    console.error('❌ Erro ao buscar equipe do setor:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // --- CARGOS ---
 
 /**
@@ -2199,6 +2213,33 @@ app.put('/api/ind/indicators/:id/check-ins/:checkInId', requireAuth, async (req,
   }
 });
 
+/**
+ * Rota: DELETE /api/ind/check-ins/:checkInId
+ * Exclui um check-in
+ */
+app.delete('/api/ind/check-ins/:checkInId', requireAuth, async (req, res) => {
+  try {
+    // Busca o check-in para verificar permissão
+    const checkIn = await getCheckInById(req.params.checkInId);
+    if (!checkIn) {
+      return res.status(404).json({ success: false, error: 'Check-in não encontrado' });
+    }
+
+    // Busca o indicador para verificar permissão
+    const indicador = await getIndicadorById(checkIn.indicador_id);
+    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    await deleteCheckIn(req.params.checkInId, checkIn.indicador_id);
+    await logAction(req, 'delete', 'check_in', req.params.checkInId, `Check-in excluído`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Erro ao excluir check-in:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // --- PLANOS DE RECUPERAÇÃO ---
 
 /**
@@ -2455,6 +2496,26 @@ app.put('/api/ind/admin/users/:id/status', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * Rota: PUT /api/ind/admin/users/:id/leader
+ * Atualiza líder de um usuário
+ */
+app.put('/api/ind/admin/users/:id/leader', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { leader_id } = req.body;
+    const user = await updateUserLeader(req.params.id, leader_id);
+    await logAction(req, 'update', 'user_leader', req.params.id, `Líder do usuário atualizado`);
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar líder do usuário:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // --- OVERVIEW E HISTÓRICO ---
 
 /**
@@ -2559,6 +2620,139 @@ app.get('/api/ind/my-templates', requireAuth, async (req, res) => {
     res.json({ success: true, data: templates });
   } catch (error) {
     console.error('❌ Erro ao buscar templates:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
+// BUG REPORTS - Sistema de relatórios de bugs/erros
+// =====================================================
+
+/**
+ * GET /api/bug-reports
+ * Lista todos os relatórios de bugs
+ */
+app.get('/api/bug-reports', requireAuth, async (req, res) => {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('bug_reports')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar bug reports:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/bug-reports
+ * Cria um novo relatório de bug
+ */
+app.post('/api/bug-reports', requireAuth, async (req, res) => {
+  try {
+    const { title, description, type, screenshot, page_url, reporter_email, reporter_name } = req.body;
+
+    if (!title || !description || !type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Título, descrição e tipo são obrigatórios'
+      });
+    }
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('bug_reports')
+      .insert({
+        title,
+        description,
+        type,
+        screenshot_url: screenshot,
+        page_url,
+        reporter_email: reporter_email || req.user?.email,
+        reporter_name: reporter_name || req.user?.name,
+        status: 'pendente'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log da ação
+    await logAction(req, 'create', 'bug_report', data.id, title, { type });
+
+    res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao criar bug report:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PATCH /api/bug-reports/:id
+ * Atualiza um relatório de bug (status, notas admin, etc)
+ */
+app.patch('/api/bug-reports/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Adiciona updated_at
+    updates.updated_at = new Date().toISOString();
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('bug_reports')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log da ação
+    await logAction(req, 'update', 'bug_report', id, data.title, { updates });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar bug report:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/bug-reports/:id
+ * Exclui um relatório de bug
+ */
+app.delete('/api/bug-reports/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const supabase = getSupabaseClient();
+
+    // Busca o report antes de deletar para o log
+    const { data: report } = await supabase
+      .from('bug_reports')
+      .select('title')
+      .eq('id', id)
+      .single();
+
+    const { error } = await supabase
+      .from('bug_reports')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    // Log da ação
+    await logAction(req, 'delete', 'bug_report', id, report?.title);
+
+    res.json({ success: true, message: 'Bug report excluído com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao excluir bug report:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

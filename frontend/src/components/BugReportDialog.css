@@ -1,0 +1,473 @@
+/* ========================================
+   BUG REPORT DIALOG
+   Design: Industrial Precision / Otus Yellow
+   ======================================== */
+
+/* Overlay */
+.bug-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  animation: bug-overlay-in 0.2s ease-out;
+}
+
+@keyframes bug-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Dialog Container */
+.bug-dialog {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: bug-dialog-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes bug-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header */
+.bug-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.bug-dialog__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bug-dialog__header-icon {
+  width: 28px;
+  height: 28px;
+  color: #d4a800;
+}
+
+.bug-dialog__header h2 {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.02em;
+}
+
+.bug-dialog__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: #f5f5f5;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bug-dialog__close:hover {
+  background: #eee;
+  color: #333;
+  border-color: #ddd;
+}
+
+.bug-dialog__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Form */
+.bug-dialog__form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Field */
+.bug-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bug-dialog__label {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bug-dialog__required {
+  color: #dc2626;
+}
+
+.bug-dialog__optional {
+  font-weight: 400;
+  color: #999;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Type Selection Grid */
+.bug-dialog__type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.bug-dialog__type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px 12px;
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bug-dialog__type-btn:hover {
+  background: #f0f0f0;
+  border-color: #ddd;
+  color: #333;
+}
+
+.bug-dialog__type-btn--active {
+  background: #fffbeb;
+  border-color: #d4a800;
+  color: #92700c;
+}
+
+.bug-dialog__type-icon {
+  font-size: 20px;
+}
+
+.bug-dialog__type-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bug-dialog__type-desc {
+  font-size: 10px;
+  font-weight: 400;
+  color: #888;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.bug-dialog__type-btn--active .bug-dialog__type-desc {
+  color: #a38a1a;
+}
+
+/* Input & Textarea */
+.bug-dialog__input,
+.bug-dialog__textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  color: #1a1a1a;
+  font-family: inherit;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.bug-dialog__input::placeholder,
+.bug-dialog__textarea::placeholder {
+  color: #999;
+}
+
+.bug-dialog__input:focus,
+.bug-dialog__textarea:focus {
+  outline: none;
+  border-color: #d4a800;
+  box-shadow: 0 0 0 3px rgba(212, 168, 0, 0.15);
+}
+
+.bug-dialog__textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Upload Area */
+.bug-dialog__upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: #f9f9f9;
+  border: 2px dashed #ddd;
+  border-radius: 12px;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bug-dialog__upload:hover {
+  background: #f5f5f5;
+  border-color: #d4a800;
+  color: #666;
+}
+
+.bug-dialog__upload svg {
+  width: 32px;
+  height: 32px;
+  opacity: 0.5;
+}
+
+.bug-dialog__upload span {
+  font-size: 13px;
+}
+
+.bug-dialog__upload-hint {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.bug-dialog__upload-input {
+  display: none;
+}
+
+/* Screenshot Preview */
+.bug-dialog__screenshot-preview {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e5e5;
+}
+
+.bug-dialog__screenshot-preview img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background: #f5f5f5;
+}
+
+.bug-dialog__screenshot-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bug-dialog__screenshot-remove:hover {
+  background: #ef4444;
+}
+
+.bug-dialog__screenshot-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Page Info */
+.bug-dialog__page-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  color: #92700c;
+  font-size: 12px;
+}
+
+.bug-dialog__page-info svg {
+  width: 16px;
+  height: 16px;
+  color: #d4a800;
+}
+
+/* Actions */
+.bug-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.bug-dialog__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bug-dialog__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bug-dialog__btn--secondary {
+  background: #fff;
+  border: 1px solid #ddd;
+  color: #666;
+}
+
+.bug-dialog__btn--secondary:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #ccc;
+  color: #333;
+}
+
+.bug-dialog__btn--primary {
+  background: linear-gradient(135deg, #ffdd00 0%, #e6c700 100%);
+  border: none;
+  color: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(255, 221, 0, 0.3);
+}
+
+.bug-dialog__btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 221, 0, 0.4);
+}
+
+/* Spinner */
+.bug-dialog__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: #1a1a1a;
+  border-radius: 50%;
+  animation: bug-spinner 0.8s linear infinite;
+}
+
+@keyframes bug-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Success State */
+.bug-dialog--success {
+  max-width: 380px;
+  text-align: center;
+}
+
+.bug-dialog__success-content {
+  padding: 48px 32px;
+}
+
+.bug-dialog__success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 20px;
+  background: #dcfce7;
+  border-radius: 50%;
+}
+
+.bug-dialog__success-icon svg {
+  width: 40px;
+  height: 40px;
+  color: #22c55e;
+}
+
+.bug-dialog__success-content h3 {
+  margin: 0 0 8px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.bug-dialog__success-content p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Mobile */
+@media (max-width: 540px) {
+  .bug-dialog-overlay {
+    padding: 12px;
+  }
+
+  .bug-dialog__header {
+    padding: 16px 20px;
+  }
+
+  .bug-dialog__form {
+    padding: 20px;
+  }
+
+  .bug-dialog__type-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .bug-dialog__actions {
+    flex-direction: column;
+  }
+
+  .bug-dialog__btn {
+    width: 100%;
+  }
+}

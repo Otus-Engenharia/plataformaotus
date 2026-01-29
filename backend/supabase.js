@@ -1534,6 +1534,49 @@ export async function updateCheckIn(checkInId, checkInData) {
 }
 
 /**
+ * Busca um check-in por ID
+ * @param {string} checkInId - ID do check-in
+ * @returns {Promise<Object|null>}
+ */
+export async function getCheckInById(checkInId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(CHECK_INS_TABLE)
+    .select('*')
+    .eq('id', checkInId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null; // Not found
+    throw new Error(`Erro ao buscar check-in: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Exclui um check-in
+ * @param {string} checkInId - ID do check-in
+ * @param {string} indicadorId - ID do indicador para atualizar valor consolidado
+ */
+export async function deleteCheckIn(checkInId, indicadorId) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from(CHECK_INS_TABLE)
+    .delete()
+    .eq('id', checkInId);
+
+  if (error) {
+    throw new Error(`Erro ao excluir check-in: ${error.message}`);
+  }
+
+  // Atualiza o valor consolidado do indicador
+  if (indicadorId) {
+    await updateIndicadorConsolidatedValue(indicadorId);
+  }
+}
+
+/**
  * Atualiza o valor consolidado de um indicador baseado nos check-ins
  * @param {string} indicadorId - ID do indicador
  */
@@ -1551,7 +1594,18 @@ async function updateIndicadorConsolidatedValue(indicadorId) {
 
   // Busca todos os check-ins
   const checkIns = await fetchCheckIns(indicadorId);
-  if (checkIns.length === 0) return;
+
+  // Se não há check-ins, reseta para valor inicial
+  if (checkIns.length === 0) {
+    await supabase
+      .from(INDICADORES_TABLE)
+      .update({
+        valor: indicador.valor_inicial || 0,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', indicadorId);
+    return;
+  }
 
   let valorConsolidado = 0;
   const consolidationType = indicador.consolidation_type || 'last_value';
@@ -1572,7 +1626,10 @@ async function updateIndicadorConsolidatedValue(indicadorId) {
   // Atualiza o indicador
   await supabase
     .from(INDICADORES_TABLE)
-    .update({ valor: valorConsolidado, updated_at: new Date().toISOString() })
+    .update({
+      valor: valorConsolidado,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', indicadorId);
 }
 
@@ -1852,6 +1909,7 @@ export async function fetchUsersWithRoles() {
       email,
       role,
       status,
+      leader_id,
       setor:setor_id(id, name),
       cargo:position_id(id, name, is_leadership)
     `)
@@ -1862,7 +1920,15 @@ export async function fetchUsersWithRoles() {
     throw new Error(`Erro ao buscar usuários: ${error.message}`);
   }
 
-  return Array.isArray(data) ? data : [];
+  const users = Array.isArray(data) ? data : [];
+
+  // Map leaders from the same user list (self-referential relationship)
+  const userMap = new Map(users.map(u => [u.id, { id: u.id, name: u.name, email: u.email }]));
+
+  return users.map(user => ({
+    ...user,
+    leader: user.leader_id ? userMap.get(user.leader_id) || null : null
+  }));
 }
 
 /**
@@ -1948,6 +2014,28 @@ export async function updateUserStatus(userId, isActive) {
 
   if (error) {
     throw new Error(`Erro ao atualizar status do usuário: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza líder de um usuário
+ * @param {string} userId - ID do usuário
+ * @param {string} leaderId - ID do líder
+ * @returns {Promise<Object>}
+ */
+export async function updateUserLeader(userId, leaderId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .update({ leader_id: leaderId })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar líder do usuário: ${error.message}`);
   }
 
   return data;

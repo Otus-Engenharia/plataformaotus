@@ -8,3 +8,4 @@ export { default as HistoryView } from './HistoryView';
 export { default as AdminSetores } from './AdminSetores';
 export { default as AdminCargos } from './AdminCargos';
 export { default as AdminUsuarios } from './AdminUsuarios';
+export { default as AdminBugReports } from './AdminBugReports';
