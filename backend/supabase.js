@@ -940,3 +940,1095 @@ export async function deleteIndicador(indicadorId) {
     throw new Error(`Erro ao deletar indicador: ${error.message}`);
   }
 }
+
+// ============================================
+// Sistema de Indicadores Individuais
+// ============================================
+
+const SECTORS_TABLE = 'sectors';
+const POSITIONS_TABLE = 'positions';
+const POSITION_INDICATORS_TABLE = 'position_indicators';
+const USERS_OTUS_TABLE = 'users_otus';
+const CHECK_INS_TABLE = 'indicadores_check_ins';
+const RECOVERY_PLANS_TABLE = 'recovery_plans';
+
+// --- SETORES ---
+
+/**
+ * Busca todos os setores
+ * @returns {Promise<Array>}
+ */
+export async function fetchSectors() {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(SECTORS_TABLE)
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar setores: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca um setor por ID
+ * @param {string} sectorId - ID do setor
+ * @returns {Promise<Object>}
+ */
+export async function getSectorById(sectorId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(SECTORS_TABLE)
+    .select('*')
+    .eq('id', sectorId)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao buscar setor: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Cria um novo setor
+ * @param {Object} sectorData - Dados do setor
+ * @returns {Promise<Object>}
+ */
+export async function createSector(sectorData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(SECTORS_TABLE)
+    .insert([{
+      name: sectorData.name,
+      description: sectorData.description || null,
+      can_access_projetos: sectorData.can_access_projetos || false,
+      can_access_configuracoes: sectorData.can_access_configuracoes || false,
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar setor: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza um setor
+ * @param {string} sectorId - ID do setor
+ * @param {Object} sectorData - Dados atualizados
+ * @returns {Promise<Object>}
+ */
+export async function updateSector(sectorId, sectorData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(SECTORS_TABLE)
+    .update({
+      ...sectorData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', sectorId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar setor: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta um setor
+ * @param {string} sectorId - ID do setor
+ * @returns {Promise<void>}
+ */
+export async function deleteSector(sectorId) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from(SECTORS_TABLE)
+    .delete()
+    .eq('id', sectorId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar setor: ${error.message}`);
+  }
+}
+
+// --- CARGOS ---
+
+/**
+ * Busca todos os cargos
+ * @param {string} [sectorId] - Filtro por setor
+ * @returns {Promise<Array>}
+ */
+export async function fetchPositions(sectorId = null) {
+  const supabase = getSupabaseClient();
+  let query = supabase
+    .from(POSITIONS_TABLE)
+    .select(`
+      *,
+      sector:sector_id(id, name)
+    `)
+    .order('name', { ascending: true });
+
+  if (sectorId) {
+    query = query.eq('sector_id', sectorId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao buscar cargos: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca um cargo por ID
+ * @param {string} positionId - ID do cargo
+ * @returns {Promise<Object>}
+ */
+export async function getPositionById(positionId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(POSITIONS_TABLE)
+    .select(`
+      *,
+      sector:sector_id(id, name)
+    `)
+    .eq('id', positionId)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao buscar cargo: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Cria um novo cargo
+ * @param {Object} positionData - Dados do cargo
+ * @returns {Promise<Object>}
+ */
+export async function createPosition(positionData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(POSITIONS_TABLE)
+    .insert([{
+      name: positionData.name,
+      description: positionData.description || null,
+      is_leadership: positionData.is_leadership || false,
+      sector_id: positionData.sector_id || null,
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar cargo: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza um cargo
+ * @param {string} positionId - ID do cargo
+ * @param {Object} positionData - Dados atualizados
+ * @returns {Promise<Object>}
+ */
+export async function updatePosition(positionId, positionData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(POSITIONS_TABLE)
+    .update({
+      ...positionData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', positionId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar cargo: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta um cargo
+ * @param {string} positionId - ID do cargo
+ * @returns {Promise<void>}
+ */
+export async function deletePosition(positionId) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from(POSITIONS_TABLE)
+    .delete()
+    .eq('id', positionId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar cargo: ${error.message}`);
+  }
+}
+
+// --- TEMPLATES DE INDICADORES POR CARGO ---
+
+/**
+ * Busca templates de indicadores de um cargo
+ * @param {string} positionId - ID do cargo
+ * @returns {Promise<Array>}
+ */
+export async function fetchPositionIndicators(positionId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(POSITION_INDICATORS_TABLE)
+    .select('*')
+    .eq('position_id', positionId)
+    .order('title', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar templates de indicadores: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Cria um template de indicador para um cargo
+ * @param {string} positionId - ID do cargo
+ * @param {Object} templateData - Dados do template
+ * @returns {Promise<Object>}
+ */
+export async function createPositionIndicator(positionId, templateData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(POSITION_INDICATORS_TABLE)
+    .insert([{
+      position_id: positionId,
+      title: templateData.title,
+      description: templateData.description || null,
+      metric_type: templateData.metric_type || 'number',
+      consolidation_type: templateData.consolidation_type || 'last_value',
+      default_initial: templateData.default_initial || 0,
+      default_target: templateData.default_target,
+      default_threshold_80: templateData.default_threshold_80,
+      default_threshold_120: templateData.default_threshold_120,
+      default_weight: templateData.default_weight || 1,
+      is_inverse: templateData.is_inverse || false,
+      monthly_targets: templateData.monthly_targets || {},
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar template de indicador: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza um template de indicador
+ * @param {string} templateId - ID do template
+ * @param {Object} templateData - Dados atualizados
+ * @returns {Promise<Object>}
+ */
+export async function updatePositionIndicator(templateId, templateData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(POSITION_INDICATORS_TABLE)
+    .update({
+      ...templateData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', templateId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar template de indicador: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta um template de indicador
+ * @param {string} templateId - ID do template
+ * @returns {Promise<void>}
+ */
+export async function deletePositionIndicator(templateId) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from(POSITION_INDICATORS_TABLE)
+    .delete()
+    .eq('id', templateId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar template de indicador: ${error.message}`);
+  }
+}
+
+// --- INDICADORES INDIVIDUAIS ---
+
+/**
+ * Busca indicadores individuais com filtros
+ * @param {Object} filters - Filtros de busca
+ * @param {string} [filters.person_email] - Email da pessoa
+ * @param {string} [filters.ciclo] - Ciclo (q1, q2, q3, q4, anual)
+ * @param {number} [filters.ano] - Ano
+ * @param {string} [filters.setor_id] - ID do setor
+ * @returns {Promise<Array>}
+ */
+export async function fetchIndicadoresIndividuais(filters = {}) {
+  const supabase = getSupabaseClient();
+  let query = supabase
+    .from(INDICADORES_TABLE)
+    .select(`
+      *,
+      setor:setor_id(id, name),
+      cargo:cargo_id(id, name),
+      template:template_id(id, title)
+    `)
+    .not('person_email', 'is', null)
+    .order('nome', { ascending: true });
+
+  if (filters.person_email) {
+    query = query.eq('person_email', filters.person_email);
+  }
+
+  if (filters.ciclo) {
+    query = query.eq('ciclo', filters.ciclo);
+  }
+
+  if (filters.ano) {
+    query = query.eq('ano', filters.ano);
+  }
+
+  if (filters.setor_id) {
+    query = query.eq('setor_id', filters.setor_id);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao buscar indicadores individuais: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca um indicador por ID com check-ins
+ * @param {string} indicadorId - ID do indicador
+ * @returns {Promise<Object>}
+ */
+export async function getIndicadorById(indicadorId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(INDICADORES_TABLE)
+    .select(`
+      *,
+      setor:setor_id(id, name),
+      cargo:cargo_id(id, name),
+      template:template_id(id, title)
+    `)
+    .eq('id', indicadorId)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao buscar indicador: ${error.message}`);
+  }
+
+  // Busca check-ins do indicador
+  const checkIns = await fetchCheckIns(indicadorId);
+  // Busca planos de recuperação
+  const recoveryPlans = await fetchRecoveryPlans(indicadorId);
+
+  return {
+    ...data,
+    checkIns,
+    recoveryPlans,
+  };
+}
+
+/**
+ * Cria um indicador a partir de um template
+ * @param {string} templateId - ID do template
+ * @param {string} personEmail - Email da pessoa
+ * @param {string} ciclo - Ciclo (q1, q2, q3, q4, anual)
+ * @param {number} ano - Ano
+ * @returns {Promise<Object>}
+ */
+export async function createIndicadorFromTemplate(templateId, personEmail, ciclo, ano) {
+  const supabase = getSupabaseClient();
+
+  // Busca o template
+  const { data: template, error: templateError } = await supabase
+    .from(POSITION_INDICATORS_TABLE)
+    .select(`
+      *,
+      position:position_id(id, name, sector_id)
+    `)
+    .eq('id', templateId)
+    .single();
+
+  if (templateError) {
+    throw new Error(`Erro ao buscar template: ${templateError.message}`);
+  }
+
+  // Cria o indicador
+  const { data, error } = await supabase
+    .from(INDICADORES_TABLE)
+    .insert([{
+      nome: template.title,
+      descricao: template.description,
+      valor: template.default_initial || 0,
+      meta: template.default_target,
+      unidade: template.metric_type === 'percentage' ? '%' :
+               template.metric_type === 'currency' ? 'R$' :
+               template.metric_type === 'boolean' ? 'sim/não' : 'un',
+      categoria: 'pessoas',
+      periodo: ciclo === 'anual' ? 'anual' : 'trimestral',
+      ciclo,
+      ano,
+      person_email: personEmail,
+      cargo_id: template.position_id,
+      setor_id: template.position?.sector_id || null,
+      template_id: templateId,
+      peso: template.default_weight || 1,
+      threshold_80: template.default_threshold_80,
+      threshold_120: template.default_threshold_120,
+      is_inverse: template.is_inverse || false,
+      consolidation_type: template.consolidation_type || 'last_value',
+      metric_type: template.metric_type || 'number',
+      monthly_targets: template.monthly_targets || {},
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar indicador: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza um indicador individual
+ * @param {string} indicadorId - ID do indicador
+ * @param {Object} updateData - Dados atualizados
+ * @returns {Promise<Object>}
+ */
+export async function updateIndicadorIndividual(indicadorId, updateData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(INDICADORES_TABLE)
+    .update({
+      ...updateData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', indicadorId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar indicador: ${error.message}`);
+  }
+
+  return data;
+}
+
+// --- CHECK-INS ---
+
+/**
+ * Busca check-ins de um indicador
+ * @param {string} indicadorId - ID do indicador
+ * @returns {Promise<Array>}
+ */
+export async function fetchCheckIns(indicadorId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(CHECK_INS_TABLE)
+    .select('*')
+    .eq('indicador_id', indicadorId)
+    .order('ano', { ascending: true })
+    .order('mes', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar check-ins: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Cria um check-in mensal
+ * @param {Object} checkInData - Dados do check-in
+ * @returns {Promise<Object>}
+ */
+export async function createCheckIn(checkInData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(CHECK_INS_TABLE)
+    .insert([{
+      indicador_id: checkInData.indicador_id,
+      mes: checkInData.mes,
+      ano: checkInData.ano,
+      valor: checkInData.valor,
+      notas: checkInData.notas || null,
+      created_by: checkInData.created_by || null,
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar check-in: ${error.message}`);
+  }
+
+  // Atualiza o valor consolidado do indicador
+  await updateIndicadorConsolidatedValue(checkInData.indicador_id);
+
+  return data;
+}
+
+/**
+ * Atualiza um check-in
+ * @param {string} checkInId - ID do check-in
+ * @param {Object} checkInData - Dados atualizados
+ * @returns {Promise<Object>}
+ */
+export async function updateCheckIn(checkInId, checkInData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(CHECK_INS_TABLE)
+    .update({
+      ...checkInData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', checkInId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar check-in: ${error.message}`);
+  }
+
+  // Atualiza o valor consolidado do indicador
+  if (data.indicador_id) {
+    await updateIndicadorConsolidatedValue(data.indicador_id);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza o valor consolidado de um indicador baseado nos check-ins
+ * @param {string} indicadorId - ID do indicador
+ */
+async function updateIndicadorConsolidatedValue(indicadorId) {
+  const supabase = getSupabaseClient();
+
+  // Busca o indicador
+  const { data: indicador, error: indError } = await supabase
+    .from(INDICADORES_TABLE)
+    .select('consolidation_type')
+    .eq('id', indicadorId)
+    .single();
+
+  if (indError) return;
+
+  // Busca todos os check-ins
+  const checkIns = await fetchCheckIns(indicadorId);
+  if (checkIns.length === 0) return;
+
+  let valorConsolidado = 0;
+  const consolidationType = indicador.consolidation_type || 'last_value';
+
+  switch (consolidationType) {
+    case 'sum':
+      valorConsolidado = checkIns.reduce((sum, ci) => sum + (parseFloat(ci.valor) || 0), 0);
+      break;
+    case 'average':
+      valorConsolidado = checkIns.reduce((sum, ci) => sum + (parseFloat(ci.valor) || 0), 0) / checkIns.length;
+      break;
+    case 'last_value':
+    default:
+      valorConsolidado = parseFloat(checkIns[checkIns.length - 1].valor) || 0;
+      break;
+  }
+
+  // Atualiza o indicador
+  await supabase
+    .from(INDICADORES_TABLE)
+    .update({ valor: valorConsolidado, updated_at: new Date().toISOString() })
+    .eq('id', indicadorId);
+}
+
+// --- PLANOS DE RECUPERAÇÃO ---
+
+/**
+ * Busca planos de recuperação de um indicador
+ * @param {string} indicadorId - ID do indicador
+ * @returns {Promise<Array>}
+ */
+export async function fetchRecoveryPlans(indicadorId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(RECOVERY_PLANS_TABLE)
+    .select('*')
+    .eq('indicador_id', indicadorId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Erro ao buscar planos de recuperação: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Cria um plano de recuperação
+ * @param {Object} planData - Dados do plano
+ * @returns {Promise<Object>}
+ */
+export async function createRecoveryPlan(planData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(RECOVERY_PLANS_TABLE)
+    .insert([{
+      indicador_id: planData.indicador_id,
+      descricao: planData.descricao,
+      acoes: planData.acoes || null,
+      prazo: planData.prazo || null,
+      status: 'pendente',
+      mes_referencia: planData.mes_referencia || null,
+      ano_referencia: planData.ano_referencia || null,
+      created_by: planData.created_by || null,
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar plano de recuperação: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza um plano de recuperação
+ * @param {string} planId - ID do plano
+ * @param {Object} planData - Dados atualizados
+ * @returns {Promise<Object>}
+ */
+export async function updateRecoveryPlan(planId, planData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(RECOVERY_PLANS_TABLE)
+    .update({
+      ...planData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', planId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar plano de recuperação: ${error.message}`);
+  }
+
+  return data;
+}
+
+// --- PESSOAS / EQUIPE ---
+
+/**
+ * Busca pessoas com seus indicadores e scores
+ * @param {Object} filters - Filtros de busca
+ * @param {string} [filters.setor_id] - ID do setor
+ * @param {string} [filters.ciclo] - Ciclo
+ * @param {number} [filters.ano] - Ano
+ * @returns {Promise<Array>}
+ */
+export async function fetchPeopleWithScores(filters = {}) {
+  const supabase = getSupabaseClient();
+
+  // Busca usuários ativos
+  let usersQuery = supabase
+    .from(USERS_OTUS_TABLE)
+    .select(`
+      id,
+      name,
+      email,
+      setor:setor_id(id, name),
+      cargo:position_id(id, name, is_leadership)
+    `)
+    .eq('status', 'ativo')
+    .order('name', { ascending: true });
+
+  if (filters.setor_id) {
+    usersQuery = usersQuery.eq('setor_id', filters.setor_id);
+  }
+
+  const { data: users, error: usersError } = await usersQuery;
+
+  if (usersError) {
+    throw new Error(`Erro ao buscar pessoas: ${usersError.message}`);
+  }
+
+  // Para cada pessoa, busca indicadores e calcula score
+  const peopleWithScores = await Promise.all(
+    (users || []).map(async (user) => {
+      if (!user.email) return { ...user, score: null, indicadoresCount: 0 };
+
+      const indicadores = await fetchIndicadoresIndividuais({
+        person_email: user.email,
+        ciclo: filters.ciclo,
+        ano: filters.ano,
+      });
+
+      const score = calculatePersonScore(indicadores);
+
+      return {
+        ...user,
+        score,
+        indicadoresCount: indicadores.length,
+        indicadoresAtRisk: indicadores.filter(i => {
+          const indScore = calculateIndicatorScore(i);
+          return indScore < 80;
+        }).length,
+      };
+    })
+  );
+
+  return peopleWithScores;
+}
+
+/**
+ * Busca detalhes de uma pessoa com todos indicadores
+ * @param {string} personId - ID da pessoa (users_otus)
+ * @param {Object} filters - Filtros
+ * @returns {Promise<Object>}
+ */
+export async function getPersonById(personId, filters = {}) {
+  const supabase = getSupabaseClient();
+
+  const { data: user, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .select(`
+      id,
+      name,
+      email,
+      phone,
+      setor:setor_id(id, name),
+      cargo:position_id(id, name, is_leadership),
+      leader:leader_id(id, name)
+    `)
+    .eq('id', personId)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao buscar pessoa: ${error.message}`);
+  }
+
+  if (!user.email) {
+    return { ...user, indicadores: [], score: null };
+  }
+
+  const indicadores = await fetchIndicadoresIndividuais({
+    person_email: user.email,
+    ciclo: filters.ciclo,
+    ano: filters.ano,
+  });
+
+  // Busca check-ins para cada indicador
+  const indicadoresWithCheckIns = await Promise.all(
+    indicadores.map(async (ind) => {
+      const checkIns = await fetchCheckIns(ind.id);
+      return { ...ind, checkIns };
+    })
+  );
+
+  const score = calculatePersonScore(indicadores);
+
+  return {
+    ...user,
+    indicadores: indicadoresWithCheckIns,
+    score,
+  };
+}
+
+/**
+ * Busca equipe de um setor
+ * @param {string} sectorId - ID do setor
+ * @param {Object} filters - Filtros
+ * @returns {Promise<Array>}
+ */
+export async function fetchTeam(sectorId, filters = {}) {
+  return fetchPeopleWithScores({
+    setor_id: sectorId,
+    ciclo: filters.ciclo,
+    ano: filters.ano,
+  });
+}
+
+/**
+ * Calcula score de uma pessoa baseado nos indicadores
+ * @param {Array} indicadores - Lista de indicadores
+ * @returns {number|null} - Score ponderado (0-120) ou null se não houver indicadores
+ */
+function calculatePersonScore(indicadores) {
+  if (!indicadores || indicadores.length === 0) return null;
+
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  for (const ind of indicadores) {
+    const peso = ind.peso || 1;
+    const score = calculateIndicatorScore(ind);
+    totalWeight += peso;
+    weightedSum += score * peso;
+  }
+
+  if (totalWeight === 0) return null;
+  return Math.round((weightedSum / totalWeight) * 100) / 100;
+}
+
+/**
+ * Calcula score de um indicador (0-120)
+ * @param {Object} indicador - Indicador com valor, meta, thresholds
+ * @returns {number} - Score (0-120)
+ */
+function calculateIndicatorScore(indicador) {
+  const { valor, meta, threshold_80, threshold_120, is_inverse } = indicador;
+
+  if (meta === null || meta === undefined || meta === 0) return 0;
+
+  const v = parseFloat(valor) || 0;
+  const m = parseFloat(meta);
+  const t80 = threshold_80 !== null && threshold_80 !== undefined ? parseFloat(threshold_80) : m * 0.8;
+  const t120 = threshold_120 !== null && threshold_120 !== undefined ? parseFloat(threshold_120) : m * 1.2;
+
+  if (is_inverse) {
+    // Para métricas inversas (menor é melhor)
+    if (v <= t120) return 120;
+    if (v <= m) return 100 + ((m - v) / (m - t120)) * 20;
+    if (v <= t80) return 80 + ((t80 - v) / (t80 - m)) * 20;
+    return Math.max(0, 80 * (t80 / v));
+  } else {
+    // Para métricas normais (maior é melhor)
+    if (v >= t120) return 120;
+    if (v >= m) return 100 + ((v - m) / (t120 - m)) * 20;
+    if (v >= t80) return 80 + ((v - t80) / (m - t80)) * 20;
+    return Math.max(0, (v / t80) * 80);
+  }
+}
+
+// --- ADMIN: USUÁRIOS ---
+
+/**
+ * Busca usuários com informações de setor e cargo
+ * @returns {Promise<Array>}
+ */
+export async function fetchUsersWithRoles() {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .select(`
+      id,
+      name,
+      email,
+      role,
+      status,
+      setor:setor_id(id, name),
+      cargo:position_id(id, name, is_leadership)
+    `)
+    .eq('status', 'ativo')
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar usuários: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Atualiza cargo de um usuário
+ * @param {string} userId - ID do usuário
+ * @param {string} positionId - ID do cargo
+ * @returns {Promise<Object>}
+ */
+export async function updateUserPosition(userId, positionId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .update({ position_id: positionId })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar cargo do usuário: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza setor de um usuário
+ * @param {string} userId - ID do usuário
+ * @param {string} sectorId - ID do setor
+ * @returns {Promise<Object>}
+ */
+export async function updateUserSector(userId, sectorId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .update({ setor_id: sectorId })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar setor do usuário: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza role/papel de um usuário
+ * @param {string} userId - ID do usuário
+ * @param {string} role - Role (user, leader, admin, director)
+ * @returns {Promise<Object>}
+ */
+export async function updateUserRole(userId, role) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .update({ role })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar role do usuário: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza status (ativo/inativo) de um usuário
+ * @param {string} userId - ID do usuário
+ * @param {boolean} isActive - Status ativo/inativo
+ * @returns {Promise<Object>}
+ */
+export async function updateUserStatus(userId, isActive) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .update({ is_active: isActive })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar status do usuário: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Busca o setor de um usuário por email
+ * @param {string} email - Email do usuário
+ * @returns {Promise<Object|null>}
+ */
+export async function getUserSectorByEmail(email) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .select(`
+      id,
+      setor_id,
+      setor:setor_id(id, name)
+    `)
+    .eq('email', email)
+    .single();
+
+  if (error) {
+    return null;
+  }
+
+  return data?.setor || null;
+}
+
+// --- OVERVIEW E HISTÓRICO ---
+
+/**
+ * Busca visão geral de todos setores com scores
+ * @param {Object} filters - Filtros
+ * @returns {Promise<Array>}
+ */
+export async function fetchSectorsOverview(filters = {}) {
+  const sectors = await fetchSectors();
+
+  const sectorsWithStats = await Promise.all(
+    sectors.map(async (sector) => {
+      const people = await fetchPeopleWithScores({
+        setor_id: sector.id,
+        ciclo: filters.ciclo,
+        ano: filters.ano,
+      });
+
+      const scores = people.map(p => p.score).filter(s => s !== null);
+      const avgScore = scores.length > 0
+        ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100
+        : null;
+
+      const atRisk = people.filter(p => p.score !== null && p.score < 80).length;
+
+      return {
+        ...sector,
+        peopleCount: people.length,
+        avgScore,
+        atRiskCount: atRisk,
+      };
+    })
+  );
+
+  return sectorsWithStats;
+}
+
+/**
+ * Busca histórico para comparação ano-a-ano
+ * @param {Object} filters - Filtros
+ * @returns {Promise<Object>}
+ */
+export async function fetchHistoryComparison(filters = {}) {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear - 1, currentYear];
+
+  const results = {};
+
+  for (const year of years) {
+    const overview = await fetchSectorsOverview({
+      ciclo: filters.ciclo || 'anual',
+      ano: year,
+    });
+    results[year] = overview;
+  }
+
+  return results;
+}

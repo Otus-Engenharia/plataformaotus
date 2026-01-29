@@ -20,7 +20,23 @@ import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem } from './auth-config.js';
-import { getSupabaseClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime, fetchCobrancasFeitas, upsertCobranca, fetchTimesList, fetchUsuarioToTime, fetchFeedbacks, createFeedback, updateFeedbackStatus, updateFeedbackParecer, fetchUserViews, updateUserViews, getUserViews, createLog, fetchLogs, countLogsByAction, countViewUsage, fetchOKRs, createOKR, updateOKR, deleteOKR, fetchIndicadores, createIndicador, updateIndicador, deleteIndicador } from './supabase.js';
+import {
+  getSupabaseClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
+  fetchCobrancasFeitas, upsertCobranca, fetchTimesList, fetchUsuarioToTime,
+  fetchFeedbacks, createFeedback, updateFeedbackStatus, updateFeedbackParecer,
+  fetchUserViews, updateUserViews, getUserViews, createLog, fetchLogs, countLogsByAction, countViewUsage,
+  fetchOKRs, createOKR, updateOKR, deleteOKR, fetchIndicadores, createIndicador, updateIndicador, deleteIndicador,
+  // Novo sistema de indicadores
+  fetchSectors, getSectorById, createSector, updateSector, deleteSector,
+  fetchPositions, getPositionById, createPosition, updatePosition, deletePosition,
+  fetchPositionIndicators, createPositionIndicator, updatePositionIndicator, deletePositionIndicator,
+  fetchIndicadoresIndividuais, getIndicadorById, createIndicadorFromTemplate, updateIndicadorIndividual,
+  fetchCheckIns, createCheckIn, updateCheckIn,
+  fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan,
+  fetchPeopleWithScores, getPersonById, fetchTeam,
+  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, getUserSectorByEmail,
+  fetchSectorsOverview, fetchHistoryComparison
+} from './supabase.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,7 +54,7 @@ app.use(helmet({
 // Rate Limiting: Proteção contra ataques DDoS
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Máximo 100 requisições por IP
+  max: 500, // Máximo 500 requisições por IP
   message: 'Muitas requisições deste IP, tente novamente em 15 minutos.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -133,6 +149,13 @@ app.get('/api/schema', async (req, res) => {
  * Verifica se o usuário está autenticado
  */
 function requireAuth(req, res, next) {
+  // Dev mode: reconhece sessão dev
+  if (process.env.DEV_MODE === 'true' && req.session?.devUser) {
+    req.user = req.session.devUser;
+    req.isAuthenticated = () => true;
+    return next();
+  }
+  // Produção: Passport normal
   if (req.isAuthenticated()) {
     return next();
   }
@@ -173,6 +196,60 @@ async function logAction(req, actionType, resourceType = null, resourceId = null
 }
 
 /**
+ * Rota: GET /api/auth/dev-mode
+ * Retorna se o modo dev está ativo e quais usuários estão disponíveis
+ */
+app.get('/api/auth/dev-mode', (req, res) => {
+  res.json({
+    enabled: process.env.DEV_MODE === 'true',
+    availableUsers: process.env.DEV_MODE === 'true' ? [
+      { email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
+      { email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
+      { email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
+    ] : []
+  });
+});
+
+/**
+ * Rota: POST /api/auth/dev-login
+ * Cria sessão com usuário fake (apenas em dev mode)
+ */
+app.post('/api/auth/dev-login', (req, res) => {
+  if (process.env.DEV_MODE !== 'true') {
+    return res.status(403).json({
+      success: false,
+      error: 'Dev mode não habilitado'
+    });
+  }
+
+  const { role } = req.body;
+  const devUsers = {
+    director: { id: 'dev-1', email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
+    admin: { id: 'dev-2', email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
+    leader: { id: 'dev-3', email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
+  };
+
+  const user = devUsers[role];
+  if (!user) {
+    return res.status(400).json({
+      success: false,
+      error: 'Role inválido'
+    });
+  }
+
+  req.session.devUser = user;
+  req.session.save((err) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao criar sessão'
+      });
+    }
+    res.json({ success: true, user });
+  });
+});
+
+/**
  * Rota: GET /api/auth/user
  * Retorna informações do usuário logado
  */
@@ -198,7 +275,12 @@ app.post('/api/auth/logout', async (req, res) => {
   if (req.user) {
     await logAction(req, 'logout', 'auth', null, 'Logout do sistema');
   }
-  
+
+  // Limpa sessão dev se existir
+  if (req.session?.devUser) {
+    delete req.session.devUser;
+  }
+
   req.logout((err) => {
     if (err) {
       return res.status(500).json({
@@ -1653,6 +1735,799 @@ app.delete('/api/indicadores/:id', requireAuth, async (req, res) => {
       success: false,
       error: error.message || 'Erro ao deletar indicador',
     });
+  }
+});
+
+// ============================================
+// Sistema de Indicadores Individuais (/api/ind/*)
+// ============================================
+
+// --- SETORES ---
+
+/**
+ * Rota: GET /api/ind/sectors
+ * Retorna todos os setores
+ */
+app.get('/api/ind/sectors', requireAuth, async (req, res) => {
+  try {
+    const sectors = await fetchSectors();
+    res.json({ success: true, data: sectors });
+  } catch (error) {
+    console.error('❌ Erro ao buscar setores:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/sectors/:id
+ * Retorna um setor por ID
+ */
+app.get('/api/ind/sectors/:id', requireAuth, async (req, res) => {
+  try {
+    const sector = await getSectorById(req.params.id);
+    res.json({ success: true, data: sector });
+  } catch (error) {
+    console.error('❌ Erro ao buscar setor:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/ind/sectors
+ * Cria um novo setor (admin)
+ */
+app.post('/api/ind/sectors', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { name, description, can_access_projetos, can_access_configuracoes } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
+    }
+
+    const sector = await createSector({ name, description, can_access_projetos, can_access_configuracoes });
+    await logAction(req, 'create', 'sector', sector.id, `Setor criado: ${name}`);
+    res.json({ success: true, data: sector });
+  } catch (error) {
+    console.error('❌ Erro ao criar setor:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/sectors/:id
+ * Atualiza um setor (admin)
+ */
+app.put('/api/ind/sectors/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const sector = await updateSector(req.params.id, req.body);
+    await logAction(req, 'update', 'sector', req.params.id, `Setor atualizado`);
+    res.json({ success: true, data: sector });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar setor:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/ind/sectors/:id
+ * Deleta um setor (admin)
+ */
+app.delete('/api/ind/sectors/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    await deleteSector(req.params.id);
+    await logAction(req, 'delete', 'sector', req.params.id, `Setor deletado`);
+    res.json({ success: true, message: 'Setor deletado com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar setor:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- CARGOS ---
+
+/**
+ * Rota: GET /api/ind/positions
+ * Retorna todos os cargos
+ * Query: sector_id (opcional)
+ */
+app.get('/api/ind/positions', requireAuth, async (req, res) => {
+  try {
+    const sectorId = req.query.sector_id || null;
+    const positions = await fetchPositions(sectorId);
+    res.json({ success: true, data: positions });
+  } catch (error) {
+    console.error('❌ Erro ao buscar cargos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/positions/:id
+ * Retorna um cargo por ID
+ */
+app.get('/api/ind/positions/:id', requireAuth, async (req, res) => {
+  try {
+    const position = await getPositionById(req.params.id);
+    res.json({ success: true, data: position });
+  } catch (error) {
+    console.error('❌ Erro ao buscar cargo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/ind/positions
+ * Cria um novo cargo (admin)
+ */
+app.post('/api/ind/positions', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { name, description, is_leadership, sector_id } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
+    }
+
+    const position = await createPosition({ name, description, is_leadership, sector_id });
+    await logAction(req, 'create', 'position', position.id, `Cargo criado: ${name}`);
+    res.json({ success: true, data: position });
+  } catch (error) {
+    console.error('❌ Erro ao criar cargo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/positions/:id
+ * Atualiza um cargo (admin)
+ */
+app.put('/api/ind/positions/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const position = await updatePosition(req.params.id, req.body);
+    await logAction(req, 'update', 'position', req.params.id, `Cargo atualizado`);
+    res.json({ success: true, data: position });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar cargo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/ind/positions/:id
+ * Deleta um cargo (admin)
+ */
+app.delete('/api/ind/positions/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    await deletePosition(req.params.id);
+    await logAction(req, 'delete', 'position', req.params.id, `Cargo deletado`);
+    res.json({ success: true, message: 'Cargo deletado com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar cargo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- TEMPLATES DE INDICADORES POR CARGO ---
+
+/**
+ * Rota: GET /api/ind/positions/:id/indicators
+ * Retorna templates de indicadores de um cargo
+ */
+app.get('/api/ind/positions/:id/indicators', requireAuth, async (req, res) => {
+  try {
+    const templates = await fetchPositionIndicators(req.params.id);
+    res.json({ success: true, data: templates });
+  } catch (error) {
+    console.error('❌ Erro ao buscar templates:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/ind/positions/:id/indicators
+ * Cria um template de indicador para um cargo (admin)
+ */
+app.post('/api/ind/positions/:id/indicators', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { title, description, metric_type, consolidation_type, default_initial, default_target,
+            default_threshold_80, default_threshold_120, default_weight, is_inverse, monthly_targets } = req.body;
+
+    if (!title || default_target === undefined) {
+      return res.status(400).json({ success: false, error: 'Título e meta são obrigatórios' });
+    }
+
+    const template = await createPositionIndicator(req.params.id, {
+      title, description, metric_type, consolidation_type, default_initial, default_target,
+      default_threshold_80, default_threshold_120, default_weight, is_inverse, monthly_targets
+    });
+
+    await logAction(req, 'create', 'position_indicator', template.id, `Template criado: ${title}`);
+    res.json({ success: true, data: template });
+  } catch (error) {
+    console.error('❌ Erro ao criar template:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/positions/:posId/indicators/:indId
+ * Atualiza um template de indicador (admin)
+ */
+app.put('/api/ind/positions/:posId/indicators/:indId', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const template = await updatePositionIndicator(req.params.indId, req.body);
+    await logAction(req, 'update', 'position_indicator', req.params.indId, `Template atualizado`);
+    res.json({ success: true, data: template });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar template:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/ind/positions/:posId/indicators/:indId
+ * Deleta um template de indicador (admin)
+ */
+app.delete('/api/ind/positions/:posId/indicators/:indId', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    await deletePositionIndicator(req.params.indId);
+    await logAction(req, 'delete', 'position_indicator', req.params.indId, `Template deletado`);
+    res.json({ success: true, message: 'Template deletado com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar template:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- INDICADORES INDIVIDUAIS ---
+
+/**
+ * Rota: GET /api/ind/indicators
+ * Retorna indicadores individuais com filtros
+ * Query: person_email, ciclo, ano, setor_id
+ */
+app.get('/api/ind/indicators', requireAuth, async (req, res) => {
+  try {
+    const filters = {
+      person_email: req.query.person_email || null,
+      ciclo: req.query.ciclo || null,
+      ano: req.query.ano ? parseInt(req.query.ano, 10) : null,
+      setor_id: req.query.setor_id || null,
+    };
+
+    // Se não for privilegiado e não passou person_email, usa o email do usuário logado
+    if (!isPrivileged(req.user.email) && !filters.person_email) {
+      filters.person_email = req.user.email;
+    }
+
+    const indicadores = await fetchIndicadoresIndividuais(filters);
+    await logAction(req, 'view', 'ind_indicators', null, 'Indicadores Individuais');
+    res.json({ success: true, data: indicadores });
+  } catch (error) {
+    console.error('❌ Erro ao buscar indicadores individuais:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/indicators/my
+ * Retorna indicadores do usuário logado
+ * Query: ciclo, ano
+ */
+app.get('/api/ind/indicators/my', requireAuth, async (req, res) => {
+  try {
+    const filters = {
+      person_email: req.user.email,
+      ciclo: req.query.ciclo || null,
+      ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
+    };
+
+    const indicadores = await fetchIndicadoresIndividuais(filters);
+    res.json({ success: true, data: indicadores });
+  } catch (error) {
+    console.error('❌ Erro ao buscar meus indicadores:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/indicators/:id
+ * Retorna detalhe de um indicador com check-ins
+ */
+app.get('/api/ind/indicators/:id', requireAuth, async (req, res) => {
+  try {
+    const indicador = await getIndicadorById(req.params.id);
+
+    // Verifica permissão: apenas o dono, líder do setor ou admin pode ver
+    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+      // TODO: Verificar se é líder do setor
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    res.json({ success: true, data: indicador });
+  } catch (error) {
+    console.error('❌ Erro ao buscar indicador:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/ind/indicators
+ * Cria um indicador a partir de um template
+ * Body: { template_id, ciclo, ano }
+ */
+app.post('/api/ind/indicators', requireAuth, async (req, res) => {
+  try {
+    const { template_id, ciclo, ano } = req.body;
+
+    if (!template_id || !ciclo || !ano) {
+      return res.status(400).json({ success: false, error: 'template_id, ciclo e ano são obrigatórios' });
+    }
+
+    const indicador = await createIndicadorFromTemplate(template_id, req.user.email, ciclo, ano);
+    await logAction(req, 'create', 'ind_indicator', indicador.id, `Indicador criado: ${indicador.nome}`);
+    res.json({ success: true, data: indicador });
+  } catch (error) {
+    console.error('❌ Erro ao criar indicador:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/indicators/:id
+ * Atualiza um indicador individual
+ */
+app.put('/api/ind/indicators/:id', requireAuth, async (req, res) => {
+  try {
+    // Busca o indicador para verificar permissão
+    const existing = await getIndicadorById(req.params.id);
+    if (!isPrivileged(req.user.email) && existing.person_email !== req.user.email) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const indicador = await updateIndicadorIndividual(req.params.id, req.body);
+    await logAction(req, 'update', 'ind_indicator', req.params.id, `Indicador atualizado`);
+    res.json({ success: true, data: indicador });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar indicador:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- CHECK-INS ---
+
+/**
+ * Rota: GET /api/ind/indicators/:id/check-ins
+ * Retorna check-ins de um indicador
+ */
+app.get('/api/ind/indicators/:id/check-ins', requireAuth, async (req, res) => {
+  try {
+    const checkIns = await fetchCheckIns(req.params.id);
+    res.json({ success: true, data: checkIns });
+  } catch (error) {
+    console.error('❌ Erro ao buscar check-ins:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/ind/indicators/:id/check-ins
+ * Cria um check-in mensal
+ * Body: { mes, ano, valor, notas }
+ */
+app.post('/api/ind/indicators/:id/check-ins', requireAuth, async (req, res) => {
+  try {
+    const { mes, ano, valor, notas } = req.body;
+
+    if (!mes || !ano || valor === undefined) {
+      return res.status(400).json({ success: false, error: 'mes, ano e valor são obrigatórios' });
+    }
+
+    // Verifica permissão
+    const indicador = await getIndicadorById(req.params.id);
+    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const checkIn = await createCheckIn({
+      indicador_id: parseInt(req.params.id, 10),
+      mes, ano, valor, notas,
+      created_by: req.user.email,
+    });
+
+    await logAction(req, 'create', 'check_in', checkIn.id, `Check-in criado para ${indicador.nome}`);
+    res.json({ success: true, data: checkIn });
+  } catch (error) {
+    console.error('❌ Erro ao criar check-in:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/indicators/:id/check-ins/:checkInId
+ * Atualiza um check-in
+ */
+app.put('/api/ind/indicators/:id/check-ins/:checkInId', requireAuth, async (req, res) => {
+  try {
+    // Verifica permissão
+    const indicador = await getIndicadorById(req.params.id);
+    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const checkIn = await updateCheckIn(req.params.checkInId, req.body);
+    await logAction(req, 'update', 'check_in', req.params.checkInId, `Check-in atualizado`);
+    res.json({ success: true, data: checkIn });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar check-in:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- PLANOS DE RECUPERAÇÃO ---
+
+/**
+ * Rota: GET /api/ind/indicators/:id/recovery-plans
+ * Retorna planos de recuperação de um indicador
+ */
+app.get('/api/ind/indicators/:id/recovery-plans', requireAuth, async (req, res) => {
+  try {
+    const plans = await fetchRecoveryPlans(req.params.id);
+    res.json({ success: true, data: plans });
+  } catch (error) {
+    console.error('❌ Erro ao buscar planos de recuperação:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/ind/indicators/:id/recovery-plans
+ * Cria um plano de recuperação
+ * Body: { descricao, acoes, prazo, mes_referencia, ano_referencia }
+ */
+app.post('/api/ind/indicators/:id/recovery-plans', requireAuth, async (req, res) => {
+  try {
+    const { descricao, acoes, prazo, mes_referencia, ano_referencia } = req.body;
+
+    if (!descricao) {
+      return res.status(400).json({ success: false, error: 'Descrição é obrigatória' });
+    }
+
+    // Verifica permissão
+    const indicador = await getIndicadorById(req.params.id);
+    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const plan = await createRecoveryPlan({
+      indicador_id: parseInt(req.params.id, 10),
+      descricao, acoes, prazo, mes_referencia, ano_referencia,
+      created_by: req.user.email,
+    });
+
+    await logAction(req, 'create', 'recovery_plan', plan.id, `Plano de recuperação criado`);
+    res.json({ success: true, data: plan });
+  } catch (error) {
+    console.error('❌ Erro ao criar plano de recuperação:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/indicators/:id/recovery-plans/:planId
+ * Atualiza um plano de recuperação
+ */
+app.put('/api/ind/indicators/:id/recovery-plans/:planId', requireAuth, async (req, res) => {
+  try {
+    // Verifica permissão
+    const indicador = await getIndicadorById(req.params.id);
+    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const plan = await updateRecoveryPlan(req.params.planId, req.body);
+    await logAction(req, 'update', 'recovery_plan', req.params.planId, `Plano de recuperação atualizado`);
+    res.json({ success: true, data: plan });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar plano de recuperação:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- PESSOAS / EQUIPE ---
+
+/**
+ * Rota: GET /api/ind/people
+ * Retorna pessoas com scores
+ * Query: setor_id, ciclo, ano
+ */
+app.get('/api/ind/people', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const filters = {
+      setor_id: req.query.setor_id || null,
+      ciclo: req.query.ciclo || null,
+      ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
+    };
+
+    const people = await fetchPeopleWithScores(filters);
+    res.json({ success: true, data: people });
+  } catch (error) {
+    console.error('❌ Erro ao buscar pessoas:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/people/:id
+ * Retorna detalhe de uma pessoa com indicadores
+ * Query: ciclo, ano
+ */
+app.get('/api/ind/people/:id', requireAuth, async (req, res) => {
+  try {
+    const filters = {
+      ciclo: req.query.ciclo || null,
+      ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
+    };
+
+    const person = await getPersonById(req.params.id, filters);
+
+    // Verifica permissão: próprio usuário, líder do setor ou admin
+    if (!isPrivileged(req.user.email) && person.email !== req.user.email) {
+      // TODO: Verificar se é líder do setor
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    res.json({ success: true, data: person });
+  } catch (error) {
+    console.error('❌ Erro ao buscar pessoa:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/team
+ * Retorna equipe do setor do usuário logado
+ * Query: ciclo, ano
+ */
+app.get('/api/ind/team', requireAuth, async (req, res) => {
+  try {
+    // Busca o setor do usuário logado
+    const userSector = await getUserSectorByEmail(req.user.email);
+
+    if (!userSector) {
+      return res.json({ success: true, data: [], message: 'Usuário não está em nenhum setor' });
+    }
+
+    const filters = {
+      ciclo: req.query.ciclo || null,
+      ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
+    };
+
+    const team = await fetchTeam(userSector.id, filters);
+    res.json({ success: true, data: team, sector: userSector });
+  } catch (error) {
+    console.error('❌ Erro ao buscar equipe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- ADMIN: USUÁRIOS ---
+
+/**
+ * Rota: GET /api/ind/admin/users
+ * Retorna usuários com informações de setor e cargo
+ */
+app.get('/api/ind/admin/users', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const users = await fetchUsersWithRoles();
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('❌ Erro ao buscar usuários:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/admin/users/:id/position
+ * Atualiza cargo de um usuário
+ */
+app.put('/api/ind/admin/users/:id/position', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { position_id } = req.body;
+    const user = await updateUserPosition(req.params.id, position_id);
+    await logAction(req, 'update', 'user_position', req.params.id, `Cargo do usuário atualizado`);
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar cargo do usuário:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/admin/users/:id/sector
+ * Atualiza setor de um usuário
+ */
+app.put('/api/ind/admin/users/:id/sector', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { sector_id } = req.body;
+    const user = await updateUserSector(req.params.id, sector_id);
+    await logAction(req, 'update', 'user_sector', req.params.id, `Setor do usuário atualizado`);
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar setor do usuário:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/admin/users/:id/role
+ * Atualiza papel/role de um usuário
+ */
+app.put('/api/ind/admin/users/:id/role', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { role } = req.body;
+    const validRoles = ['user', 'leader', 'admin', 'director'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ success: false, error: 'Role inválido' });
+    }
+
+    const user = await updateUserRole(req.params.id, role);
+    await logAction(req, 'update', 'user_role', req.params.id, `Role do usuário atualizado para ${role}`);
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar role do usuário:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/ind/admin/users/:id/status
+ * Ativa/desativa um usuário
+ */
+app.put('/api/ind/admin/users/:id/status', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { is_active } = req.body;
+    const user = await updateUserStatus(req.params.id, is_active);
+    await logAction(req, 'update', 'user_status', req.params.id, `Usuário ${is_active ? 'ativado' : 'desativado'}`);
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar status do usuário:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- OVERVIEW E HISTÓRICO ---
+
+/**
+ * Rota: GET /api/ind/overview
+ * Retorna visão geral de todos setores com scores
+ * Query: ciclo, ano
+ */
+app.get('/api/ind/overview', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const filters = {
+      ciclo: req.query.ciclo || 'anual',
+      ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
+    };
+
+    const overview = await fetchSectorsOverview(filters);
+    await logAction(req, 'view', 'ind_overview', null, 'Visão Geral Indicadores');
+    res.json({ success: true, data: overview });
+  } catch (error) {
+    console.error('❌ Erro ao buscar overview:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/history
+ * Retorna histórico para comparação ano-a-ano
+ * Query: ciclo
+ */
+app.get('/api/ind/history', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const filters = {
+      ciclo: req.query.ciclo || 'anual',
+    };
+
+    const history = await fetchHistoryComparison(filters);
+    await logAction(req, 'view', 'ind_history', null, 'Histórico Indicadores');
+    res.json({ success: true, data: history });
+  } catch (error) {
+    console.error('❌ Erro ao buscar histórico:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/my-templates
+ * Retorna templates de indicadores disponíveis para o cargo do usuário logado
+ */
+app.get('/api/ind/my-templates', requireAuth, async (req, res) => {
+  try {
+    const supabase = getSupabaseClient();
+
+    // Busca o cargo do usuário
+    const { data: user, error: userError } = await supabase
+      .from('users_otus')
+      .select('position_id')
+      .eq('email', req.user.email)
+      .single();
+
+    if (userError || !user?.position_id) {
+      return res.json({ success: true, data: [], message: 'Usuário não possui cargo definido' });
+    }
+
+    const templates = await fetchPositionIndicators(user.position_id);
+    res.json({ success: true, data: templates });
+  } catch (error) {
+    console.error('❌ Erro ao buscar templates:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

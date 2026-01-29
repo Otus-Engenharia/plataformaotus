@@ -94,6 +94,22 @@ export default function AdminUsuarios() {
     }
   };
 
+  // Update role
+  const handleUpdateRole = async (userId, role) => {
+    try {
+      const res = await fetch(`${API_URL}/api/ind/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role })
+      });
+      if (!res.ok) throw new Error('Erro ao atualizar papel');
+      fetchData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   // Toggle user active status
   const handleToggleUserStatus = async (user) => {
     const newStatus = user.is_active === false ? true : false;
@@ -147,6 +163,14 @@ export default function AdminUsuarios() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ position_id: editForm.position_id || null })
+      });
+
+      // Update role
+      await fetch(`${API_URL}/api/ind/admin/users/${editingUser.id}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role: editForm.role })
       });
 
       setShowEditModal(false);
@@ -325,9 +349,16 @@ export default function AdminUsuarios() {
                       </td>
                       <td className="cell-email">{user.email || '-'}</td>
                       <td>
-                        <span className={`badge ${user.role === 'admin' || user.role === 'director' ? 'badge-gold' : user.role === 'leader' ? 'badge-leader' : 'badge-muted'}`}>
-                          {user.role === 'director' ? 'admin' : user.role || 'user'}
-                        </span>
+                        <select
+                          value={user.role || 'user'}
+                          onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                          className={`inline-select role-select ${user.role === 'admin' || user.role === 'director' ? 'role-admin' : user.role === 'leader' ? 'role-leader' : ''}`}
+                          disabled={!isActive || isCurrentUser}
+                        >
+                          <option value="user">Usuário</option>
+                          <option value="leader">Líder</option>
+                          <option value="admin">Admin</option>
+                        </select>
                       </td>
                       <td>
                         <select
@@ -451,6 +482,23 @@ export default function AdminUsuarios() {
                 >
                   <option value="">Nenhum</option>
                   {positions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <svg viewBox="0 0 24 24" width="16" height="16">
+                    <path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+                  </svg>
+                  Papel
+                </label>
+                <select
+                  value={editForm.role}
+                  onChange={e => setEditForm({...editForm, role: e.target.value})}
+                >
+                  <option value="user">Usuário Comum</option>
+                  <option value="leader">Líder</option>
+                  <option value="admin">Administrador</option>
                 </select>
               </div>
 

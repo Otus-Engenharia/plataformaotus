@@ -1868,6 +1868,24 @@
   background: rgba(34, 197, 94, 0.1) !important;
 }
 
+/* Role Select */
+.role-select {
+  min-width: 100px;
+  font-weight: 500;
+}
+
+.role-select.role-admin {
+  background: rgba(217, 119, 6, 0.1);
+  border-color: rgba(217, 119, 6, 0.3);
+  color: #b45309;
+}
+
+.role-select.role-leader {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.3);
+  color: #1d4ed8;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .stats-grid {
