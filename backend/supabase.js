@@ -1739,6 +1739,11 @@ export async function fetchPeopleWithScores(filters = {}) {
     usersQuery = usersQuery.eq('setor_id', filters.setor_id);
   }
 
+  // Filtra por líder se especificado
+  if (filters.leader_id) {
+    usersQuery = usersQuery.eq('leader_id', filters.leader_id);
+  }
+
   const { data: users, error: usersError } = await usersQuery;
 
   if (usersError) {
@@ -2065,6 +2070,33 @@ export async function getUserSectorByEmail(email) {
   return data?.setor || null;
 }
 
+/**
+ * Busca informações do usuário pelo email (para módulo de indicadores)
+ * @param {string} email - Email do usuário
+ * @returns {Promise<Object|null>} - Dados do usuário ou null
+ */
+export async function getUserByEmail(email) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .select(`
+      id,
+      name,
+      email,
+      setor_id,
+      setor:setor_id(id, name),
+      cargo:position_id(id, name, is_leadership)
+    `)
+    .eq('email', email)
+    .single();
+
+  if (error) {
+    return null;
+  }
+
+  return data;
+}
+
 // --- OVERVIEW E HISTÓRICO ---
 
 /**
@@ -2074,6 +2106,7 @@ export async function getUserSectorByEmail(email) {
  */
 export async function fetchSectorsOverview(filters = {}) {
   const sectors = await fetchSectors();
+  console.log('📊 fetchSectorsOverview - Total sectors from DB:', sectors?.length || 0);
 
   const sectorsWithStats = await Promise.all(
     sectors.map(async (sector) => {
@@ -2086,20 +2119,24 @@ export async function fetchSectorsOverview(filters = {}) {
       const scores = people.map(p => p.score).filter(s => s !== null);
       const avgScore = scores.length > 0
         ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100
-        : null;
+        : 0;
 
       const atRisk = people.filter(p => p.score !== null && p.score < 80).length;
 
+      // Sort people by score descending
+      const sortedPeople = [...people].sort((a, b) => (b.score || 0) - (a.score || 0));
+
       return {
         ...sector,
-        peopleCount: people.length,
-        avgScore,
-        atRiskCount: atRisk,
+        people_count: people.length,
+        avg_score: avgScore,
+        at_risk_count: atRisk,
+        people: sortedPeople, // Include people array for expandable view
       };
     })
   );
 
-  return sectorsWithStats;
+  return { sectors: sectorsWithStats };
 }
 
 /**

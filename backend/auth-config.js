@@ -44,6 +44,27 @@ export const EMAIL_TO_LEADER_NAME = {
 };
 
 /**
+ * Mapeamento de emails de dev para emails reais (para módulo de indicadores)
+ * Usado para buscar setor/equipe de usuários reais durante testes
+ */
+export const DEV_EMAIL_TO_REAL_EMAIL = {
+  'dev-leader@otus.dev': 'anna.bastos@otusengenharia.com',
+  'dev-operacao@otus.dev': 'carla.bedin@otusengenharia.com',
+};
+
+/**
+ * Obtém o email real para busca no módulo de indicadores
+ * Se for dev user, retorna o email mapeado; senão retorna o próprio email
+ * @param {string} email - Email do usuário
+ * @returns {string} - Email real para busca
+ */
+export function getRealEmailForIndicadores(email) {
+  if (!email) return null;
+  const lowerEmail = email.toLowerCase();
+  return DEV_EMAIL_TO_REAL_EMAIL[lowerEmail] || lowerEmail;
+}
+
+/**
  * Mapeamento líder → Ultimo_Time (port_clientes) para filtro NPS/CS.
  * Ajuste conforme os valores reais em port_clientes.Ultimo_Time.
  */

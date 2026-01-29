@@ -17,7 +17,11 @@ import '../styles/HomeView.css';
 
 function HomeView() {
   const navigate = useNavigate();
-  const { isPrivileged } = useAuth();
+  const { isAdmin, isDirector } = useAuth();
+
+  // Apenas admin e diretor podem ver Projetos e Configurações
+  // Líderes só veem Indicadores e OKRs
+  const canSeeAllOptions = isAdmin || isDirector;
 
   const allOptions = [
     {
@@ -75,8 +79,10 @@ function HomeView() {
     },
   ];
 
-  // Filtra opções baseado em permissões - oculta completamente as restritas
-  const options = allOptions.filter(option => !option.requiresPrivilege || isPrivileged);
+  // Filtra opções baseado em permissões
+  // Líderes só veem Indicadores e OKRs (opções sem requiresPrivilege)
+  // Admin e Diretor veem todas as opções
+  const options = allOptions.filter(option => !option.requiresPrivilege || canSeeAllOptions);
 
   const handleOptionClick = (option) => {
     navigate(option.path);

@@ -10,7 +10,7 @@ dotenv.config();
 
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { hasAccess, getUserRole } from './auth-config.js';
+import { hasAccess, getUserRole, isPrivileged } from './auth-config.js';
 
 // Configuração do Google OAuth
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -40,6 +40,12 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
         // Verifica se o usuário tem acesso
         if (!hasAccess(email)) {
           return done(new Error('Acesso negado. Entre em contato com o administrador.'), null);
+        }
+
+        // Verifica se o usuário é privilegiado (diretor, admin ou líder)
+        // Operação não tem acesso à plataforma por enquanto
+        if (!isPrivileged(email)) {
+          return done(new Error('Acesso restrito. A plataforma está disponível apenas para líderes, admins e diretores.'), null);
         }
 
         // Retorna informações do usuário

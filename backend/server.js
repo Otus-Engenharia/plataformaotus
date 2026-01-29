@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
-import { isDirector, isAdmin, isPrivileged, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem } from './auth-config.js';
+import { isDirector, isAdmin, isPrivileged, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
 import {
   getSupabaseClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
   fetchCobrancasFeitas, upsertCobranca, fetchTimesList, fetchUsuarioToTime,
@@ -34,7 +34,7 @@ import {
   fetchCheckIns, getCheckInById, createCheckIn, updateCheckIn, deleteCheckIn,
   fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan,
   fetchPeopleWithScores, getPersonById, fetchTeam,
-  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, getUserSectorByEmail,
+  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, getUserSectorByEmail, getUserByEmail,
   fetchSectorsOverview, fetchHistoryComparison
 } from './supabase.js';
 
@@ -202,11 +202,11 @@ async function logAction(req, actionType, resourceType = null, resourceId = null
 app.get('/api/auth/dev-mode', (req, res) => {
   res.json({
     enabled: process.env.DEV_MODE === 'true',
+    // Operação não tem acesso à plataforma por enquanto
     availableUsers: process.env.DEV_MODE === 'true' ? [
       { email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
       { email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
-      { email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' },
-      { email: 'dev-operacao@otus.dev', name: 'Dev Operação', role: 'user' }
+      { email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
     ] : []
   });
 });
@@ -224,11 +224,19 @@ app.post('/api/auth/dev-login', (req, res) => {
   }
 
   const { role } = req.body;
+
+  // Operação não tem acesso à plataforma por enquanto
+  if (role === 'user') {
+    return res.status(403).json({
+      success: false,
+      error: 'Acesso restrito. A plataforma está disponível apenas para líderes, admins e diretores.'
+    });
+  }
+
   const devUsers = {
     director: { id: 'dev-1', email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
     admin: { id: 'dev-2', email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
-    leader: { id: 'dev-3', email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' },
-    user: { id: 'dev-4', email: 'dev-operacao@otus.dev', name: 'Dev Operação', role: 'user' }
+    leader: { id: 'dev-3', email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
   };
 
   const user = devUsers[role];
@@ -2367,24 +2375,84 @@ app.get('/api/ind/people/:id', requireAuth, async (req, res) => {
 /**
  * Rota: GET /api/ind/team
  * Retorna equipe do setor do usuário logado
- * Query: ciclo, ano
+ * - Líderes veem apenas seus liderados diretos (filtro por leader_id)
+ * - Admins/Diretores veem todos do setor selecionado
+ * Query: ciclo, ano, sector_id (admin only)
  */
 app.get('/api/ind/team', requireAuth, async (req, res) => {
   try {
-    // Busca o setor do usuário logado
-    const userSector = await getUserSectorByEmail(req.user.email);
+    const userEmail = req.user.email;
+    const realEmail = getRealEmailForIndicadores(userEmail);
+    const userRole = getUserRole(userEmail);
+    const isAdminOrDirector = userRole === 'admin' || userRole === 'director';
 
-    if (!userSector) {
-      return res.json({ success: true, data: [], message: 'Usuário não está em nenhum setor' });
+    // Busca informações do usuário atual (para obter ID se for líder)
+    const currentUser = await getUserByEmail(realEmail);
+    let targetSector = null;
+    let leaderId = null;
+
+    // Admin/Director pode visualizar qualquer setor passando sector_id
+    if (req.query.sector_id && isAdminOrDirector) {
+      const { data: sectorData } = await getSupabaseClient()
+        .from('ind_setores')
+        .select('id, name')
+        .eq('id', req.query.sector_id)
+        .single();
+      targetSector = sectorData;
+    } else if (currentUser) {
+      // Usa o setor do usuário logado
+      targetSector = currentUser.setor;
+
+      // Se for líder, filtra pelos liderados
+      if (userRole === 'leader' && currentUser.id) {
+        leaderId = currentUser.id;
+      }
+    }
+
+    if (!targetSector) {
+      // Para admins sem setor, retorna lista de setores disponíveis
+      if (isAdminOrDirector) {
+        const { data: sectors } = await getSupabaseClient()
+          .from('ind_setores')
+          .select('id, name')
+          .order('name');
+        return res.json({
+          success: true,
+          data: { pessoas: [], setor: null, availableSectors: sectors || [] },
+          message: 'Selecione um setor para visualizar a equipe'
+        });
+      }
+      return res.json({ success: true, data: { pessoas: [], setor: null }, message: 'Usuário não está em nenhum setor' });
     }
 
     const filters = {
+      setor_id: targetSector.id,
       ciclo: req.query.ciclo || null,
       ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
     };
 
-    const team = await fetchTeam(userSector.id, filters);
-    res.json({ success: true, data: team, sector: userSector });
+    // Se for líder, adiciona filtro de leader_id
+    if (leaderId) {
+      filters.leader_id = leaderId;
+    }
+
+    const pessoas = await fetchPeopleWithScores(filters);
+
+    // Para admins, também retorna lista de setores disponíveis
+    let availableSectors = [];
+    if (isAdminOrDirector) {
+      const { data: sectors } = await getSupabaseClient()
+        .from('ind_setores')
+        .select('id, name')
+        .order('name');
+      availableSectors = sectors || [];
+    }
+
+    res.json({
+      success: true,
+      data: { pessoas, setor: targetSector, availableSectors },
+      sector: targetSector
+    });
   } catch (error) {
     console.error('❌ Erro ao buscar equipe:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -2534,7 +2602,10 @@ app.get('/api/ind/overview', requireAuth, async (req, res) => {
       ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
     };
 
+    console.log('📊 Overview filters:', filters);
     const overview = await fetchSectorsOverview(filters);
+    console.log('📊 Overview sectors count:', overview?.sectors?.length || 0);
+
     await logAction(req, 'view', 'ind_overview', null, 'Visão Geral Indicadores');
     res.json({ success: true, data: overview });
   } catch (error) {
@@ -2563,6 +2634,60 @@ app.get('/api/ind/history', requireAuth, async (req, res) => {
     res.json({ success: true, data: history });
   } catch (error) {
     console.error('❌ Erro ao buscar histórico:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/ind/my-history
+ * Retorna histórico pessoal do usuário para comparação ano-a-ano
+ * Query: years (comma-separated), email
+ */
+app.get('/api/ind/my-history', requireAuth, async (req, res) => {
+  try {
+    const supabase = getSupabaseClient();
+    const userEmail = req.user.email;
+    const yearsParam = req.query.years || `${new Date().getFullYear()},${new Date().getFullYear() - 1}`;
+    const years = yearsParam.split(',').map(Number);
+
+    // Buscar indicadores do usuário para os anos selecionados
+    const { data: indicators, error: indError } = await supabase
+      .from('indicadores')
+      .select('*')
+      .eq('person_email', userEmail)
+      .in('ano', years)
+      .order('nome');
+
+    if (indError) {
+      console.error('Erro ao buscar indicadores:', indError);
+      throw new Error(indError.message);
+    }
+
+    // Buscar check-ins dos indicadores
+    let checkIns = [];
+    if (indicators && indicators.length > 0) {
+      const indicatorIds = indicators.map(i => i.id);
+      const { data: checkInsData, error: checkError } = await supabase
+        .from('indicadores_check_ins')
+        .select('*')
+        .in('indicador_id', indicatorIds);
+
+      if (checkError) {
+        console.error('Erro ao buscar check-ins:', checkError);
+      } else {
+        checkIns = checkInsData || [];
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        indicators: indicators || [],
+        checkIns: checkIns
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar histórico pessoal:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

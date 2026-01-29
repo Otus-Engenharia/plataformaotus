@@ -406,7 +406,7 @@ function Sidebar({ collapsed, onToggle, area }) {
               </div>
             )}
           </div>
-          {isPrivileged && (
+          {(isAdmin || isDirector) && (
             <Link
               to="/acessos"
               className={`nav-logout-button nav-button-secondary ${location.pathname === '/acessos' ? 'nav-button-active' : ''} ${collapsed ? 'nav-icon-only' : ''}`}
@@ -456,10 +456,15 @@ function TopBar() {
 
 function AppContent() {
   const location = useLocation();
-  const { isPrivileged, isAuthenticated, loading } = useAuth();
+  const { isPrivileged, isAuthenticated, loading, isAdmin, isDirector, isLeader } = useAuth();
   const { isOpen: isOracleOpen } = useOracle();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const isLoginRoute = location.pathname === '/login';
+
+  // Apenas admin e diretor podem acessar Projetos e Configurações
+  // Líderes são redirecionados para /ind
+  const canAccessProjetosArea = isAdmin || isDirector;
+  const canAccessConfiguracoesArea = isAdmin || isDirector;
 
   // 1. Verificando auth: só loading minimalista, sem revelar estrutura do app
   if (loading) {
@@ -561,21 +566,21 @@ function AppContent() {
         )}
         <main className={`main-content ${showSidebar ? 'main-content-sidebar' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
-            <Route 
-              path="/indicadores-lideranca" 
+            <Route
+              path="/indicadores-lideranca"
               element={
                 <ProtectedRoute>
-                  <IndicadoresLiderancaView />
+                  {canAccessProjetosArea ? <IndicadoresLiderancaView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/horas" 
+            <Route
+              path="/horas"
               element={
                 <ProtectedRoute>
-                  <HorasView />
+                  {canAccessProjetosArea ? <HorasView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
             <Route 
               path="/okrs" 
@@ -585,70 +590,72 @@ function AppContent() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/projetos" 
+            <Route
+              path="/projetos"
               element={
                 <ProtectedRoute>
-                  <ProjetosView />
+                  {canAccessProjetosArea ? <ProjetosView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/cs" 
+            <Route
+              path="/cs"
               element={
                 <ProtectedRoute>
-                  <CSView />
+                  {canAccessProjetosArea ? <CSView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/estudo-de-custos" 
+            <Route
+              path="/estudo-de-custos"
               element={
                 <ProtectedRoute>
-                  <EstudoCustosView />
+                  {canAccessProjetosArea ? <EstudoCustosView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/contatos" 
+            <Route
+              path="/contatos"
               element={
                 <ProtectedRoute>
-                  <div style={{ padding: '2rem', textAlign: 'center' }}>
-                    <h2>Contatos</h2>
-                    <p>Esta funcionalidade será implementada em breve.</p>
-                  </div>
+                  {canAccessProjetosArea ? (
+                    <div style={{ padding: '2rem', textAlign: 'center' }}>
+                      <h2>Contatos</h2>
+                      <p>Esta funcionalidade será implementada em breve.</p>
+                    </div>
+                  ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/formulario-passagem" 
+            <Route
+              path="/formulario-passagem"
               element={
                 <ProtectedRoute>
-                  <FormularioPassagemView />
+                  {canAccessProjetosArea ? <FormularioPassagemView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/feedbacks" 
+            <Route
+              path="/feedbacks"
               element={
                 <ProtectedRoute>
-                  <FeedbacksView />
+                  {canAccessProjetosArea ? <FeedbacksView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/acessos" 
+            <Route
+              path="/acessos"
               element={
                 <ProtectedRoute>
-                  {isPrivileged ? <ConfiguracoesView /> : <Navigate to="/indicadores-lideranca" replace />}
+                  {canAccessConfiguracoesArea ? <ConfiguracoesView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
-              } 
+              }
             />
             <Route
               path="/logs"
               element={
                 <ProtectedRoute>
-                  {isPrivileged ? <LogsView /> : <Navigate to="/indicadores-lideranca" replace />}
+                  {canAccessConfiguracoesArea ? <LogsView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />
@@ -656,11 +663,11 @@ function AppContent() {
               path="/bug-reports"
               element={
                 <ProtectedRoute>
-                  {isPrivileged ? (
+                  {canAccessConfiguracoesArea ? (
                     <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                       <AdminBugReports />
                     </Suspense>
-                  ) : <Navigate to="/indicadores-lideranca" replace />}
+                  ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />
