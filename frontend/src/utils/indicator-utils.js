@@ -1,0 +1,347 @@
+/**
+ * Utilitários para cálculo de scores e formatação de indicadores
+ */
+
+/**
+ * Calcula o score de um indicador (0-120)
+ * @param {number} value - Valor atual
+ * @param {number} threshold80 - Limiar de 80% (score 80)
+ * @param {number} target - Meta (score 100)
+ * @param {number} threshold120 - Limiar de 120% (score 120)
+ * @param {boolean} isInverse - Se verdadeiro, valores menores são melhores
+ * @returns {number} Score entre 0 e 120
+ */
+export function calculateIndicatorScore(value, threshold80, target, threshold120, isInverse = false) {
+  if (target === null || target === undefined || target === 0) return 0;
+
+  const v = parseFloat(value) || 0;
+  const m = parseFloat(target);
+  const t80 = threshold80 !== null && threshold80 !== undefined ? parseFloat(threshold80) : m * 0.8;
+  const t120 = threshold120 !== null && threshold120 !== undefined ? parseFloat(threshold120) : m * 1.2;
+
+  if (isInverse) {
+    // Para métricas inversas (menor é melhor, ex: turnover, bugs)
+    if (v <= t120) return 120;
+    if (v <= m) return 100 + ((m - v) / (m - t120)) * 20;
+    if (v <= t80) return 80 + ((t80 - v) / (t80 - m)) * 20;
+    return Math.max(0, 80 * (t80 / v));
+  } else {
+    // Para métricas normais (maior é melhor)
+    if (v >= t120) return 120;
+    if (v >= m) return 100 + ((v - m) / (t120 - m)) * 20;
+    if (v >= t80) return 80 + ((v - t80) / (m - t80)) * 20;
+    return Math.max(0, (v / t80) * 80);
+  }
+}
+
+/**
+ * Calcula score a partir de um objeto indicador
+ * @param {Object} indicador - Objeto indicador com valor, meta, thresholds
+ * @returns {number} Score entre 0 e 120
+ */
+export function getIndicatorScore(indicador) {
+  if (!indicador) return 0;
+  return calculateIndicatorScore(
+    indicador.valor,
+    indicador.threshold_80,
+    indicador.meta,
+    indicador.threshold_120,
+    indicador.is_inverse
+  );
+}
+
+/**
+ * Retorna a cor do semáforo baseado no score
+ * @param {number} score - Score (0-120)
+ * @returns {'red'|'yellow'|'green'|'blue'} Cor do semáforo
+ */
+export function getTrafficLightColor(score) {
+  if (score === null || score === undefined) return 'gray';
+  if (score >= 100) return 'blue';
+  if (score >= 80) return 'green';
+  if (score >= 60) return 'yellow';
+  return 'red';
+}
+
+/**
+ * Retorna a classe CSS para a cor do semáforo
+ * @param {number} score - Score (0-120)
+ * @returns {string} Classe CSS
+ */
+export function getTrafficLightClass(score) {
+  const color = getTrafficLightColor(score);
+  const classMap = {
+    blue: 'traffic-light-blue',
+    green: 'traffic-light-green',
+    yellow: 'traffic-light-yellow',
+    red: 'traffic-light-red',
+    gray: 'traffic-light-gray',
+  };
+  return classMap[color] || 'traffic-light-gray';
+}
+
+/**
+ * Retorna o hex da cor do semáforo
+ * @param {number} score - Score (0-120)
+ * @returns {string} Cor hex
+ */
+export function getTrafficLightHex(score) {
+  const color = getTrafficLightColor(score);
+  const hexMap = {
+    blue: '#4285F4',
+    green: '#34A853',
+    yellow: '#FBBC05',
+    red: '#EA4335',
+    gray: '#9CA3AF',
+  };
+  return hexMap[color] || hexMap.gray;
+}
+
+/**
+ * Calcula valor consolidado baseado no tipo de consolidação
+ * @param {Array} checkIns - Array de check-ins com { valor }
+ * @param {'sum'|'average'|'last_value'|'manual'} consolidationType - Tipo de consolidação
+ * @returns {number} Valor consolidado
+ */
+export function calculateConsolidatedValue(checkIns, consolidationType = 'last_value') {
+  if (!checkIns || checkIns.length === 0) return 0;
+
+  const valores = checkIns.map(ci => parseFloat(ci.valor) || 0);
+
+  switch (consolidationType) {
+    case 'sum':
+      return valores.reduce((sum, v) => sum + v, 0);
+    case 'average':
+      return valores.reduce((sum, v) => sum + v, 0) / valores.length;
+    case 'last_value':
+    default:
+      return valores[valores.length - 1];
+  }
+}
+
+/**
+ * Calcula o score ponderado de uma pessoa
+ * @param {Array} indicadores - Array de indicadores com peso e valores
+ * @returns {number|null} Score ponderado (0-120) ou null se não houver indicadores
+ */
+export function calculatePersonScore(indicadores) {
+  if (!indicadores || indicadores.length === 0) return null;
+
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  for (const ind of indicadores) {
+    const peso = ind.peso || 1;
+    const score = getIndicatorScore(ind);
+    totalWeight += peso;
+    weightedSum += score * peso;
+  }
+
+  if (totalWeight === 0) return null;
+  return Math.round((weightedSum / totalWeight) * 100) / 100;
+}
+
+/**
+ * Formata um valor baseado no tipo de métrica
+ * @param {number} value - Valor a formatar
+ * @param {'number'|'percentage'|'boolean'|'currency'} metricType - Tipo de métrica
+ * @param {number} decimals - Casas decimais (default: 1)
+ * @returns {string} Valor formatado
+ */
+export function formatValue(value, metricType = 'number', decimals = 1) {
+  if (value === null || value === undefined) return '-';
+
+  const num = parseFloat(value);
+  if (isNaN(num)) return '-';
+
+  switch (metricType) {
+    case 'percentage':
+      return `${num.toFixed(decimals)}%`;
+    case 'currency':
+      return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    case 'boolean':
+      return num > 0.5 ? 'Sim' : 'Não';
+    case 'number':
+    default:
+      return num.toLocaleString('pt-BR', { maximumFractionDigits: decimals });
+  }
+}
+
+/**
+ * Retorna o range de meses para um ciclo
+ * @param {'q1'|'q2'|'q3'|'q4'|'anual'} cycle - Ciclo
+ * @returns {{ start: number, end: number }} Mês inicial e final (1-12)
+ */
+export function getCycleMonthRange(cycle) {
+  switch (cycle) {
+    case 'q1':
+      return { start: 1, end: 3 };
+    case 'q2':
+      return { start: 4, end: 6 };
+    case 'q3':
+      return { start: 7, end: 9 };
+    case 'q4':
+      return { start: 10, end: 12 };
+    case 'anual':
+    default:
+      return { start: 1, end: 12 };
+  }
+}
+
+/**
+ * Retorna o ciclo atual baseado na data
+ * @param {Date} date - Data (default: hoje)
+ * @returns {'q1'|'q2'|'q3'|'q4'} Ciclo atual
+ */
+export function getCurrentCycle(date = new Date()) {
+  const month = date.getMonth() + 1;
+  if (month <= 3) return 'q1';
+  if (month <= 6) return 'q2';
+  if (month <= 9) return 'q3';
+  return 'q4';
+}
+
+/**
+ * Retorna o ano atual
+ * @returns {number} Ano atual
+ */
+export function getCurrentYear() {
+  return new Date().getFullYear();
+}
+
+/**
+ * Retorna label legível para o ciclo
+ * @param {'q1'|'q2'|'q3'|'q4'|'anual'} cycle - Ciclo
+ * @returns {string} Label
+ */
+export function getCycleLabel(cycle) {
+  const labels = {
+    q1: '1º Trimestre',
+    q2: '2º Trimestre',
+    q3: '3º Trimestre',
+    q4: '4º Trimestre',
+    anual: 'Anual',
+  };
+  return labels[cycle] || cycle;
+}
+
+/**
+ * Retorna array de opções de ciclo para selects
+ * @param {boolean} includeAnnual - Se deve incluir opção anual
+ * @returns {Array<{value: string, label: string}>}
+ */
+export function getCycleOptions(includeAnnual = true) {
+  const options = [
+    { value: 'q1', label: '1º Trimestre (Q1)' },
+    { value: 'q2', label: '2º Trimestre (Q2)' },
+    { value: 'q3', label: '3º Trimestre (Q3)' },
+    { value: 'q4', label: '4º Trimestre (Q4)' },
+  ];
+  if (includeAnnual) {
+    options.push({ value: 'anual', label: 'Anual' });
+  }
+  return options;
+}
+
+/**
+ * Retorna array de meses para um ciclo
+ * @param {'q1'|'q2'|'q3'|'q4'|'anual'} cycle - Ciclo
+ * @returns {Array<{value: number, label: string}>}
+ */
+export function getMonthsForCycle(cycle) {
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
+  const { start, end } = getCycleMonthRange(cycle);
+  const months = [];
+
+  for (let i = start; i <= end; i++) {
+    months.push({ value: i, label: monthNames[i - 1] });
+  }
+
+  return months;
+}
+
+/**
+ * Retorna o status textual baseado no score
+ * @param {number} score - Score (0-120)
+ * @returns {string} Status
+ */
+export function getScoreStatus(score) {
+  if (score === null || score === undefined) return 'Sem dados';
+  if (score >= 100) return 'Superando';
+  if (score >= 80) return 'No alvo';
+  if (score >= 60) return 'Em risco';
+  return 'Crítico';
+}
+
+/**
+ * Verifica se um indicador está em risco
+ * @param {Object} indicador - Indicador com valor, meta, thresholds
+ * @returns {boolean}
+ */
+export function isIndicatorAtRisk(indicador) {
+  const score = getIndicatorScore(indicador);
+  return score < 80;
+}
+
+/**
+ * Calcula progresso percentual em relação à meta
+ * @param {number} valor - Valor atual
+ * @param {number} meta - Meta
+ * @param {boolean} isInverse - Se verdadeiro, valores menores são melhores
+ * @returns {number} Progresso (0-100+)
+ */
+export function calculateProgress(valor, meta, isInverse = false) {
+  if (!meta || meta === 0) return 0;
+
+  const v = parseFloat(valor) || 0;
+  const m = parseFloat(meta);
+
+  if (isInverse) {
+    // Para métricas inversas, 100% significa atingir ou ficar abaixo da meta
+    return Math.max(0, (m / v) * 100);
+  }
+
+  return (v / m) * 100;
+}
+
+/**
+ * Agrupa indicadores por categoria
+ * @param {Array} indicadores - Array de indicadores
+ * @returns {Object} Objeto com categorias como chaves
+ */
+export function groupIndicatorsByCategory(indicadores) {
+  return indicadores.reduce((acc, ind) => {
+    const categoria = ind.categoria || 'outros';
+    if (!acc[categoria]) {
+      acc[categoria] = [];
+    }
+    acc[categoria].push(ind);
+    return acc;
+  }, {});
+}
+
+/**
+ * Ordena indicadores por score (piores primeiro)
+ * @param {Array} indicadores - Array de indicadores
+ * @returns {Array} Array ordenado
+ */
+export function sortIndicatorsByScore(indicadores, ascending = true) {
+  return [...indicadores].sort((a, b) => {
+    const scoreA = getIndicatorScore(a);
+    const scoreB = getIndicatorScore(b);
+    return ascending ? scoreA - scoreB : scoreB - scoreA;
+  });
+}
+
+/**
+ * Filtra indicadores em risco
+ * @param {Array} indicadores - Array de indicadores
+ * @returns {Array} Indicadores com score < 80
+ */
+export function filterAtRiskIndicators(indicadores) {
+  return indicadores.filter(ind => isIndicatorAtRisk(ind));
+}

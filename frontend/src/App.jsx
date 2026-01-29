@@ -6,7 +6,7 @@
  * - /cs - Dados do Setor de Sucesso do Cliente
  */
 
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
@@ -20,13 +20,23 @@ import FormularioPassagemView from './components/FormularioPassagemView';
 import FeedbacksView from './components/FeedbacksView';
 import LogsView from './components/LogsView';
 import HomeView from './components/HomeView';
-import IndicadoresView from './components/IndicadoresView';
 import OKRsView from './components/OKRsView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLoading from './components/AuthLoading';
 import OracleChat from './components/OracleChat';
 import './styles/App.css';
+
+// Lazy load das páginas de indicadores individuais
+const DashboardIndicadores = lazy(() => import('./pages/indicadores/DashboardIndicadores'));
+const OverviewIndicadores = lazy(() => import('./pages/indicadores/OverviewIndicadores'));
+const TeamView = lazy(() => import('./pages/indicadores/TeamView'));
+const PersonDetailView = lazy(() => import('./pages/indicadores/PersonDetailView'));
+const IndicatorDetailView = lazy(() => import('./pages/indicadores/IndicatorDetailView'));
+const HistoryView = lazy(() => import('./pages/indicadores/HistoryView'));
+const AdminSetores = lazy(() => import('./pages/indicadores/AdminSetores'));
+const AdminUsuarios = lazy(() => import('./pages/indicadores/AdminUsuarios'));
+const AdminCargos = lazy(() => import('./pages/indicadores/AdminCargos'));
 
 const icons = {
   indicadoresLideranca: (
@@ -98,6 +108,42 @@ const icons = {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Zm0 14H6l-2 2V4h16v12Z" />
       <path d="M7 9h10v2H7V9Zm0 3h7v2H7v-2Z" />
+    </svg>
+  ),
+  // Ícones para área de Indicadores Individuais
+  dashboard: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+    </svg>
+  ),
+  overview: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+    </svg>
+  ),
+  team: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+    </svg>
+  ),
+  history: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
+    </svg>
+  ),
+  sectors: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm6 9.09c0 4-2.55 7.7-6 8.83-3.45-1.13-6-4.82-6-8.83V6.31l6-2.12 6 2.12v4.78z" />
+    </svg>
+  ),
+  users: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+    </svg>
+  ),
+  positions: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z" />
     </svg>
   ),
 };
@@ -210,16 +256,16 @@ function Sidebar({ collapsed, onToggle, area }) {
   // Links para área de CONFIGURAÇÕES
   const configuracoesLinks = (
     <>
-      <Link 
-        to="/acessos" 
+      <Link
+        to="/acessos"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/acessos') ? 'nav-link-active' : ''}`}
         title={linkTitle('Acessos')}
       >
         <span className="nav-icon">{icons.acessos}</span>
         <span className="nav-text">Acessos</span>
       </Link>
-      <Link 
-        to="/logs" 
+      <Link
+        to="/logs"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/logs') ? 'nav-link-active' : ''}`}
         title={linkTitle('Logs')}
       >
@@ -229,11 +275,80 @@ function Sidebar({ collapsed, onToggle, area }) {
     </>
   );
 
+  // Links para área de INDICADORES INDIVIDUAIS
+  const indicadoresIndLinks = (
+    <>
+      <Link
+        to="/ind"
+        className={`nav-link nav-link-modern ${location.pathname === '/ind' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Meus Indicadores')}
+      >
+        <span className="nav-icon">{icons.dashboard}</span>
+        <span className="nav-text">Meus Indicadores</span>
+      </Link>
+      <Link
+        to="/ind/equipe"
+        className={`nav-link nav-link-modern ${location.pathname === '/ind/equipe' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Minha Equipe')}
+      >
+        <span className="nav-icon">{icons.team}</span>
+        <span className="nav-text">Minha Equipe</span>
+      </Link>
+      {isPrivileged && (
+        <>
+          <Link
+            to="/ind/visao-geral"
+            className={`nav-link nav-link-modern ${location.pathname === '/ind/visao-geral' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Visão Geral')}
+          >
+            <span className="nav-icon">{icons.overview}</span>
+            <span className="nav-text">Visão Geral</span>
+          </Link>
+          <Link
+            to="/ind/historico"
+            className={`nav-link nav-link-modern ${location.pathname === '/ind/historico' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Histórico')}
+          >
+            <span className="nav-icon">{icons.history}</span>
+            <span className="nav-text">Histórico</span>
+          </Link>
+          <div className="nav-section-divider"></div>
+          <span className={`nav-section-title ${collapsed ? 'sr-only' : ''}`}>Administração</span>
+          <Link
+            to="/ind/admin/setores"
+            className={`nav-link nav-link-modern ${location.pathname === '/ind/admin/setores' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Setores')}
+          >
+            <span className="nav-icon">{icons.sectors}</span>
+            <span className="nav-text">Setores</span>
+          </Link>
+          <Link
+            to="/ind/admin/cargos"
+            className={`nav-link nav-link-modern ${location.pathname === '/ind/admin/cargos' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Cargos')}
+          >
+            <span className="nav-icon">{icons.positions}</span>
+            <span className="nav-text">Cargos</span>
+          </Link>
+          <Link
+            to="/ind/admin/usuarios"
+            className={`nav-link nav-link-modern ${location.pathname === '/ind/admin/usuarios' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Usuários')}
+          >
+            <span className="nav-icon">{icons.users}</span>
+            <span className="nav-text">Usuários</span>
+          </Link>
+        </>
+      )}
+    </>
+  );
+
   return (
     <aside className={`sidebar glass-sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <nav className="sidebar-links">
         {area === 'projetos' && projetosLinks}
         {area === 'configuracoes' && configuracoesLinks}
+        {area === 'indicadores' && indicadoresIndLinks}
       </nav>
       <button
         type="button"
@@ -363,18 +478,21 @@ function AppContent() {
   // Detectar área atual baseado na rota
   const getCurrentArea = () => {
     const path = location.pathname;
-    if (path.startsWith('/indicadores-lideranca') || 
-        path.startsWith('/horas') || 
-        path.startsWith('/projetos') || 
-        path.startsWith('/cs') || 
-        path.startsWith('/estudo-de-custos') || 
-        path.startsWith('/contatos') || 
-        path.startsWith('/formulario-passagem') || 
+    if (path.startsWith('/indicadores-lideranca') ||
+        path.startsWith('/horas') ||
+        path.startsWith('/projetos') ||
+        path.startsWith('/cs') ||
+        path.startsWith('/estudo-de-custos') ||
+        path.startsWith('/contatos') ||
+        path.startsWith('/formulario-passagem') ||
         path.startsWith('/feedbacks')) {
       return 'projetos';
     }
     if (path.startsWith('/acessos') || path.startsWith('/logs')) {
       return 'configuracoes';
+    }
+    if (path.startsWith('/ind')) {
+      return 'indicadores';
     }
     return null;
   };
@@ -382,8 +500,8 @@ function AppContent() {
   const currentArea = getCurrentArea();
   const showSidebar = !isHomeRoute && currentArea !== null;
   const showTopBar = !isHomeRoute;
-  // Não mostrar Oráculo na Home, OKRs e Indicadores
-  const isOKRsOrIndicadoresRoute = location.pathname === '/okrs' || location.pathname === '/indicadores';
+  // Não mostrar Oráculo na Home, OKRs, Indicadores legados e área /ind
+  const isOKRsOrIndicadoresRoute = location.pathname === '/okrs' || location.pathname.startsWith('/ind');
   const showOracle = !isHomeRoute && !isOKRsOrIndicadoresRoute;
   
   // Tela Home: sem TopBar, sem Sidebar, sem Oráculo
@@ -441,14 +559,6 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <HorasView />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/indicadores" 
-              element={
-                <ProtectedRoute>
-                  <IndicadoresView />
                 </ProtectedRoute>
               } 
             />
@@ -519,13 +629,114 @@ function AppContent() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/logs" 
+            <Route
+              path="/logs"
               element={
                 <ProtectedRoute>
                   {isPrivileged ? <LogsView /> : <Navigate to="/indicadores-lideranca" replace />}
                 </ProtectedRoute>
-              } 
+              }
+            />
+            {/* Área de Indicadores Individuais */}
+            <Route
+              path="/ind"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <DashboardIndicadores />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/equipe"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <TeamView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/visao-geral"
+              element={
+                <ProtectedRoute>
+                  {isPrivileged ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <OverviewIndicadores />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/historico"
+              element={
+                <ProtectedRoute>
+                  {isPrivileged ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <HistoryView />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/pessoa/:id"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <PersonDetailView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/indicador/:id"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <IndicatorDetailView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/admin/setores"
+              element={
+                <ProtectedRoute>
+                  {isPrivileged ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <AdminSetores />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/admin/cargos"
+              element={
+                <ProtectedRoute>
+                  {isPrivileged ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <AdminCargos />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/admin/usuarios"
+              element={
+                <ProtectedRoute>
+                  {isPrivileged ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <AdminUsuarios />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
             />
           </Routes>
           {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}

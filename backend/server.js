@@ -205,7 +205,8 @@ app.get('/api/auth/dev-mode', (req, res) => {
     availableUsers: process.env.DEV_MODE === 'true' ? [
       { email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
       { email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
-      { email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
+      { email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' },
+      { email: 'dev-operacao@otus.dev', name: 'Dev Operação', role: 'user' }
     ] : []
   });
 });
@@ -226,7 +227,8 @@ app.post('/api/auth/dev-login', (req, res) => {
   const devUsers = {
     director: { id: 'dev-1', email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
     admin: { id: 'dev-2', email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
-    leader: { id: 'dev-3', email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
+    leader: { id: 'dev-3', email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' },
+    user: { id: 'dev-4', email: 'dev-operacao@otus.dev', name: 'Dev Operação', role: 'user' }
   };
 
   const user = devUsers[role];
@@ -2163,7 +2165,7 @@ app.post('/api/ind/indicators/:id/check-ins', requireAuth, async (req, res) => {
     }
 
     const checkIn = await createCheckIn({
-      indicador_id: parseInt(req.params.id, 10),
+      indicador_id: req.params.id,
       mes, ano, valor, notas,
       created_by: req.user.email,
     });
@@ -2233,7 +2235,7 @@ app.post('/api/ind/indicators/:id/recovery-plans', requireAuth, async (req, res)
     }
 
     const plan = await createRecoveryPlan({
-      indicador_id: parseInt(req.params.id, 10),
+      indicador_id: req.params.id,
       descricao, acoes, prazo, mes_referencia, ano_referencia,
       created_by: req.user.email,
     });
@@ -2507,23 +2509,53 @@ app.get('/api/ind/history', requireAuth, async (req, res) => {
 /**
  * Rota: GET /api/ind/my-templates
  * Retorna templates de indicadores disponíveis para o cargo do usuário logado
+ * Query: position_id (opcional, para dev mode)
  */
 app.get('/api/ind/my-templates', requireAuth, async (req, res) => {
   try {
     const supabase = getSupabaseClient();
+    let positionId = req.query.position_id;
 
-    // Busca o cargo do usuário
-    const { data: user, error: userError } = await supabase
-      .from('users_otus')
-      .select('position_id')
-      .eq('email', req.user.email)
-      .single();
+    // Se não foi especificado position_id, busca do usuário
+    if (!positionId) {
+      const { data: user, error: userError } = await supabase
+        .from('users_otus')
+        .select('position_id')
+        .eq('email', req.user.email)
+        .single();
 
-    if (userError || !user?.position_id) {
+      if (!userError && user?.position_id) {
+        positionId = user.position_id;
+      }
+    }
+
+    // Se ainda não tem position_id e é usuário de dev, usa cargo default
+    if (!positionId && req.user.email?.endsWith('@otus.dev')) {
+      // Mapeamento de email dev para cargo default
+      const devPositionMap = {
+        'dev-leader@otus.dev': 'Líder de projeto',
+        'dev-operacao@otus.dev': 'Analista de coordenação',
+        'dev-director@otus.dev': 'Líder de projeto',
+        'dev-admin@otus.dev': 'Líder de projeto'
+      };
+
+      const positionName = devPositionMap[req.user.email] || 'Líder de projeto';
+      const { data: defaultPosition } = await supabase
+        .from('positions')
+        .select('id')
+        .eq('name', positionName)
+        .single();
+
+      if (defaultPosition) {
+        positionId = defaultPosition.id;
+      }
+    }
+
+    if (!positionId) {
       return res.json({ success: true, data: [], message: 'Usuário não possui cargo definido' });
     }
 
-    const templates = await fetchPositionIndicators(user.position_id);
+    const templates = await fetchPositionIndicators(positionId);
     res.json({ success: true, data: templates });
   } catch (error) {
     console.error('❌ Erro ao buscar templates:', error);

@@ -4,7 +4,7 @@
  * Permite que o usuário faça login usando Google OAuth
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../api';
@@ -13,15 +13,17 @@ import '../styles/Login.css';
 function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, devMode, devLogin } = useAuth();
+  const [selectedRole, setSelectedRole] = useState('director');
+  const [devLoading, setDevLoading] = useState(false);
 
   // Verifica se há erro na URL (vindo do callback)
   const error = searchParams.get('error');
 
-  // Se já estiver autenticado, redireciona para o portfólio
+  // Se já estiver autenticado, redireciona para a home
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate('/portfolio', { replace: true });
+      navigate('/home', { replace: true });
     }
   }, [isAuthenticated, loading, navigate]);
 
@@ -30,6 +32,18 @@ function Login() {
    */
   const handleGoogleLogin = () => {
     window.location.href = `${API_URL}/api/auth/google`;
+  };
+
+  /**
+   * Faz login em modo dev
+   */
+  const handleDevLogin = async () => {
+    setDevLoading(true);
+    const success = await devLogin(selectedRole);
+    setDevLoading(false);
+    if (success) {
+      navigate('/home', { replace: true });
+    }
   };
 
   if (loading) {
@@ -93,6 +107,35 @@ function Login() {
           </svg>
           <span className="login-button-text">Continuar com Google</span>
         </button>
+
+        {/* Seção Dev Mode */}
+        {devMode.enabled && (
+          <div className="login-dev-section">
+            <div className="login-dev-badge">MODO DESENVOLVIMENTO</div>
+            <p className="login-dev-description">
+              Selecione um role para testar a aplicação localmente
+            </p>
+            <select
+              className="login-dev-select"
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+            >
+              {devMode.availableUsers?.map(user => (
+                <option key={user.role} value={user.role}>
+                  {user.name} ({user.role === 'director' || user.role === 'admin' ? 'Acesso Total' : user.role === 'leader' ? 'Acesso Liderança' : 'Acesso Operação'})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleDevLogin}
+              className="login-dev-button"
+              type="button"
+              disabled={devLoading}
+            >
+              {devLoading ? 'Entrando...' : 'Entrar como Dev'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

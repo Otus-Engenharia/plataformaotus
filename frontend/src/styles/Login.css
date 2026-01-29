@@ -372,3 +372,103 @@ html:has(.login-container) {
 .login-content-wrapper > * {
   will-change: transform, opacity;
 }
+
+/* ========================================
+   SEÇÃO DEV MODE
+   ======================================== */
+
+.login-dev-section {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  background: rgba(255, 193, 7, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.login-dev-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+  text-shadow: none;
+}
+
+.login-dev-description {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 1rem 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.login-dev-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+}
+
+.login-dev-select:hover {
+  border-color: rgba(255, 193, 7, 0.5);
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.login-dev-select:focus {
+  outline: none;
+  border-color: rgba(255, 193, 7, 0.7);
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
+}
+
+.login-dev-select option {
+  background: #2d2d2d;
+  color: #fff;
+  padding: 0.5rem;
+}
+
+.login-dev-button {
+  width: 100%;
+  padding: 0.9rem 1.5rem;
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  border: none;
+  border-radius: 10px;
+  color: #000;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.login-dev-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 193, 7, 0.4);
+}
+
+.login-dev-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-dev-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

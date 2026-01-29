@@ -1,12 +1,12 @@
 /**
  * Componente: Vista Inicial (Home)
- * 
- * Tela principal com 4 opções principais:
- * - Projetos
+ *
+ * Tela principal com opções de navegação:
+ * - Projetos (apenas admin/diretor)
  * - Indicadores
  * - OKRs
- * - Configurações
- * 
+ * - Configurações (apenas admin/diretor)
+ *
  * Mantém a identidade visual do login
  */
 
@@ -19,7 +19,7 @@ function HomeView() {
   const navigate = useNavigate();
   const { isPrivileged } = useAuth();
 
-  const options = [
+  const allOptions = [
     {
       id: 'projetos',
       title: 'Projetos',
@@ -31,6 +31,7 @@ function HomeView() {
       ),
       path: '/projetos',
       color: '#4285F4',
+      requiresPrivilege: true,
     },
     {
       id: 'indicadores',
@@ -42,7 +43,7 @@ function HomeView() {
           <path d="M7 12l4-4 4 4 6-6" />
         </svg>
       ),
-      path: '/indicadores',
+      path: '/ind',
       color: '#34A853',
     },
     {
@@ -74,10 +75,10 @@ function HomeView() {
     },
   ];
 
+  // Filtra opções baseado em permissões - oculta completamente as restritas
+  const options = allOptions.filter(option => !option.requiresPrivilege || isPrivileged);
+
   const handleOptionClick = (option) => {
-    if (option.requiresPrivilege && !isPrivileged) {
-      return; // Não navega se não tiver permissão
-    }
     navigate(option.path);
   };
 
@@ -94,24 +95,20 @@ function HomeView() {
 
         {/* Grid de opções */}
         <div className="home-options-grid">
-          {options.map((option) => {
-            const isDisabled = option.requiresPrivilege && !isPrivileged;
-            return (
-              <button
-                key={option.id}
-                className={`home-option-card ${isDisabled ? 'disabled' : ''}`}
-                onClick={() => handleOptionClick(option)}
-                disabled={isDisabled}
-                style={{ '--option-color': option.color }}
-              >
-                <div className="home-option-icon" style={{ color: option.color }}>
-                  {option.icon}
-                </div>
-                <h3 className="home-option-title">{option.title}</h3>
-                <p className="home-option-description">{option.description}</p>
-              </button>
-            );
-          })}
+          {options.map((option) => (
+            <button
+              key={option.id}
+              className="home-option-card"
+              onClick={() => handleOptionClick(option)}
+              style={{ '--option-color': option.color }}
+            >
+              <div className="home-option-icon" style={{ color: option.color }}>
+                {option.icon}
+              </div>
+              <h3 className="home-option-title">{option.title}</h3>
+              <p className="home-option-description">{option.description}</p>
+            </button>
+          ))}
         </div>
       </div>
     </div>

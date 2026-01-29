@@ -16,11 +16,17 @@ export const USER_ROLES = {
   'ana.reisdorfer@otusengenharia.com': 'admin',
   'felipe.simoni@otusengenharia.com': 'admin',
   'pedro.kupka@otusengenharia.com': 'admin',
-  
+
   // Acesso de líder - apenas aos seus projetos
   'anna.bastos@otusengenharia.com': 'leader',
   'alicia.paim@otusengenharia.com': 'leader',
   'estevao.goulart@otusengenharia.com': 'leader',
+
+  // Dev mode - usuários de teste
+  'dev-director@otus.dev': 'director',
+  'dev-admin@otus.dev': 'admin',
+  'dev-leader@otus.dev': 'leader',
+  'dev-operacao@otus.dev': 'user',
 };
 
 /**
@@ -33,6 +39,8 @@ export const EMAIL_TO_LEADER_NAME = {
   'estevao.goulart@otusengenharia.com': 'Estevão Goulart',
   'anna.bastos@otusengenharia.com': 'Anna Bastos',
   'alicia.paim@otusengenharia.com': 'Alicia Paim',
+  // Dev mode - usa dados da Anna Bastos para testes de filtragem de líder
+  'dev-leader@otus.dev': 'Anna Bastos',
 };
 
 /**
@@ -98,13 +106,13 @@ export function isAdmin(email) {
 }
 
 /**
- * Verifica se um usuário é diretora ou admin
+ * Verifica se um usuário é diretora, admin ou líder
  * @param {string} email - Email do usuário
  * @returns {boolean}
  */
 export function isPrivileged(email) {
   const role = getUserRole(email);
-  return role === 'director' || role === 'admin';
+  return role === 'director' || role === 'admin' || role === 'leader';
 }
 
 /**

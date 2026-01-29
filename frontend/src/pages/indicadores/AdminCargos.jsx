@@ -26,6 +26,7 @@ export default function AdminCargos() {
   const [sectors, setSectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterSector, setFilterSector] = useState('');
   const [expandedPositions, setExpandedPositions] = useState({});
 
   // Modal states
@@ -100,10 +101,12 @@ export default function AdminCargos() {
     }));
   };
 
-  // Filter positions by search term
-  const filteredPositions = positions.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter positions by search term and sector
+  const filteredPositions = positions.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSector = !filterSector || p.sector_id === filterSector;
+    return matchesSearch && matchesSector;
+  });
 
   // Position CRUD
   const handlePositionSubmit = async (e) => {
@@ -294,19 +297,33 @@ export default function AdminCargos() {
         </button>
       </header>
 
-      {/* Search */}
-      <div className="admin-search-container">
-        <div className="search-input-wrapper">
-          <svg viewBox="0 0 24 24" width="18" height="18" className="search-icon">
-            <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-          </svg>
-          <input
-            type="text"
-            placeholder="Buscar cargos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
+      {/* Search and Filter */}
+      <div className="admin-filters-row">
+        <div className="admin-search-container">
+          <div className="search-input-wrapper">
+            <svg viewBox="0 0 24 24" width="18" height="18" className="search-icon">
+              <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar cargos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+        </div>
+        <div className="admin-filter-container">
+          <select
+            value={filterSector}
+            onChange={(e) => setFilterSector(e.target.value)}
+            className="filter-select"
+          >
+            <option value="">Todos os setores</option>
+            {sectors.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 

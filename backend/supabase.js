@@ -1355,8 +1355,8 @@ export async function getIndicadorById(indicadorId) {
 
   return {
     ...data,
-    checkIns,
-    recoveryPlans,
+    check_ins: checkIns,
+    recovery_plans: recoveryPlans,
   };
 }
 
@@ -1471,7 +1471,7 @@ export async function fetchCheckIns(indicadorId) {
 }
 
 /**
- * Cria um check-in mensal
+ * Cria ou atualiza um check-in mensal (upsert)
  * @param {Object} checkInData - Dados do check-in
  * @returns {Promise<Object>}
  */
@@ -1479,14 +1479,17 @@ export async function createCheckIn(checkInData) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(CHECK_INS_TABLE)
-    .insert([{
+    .upsert({
       indicador_id: checkInData.indicador_id,
       mes: checkInData.mes,
       ano: checkInData.ano,
       valor: checkInData.valor,
       notas: checkInData.notas || null,
       created_by: checkInData.created_by || null,
-    }])
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'indicador_id,mes,ano',
+    })
     .select()
     .single();
 

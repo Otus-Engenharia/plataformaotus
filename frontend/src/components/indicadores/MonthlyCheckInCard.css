@@ -1,0 +1,154 @@
+.check-in-card {
+  position: relative;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+}
+
+.check-in-card:hover {
+  transform: translateY(-2px);
+}
+
+.check-in-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.check-in-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.check-in-month {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-transform: uppercase;
+}
+
+.check-in-year {
+  font-size: 0.75rem;
+  color: #737373;
+}
+
+.check-in-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.check-in-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.check-in-meta {
+  font-size: 0.75rem;
+  color: #737373;
+}
+
+.check-in-score {
+  font-size: 0.75rem;
+  color: #737373;
+}
+
+.check-in-score span {
+  font-weight: 600;
+}
+
+.check-in-notes {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(26, 26, 26, 0.1);
+}
+
+.check-in-notes p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #737373;
+  line-height: 1.4;
+}
+
+.check-in-edit-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.375rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #737373;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.check-in-card:hover .check-in-edit-btn {
+  opacity: 1;
+}
+
+.check-in-edit-btn:hover {
+  background: rgba(26, 26, 26, 0.05);
+  color: #1a1a1a;
+}
+
+/* Grid */
+.check-ins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+/* Empty state */
+.check-in-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  min-height: 120px;
+  background: rgba(26, 26, 26, 0.03);
+  border: 2px dashed rgba(26, 26, 26, 0.15);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.check-in-empty-month {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #737373;
+  text-transform: uppercase;
+}
+
+.check-in-empty-meta {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.check-in-add-btn {
+  margin-top: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ffdd00;
+  background: transparent;
+  border: 1px solid #ffdd00;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.check-in-add-btn:hover {
+  background: #ffdd00;
+  color: #1a1a1a;
+}

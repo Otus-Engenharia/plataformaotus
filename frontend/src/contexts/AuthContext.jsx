@@ -17,6 +17,20 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [devMode, setDevMode] = useState({ enabled: false, availableUsers: [] });
+
+  /**
+   * Verifica se o dev mode está habilitado
+   */
+  const checkDevMode = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/auth/dev-mode`);
+      setDevMode(response.data);
+    } catch (err) {
+      console.error('Erro ao verificar dev mode:', err);
+      setDevMode({ enabled: false, availableUsers: [] });
+    }
+  };
 
   /**
    * Verifica se o usuário está autenticado
@@ -39,6 +53,23 @@ export function AuthProvider({ children }) {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Faz login em modo dev com um role específico
+   */
+  const devLogin = async (role) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/dev-login`, { role });
+      if (response.data.success) {
+        setUser(response.data.user);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Erro ao fazer dev login:', err);
+      return false;
     }
   };
 
@@ -73,10 +104,10 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Verifica se o usuário é diretora ou admin
+   * Verifica se o usuário é diretora, admin ou líder
    */
   const isPrivileged = () => {
-    return user?.role === 'director' || user?.role === 'admin';
+    return user?.role === 'director' || user?.role === 'admin' || user?.role === 'leader';
   };
 
   /**
@@ -96,9 +127,10 @@ export function AuthProvider({ children }) {
     return user.canAccessFormularioPassagem === true;
   };
 
-  // Verifica autenticação ao montar o componente
+  // Verifica autenticação e dev mode ao montar o componente
   useEffect(() => {
     checkAuth();
+    checkDevMode();
   }, []);
 
   const value = {
@@ -113,6 +145,8 @@ export function AuthProvider({ children }) {
     canAccessFormularioPassagem: canAccessFormularioPassagem(),
     logout,
     checkAuth,
+    devMode,
+    devLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
