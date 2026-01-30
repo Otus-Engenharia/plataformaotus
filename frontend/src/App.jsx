@@ -6,10 +6,11 @@
  * - /cs - Dados do Setor de Sucesso do Cliente
  */
 
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
+import axios from 'axios';
 import IndicadoresLiderancaView from './components/IndicadoresLiderancaView';
 import ProjetosView from './components/ProjetosView';
 import ConfiguracoesView from './components/ConfiguracoesView';
@@ -20,7 +21,6 @@ import FormularioPassagemView from './components/FormularioPassagemView';
 import FeedbacksView from './components/FeedbacksView';
 import LogsView from './components/LogsView';
 import HomeView from './components/HomeView';
-import OKRsView from './components/OKRsView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLoading from './components/AuthLoading';
@@ -39,6 +39,15 @@ const AdminSetores = lazy(() => import('./pages/indicadores/AdminSetores'));
 const AdminUsuarios = lazy(() => import('./pages/indicadores/AdminUsuarios'));
 const AdminCargos = lazy(() => import('./pages/indicadores/AdminCargos'));
 const AdminBugReports = lazy(() => import('./pages/indicadores/AdminBugReports'));
+
+// Lazy load das páginas de OKRs
+const DashboardOKRs = lazy(() => import('./pages/okrs/DashboardOKRs'));
+const CompanyOKRs = lazy(() => import('./pages/okrs/CompanyOKRs'));
+const SectorOKRs = lazy(() => import('./pages/okrs/SectorOKRs'));
+const ObjectiveDetail = lazy(() => import('./pages/okrs/ObjectiveDetail'));
+const KeyResultDetail = lazy(() => import('./pages/okrs/KeyResultDetail'));
+const CheckInMeeting = lazy(() => import('./pages/okrs/CheckInMeeting'));
+const HistoryOKRs = lazy(() => import('./pages/okrs/HistoryOKRs'));
 
 const icons = {
   indicadoresLideranca: (
@@ -159,6 +168,23 @@ function Sidebar({ collapsed, onToggle, area }) {
   const location = useLocation();
   const { user, logout, isDirector, isAdmin, isPrivileged, canAccessFormularioPassagem } = useAuth();
   const linkTitle = (label) => (collapsed ? label : undefined);
+
+  // State para setores (carregados dinamicamente para OKRs)
+  const [sectors, setSectors] = useState([]);
+  const [sectorsExpanded, setSectorsExpanded] = useState(true);
+
+  // Carregar setores quando estiver na área de OKRs
+  useEffect(() => {
+    if (area === 'okrs') {
+      axios.get('/api/ind/sectors', { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            setSectors(res.data.data || []);
+          }
+        })
+        .catch(err => console.error('Error loading sectors:', err));
+    }
+  }, [area]);
   const shortcuts = [
     {
       id: 'feedz',
@@ -358,12 +384,114 @@ function Sidebar({ collapsed, onToggle, area }) {
     </>
   );
 
+  // Links para área de OKRs
+  const okrsLinks = (
+    <>
+      <Link
+        to="/okrs"
+        className={`nav-link nav-link-modern ${location.pathname === '/okrs' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Dashboard')}
+      >
+        <span className="nav-icon">{icons.dashboard}</span>
+        <span className="nav-text">Dashboard</span>
+      </Link>
+      <Link
+        to="/okrs/empresa"
+        className={`nav-link nav-link-modern ${location.pathname === '/okrs/empresa' ? 'nav-link-active' : ''}`}
+        title={linkTitle('OKRs da Empresa')}
+      >
+        <span className="nav-icon">{icons.sectors}</span>
+        <span className="nav-text">OKRs da Empresa</span>
+      </Link>
+      {isPrivileged && (
+        <>
+          <Link
+            to="/okrs/check-in"
+            className={`nav-link nav-link-modern ${location.pathname === '/okrs/check-in' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Reunião Check-in')}
+          >
+            <span className="nav-icon">{icons.feedbacks}</span>
+            <span className="nav-text">Reunião Check-in</span>
+          </Link>
+          <Link
+            to="/okrs/historico"
+            className={`nav-link nav-link-modern ${location.pathname === '/okrs/historico' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Histórico')}
+          >
+            <span className="nav-icon">{icons.history}</span>
+            <span className="nav-text">Histórico</span>
+          </Link>
+        </>
+      )}
+
+      {/* Seção SETORES */}
+      {sectors.length > 0 && (
+        <>
+          <div className="nav-section-divider"></div>
+          <button
+            className={`nav-section-header ${collapsed ? 'sr-only' : ''}`}
+            onClick={() => setSectorsExpanded(!sectorsExpanded)}
+            title={linkTitle('Setores')}
+          >
+            <span className="nav-icon">{icons.sectors}</span>
+            <span className="nav-section-title">SETORES</span>
+            <span className={`nav-section-chevron ${sectorsExpanded ? 'expanded' : ''}`}>
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+              </svg>
+            </span>
+          </button>
+          {sectorsExpanded && (
+            <div className="nav-sectors-list">
+              {sectors.map(sector => (
+                <Link
+                  key={sector.id}
+                  to={`/okrs/setor/${sector.id}`}
+                  className={`nav-link nav-link-modern nav-link-nested ${location.pathname === `/okrs/setor/${sector.id}` ? 'nav-link-active' : ''}`}
+                  title={linkTitle(sector.name)}
+                >
+                  <span className="nav-bullet">•</span>
+                  <span className="nav-text">{sector.name}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Seção ADMINISTRAÇÃO */}
+      {isPrivileged && (
+        <>
+          <div className="nav-section-divider"></div>
+          <span className={`nav-section-title ${collapsed ? 'sr-only' : ''}`}>ADMINISTRAÇÃO</span>
+          <Link
+            to="/ind/admin/setores"
+            className={`nav-link nav-link-modern ${location.pathname === '/ind/admin/setores' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Setores')}
+          >
+            <span className="nav-icon">{icons.sectors}</span>
+            <span className="nav-text">Setores</span>
+          </Link>
+          <Link
+            to="/ind/admin/usuarios"
+            className={`nav-link nav-link-modern ${location.pathname === '/ind/admin/usuarios' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Usuários')}
+          >
+            <span className="nav-icon">{icons.users}</span>
+            <span className="nav-text">Usuários</span>
+          </Link>
+        </>
+      )}
+    </>
+  );
+
   return (
     <aside className={`sidebar glass-sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <nav className="sidebar-links">
         {area === 'projetos' && projetosLinks}
         {area === 'configuracoes' && configuracoesLinks}
         {area === 'indicadores' && indicadoresIndLinks}
+        {area === 'okrs' && okrsLinks}
       </nav>
       <button
         type="button"
@@ -514,6 +642,9 @@ function AppContent() {
     if (path.startsWith('/ind')) {
       return 'indicadores';
     }
+    if (path.startsWith('/okrs')) {
+      return 'okrs';
+    }
     return null;
   };
   
@@ -521,7 +652,7 @@ function AppContent() {
   const showSidebar = !isHomeRoute && currentArea !== null;
   const showTopBar = !isHomeRoute;
   // Não mostrar Oráculo na Home, OKRs, Indicadores legados e área /ind
-  const isOKRsOrIndicadoresRoute = location.pathname === '/okrs' || location.pathname.startsWith('/ind');
+  const isOKRsOrIndicadoresRoute = location.pathname.startsWith('/okrs') || location.pathname.startsWith('/ind');
   const showOracle = !isHomeRoute && !isOKRsOrIndicadoresRoute;
   
   // Tela Home: sem TopBar, sem Sidebar, sem Oráculo
@@ -582,13 +713,76 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-            <Route 
-              path="/okrs" 
+            {/* Área de OKRs */}
+            <Route
+              path="/okrs"
               element={
                 <ProtectedRoute>
-                  <OKRsView />
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <DashboardOKRs />
+                  </Suspense>
                 </ProtectedRoute>
-              } 
+              }
+            />
+            <Route
+              path="/okrs/empresa"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <CompanyOKRs />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/okrs/setor/:id"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <SectorOKRs />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/okrs/objetivo/:id"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <ObjectiveDetail />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/okrs/kr/:id"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <KeyResultDetail />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/okrs/check-in"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <CheckInMeeting />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/okrs/historico"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <HistoryOKRs />
+                  </Suspense>
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/projetos"

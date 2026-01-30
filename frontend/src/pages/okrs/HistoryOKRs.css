@@ -1,0 +1,932 @@
+/**
+ * HistoryOKRs.css - Estilos para página de Histórico de OKRs
+ * Design moderno e profissional com foco em comparação de dados
+ */
+
+/* CSS Variables */
+:root {
+  --hist-green: #22c55e;
+  --hist-yellow: #eab308;
+  --hist-red: #ef4444;
+  --hist-blue: #3b82f6;
+  --hist-purple: #8b5cf6;
+  --hist-muted: #9ca3af;
+  --hist-text: #1f2937;
+  --hist-text-secondary: #6b7280;
+  --hist-bg: #f8fafc;
+  --hist-card-bg: #ffffff;
+  --hist-border: rgba(0, 0, 0, 0.06);
+  --hist-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --hist-shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --hist-radius: 16px;
+  --hist-radius-sm: 10px;
+  --hist-accent: #ffd000;
+}
+
+/* Animations */
+@keyframes histFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes histSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes histPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes histGrow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes histSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dashboard Container */
+.hist-dashboard {
+  font-family: 'DM Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background: var(--hist-bg);
+  padding: 1.5rem 2rem 3rem;
+  color: var(--hist-text);
+}
+
+/* Loading State */
+.hist-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 1rem;
+  color: var(--hist-text-secondary);
+  font-size: 0.9rem;
+}
+
+.hist-loading__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--hist-border);
+  border-top-color: var(--hist-accent);
+  border-radius: 50%;
+  animation: histSpin 0.8s linear infinite;
+}
+
+/* Header */
+.hist-header {
+  margin-bottom: 1.5rem;
+  animation: histFadeIn 0.4s ease-out;
+}
+
+.hist-header__top {
+  margin-bottom: 1rem;
+}
+
+.hist-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--hist-card-bg);
+  border: 1px solid var(--hist-border);
+  border-radius: var(--hist-radius-sm);
+  color: var(--hist-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--hist-shadow);
+}
+
+.hist-back-btn:hover {
+  color: var(--hist-text);
+  border-color: rgba(0, 0, 0, 0.12);
+  transform: translateX(-2px);
+}
+
+.hist-back-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.hist-back-btn:hover svg {
+  transform: translateX(-2px);
+}
+
+.hist-header__main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.hist-header__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--hist-text);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.hist-header__subtitle {
+  font-size: 0.9rem;
+  color: var(--hist-text-secondary);
+  margin: 0.375rem 0 0;
+  max-width: 500px;
+}
+
+/* Year Selector */
+.hist-year-selector {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--hist-card-bg);
+  border: 1px solid var(--hist-border);
+  border-radius: var(--hist-radius);
+  box-shadow: var(--hist-shadow);
+  margin-bottom: 1.5rem;
+  animation: histFadeIn 0.4s ease-out 0.1s backwards;
+  flex-wrap: wrap;
+}
+
+.hist-year-selector__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hist-year-selector__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hist-muted);
+}
+
+.hist-year-selector__buttons {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.hist-year-btn {
+  padding: 0.5rem 0.875rem;
+  background: transparent;
+  border: 1px solid var(--hist-border);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--hist-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hist-year-btn:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.hist-year-btn--active {
+  background: var(--hist-text);
+  border-color: var(--hist-text);
+  color: #fff;
+}
+
+.hist-year-btn--active:hover {
+  background: #374151;
+  border-color: #374151;
+}
+
+.hist-year-btn--secondary {
+  border-style: dashed;
+}
+
+.hist-year-btn--active-secondary {
+  background: var(--hist-accent);
+  border-color: var(--hist-accent);
+  border-style: solid;
+  color: var(--hist-text);
+}
+
+.hist-year-btn--active-secondary:hover {
+  background: #e6bc00;
+  border-color: #e6bc00;
+}
+
+.hist-year-selector__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 50%;
+  color: var(--hist-muted);
+}
+
+/* Stats Cards */
+.hist-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.hist-stat-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--hist-card-bg);
+  border: 1px solid var(--hist-border);
+  border-radius: var(--hist-radius);
+  box-shadow: var(--hist-shadow);
+  animation: histFadeIn 0.4s ease-out backwards;
+  transition: all 0.25s ease;
+}
+
+.hist-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hist-shadow-lg);
+}
+
+.hist-stat-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(255, 208, 0, 0.15) 0%, rgba(255, 208, 0, 0.05) 100%);
+  border-radius: 12px;
+  color: #b89500;
+  flex-shrink: 0;
+}
+
+.hist-stat-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.hist-stat-card__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hist-muted);
+}
+
+.hist-stat-card__value-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.hist-stat-card__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--hist-text);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.hist-stat-card__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.hist-stat-card__trend svg {
+  width: 12px;
+  height: 12px;
+}
+
+.hist-stat-card__comparison {
+  font-size: 0.8rem;
+  color: var(--hist-text-secondary);
+}
+
+.hist-stat-card__comparison strong {
+  color: var(--hist-text);
+}
+
+/* Section Styles */
+.hist-section {
+  margin-bottom: 1.5rem;
+}
+
+.hist-section__header {
+  margin-bottom: 1rem;
+}
+
+.hist-section__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--hist-text);
+  margin: 0;
+}
+
+.hist-section__subtitle {
+  font-size: 0.875rem;
+  color: var(--hist-text-secondary);
+  margin: 0.25rem 0 0;
+}
+
+/* Card Styles */
+.hist-card {
+  background: var(--hist-card-bg);
+  border: 1px solid var(--hist-border);
+  border-radius: var(--hist-radius);
+  box-shadow: var(--hist-shadow);
+  padding: 1.5rem;
+  animation: histFadeIn 0.4s ease-out;
+}
+
+.hist-card__header {
+  margin-bottom: 1.25rem;
+}
+
+.hist-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hist-text);
+  margin: 0;
+}
+
+.hist-card__subtitle {
+  font-size: 0.875rem;
+  color: var(--hist-text-secondary);
+  margin: 0.25rem 0 0;
+}
+
+/* Chart Styles */
+.hist-chart {
+  padding: 1rem 0;
+}
+
+.hist-chart__legend {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.hist-chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--hist-text-secondary);
+  font-weight: 500;
+}
+
+.hist-chart__legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.hist-chart__legend-dot--primary {
+  background: linear-gradient(135deg, var(--hist-text) 0%, #374151 100%);
+}
+
+.hist-chart__legend-dot--secondary {
+  background: linear-gradient(135deg, var(--hist-accent) 0%, #e6bc00 100%);
+}
+
+.hist-chart__container {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 280px;
+  padding: 0 1rem 0.5rem;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.06);
+}
+
+.hist-chart__group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  animation: histFadeIn 0.5s ease-out backwards;
+}
+
+.hist-chart__bars {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  height: 220px;
+}
+
+.hist-chart__bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.hist-chart__bar {
+  width: 36px;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: bottom;
+  animation: histGrow 0.6s ease-out backwards;
+}
+
+.hist-chart__bar--primary {
+  background: linear-gradient(180deg, var(--hist-text) 0%, #374151 100%);
+}
+
+.hist-chart__bar--secondary {
+  background: linear-gradient(180deg, var(--hist-accent) 0%, #e6bc00 100%);
+}
+
+.hist-chart__value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+  white-space: nowrap;
+}
+
+.hist-chart__value--primary {
+  color: var(--hist-text);
+}
+
+.hist-chart__value--secondary {
+  color: #b89500;
+}
+
+.hist-chart__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--hist-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.hist-chart__diff {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  margin-top: 0.25rem;
+}
+
+.hist-chart__diff--positive {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--hist-green);
+}
+
+.hist-chart__diff--negative {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--hist-red);
+}
+
+/* Sector Cards Grid */
+.hist-sectors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.hist-sector-card {
+  background: var(--hist-card-bg);
+  border: 1px solid var(--hist-border);
+  border-radius: var(--hist-radius);
+  box-shadow: var(--hist-shadow);
+  padding: 1.25rem;
+  animation: histFadeIn 0.4s ease-out;
+  transition: all 0.25s ease;
+}
+
+.hist-sector-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hist-shadow-lg);
+}
+
+.hist-sector-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.hist-sector-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  color: var(--hist-text-secondary);
+}
+
+.hist-sector-card__name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--hist-text);
+}
+
+.hist-sector-card__trend {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.hist-sector-card__trend--up {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--hist-green);
+}
+
+.hist-sector-card__trend--down {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--hist-red);
+}
+
+.hist-sector-card__trend--stable {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--hist-muted);
+}
+
+.hist-sector-card__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.hist-sector-card__progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hist-sector-card__year {
+  width: 42px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--hist-muted);
+}
+
+.hist-sector-card__bar-container {
+  flex: 1;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.hist-sector-card__bar {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hist-sector-card__bar--primary {
+  background: linear-gradient(90deg, var(--hist-text) 0%, #374151 100%);
+}
+
+.hist-sector-card__bar--secondary {
+  background: linear-gradient(90deg, var(--hist-accent) 0%, #e6bc00 100%);
+}
+
+.hist-sector-card__percent {
+  width: 40px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.hist-sector-card__percent--primary {
+  color: var(--hist-text);
+}
+
+.hist-sector-card__percent--secondary {
+  color: #b89500;
+}
+
+/* Cycle Cards Grid */
+.hist-cycles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1rem;
+}
+
+.hist-cycle-card {
+  background: var(--hist-card-bg);
+  border: 1px solid var(--hist-border);
+  border-radius: var(--hist-radius);
+  box-shadow: var(--hist-shadow);
+  overflow: hidden;
+  animation: histFadeIn 0.4s ease-out;
+  transition: all 0.25s ease;
+}
+
+.hist-cycle-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hist-shadow-lg);
+}
+
+.hist-cycle-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02) 0%, transparent 100%);
+  border-bottom: 1px solid var(--hist-border);
+}
+
+.hist-cycle-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--hist-text);
+}
+
+.hist-cycle-card__title svg {
+  color: var(--hist-muted);
+}
+
+.hist-cycle-card__stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hist-cycle-card__count {
+  font-size: 0.8rem;
+  color: var(--hist-text-secondary);
+}
+
+.hist-cycle-card__progress-ring {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+.hist-cycle-card__progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.hist-cycle-card__progress-bg {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.06);
+  stroke-width: 3;
+}
+
+.hist-cycle-card__progress-fill {
+  fill: none;
+  stroke: var(--progress-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.6s ease-out;
+}
+
+.hist-cycle-card__progress-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--hist-text);
+}
+
+.hist-cycle-card__objectives {
+  padding: 0.5rem;
+}
+
+.hist-objective-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--hist-radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hist-objective-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.hist-objective-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.hist-objective-item__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--hist-text);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hist-objective-item__krs {
+  font-size: 0.75rem;
+  color: var(--hist-muted);
+}
+
+.hist-objective-item__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 120px;
+}
+
+.hist-objective-item__bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hist-objective-item__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease-out;
+}
+
+.hist-objective-item__percent {
+  font-size: 0.75rem;
+  font-weight: 600;
+  width: 36px;
+  text-align: right;
+}
+
+.hist-objective-item__arrow {
+  color: var(--hist-muted);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.2s ease;
+}
+
+.hist-objective-item:hover .hist-objective-item__arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.hist-cycle-card__more {
+  padding: 0.75rem 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--hist-text-secondary);
+  background: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid var(--hist-border);
+}
+
+/* Empty State */
+.hist-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: var(--hist-card-bg);
+  border: 1px solid var(--hist-border);
+  border-radius: var(--hist-radius);
+  text-align: center;
+}
+
+.hist-empty__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 50%;
+  color: var(--hist-muted);
+  margin-bottom: 1rem;
+}
+
+.hist-empty__icon svg {
+  width: 32px;
+  height: 32px;
+  opacity: 0.5;
+}
+
+.hist-empty__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hist-text);
+  margin: 0 0 0.5rem;
+}
+
+.hist-empty__text {
+  font-size: 0.875rem;
+  color: var(--hist-text-secondary);
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .hist-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hist-stats .hist-stat-card:last-child {
+    grid-column: span 2;
+  }
+
+  .hist-sectors-grid,
+  .hist-cycles-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .hist-dashboard {
+    padding: 1rem;
+  }
+
+  .hist-year-selector {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .hist-year-selector__divider {
+    align-self: center;
+    transform: rotate(90deg);
+    margin: 0.5rem 0;
+  }
+
+  .hist-year-selector__buttons {
+    flex-wrap: wrap;
+  }
+
+  .hist-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .hist-stats .hist-stat-card:last-child {
+    grid-column: span 1;
+  }
+
+  .hist-header__title {
+    font-size: 1.5rem;
+  }
+
+  .hist-chart__container {
+    height: 220px;
+    padding: 0 0.5rem 0.5rem;
+  }
+
+  .hist-chart__bar {
+    width: 28px;
+  }
+
+  .hist-objective-item__progress {
+    width: 90px;
+  }
+}

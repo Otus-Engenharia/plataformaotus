@@ -130,6 +130,19 @@ html:has(.login-container) {
   transform: scale(1.05);
 }
 
+/* Slogan - Destaque acima do título */
+.login-slogan {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 0.75rem 0;
+  letter-spacing: 1.5px;
+  line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Verdana', sans-serif;
+  animation: titleFadeIn 1s ease-out 0.2s both;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
 /* Título - Grande, elegante, espaçado - Legível */
 .login-title {
   font-size: 2.5rem;
@@ -351,6 +364,11 @@ html:has(.login-container) {
 
   .login-logo-section {
     margin-bottom: 3rem;
+  }
+
+  .login-slogan {
+    font-size: 0.8rem;
+    letter-spacing: 1px;
   }
 
   .login-title {

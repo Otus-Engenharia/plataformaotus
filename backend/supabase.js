@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_PORTFOLIO_VIEW = process.env.SUPABASE_PORTFOLIO_VIEW || 'portfolio_realtime';
 const SUPABASE_CURVA_S_VIEW = process.env.SUPABASE_CURVA_S_VIEW || '';
 const SUPABASE_CURVA_S_COLAB_VIEW = process.env.SUPABASE_CURVA_S_COLAB_VIEW || '';
@@ -17,6 +18,23 @@ export function getSupabaseClient() {
   }
 
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
+/**
+ * Cliente Supabase com service role (bypassa RLS)
+ * Usar apenas no backend para operacoes que precisam ignorar RLS
+ */
+export function getSupabaseServiceClient() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY nao configuradas');
+  }
+
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -841,6 +859,310 @@ export async function updateKeyResult(krId, krData) {
   }
 
   return data;
+}
+
+// ============================================
+// OKR Check-ins
+// ============================================
+
+const OKR_CHECK_INS_TABLE = 'okr_check_ins';
+
+/**
+ * Busca check-ins de OKRs
+ * @param {Array} keyResultIds - IDs dos Key Results
+ * @returns {Promise<Array>}
+ */
+export async function fetchOKRCheckIns(keyResultIds = []) {
+  const supabase = getSupabaseClient();
+
+  let query = supabase
+    .from(OKR_CHECK_INS_TABLE)
+    .select('*')
+    .order('ano', { ascending: false })
+    .order('mes', { ascending: false });
+
+  if (keyResultIds && keyResultIds.length > 0) {
+    query = query.in('key_result_id', keyResultIds);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao buscar check-ins de OKR: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Cria um check-in de OKR
+ * @param {Object} checkInData - Dados do check-in
+ * @returns {Promise<Object>}
+ */
+export async function createOKRCheckIn(checkInData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(OKR_CHECK_INS_TABLE)
+    .insert([checkInData])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar check-in de OKR: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza um check-in de OKR
+ * @param {string} checkInId - ID do check-in
+ * @param {Object} checkInData - Dados atualizados
+ * @returns {Promise<Object>}
+ */
+export async function updateOKRCheckIn(checkInId, checkInData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(OKR_CHECK_INS_TABLE)
+    .update({
+      ...checkInData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', checkInId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar check-in de OKR: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta um check-in de OKR
+ * @param {string} checkInId - ID do check-in
+ * @returns {Promise<void>}
+ */
+export async function deleteOKRCheckIn(checkInId) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from(OKR_CHECK_INS_TABLE)
+    .delete()
+    .eq('id', checkInId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar check-in de OKR: ${error.message}`);
+  }
+}
+
+/**
+ * Busca um OKR por ID com seus Key Results
+ * @param {string} okrId - ID do OKR
+ * @returns {Promise<Object>}
+ */
+export async function fetchOKRById(okrId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(OKRS_TABLE)
+    .select('*, key_results(*)')
+    .eq('id', okrId)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao buscar OKR: ${error.message}`);
+  }
+
+  return data;
+}
+
+// ============================================
+// OKR Initiatives (Iniciativas)
+// ============================================
+
+const OKR_INITIATIVES_TABLE = 'okr_initiatives';
+
+/**
+ * Busca iniciativas de um objetivo
+ * @param {number} objectiveId - ID do objetivo
+ * @returns {Promise<Array>}
+ */
+export async function fetchOKRInitiatives(objectiveId) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from(OKR_INITIATIVES_TABLE)
+    .select('*')
+    .eq('objective_id', objectiveId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar iniciativas: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Cria uma nova iniciativa
+ * @param {Object} initiativeData - Dados da iniciativa
+ * @returns {Promise<Object>}
+ */
+export async function createOKRInitiative(initiativeData) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from(OKR_INITIATIVES_TABLE)
+    .insert({
+      ...initiativeData,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar iniciativa: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza uma iniciativa
+ * @param {string} initiativeId - ID da iniciativa
+ * @param {Object} initiativeData - Dados atualizados
+ * @returns {Promise<Object>}
+ */
+export async function updateOKRInitiative(initiativeId, initiativeData) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from(OKR_INITIATIVES_TABLE)
+    .update({
+      ...initiativeData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', initiativeId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar iniciativa: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta uma iniciativa
+ * @param {string} initiativeId - ID da iniciativa
+ * @returns {Promise<void>}
+ */
+export async function deleteOKRInitiative(initiativeId) {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase
+    .from(OKR_INITIATIVES_TABLE)
+    .delete()
+    .eq('id', initiativeId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar iniciativa: ${error.message}`);
+  }
+}
+
+// ============================================
+// Initiative Comments (Comentários de Iniciativas)
+// ============================================
+
+const INITIATIVE_COMMENTS_TABLE = 'okr_initiative_comments';
+
+/**
+ * Busca comentários de uma iniciativa
+ * @param {string} initiativeId - ID da iniciativa
+ * @returns {Promise<Array>}
+ */
+export async function fetchInitiativeComments(initiativeId) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from(INITIATIVE_COMMENTS_TABLE)
+    .select('*')
+    .eq('initiative_id', initiativeId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar comentários: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Busca comentários de múltiplas iniciativas
+ * @param {Array} initiativeIds - IDs das iniciativas
+ * @returns {Promise<Array>}
+ */
+export async function fetchCommentsForInitiatives(initiativeIds) {
+  if (!initiativeIds || initiativeIds.length === 0) return [];
+
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from(INITIATIVE_COMMENTS_TABLE)
+    .select('*')
+    .in('initiative_id', initiativeIds)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar comentários: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Cria um novo comentário
+ * @param {Object} commentData - Dados do comentário
+ * @returns {Promise<Object>}
+ */
+export async function createInitiativeComment(commentData) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from(INITIATIVE_COMMENTS_TABLE)
+    .insert({
+      ...commentData,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar comentário: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta um comentário
+ * @param {string} commentId - ID do comentário
+ * @returns {Promise<void>}
+ */
+export async function deleteInitiativeComment(commentId) {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase
+    .from(INITIATIVE_COMMENTS_TABLE)
+    .delete()
+    .eq('id', commentId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar comentário: ${error.message}`);
+  }
 }
 
 // ============================================

@@ -21,11 +21,15 @@ import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
 import {
-  getSupabaseClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
+  getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
   fetchCobrancasFeitas, upsertCobranca, fetchTimesList, fetchUsuarioToTime,
   fetchFeedbacks, createFeedback, updateFeedbackStatus, updateFeedbackParecer,
   fetchUserViews, updateUserViews, getUserViews, createLog, fetchLogs, countLogsByAction, countViewUsage,
-  fetchOKRs, createOKR, updateOKR, deleteOKR, fetchIndicadores, createIndicador, updateIndicador, deleteIndicador,
+  fetchOKRs, fetchOKRById, createOKR, updateOKR, deleteOKR, createKeyResult, updateKeyResult,
+  fetchOKRCheckIns, createOKRCheckIn, updateOKRCheckIn, deleteOKRCheckIn,
+  fetchOKRInitiatives, createOKRInitiative, updateOKRInitiative, deleteOKRInitiative,
+  fetchInitiativeComments, fetchCommentsForInitiatives, createInitiativeComment, deleteInitiativeComment,
+  fetchIndicadores, createIndicador, updateIndicador, deleteIndicador,
   // Novo sistema de indicadores
   fetchSectors, getSectorById, createSector, updateSector, deleteSector,
   fetchPositions, getPositionById, createPosition, updatePosition, deletePosition,
@@ -62,16 +66,19 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Configuração de sessão
+const isProduction = process.env.NODE_ENV === 'production';
+const isDevMode = process.env.DEV_MODE === 'true';
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'otus-engenharia-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
-    proxy: true, // Necessário quando está atrás de proxy (Nginx)
+    proxy: true, // Necessário quando está atrás de proxy (Nginx/Vite)
     cookie: {
-      secure: process.env.NODE_ENV === 'production', // HTTPS em produção
+      secure: isProduction, // HTTPS em produção
       httpOnly: true,
-      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax', // Permite cookies em redirects
+      sameSite: isDevMode ? false : 'lax', // Mais permissivo em dev mode
       maxAge: 24 * 60 * 60 * 1000, // 24 horas
     },
   })
@@ -84,6 +91,12 @@ app.use(passport.session());
 // Middlewares
 // CORS permite que o frontend (rodando em outra porta) acesse esta API
 const allowedOrigins = [FRONTEND_URL].filter(Boolean); // Remove valores undefined/null
+
+// Em dev mode, permite localhost
+if (process.env.DEV_MODE === 'true') {
+  allowedOrigins.push('http://localhost:5173');
+  allowedOrigins.push('http://127.0.0.1:5173');
+}
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -1567,6 +1580,343 @@ app.post('/api/okrs', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================
+// ROTAS ESPECÍFICAS (devem vir ANTES das rotas com :id)
+// ============================================
+
+/**
+ * Rota: GET /api/okrs/check-ins
+ * Retorna check-ins de OKRs
+ * Query params: keyResultIds (comma-separated)
+ */
+app.get('/api/okrs/check-ins', requireAuth, async (req, res) => {
+  try {
+    const keyResultIds = req.query.keyResultIds
+      ? req.query.keyResultIds.split(',').map(id => parseInt(id))
+      : [];
+
+    const checkIns = await fetchOKRCheckIns(keyResultIds);
+
+    res.json({
+      success: true,
+      data: checkIns,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar check-ins de OKR:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar check-ins de OKR',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/okrs/check-ins
+ * Cria um novo check-in de OKR
+ */
+app.post('/api/okrs/check-ins', requireAuth, async (req, res) => {
+  try {
+    const checkInData = {
+      ...req.body,
+      created_by: req.user.email,
+    };
+
+    const checkIn = await createOKRCheckIn(checkInData);
+
+    await logAction(req, 'create', 'okr_check_in', checkIn.id, `Check-in OKR criado`);
+
+    res.json({
+      success: true,
+      data: checkIn,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar check-in de OKR:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar check-in de OKR',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/okrs/check-ins/:id
+ * Atualiza um check-in de OKR
+ */
+app.put('/api/okrs/check-ins/:id', requireAuth, async (req, res) => {
+  try {
+    const checkInId = req.params.id;
+    const checkIn = await updateOKRCheckIn(checkInId, req.body);
+
+    await logAction(req, 'update', 'okr_check_in', checkInId, `Check-in OKR atualizado`);
+
+    res.json({
+      success: true,
+      data: checkIn,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar check-in de OKR:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar check-in de OKR',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/okrs/check-ins/:id
+ * Deleta um check-in de OKR
+ */
+app.delete('/api/okrs/check-ins/:id', requireAuth, async (req, res) => {
+  try {
+    const checkInId = req.params.id;
+
+    await deleteOKRCheckIn(checkInId);
+
+    await logAction(req, 'delete', 'okr_check_in', checkInId, `Check-in OKR deletado`);
+
+    res.json({
+      success: true,
+      message: 'Check-in deletado com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao deletar check-in de OKR:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao deletar check-in de OKR',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/okrs/key-results/:id
+ * Atualiza um Key Result
+ */
+app.put('/api/okrs/key-results/:id', requireAuth, async (req, res) => {
+  try {
+    const krId = req.params.id;
+    const kr = await updateKeyResult(krId, req.body);
+
+    await logAction(req, 'update', 'key_result', krId, `KR atualizado`);
+
+    res.json({
+      success: true,
+      data: kr,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar Key Result:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar Key Result',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/initiatives/:objectiveId
+ * Retorna iniciativas de um objetivo
+ */
+app.get('/api/okrs/initiatives/:objectiveId', requireAuth, async (req, res) => {
+  try {
+    const objectiveId = req.params.objectiveId;
+    const initiatives = await fetchOKRInitiatives(objectiveId);
+
+    res.json({
+      success: true,
+      data: initiatives,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar iniciativas:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar iniciativas',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/okrs/initiatives
+ * Cria uma nova iniciativa
+ */
+app.post('/api/okrs/initiatives', requireAuth, async (req, res) => {
+  try {
+    const initiativeData = {
+      ...req.body,
+      created_by: req.user.email,
+    };
+
+    const initiative = await createOKRInitiative(initiativeData);
+
+    await logAction(req, 'create', 'okr_initiative', initiative.id, `Iniciativa criada: ${initiativeData.title}`);
+
+    res.json({
+      success: true,
+      data: initiative,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar iniciativa:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar iniciativa',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/okrs/initiatives/:id
+ * Atualiza uma iniciativa
+ */
+app.put('/api/okrs/initiatives/:id', requireAuth, async (req, res) => {
+  try {
+    const initiativeId = req.params.id;
+    const initiative = await updateOKRInitiative(initiativeId, req.body);
+
+    await logAction(req, 'update', 'okr_initiative', initiativeId, `Iniciativa atualizada`);
+
+    res.json({
+      success: true,
+      data: initiative,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar iniciativa:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar iniciativa',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/okrs/initiatives/:id
+ * Deleta uma iniciativa
+ */
+app.delete('/api/okrs/initiatives/:id', requireAuth, async (req, res) => {
+  try {
+    const initiativeId = req.params.id;
+
+    await deleteOKRInitiative(initiativeId);
+
+    await logAction(req, 'delete', 'okr_initiative', initiativeId, `Iniciativa deletada`);
+
+    res.json({
+      success: true,
+      message: 'Iniciativa deletada com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao deletar iniciativa:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao deletar iniciativa',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/initiative-comments/:initiativeId
+ * Retorna comentários de uma iniciativa
+ */
+app.get('/api/okrs/initiative-comments/:initiativeId', requireAuth, async (req, res) => {
+  try {
+    const initiativeId = req.params.initiativeId;
+    const comments = await fetchInitiativeComments(initiativeId);
+
+    res.json({
+      success: true,
+      data: comments,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar comentários:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar comentários',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/initiative-comments
+ * Retorna comentários de múltiplas iniciativas
+ * Query params: initiativeIds (comma-separated)
+ */
+app.get('/api/okrs/initiative-comments', requireAuth, async (req, res) => {
+  try {
+    const initiativeIds = req.query.initiativeIds
+      ? req.query.initiativeIds.split(',')
+      : [];
+
+    const comments = await fetchCommentsForInitiatives(initiativeIds);
+
+    res.json({
+      success: true,
+      data: comments,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar comentários:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar comentários',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/okrs/initiative-comments
+ * Cria um novo comentário em uma iniciativa
+ */
+app.post('/api/okrs/initiative-comments', requireAuth, async (req, res) => {
+  try {
+    const commentData = {
+      initiative_id: req.body.initiative_id,
+      content: req.body.content,
+      author_name: req.user.name,
+      author_email: req.user.email,
+    };
+
+    const comment = await createInitiativeComment(commentData);
+
+    await logAction(req, 'create', 'initiative_comment', comment.id, `Comentário criado na iniciativa`);
+
+    res.json({
+      success: true,
+      data: comment,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar comentário:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar comentário',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/okrs/initiative-comments/:id
+ * Deleta um comentário
+ */
+app.delete('/api/okrs/initiative-comments/:id', requireAuth, async (req, res) => {
+  try {
+    const commentId = req.params.id;
+
+    await deleteInitiativeComment(commentId);
+
+    await logAction(req, 'delete', 'initiative_comment', commentId, `Comentário deletado`);
+
+    res.json({
+      success: true,
+      message: 'Comentário deletado com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao deletar comentário:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao deletar comentário',
+    });
+  }
+});
+
+// ============================================
+// ROTAS COM PARÂMETRO :id (devem vir DEPOIS das rotas específicas)
+// ============================================
+
 /**
  * Rota: PUT /api/okrs/:id
  * Atualiza um OKR existente
@@ -1620,6 +1970,257 @@ app.delete('/api/okrs/:id', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Erro ao deletar OKR',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/:id
+ * Retorna um OKR específico com seus Key Results
+ */
+app.get('/api/okrs/:id', requireAuth, async (req, res) => {
+  try {
+    const okrId = req.params.id;
+    const okr = await fetchOKRById(okrId);
+
+    res.json({
+      success: true,
+      data: okr,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar OKR:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar OKR',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/okrs/:id/key-results
+ * Cria um novo Key Result para um OKR
+ */
+app.post('/api/okrs/:id/key-results', requireAuth, async (req, res) => {
+  try {
+    const okrId = req.params.id;
+    const krData = { ...req.body, okr_id: parseInt(okrId) };
+
+    const kr = await createKeyResult(krData);
+
+    await logAction(req, 'create', 'key_result', kr.id, `KR criado: ${krData.descricao}`);
+
+    res.json({
+      success: true,
+      data: kr,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar Key Result:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar Key Result',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/okrs/key-results/:id
+ * Deleta um Key Result
+ */
+app.delete('/api/okrs/key-results/:id', requireAuth, async (req, res) => {
+  try {
+    const krId = req.params.id;
+    const supabase = getSupabaseClient();
+
+    const { error } = await supabase
+      .from('key_results')
+      .delete()
+      .eq('id', krId);
+
+    if (error) throw error;
+
+    await logAction(req, 'delete', 'key_result', krId, 'Key Result excluído');
+
+    res.json({
+      success: true,
+      message: 'Key Result excluído com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao excluir Key Result:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao excluir Key Result',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/okrs/key-results/:id/comments
+ * Cria um comentário em um Key Result
+ */
+app.post('/api/okrs/key-results/:id/comments', requireAuth, async (req, res) => {
+  try {
+    const krId = req.params.id;
+    const { content } = req.body;
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from('okr_comments')
+      .insert({
+        key_result_id: parseInt(krId),
+        author_id: req.user?.email,
+        content: content
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logAction(req, 'create', 'okr_comment', data.id, 'Comentário criado');
+
+    res.json({
+      success: true,
+      data: data,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar comentário:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar comentário',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/key-results/:id/recovery-plans
+ * Busca planos de recuperação de um Key Result
+ */
+app.get('/api/okrs/key-results/:id/recovery-plans', requireAuth, async (req, res) => {
+  try {
+    const krId = req.params.id;
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('okr_recovery_plans')
+      .select('*')
+      .eq('key_result_id', parseInt(krId))
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar planos de recuperação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar planos de recuperação',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/okrs/key-results/:id/recovery-plans
+ * Cria um plano de recuperação para um Key Result
+ */
+app.post('/api/okrs/key-results/:id/recovery-plans', requireAuth, async (req, res) => {
+  try {
+    const krId = req.params.id;
+    const { mes_referencia, ano_referencia, description, actions } = req.body;
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('okr_recovery_plans')
+      .insert({
+        key_result_id: parseInt(krId),
+        mes_referencia,
+        ano_referencia,
+        description,
+        actions: actions || null,
+        status: 'pending',
+        created_by: req.user?.email
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logAction(req, 'create', 'okr_recovery_plan', data.id, 'Plano de recuperação criado');
+
+    res.json({
+      success: true,
+      data: data,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar plano de recuperação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar plano de recuperação',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/okrs/recovery-plans/:id
+ * Atualiza um plano de recuperação
+ */
+app.put('/api/okrs/recovery-plans/:id', requireAuth, async (req, res) => {
+  try {
+    const planId = req.params.id;
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('okr_recovery_plans')
+      .update(req.body)
+      .eq('id', planId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logAction(req, 'update', 'okr_recovery_plan', planId, 'Plano de recuperação atualizado');
+
+    res.json({
+      success: true,
+      data: data,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar plano de recuperação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar plano de recuperação',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/okrs/recovery-plans/:id
+ * Deleta um plano de recuperação
+ */
+app.delete('/api/okrs/recovery-plans/:id', requireAuth, async (req, res) => {
+  try {
+    const planId = req.params.id;
+    const supabase = getSupabaseServiceClient();
+
+    const { error } = await supabase
+      .from('okr_recovery_plans')
+      .delete()
+      .eq('id', planId);
+
+    if (error) throw error;
+
+    await logAction(req, 'delete', 'okr_recovery_plan', planId, 'Plano de recuperação excluído');
+
+    res.json({
+      success: true,
+      message: 'Plano de recuperação excluído com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao excluir plano de recuperação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao excluir plano de recuperação',
     });
   }
 });

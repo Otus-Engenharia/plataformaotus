@@ -64,9 +64,10 @@ function Login() {
           <img src="/Otus-logo-300x300.png" alt="Otus Engenharia" className="login-logo" />
         </div>
 
-        {/* Título minimalista */}
-        <h1 className="login-title">Indicadores do Setor de Projeto</h1>
-        <p className="login-subtitle">Acesso restrito à equipe Otus Engenharia</p>
+        {/* Slogan, título e chamada */}
+        <p className="login-slogan">ELEVANDO O PADRÃO DE SE CONSTRUIR</p>
+        <h1 className="login-title">Plataforma Otus</h1>
+        <p className="login-subtitle">Selecione uma área para começar</p>
 
         {/* Mensagem de erro minimalista */}
         {error && (

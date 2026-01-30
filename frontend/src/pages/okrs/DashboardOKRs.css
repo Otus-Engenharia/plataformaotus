@@ -1,0 +1,3914 @@
+/* ==========================================================================
+   Dashboard OKRs - Light Professional Theme
+   Seguindo a identidade visual de DashboardIndicadores
+   ========================================================================== */
+
+/* Base Dashboard Container */
+.okr-dashboard {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background: var(--color-bg, #f8f9fa);
+  color: var(--color-text-primary, #1a1a1a);
+  padding: 2rem;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Subtle Background Pattern */
+.okr-dashboard__bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.okr-dashboard__gradient {
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 60%;
+  height: 80%;
+  background: radial-gradient(ellipse at center, rgba(255, 208, 0, 0.08) 0%, transparent 60%);
+  animation: okrAmbientPulse 8s ease-in-out infinite;
+}
+
+.okr-dashboard__noise {
+  display: none;
+}
+
+@keyframes okrAmbientPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.05); }
+}
+
+/* Content Container */
+.okr-dashboard > *:not(.okr-dashboard__bg) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
+.okr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  animation: okrFadeInDown 0.5s ease-out;
+}
+
+.okr-header__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-header__subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666666);
+  margin: 0.25rem 0 0;
+}
+
+.okr-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.okr-header__filters {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.okr-filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-filter-chip:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.okr-filter-chip svg {
+  color: var(--color-text-muted, #999999);
+  flex-shrink: 0;
+}
+
+.okr-filter-chip__select {
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary, #1a1a1a);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  padding-right: 0.5rem;
+}
+
+/* ==========================================================================
+   Metrics Grid
+   ========================================================================== */
+.okr-metrics-grid {
+  display: grid;
+  grid-template-columns: 1.25fr repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+/* Metric Card Base */
+.okr-metric-card {
+  position: relative;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  animation: okrFadeInUp 0.5s ease-out backwards;
+  transition: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-metric-card:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.okr-metric-card__glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-accent, #ffd000), transparent);
+  opacity: 0;
+  transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-metric-card:hover .okr-metric-card__glow {
+  opacity: 1;
+}
+
+.okr-metric-card__content {
+  position: relative;
+  z-index: 1;
+}
+
+.okr-metric-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.okr-metric-card__title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-metric-card__icon {
+  color: var(--color-text-muted, #999999);
+  display: flex;
+  transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-metric-card:hover .okr-metric-card__icon {
+  color: var(--color-text-secondary, #666666);
+}
+
+.okr-metric-card__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-metric-card__subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+  margin-top: 0.25rem;
+}
+
+/* Metric Card Variants */
+.okr-metric-card--danger .okr-metric-card__value {
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-metric-card--danger .okr-metric-card__icon {
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-metric-card--danger::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(239, 68, 68, 0.1), transparent 70%);
+  pointer-events: none;
+}
+
+.okr-metric-card--success .okr-metric-card__value {
+  color: var(--color-success, #22c55e);
+}
+
+.okr-metric-card--success .okr-metric-card__icon {
+  color: var(--color-success, #22c55e);
+}
+
+.okr-metric-card--success::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(34, 197, 94, 0.1), transparent 70%);
+  pointer-events: none;
+}
+
+/* Featured Metric Card (Score) */
+.okr-metric-card--featured {
+  grid-row: span 1;
+  background: linear-gradient(135deg, var(--color-bg-elevated, #ffffff) 0%, rgba(255, 208, 0, 0.05) 100%);
+}
+
+.okr-metric-card--featured__body {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.okr-metric-card--featured__info {
+  display: flex;
+  flex-direction: column;
+}
+
+.okr-metric-card--featured__percent {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-metric-card__trend-icon {
+  color: var(--color-text-muted, #999999);
+  transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-metric-card:hover .okr-metric-card__trend-icon {
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+.okr-metric-card__glow--featured {
+  background: linear-gradient(90deg, transparent, var(--color-accent, #ffd000), transparent);
+  opacity: 0.5;
+}
+
+/* Score Ring */
+.okr-score-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.okr-score-ring svg {
+  transform: rotate(-90deg);
+}
+
+.okr-score-ring-bg {
+  fill: none;
+  stroke: var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-score-ring-progress {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.okr-score-ring-value {
+  position: absolute;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ==========================================================================
+   Sections
+   ========================================================================== */
+.okr-section {
+  margin-bottom: 2rem;
+  animation: okrFadeInUp 0.6s ease-out 0.2s backwards;
+}
+
+.okr-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.okr-section__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-section__title svg {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-section__link {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-accent-dark, #e6bb00);
+  text-decoration: none;
+  transition: 150ms;
+}
+
+.okr-section__link:hover {
+  color: var(--color-accent, #ffd000);
+}
+
+/* ==========================================================================
+   Sector Cards
+   ========================================================================== */
+.okr-sectors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1rem;
+}
+
+.okr-sector-card {
+  position: relative;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  animation: okrFadeInUp 0.5s ease-out backwards;
+  transition: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-sector-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  opacity: 0;
+  transition: 150ms;
+}
+
+.okr-sector-card:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.okr-sector-card:hover::before {
+  opacity: 1;
+}
+
+.okr-sector-card--success::before { background: var(--color-success, #22c55e); }
+.okr-sector-card--warning::before { background: var(--color-warning, #f59e0b); }
+.okr-sector-card--danger::before { background: var(--color-danger, #ef4444); }
+
+.okr-sector-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.okr-sector-card__info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.okr-sector-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  color: var(--color-text-secondary, #666666);
+}
+
+.okr-sector-card__name {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-sector-card__stats {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #999999);
+  margin: 0.125rem 0 0;
+}
+
+.okr-sector-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.okr-sector-card__chevron {
+  display: flex;
+  color: var(--color-text-muted, #999999);
+  transition: transform 250ms;
+}
+
+.okr-sector-card__chevron.expanded {
+  transform: rotate(180deg);
+}
+
+/* Sector Card Body (expanded) */
+.okr-sector-card__body {
+  padding: 0 1.25rem 1.25rem;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  animation: okrSlideDown 0.3s ease-out;
+}
+
+@keyframes okrSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.okr-sector-card__mini-stats {
+  display: flex;
+  gap: 1rem;
+  padding: 0.875rem 0;
+}
+
+.okr-mini-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.okr-mini-stat--success { color: var(--color-success, #22c55e); }
+.okr-mini-stat--danger { color: var(--color-danger, #ef4444); }
+
+.okr-sector-card__objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.okr-objective-mini {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: 150ms;
+}
+
+.okr-objective-mini:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.okr-objective-mini__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.okr-objective-mini__cycle {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+.okr-objective-mini__title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-objective-mini__krs {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-sector-card__view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #666666);
+  cursor: pointer;
+  transition: 150ms;
+}
+
+.okr-sector-card__view-btn:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: var(--color-accent, #ffd000);
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+/* ==========================================================================
+   Company Objectives
+   ========================================================================== */
+.okr-company-objectives {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.okr-company-obj-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  animation: okrFadeInUp 0.5s ease-out backwards;
+  transition: 250ms;
+}
+
+.okr-company-obj-card:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.okr-company-obj-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.okr-company-obj-card__cycle {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-accent-dim, rgba(255, 208, 0, 0.15));
+  color: var(--color-accent-dark, #e6bb00);
+  border-radius: 6px;
+}
+
+.okr-company-obj-card__krs {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-company-obj-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.4;
+  color: var(--color-text-primary, #1a1a1a);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.okr-company-obj-card__desc {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #999999);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+.okr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+}
+
+.okr-btn--primary {
+  background: var(--color-accent, #ffd000);
+  color: #1a1a1a;
+}
+
+.okr-btn--primary:hover {
+  background: var(--color-accent-dark, #e6bb00);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(255, 208, 0, 0.3);
+}
+
+.okr-btn--outline {
+  background: transparent;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-btn--outline:hover {
+  border-color: var(--color-accent, #ffd000);
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+/* ==========================================================================
+   Empty State
+   ========================================================================== */
+.okr-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px dashed var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+}
+
+.okr-empty-state__icon {
+  color: var(--color-text-muted, #999999);
+  margin-bottom: 1.5rem;
+  opacity: 0.5;
+}
+
+.okr-empty-state__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-empty-state__description {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+  margin: 0 0 1.5rem;
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+.okr-dashboard--loading,
+.okr-dashboard--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.okr-loading-pulse {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.okr-loading-pulse__ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--color-accent, #ffd000);
+  border-radius: 50%;
+  animation: okrLoadingPulse 1.5s ease-out infinite;
+}
+
+.okr-loading-pulse__ring:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.okr-loading-pulse__ring:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+@keyframes okrLoadingPulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.okr-loading-text {
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+/* Error State */
+.okr-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.okr-error-state__icon {
+  color: var(--color-danger, #ef4444);
+  margin-bottom: 1rem;
+}
+
+.okr-error-state__message {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666666);
+  margin: 0 0 1.5rem;
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+@keyframes okrFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes okrFadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .okr-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .okr-metric-card--featured {
+    grid-column: span 2;
+  }
+
+  .okr-sectors-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .okr-dashboard {
+    padding: 1rem;
+  }
+
+  .okr-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .okr-header__actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .okr-header__filters {
+    width: 100%;
+  }
+
+  .okr-filter-chip {
+    flex: 1;
+  }
+
+  .okr-metrics-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .okr-metric-card {
+    padding: 1rem;
+  }
+
+  .okr-metric-card--featured__body {
+    justify-content: center;
+  }
+
+  .okr-company-objectives {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .okr-header__title {
+    font-size: 1.375rem;
+  }
+
+  .okr-metric-card__value {
+    font-size: 1.25rem;
+  }
+
+  .okr-metric-card--featured__percent {
+    font-size: 1.5rem;
+  }
+}
+
+/* ==========================================================================
+   Back Button
+   ========================================================================== */
+.okr-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 10px;
+  color: var(--color-text-secondary, #666666);
+  cursor: pointer;
+  transition: 150ms;
+  flex-shrink: 0;
+}
+
+.okr-back-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-header__left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* ==========================================================================
+   Objective Card
+   ========================================================================== */
+.okr-objectives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.okr-objective-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  animation: okrFadeInUp 0.5s ease-out backwards;
+  transition: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-objective-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  opacity: 0;
+  transition: 150ms;
+}
+
+.okr-objective-card:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.okr-objective-card:hover::before {
+  opacity: 1;
+}
+
+.okr-objective-card--success::before { background: var(--color-success, #22c55e); }
+.okr-objective-card--warning::before { background: var(--color-warning, #f59e0b); }
+.okr-objective-card--danger::before { background: var(--color-danger, #ef4444); }
+
+.okr-objective-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.okr-objective-card__badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.okr-objective-card__cycle {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-accent-dim, rgba(255, 208, 0, 0.15));
+  color: var(--color-accent-dark, #e6bb00);
+  border-radius: 6px;
+}
+
+.okr-objective-card__level {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-text-muted, #999999);
+  border-radius: 6px;
+}
+
+.okr-objective-card__chevron {
+  display: flex;
+  color: var(--color-text-muted, #999999);
+  transition: 150ms;
+}
+
+.okr-objective-card:hover .okr-objective-card__chevron {
+  color: var(--color-text-secondary, #666666);
+  transform: translateX(4px);
+}
+
+.okr-objective-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.4;
+  color: var(--color-text-primary, #1a1a1a);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.okr-objective-card__description {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #999999);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.okr-objective-card__progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.okr-objective-card__progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.okr-objective-card__progress-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-objective-card__progress-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.okr-objective-card__progress-value--success { color: var(--color-success, #22c55e); }
+.okr-objective-card__progress-value--warning { color: var(--color-warning, #f59e0b); }
+.okr-objective-card__progress-value--danger { color: var(--color-text-muted, #999999); }
+
+.okr-objective-card__progress {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.okr-objective-card__progress-bar {
+  height: 100%;
+  width: var(--progress, 0%);
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-objective-card__progress-bar--success {
+  background: linear-gradient(90deg, var(--color-success, #22c55e), #4ade80);
+}
+
+.okr-objective-card__progress-bar--warning {
+  background: linear-gradient(90deg, var(--color-warning, #f59e0b), #fbbf24);
+}
+
+.okr-objective-card__progress-bar--danger {
+  background: linear-gradient(90deg, var(--color-danger, #ef4444), #f87171);
+}
+
+.okr-objective-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-objective-card__stat {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-objective-card__stat--success { color: var(--color-success, #22c55e); }
+.okr-objective-card__stat--warning { color: var(--color-warning, #f59e0b); }
+.okr-objective-card__stat--danger { color: var(--color-danger, #ef4444); }
+
+/* ==========================================================================
+   Modal
+   ========================================================================== */
+.okr-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  animation: okrFadeIn 0.2s ease-out;
+  isolation: isolate;
+}
+
+@keyframes okrFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.okr-modal {
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: okrSlideUp 0.3s ease-out;
+}
+
+@keyframes okrSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.okr-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-modal__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--color-text-muted, #999999);
+  cursor: pointer;
+  transition: 150ms;
+}
+
+.okr-modal__close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-modal__body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(90vh - 160px);
+}
+
+.okr-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Modal Tabs */
+.okr-modal__tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.okr-modal__tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary, #666666);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 150ms;
+  margin-bottom: -1px;
+}
+
+.okr-modal__tab:hover {
+  color: var(--color-text-primary, #1a1a1a);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.okr-modal__tab--active {
+  color: var(--color-text-primary, #1a1a1a);
+  border-bottom-color: var(--color-accent, #ffd000);
+}
+
+.okr-modal__tab svg {
+  opacity: 0.7;
+}
+
+.okr-modal__tab--active svg {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   Form Elements
+   ========================================================================== */
+.okr-form-group {
+  margin-bottom: 1rem;
+}
+
+.okr-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.okr-form-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+  margin-bottom: 0.375rem;
+}
+
+.okr-form-input,
+.okr-form-select,
+.okr-form-textarea {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--color-text-primary, #1a1a1a);
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 10px;
+  outline: none;
+  transition: 150ms;
+}
+
+.okr-form-input:focus,
+.okr-form-select:focus,
+.okr-form-textarea:focus {
+  border-color: var(--color-accent, #ffd000);
+  box-shadow: 0 0 0 3px rgba(255, 208, 0, 0.15);
+}
+
+.okr-form-input::placeholder,
+.okr-form-textarea::placeholder {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.okr-form-select {
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .okr-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Form Help Text */
+.okr-form-help {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: rgba(255, 208, 0, 0.1);
+  border: 1px solid rgba(255, 208, 0, 0.3);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.okr-form-help svg {
+  flex-shrink: 0;
+  color: var(--color-accent, #ffd000);
+  margin-top: 0.125rem;
+}
+
+.okr-form-help span {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #666666);
+  line-height: 1.5;
+}
+
+/* Form Actions Row */
+.okr-form-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Monthly Targets Grid */
+.okr-monthly-targets-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.okr-monthly-targets-grid--quarter {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.okr-monthly-target-input {
+  display: flex;
+  flex-direction: column;
+}
+
+.okr-monthly-target-input .okr-form-label {
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+  color: var(--color-text-secondary, #666666);
+}
+
+.okr-monthly-target-input .okr-form-input {
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.okr-monthly-target-input .okr-form-input::placeholder {
+  color: var(--color-text-muted, #cccccc);
+}
+
+@media (max-width: 640px) {
+  .okr-monthly-targets-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .okr-monthly-targets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ==========================================================================
+   Key Result Card
+   ========================================================================== */
+.okr-kr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.okr-kr-card {
+  display: block;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  animation: okrFadeInUp 0.5s ease-out backwards;
+  transition: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-kr-card:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.okr-kr-card--success { border-left: 4px solid var(--color-success, #22c55e); }
+.okr-kr-card--warning { border-left: 4px solid var(--color-warning, #f59e0b); }
+.okr-kr-card--danger { border-left: 4px solid var(--color-danger, #ef4444); }
+
+.okr-kr-card__content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.okr-kr-card__progress-circle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.okr-kr-card__progress-circle--success {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.okr-kr-card__progress-circle--warning {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.okr-kr-card__progress-circle--danger {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.okr-kr-card__progress-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-kr-card__progress-circle--success .okr-kr-card__progress-value {
+  color: var(--color-success, #22c55e);
+}
+
+.okr-kr-card__progress-circle--warning .okr-kr-card__progress-value {
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-kr-card__progress-circle--danger .okr-kr-card__progress-value {
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-kr-card__trend {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated, #ffffff);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.okr-kr-card__trend--up { color: var(--color-success, #22c55e); }
+.okr-kr-card__trend--down { color: var(--color-danger, #ef4444); }
+
+.okr-kr-card__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.okr-kr-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.okr-kr-card__status {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.okr-kr-card__status--success {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-success, #22c55e);
+}
+
+.okr-kr-card__status--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-kr-card__status--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-kr-card__weight {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-text-muted, #999999);
+  border-radius: 6px;
+}
+
+.okr-kr-card__inverse {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-radius: 6px;
+}
+
+.okr-kr-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+  color: var(--color-text-primary, #1a1a1a);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.okr-kr-card:hover .okr-kr-card__title {
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+.okr-kr-card__values {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  margin-bottom: 0.5rem;
+}
+
+.okr-kr-card__current {
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-kr-card__separator {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-kr-card__target {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-kr-card__progress-bar-container {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.okr-kr-card__progress-bar {
+  height: 100%;
+  width: var(--progress, 0%);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-kr-card__progress-bar--success {
+  background: linear-gradient(90deg, var(--color-success, #22c55e), #4ade80);
+}
+
+.okr-kr-card__progress-bar--warning {
+  background: linear-gradient(90deg, var(--color-warning, #f59e0b), #fbbf24);
+}
+
+.okr-kr-card__progress-bar--danger {
+  background: linear-gradient(90deg, var(--color-danger, #ef4444), #f87171);
+}
+
+.okr-kr-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-kr-card__owner {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-kr-card__chevron {
+  display: flex;
+  color: var(--color-text-muted, #999999);
+  transition: 150ms;
+  flex-shrink: 0;
+  margin-top: 1rem;
+}
+
+.okr-kr-card:hover .okr-kr-card__chevron {
+  color: var(--color-text-secondary, #666666);
+  transform: translateX(4px);
+}
+
+/* ==========================================================================
+   Progress Summary Card
+   ========================================================================== */
+.okr-progress-summary {
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  animation: okrFadeInUp 0.5s ease-out backwards;
+}
+
+.okr-progress-summary__header {
+  padding: 1rem 1.25rem 0;
+}
+
+.okr-progress-summary__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-progress-summary__content {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.okr-progress-summary__value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.okr-progress-summary__value {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.okr-progress-summary__value--success { color: var(--color-success, #22c55e); }
+.okr-progress-summary__value--warning { color: var(--color-warning, #f59e0b); }
+.okr-progress-summary__value--danger { color: var(--color-text-primary, #1a1a1a); }
+
+.okr-progress-summary__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.okr-progress-summary__bar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.okr-progress-summary__bar-fill {
+  height: 100%;
+  width: var(--progress, 0%);
+  border-radius: 4px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-progress-summary__bar-fill--success {
+  background: linear-gradient(90deg, var(--color-success, #22c55e), #4ade80);
+}
+
+.okr-progress-summary__bar-fill--warning {
+  background: linear-gradient(90deg, var(--color-warning, #f59e0b), #fbbf24);
+}
+
+.okr-progress-summary__bar-fill--danger {
+  background: linear-gradient(90deg, var(--color-danger, #ef4444), #f87171);
+}
+
+.okr-progress-summary__footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #999999);
+}
+
+/* ==========================================================================
+   Badges
+   ========================================================================== */
+.okr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.okr-badge--outline {
+  background: transparent;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-badge--secondary {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-badge--success {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-success, #22c55e);
+}
+
+.okr-badge--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-badge--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+/* ==========================================================================
+   Header Extended
+   ========================================================================== */
+.okr-header__breadcrumb {
+  margin-bottom: 0.25rem;
+}
+
+.okr-header__breadcrumb-link {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #999999);
+  text-decoration: none;
+  transition: 150ms;
+}
+
+.okr-header__breadcrumb-link:hover {
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+.okr-header__badges {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.okr-header__description {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+  margin: 0.5rem 0 0;
+  max-width: 600px;
+}
+
+/* ==========================================================================
+   Section Info
+   ========================================================================== */
+.okr-section__info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-success, #22c55e);
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(34, 197, 94, 0.05);
+  border-radius: 10px;
+}
+
+/* ==========================================================================
+   Modal Variants
+   ========================================================================== */
+.okr-modal--lg {
+  max-width: 600px;
+}
+
+.okr-modal--md {
+  max-width: 550px;
+}
+
+.okr-modal--sm {
+  max-width: 400px;
+}
+
+.okr-modal__icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  margin-right: 1rem;
+}
+
+.okr-modal__icon--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-modal__message {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666666);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Danger Button
+   ========================================================================== */
+.okr-btn--danger {
+  background: var(--color-danger, #ef4444);
+  color: #ffffff;
+}
+
+.okr-btn--danger:hover {
+  background: #dc2626;
+}
+
+.okr-btn--danger:disabled {
+  background: rgba(239, 68, 68, 0.5);
+  cursor: not-allowed;
+}
+
+.okr-btn--danger-outline {
+  background: transparent;
+  border: 1px solid var(--color-danger, #ef4444);
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-btn--danger-outline:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ==========================================================================
+   Checkbox
+   ========================================================================== */
+.okr-form-group--checkbox {
+  margin-top: 0.5rem;
+}
+
+.okr-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.okr-checkbox input {
+  display: none;
+}
+
+.okr-checkbox__mark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border, rgba(0, 0, 0, 0.15));
+  border-radius: 6px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: 150ms;
+  position: relative;
+}
+
+.okr-checkbox input:checked + .okr-checkbox__mark {
+  background: var(--color-accent, #ffd000);
+  border-color: var(--color-accent, #ffd000);
+}
+
+.okr-checkbox input:checked + .okr-checkbox__mark::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid #1a1a1a;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.okr-checkbox__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.okr-checkbox__label strong {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-checkbox__label small {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+}
+
+/* ==========================================================================
+   Form Hint
+   ========================================================================== */
+.okr-form-hint {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999999);
+  margin-top: 0.25rem;
+}
+
+/* ==========================================================================
+   KR Progress Card
+   ========================================================================== */
+.okr-kr-progress-card {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  animation: okrFadeInUp 0.5s ease-out backwards;
+}
+
+.okr-kr-progress-card__circle-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.okr-kr-progress-card__circle {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.okr-kr-progress-card__circle--success {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.okr-kr-progress-card__circle--warning {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.okr-kr-progress-card__circle--danger {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.okr-kr-progress-card__percent {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-kr-progress-card__circle--success .okr-kr-progress-card__percent {
+  color: var(--color-success, #22c55e);
+}
+
+.okr-kr-progress-card__circle--warning .okr-kr-progress-card__percent {
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-kr-progress-card__circle--danger .okr-kr-progress-card__percent {
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-kr-progress-card__trend {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated, #ffffff);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.okr-kr-progress-card__trend--up { color: var(--color-success, #22c55e); }
+.okr-kr-progress-card__trend--down { color: var(--color-danger, #ef4444); }
+
+.okr-kr-progress-card__values {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  flex: 1;
+  text-align: center;
+}
+
+.okr-kr-progress-card__value-item {
+  padding: 0.5rem;
+}
+
+.okr-kr-progress-card__value-item--main {
+  border-left: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-right: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-kr-progress-card__value-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+  margin-bottom: 0.25rem;
+}
+
+.okr-kr-progress-card__value-label small {
+  display: block;
+  font-size: 0.625rem;
+  opacity: 0.7;
+}
+
+.okr-kr-progress-card__value-num {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-kr-progress-card__value-num--primary {
+  font-size: 1.25rem;
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+.okr-kr-progress-card__owner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+/* ==========================================================================
+   KR Grid Layout
+   ========================================================================== */
+.okr-kr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.okr-kr-right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .okr-kr-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .okr-kr-progress-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .okr-kr-progress-card__values {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .okr-kr-progress-card__value-item--main {
+    border-left: none;
+    border-right: none;
+    grid-column: span 2;
+    border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+    border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+    padding: 1rem 0;
+  }
+}
+
+/* ==========================================================================
+   Card Component
+   ========================================================================== */
+.okr-card {
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  animation: okrFadeInUp 0.5s ease-out backwards;
+}
+
+.okr-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-card__title svg {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-card__title-badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 208, 0, 0.15);
+  color: var(--color-accent-dark, #c9a100);
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.okr-card__body {
+  padding: 1.25rem;
+}
+
+/* ==========================================================================
+   Monthly List
+   ========================================================================== */
+.okr-monthly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.okr-monthly-item {
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  transition: 150ms;
+}
+
+.okr-monthly-item--success {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.03);
+}
+
+.okr-monthly-item--warning {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.okr-monthly-item--danger {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.okr-monthly-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.okr-monthly-item__month {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-monthly-item__month svg {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-monthly-item__badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.okr-monthly-item__values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.okr-monthly-item__value {
+  padding: 0.5rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border-radius: 8px;
+}
+
+.okr-monthly-item__value-label {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999999);
+  margin-bottom: 0.125rem;
+}
+
+.okr-monthly-item__value-num {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-monthly-item__value-num--success {
+  color: var(--color-success, #22c55e);
+}
+
+.okr-monthly-item__value-num--danger {
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-monthly-item__progress {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.okr-monthly-item__progress-bar {
+  height: 100%;
+  width: var(--progress, 0%);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-monthly-item__progress-bar--success {
+  background: linear-gradient(90deg, var(--color-success, #22c55e), #4ade80);
+}
+
+.okr-monthly-item__progress-bar--danger {
+  background: linear-gradient(90deg, var(--color-danger, #ef4444), #f87171);
+}
+
+.okr-monthly-item__notes {
+  padding: 0.5rem;
+  background: rgba(255, 208, 0, 0.05);
+  border: 1px solid rgba(255, 208, 0, 0.2);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #666666);
+  margin-top: 0.5rem;
+}
+
+.okr-monthly-item__notes strong {
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+/* ==========================================================================
+   Comments
+   ========================================================================== */
+.okr-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.okr-comment {
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 10px;
+}
+
+.okr-comment__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.okr-comment__author {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-comment__date {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-comment__content {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666666);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Recovery Plans
+   ========================================================================== */
+.okr-recovery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.okr-recovery-card {
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+}
+
+.okr-recovery-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.okr-recovery-card__month {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-recovery-card__month svg {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-recovery-card__description {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666666);
+  margin: 0 0 0.75rem;
+}
+
+.okr-recovery-card__actions {
+  padding: 0.5rem;
+  background: rgba(255, 208, 0, 0.05);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  margin-bottom: 0.75rem;
+}
+
+.okr-recovery-card__actions strong {
+  display: block;
+  color: var(--color-accent-dark, #e6bb00);
+  margin-bottom: 0.25rem;
+}
+
+.okr-recovery-card__actions p {
+  margin: 0;
+  color: var(--color-text-secondary, #666666);
+}
+
+.okr-recovery-card__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.okr-recovery-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.okr-recovery-card__actions-icons {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.okr-recovery-card__delete-confirm {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+}
+
+.okr-recovery-card__delete-confirm p {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-recovery-card__delete-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+/* Icon Button */
+.okr-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text-muted, #999999);
+  transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-icon-btn--sm {
+  width: 24px;
+  height: 24px;
+}
+
+.okr-icon-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+/* ==========================================================================
+   Alert
+   ========================================================================== */
+.okr-alert {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  animation: okrFadeInUp 0.5s ease-out backwards;
+}
+
+.okr-alert--danger {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.okr-alert--danger > svg {
+  color: var(--color-danger, #ef4444);
+  flex-shrink: 0;
+}
+
+.okr-alert__content {
+  flex: 1;
+}
+
+.okr-alert__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-danger, #ef4444);
+  margin: 0 0 0.25rem;
+}
+
+.okr-alert__text {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+  margin: 0 0 0.75rem;
+}
+
+.okr-alert__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ==========================================================================
+   Info Box
+   ========================================================================== */
+.okr-info-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.okr-info-box__label {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-info-box__value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+/* ==========================================================================
+   Button Variants
+   ========================================================================== */
+.okr-btn--sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.okr-btn--full {
+  width: 100%;
+}
+
+.okr-btn__detail {
+  font-size: 0.6875rem;
+  opacity: 0.7;
+  margin-left: 0.5rem;
+}
+
+/* ==========================================================================
+   Badge Variants
+   ========================================================================== */
+.okr-badge--inverse {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+/* ==========================================================================
+   Empty State Compact
+   ========================================================================== */
+.okr-empty-state--compact {
+  padding: 2rem;
+}
+
+.okr-empty-state--compact svg {
+  margin-bottom: 0.75rem;
+  opacity: 0.5;
+}
+
+.okr-empty-state--compact p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.okr-empty-state--compact small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999999);
+  margin-top: 0.25rem;
+}
+
+/* ==========================================================================
+   Check-in Meeting
+   ========================================================================== */
+.okr-checkin-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.5rem;
+}
+
+.okr-checkin-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.okr-checkin-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 200ms;
+  text-align: left;
+}
+
+.okr-checkin-stat:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.okr-checkin-stat--active {
+  border-color: var(--color-accent, #ffd000);
+  box-shadow: 0 0 0 3px rgba(255, 208, 0, 0.15);
+}
+
+.okr-checkin-stat--active-danger {
+  border-color: var(--color-danger, #ef4444);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.okr-checkin-stat--active-warning {
+  border-color: var(--color-warning, #f59e0b);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+.okr-checkin-stat--active-info {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.okr-checkin-stat__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.okr-checkin-stat__icon--primary {
+  background: rgba(255, 208, 0, 0.15);
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+.okr-checkin-stat__icon--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-checkin-stat__icon--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-checkin-stat__icon--info {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.okr-checkin-stat__info {
+  display: flex;
+  flex-direction: column;
+}
+
+.okr-checkin-stat__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.okr-checkin-stat__value--danger { color: var(--color-danger, #ef4444); }
+.okr-checkin-stat__value--warning { color: var(--color-warning, #f59e0b); }
+.okr-checkin-stat__value--info { color: #3b82f6; }
+
+.okr-checkin-stat__label {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+/* Sectors Progress */
+.okr-checkin-sectors {
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  padding: 1.25rem;
+}
+
+.okr-checkin-sectors__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-checkin-sectors__title svg {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-checkin-sectors__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.okr-checkin-sectors__empty {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+  text-align: center;
+  padding: 1rem;
+}
+
+.okr-checkin-sector {
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 150ms;
+  text-align: left;
+  width: 100%;
+}
+
+.okr-checkin-sector:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.okr-checkin-sector--active {
+  border-color: var(--color-accent, #ffd000);
+  background: rgba(255, 208, 0, 0.05);
+}
+
+.okr-checkin-sector__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.okr-checkin-sector__name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-checkin-sector__progress {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.okr-checkin-sector__progress--success { color: var(--color-success, #22c55e); }
+.okr-checkin-sector__progress--warning { color: var(--color-warning, #f59e0b); }
+.okr-checkin-sector__progress--danger { color: var(--color-danger, #ef4444); }
+
+.okr-checkin-sector__bar {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.okr-checkin-sector__bar-fill {
+  height: 100%;
+  width: var(--progress, 0%);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-checkin-sector__bar-fill--success { background: var(--color-success, #22c55e); }
+.okr-checkin-sector__bar-fill--warning { background: var(--color-warning, #f59e0b); }
+.okr-checkin-sector__bar-fill--danger { background: var(--color-danger, #ef4444); }
+
+.okr-checkin-sector__footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-checkin-sector__delayed {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-danger, #ef4444);
+}
+
+/* Check-in List */
+.okr-checkin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.okr-checkin-group__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.okr-checkin-group__header svg {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-checkin-group__header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.okr-checkin-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.okr-checkin-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: 200ms;
+}
+
+.okr-checkin-item:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.okr-checkin-item--danger {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.okr-checkin-item__progress {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.okr-checkin-item__progress--success {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-success, #22c55e);
+}
+
+.okr-checkin-item__progress--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-checkin-item__progress--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-checkin-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.okr-checkin-item__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.okr-checkin-item__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #1a1a1a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.okr-checkin-item__objective {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #999999);
+  margin: 0.25rem 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.okr-checkin-item__months {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.okr-checkin-item__more {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-checkin-item__chevron {
+  color: var(--color-text-muted, #999999);
+  flex-shrink: 0;
+  transition: 150ms;
+}
+
+.okr-checkin-item:hover .okr-checkin-item__chevron {
+  transform: translateX(4px);
+  color: var(--color-text-secondary, #666666);
+}
+
+/* Section Bar */
+.okr-section__bar {
+  width: 4px;
+  height: 24px;
+  background: var(--color-text-muted, #999999);
+  border-radius: 2px;
+  margin-right: 0.5rem;
+}
+
+.okr-section__bar--primary {
+  background: var(--color-accent, #ffd000);
+}
+
+.okr-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ==========================================================================
+   Presentation Mode
+   ========================================================================== */
+.okr-presentation-mode {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg, #f8f9fa);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+.okr-presentation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-presentation-header__left,
+.okr-presentation-header__right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.okr-presentation-header__date {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-presentation-content {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem;
+}
+
+.okr-presentation-kr {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.okr-presentation-kr__header {
+  margin-bottom: 2rem;
+}
+
+.okr-presentation-kr__badges {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.okr-badge--lg {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.875rem;
+}
+
+.okr-presentation-kr__title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-presentation-kr__objective {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  color: var(--color-text-muted, #999999);
+  margin: 0;
+}
+
+.okr-presentation-kr__objective svg {
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-presentation-progress {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 20px;
+  margin-bottom: 2rem;
+}
+
+.okr-presentation-progress__circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.okr-presentation-progress__circle--success {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-success, #22c55e);
+}
+
+.okr-presentation-progress__circle--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-presentation-progress__circle--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-presentation-progress__values {
+  display: flex;
+  gap: 2rem;
+  flex: 1;
+  justify-content: center;
+}
+
+.okr-presentation-progress__value {
+  text-align: center;
+}
+
+.okr-presentation-progress__value span {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+  margin-bottom: 0.25rem;
+}
+
+.okr-presentation-progress__value strong {
+  font-size: 1.5rem;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-presentation-progress__value--main strong {
+  color: var(--color-accent-dark, #e6bb00);
+}
+
+.okr-presentation-section {
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.okr-presentation-section--danger {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.02);
+}
+
+.okr-presentation-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-presentation-section--danger h3 {
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-presentation-section h3 svg {
+  color: inherit;
+}
+
+.okr-presentation-months {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.okr-presentation-month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-radius: 10px;
+}
+
+.okr-presentation-month--warning {
+  background: rgba(245, 158, 11, 0.05);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.okr-presentation-month--danger {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.okr-presentation-month__name {
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-presentation-month__values {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-presentation-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.okr-presentation-comment {
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 10px;
+}
+
+.okr-presentation-comment__author {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.okr-presentation-comment p {
+  font-size: 1rem;
+  color: var(--color-text-secondary, #666666);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.okr-presentation-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--color-bg-elevated, #ffffff);
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-btn--lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+.okr-presentation-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.okr-presentation-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: 150ms;
+}
+
+.okr-presentation-dot:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.okr-presentation-dot--active {
+  background: var(--color-accent, #ffd000);
+}
+
+.okr-presentation-dot--danger {
+  background: rgba(239, 68, 68, 0.5);
+}
+
+@media (max-width: 1024px) {
+  .okr-checkin-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .okr-checkin-sectors__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .okr-checkin-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .okr-checkin-item {
+    flex-wrap: wrap;
+  }
+
+  .okr-checkin-item__months {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}
+
+/* ==========================================================================
+   History OKRs Styles
+   ========================================================================== */
+
+/* History Selectors */
+.okr-history-selectors {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.okr-history-selector-label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+}
+
+/* Stat Card Additions for History */
+.okr-stat-value-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.okr-stat-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.okr-stat-badge-positive {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--okr-green);
+}
+
+.okr-stat-badge-negative {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--okr-red);
+}
+
+.okr-stat-comparison {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999);
+  margin-top: 0.25rem;
+}
+
+/* History Card */
+.okr-history-card {
+  padding: 1.5rem;
+}
+
+.okr-history-card-header {
+  margin-bottom: 1.5rem;
+}
+
+.okr-history-card-header .okr-section-title {
+  margin-bottom: 0.25rem;
+}
+
+.okr-history-card-header .okr-section-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+  margin: 0;
+}
+
+/* Bar Chart */
+.okr-history-chart {
+  padding: 1rem 0;
+}
+
+.okr-history-chart-legend {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  justify-content: center;
+}
+
+.okr-history-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.okr-history-legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.okr-history-bars {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 250px;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-history-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.okr-history-bar-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  height: 200px;
+}
+
+.okr-history-bar {
+  width: 40px;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  min-height: 4px;
+  transition: height 0.5s ease-out;
+}
+
+.okr-history-bar-primary {
+  background: var(--okr-green);
+}
+
+.okr-history-bar-secondary {
+  background: var(--color-text-muted, #999);
+  opacity: 0.5;
+}
+
+.okr-history-bar-value {
+  position: absolute;
+  top: -1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+  white-space: nowrap;
+}
+
+.okr-history-bar-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #666);
+}
+
+/* Sector Comparison */
+.okr-sector-comparison-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.okr-sector-comparison-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.okr-sector-name {
+  width: 120px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+  flex-shrink: 0;
+}
+
+.okr-sector-progress-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.okr-sector-values {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.okr-sector-value-primary {
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-sector-value-secondary {
+  color: var(--color-text-muted, #999);
+}
+
+.okr-sector-year {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999);
+}
+
+.okr-sector-vs {
+  color: var(--color-text-muted, #999);
+  font-size: 0.75rem;
+}
+
+.okr-sector-bar {
+  height: 8px;
+  background: var(--color-bg, #f0f0f0);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.okr-sector-bar-fill {
+  height: 100%;
+  background: var(--okr-green);
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+.okr-sector-trend {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 80px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.okr-sector-trend-up {
+  color: var(--okr-green);
+}
+
+.okr-sector-trend-down {
+  color: var(--okr-red);
+}
+
+.okr-sector-trend-stable {
+  color: var(--color-text-muted, #999);
+}
+
+.okr-sector-diff {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  opacity: 0.8;
+}
+
+/* Cycles List */
+.okr-cycles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.okr-cycle-card {
+  padding: 1.25rem;
+}
+
+.okr-cycle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
+.okr-cycle-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.okr-cycle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--color-bg, #f0f0f0);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-cycle-count {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.okr-cycle-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.okr-cycle-progress-label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.okr-cycle-progress-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #999);
+}
+
+/* Cycle Objectives */
+.okr-cycle-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.okr-cycle-objective-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  cursor: pointer;
+  transition: 150ms;
+}
+
+.okr-cycle-objective-item:hover {
+  background: var(--color-bg, #f8f9fa);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.okr-cycle-objective-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.okr-cycle-objective-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.okr-cycle-objective-krs {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999);
+  margin-top: 0.125rem;
+  display: block;
+}
+
+.okr-cycle-objective-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.okr-mini-progress-bar {
+  width: 100px;
+  height: 8px;
+  background: var(--color-bg, #f0f0f0);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.okr-mini-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+.okr-cycle-objective-percent {
+  font-size: 0.875rem;
+  font-weight: 600;
+  width: 40px;
+  text-align: right;
+}
+
+/* Empty State for History */
+.okr-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  border: 1px dashed var(--color-border, rgba(0, 0, 0, 0.15));
+}
+
+.okr-empty-state svg {
+  color: var(--color-text-muted, #999);
+  margin-bottom: 1rem;
+}
+
+.okr-empty-state p {
+  color: var(--color-text-secondary, #666);
+  margin: 0;
+}
+
+/* Responsive History */
+@media (max-width: 768px) {
+  .okr-history-selectors {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .okr-sector-comparison-item {
+    flex-wrap: wrap;
+  }
+
+  .okr-sector-name {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .okr-sector-trend {
+    width: auto;
+  }
+
+  .okr-cycle-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .okr-history-bars {
+    overflow-x: auto;
+    justify-content: flex-start;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .okr-history-bar-group {
+    min-width: 80px;
+  }
+}
+
+/* ==========================================================================
+   Initiatives Section
+   ========================================================================== */
+
+.okr-initiatives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.okr-initiative-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  transition: all 0.2s ease;
+  animation: okrFadeSlideIn 0.4s ease-out both;
+}
+
+.okr-initiative-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.okr-initiative-card--completed {
+  border-left: 4px solid var(--color-success, #10b981);
+}
+
+.okr-initiative-card--in_progress {
+  border-left: 4px solid var(--color-warning, #f59e0b);
+}
+
+.okr-initiative-card--pending {
+  border-left: 4px solid var(--color-text-tertiary, #9ca3af);
+}
+
+.okr-initiative-card--cancelled {
+  border-left: 4px solid var(--color-danger, #ef4444);
+  opacity: 0.7;
+}
+
+.okr-initiative-card__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.okr-initiative-card__status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+}
+
+.okr-initiative-card__status--pending {
+  background: var(--color-bg-secondary, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.okr-initiative-card__status--in_progress {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-initiative-card__status--completed {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success, #10b981);
+}
+
+.okr-initiative-card__status--cancelled {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-initiative-card__responsible {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.okr-initiative-card__responsible svg {
+  opacity: 0.6;
+}
+
+.okr-initiative-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.okr-initiative-card__description {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #6b7280);
+  margin: 0 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+.okr-initiative-card__badges {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.okr-initiative-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.okr-initiative-card:hover .okr-initiative-card__actions {
+  opacity: 1;
+}
+
+.okr-initiative-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.okr-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-bg-secondary, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.okr-btn-icon:hover {
+  background: var(--color-bg-tertiary, #e5e7eb);
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-btn-icon--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger, #ef4444);
+}
+
+.okr-btn-icon--small {
+  width: 24px;
+  height: 24px;
+}
+
+.okr-initiative-card__expand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  transition: color 0.2s ease;
+}
+
+.okr-initiative-card__expand:hover {
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-initiative-card__comments {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+.okr-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.okr-comment {
+  background: var(--color-bg-secondary, #f3f4f6);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.okr-comment__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.okr-comment__author {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-comment__date {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.okr-comment__content {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #6b7280);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.okr-comments-empty {
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  text-align: center;
+  padding: 1rem;
+  margin: 0;
+}
+
+.okr-add-comment {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.okr-add-comment .okr-form-input {
+  flex: 1;
+}
+
+.okr-btn--sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+}

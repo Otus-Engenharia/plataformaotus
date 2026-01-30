@@ -1,0 +1,1700 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import axios from 'axios';
+import './DashboardOKRs.css';
+
+// Portal component to render modals outside the component tree
+function Portal({ children }) {
+  return createPortal(children, document.body);
+}
+
+const statusConfig = {
+  on_track: { label: 'No prazo', color: 'success' },
+  at_risk: { label: 'Em risco', color: 'warning' },
+  delayed: { label: 'Atrasado', color: 'danger' },
+  completed: { label: 'Concluído', color: 'success' }
+};
+
+const metricTypeLabels = {
+  number: 'Número',
+  percentage: 'Percentual',
+  boolean: 'Sim/Não',
+  currency: 'Monetário'
+};
+
+const consolidationTypeLabels = {
+  sum: 'Soma dos meses',
+  average: 'Média dos meses',
+  last_value: 'Último valor',
+  manual: 'Manual'
+};
+
+const monthNames = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+// Helper to get months for a quarter (Q1 = [1,2,3], Q2 = [4,5,6], etc.)
+const getQuarterMonths = (quarter) => {
+  if (!quarter) return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const q = quarter.toUpperCase().split('-')[0]; // e.g., "Q1-2025" -> "Q1"
+  switch (q) {
+    case 'Q1': return [1, 2, 3];
+    case 'Q2': return [4, 5, 6];
+    case 'Q3': return [7, 8, 9];
+    case 'Q4': return [10, 11, 12];
+    default: return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  }
+};
+
+// Check-in Dialog
+function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter }) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const currentYear = new Date().getFullYear();
+
+  const quarterMonths = getQuarterMonths(quarter);
+  const currentMonth = new Date().getMonth() + 1;
+  // Default to current month if it's in the quarter, otherwise first month of quarter
+  const defaultMonth = quarterMonths.includes(currentMonth) ? currentMonth : quarterMonths[0];
+
+  const [formData, setFormData] = useState({
+    mes: defaultMonth,
+    ano: currentYear,
+    valor: '',
+    notas: ''
+  });
+
+  const monthlyTargets = kr?.monthly_targets || {};
+  const currentTarget = monthlyTargets[formData.mes.toString()] ?? monthlyTargets[formData.mes];
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.valor) return;
+
+    setLoading(true);
+    try {
+      const existingCheckIn = checkIns.find(
+        c => c.mes === formData.mes && c.ano === formData.ano
+      );
+
+      if (existingCheckIn) {
+        const response = await axios.put(`/api/okrs/check-ins/${existingCheckIn.id}`, {
+          valor: parseFloat(formData.valor),
+          notas: formData.notas || null
+        }, { withCredentials: true });
+        if (!response.data.success) throw new Error(response.data.error);
+      } else {
+        const response = await axios.post('/api/okrs/check-ins', {
+          key_result_id: kr.id,
+          mes: formData.mes,
+          ano: formData.ano,
+          valor: parseFloat(formData.valor),
+          notas: formData.notas || null
+        }, { withCredentials: true });
+        if (!response.data.success) throw new Error(response.data.error);
+      }
+
+      onSuccess?.();
+      onClose();
+      setFormData({ mes: new Date().getMonth() + 1, ano: currentYear, valor: '', notas: '' });
+    } catch (err) {
+      console.error('Error saving check-in:', err);
+      alert('Erro ao salvar check-in: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <Portal>
+      <div className="okr-modal-overlay" onClick={onClose}>
+        <div className="okr-modal" onClick={e => e.stopPropagation()}>
+          <div className="okr-modal__header">
+            <h2 className="okr-modal__title">Registrar Check-in</h2>
+          <button className="okr-modal__close" onClick={onClose}>
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="okr-modal__body">
+            <div className="okr-form-row">
+              <div className="okr-form-group">
+                <label className="okr-form-label">Mês ({quarter || 'Q1'})</label>
+                <select
+                  className="okr-form-select"
+                  value={formData.mes}
+                  onChange={e => setFormData({ ...formData, mes: parseInt(e.target.value) })}
+                >
+                  {quarterMonths.map((month) => (
+                    <option key={month} value={month}>{monthNames[month - 1]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="okr-form-group">
+                <label className="okr-form-label">Ano</label>
+                <select
+                  className="okr-form-select"
+                  value={formData.ano}
+                  onChange={e => setFormData({ ...formData, ano: parseInt(e.target.value) })}
+                >
+                  <option value={currentYear - 1}>{currentYear - 1}</option>
+                  <option value={currentYear}>{currentYear}</option>
+                  <option value={currentYear + 1}>{currentYear + 1}</option>
+                </select>
+              </div>
+            </div>
+
+            {currentTarget !== undefined && currentTarget !== null && (
+              <div className="okr-info-box">
+                <span className="okr-info-box__label">Meta para {monthNames[formData.mes - 1]}:</span>
+                <span className="okr-info-box__value">{currentTarget}</span>
+              </div>
+            )}
+
+            <div className="okr-form-group">
+              <label className="okr-form-label">Valor alcançado *</label>
+              <input
+                type="number"
+                step="any"
+                className="okr-form-input"
+                value={formData.valor}
+                onChange={e => setFormData({ ...formData, valor: e.target.value })}
+                placeholder="Ex: 85"
+                required
+              />
+            </div>
+
+            <div className="okr-form-group">
+              <label className="okr-form-label">Observações</label>
+              <textarea
+                className="okr-form-textarea"
+                value={formData.notas}
+                onChange={e => setFormData({ ...formData, notas: e.target.value })}
+                placeholder="Contexto do resultado, desafios, próximos passos..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="okr-modal__footer">
+            <button type="button" className="okr-btn okr-btn--outline" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className="okr-btn okr-btn--primary" disabled={loading}>
+              {loading ? 'Salvando...' : 'Salvar Check-in'}
+            </button>
+          </div>
+        </form>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+// Comment Dialog
+function CommentDialog({ open, onClose, onSuccess, krId }) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [content, setContent] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.post(`/api/okrs/key-results/${krId}/comments`, {
+        content: content.trim()
+      }, { withCredentials: true });
+
+      if (!response.data.success) throw new Error(response.data.error);
+
+      onSuccess?.();
+      onClose();
+      setContent('');
+    } catch (err) {
+      console.error('Error saving comment:', err);
+      alert('Erro ao salvar comentário: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <Portal>
+      <div className="okr-modal-overlay" onClick={onClose}>
+        <div className="okr-modal" onClick={e => e.stopPropagation()}>
+          <div className="okr-modal__header">
+            <h2 className="okr-modal__title">Adicionar Comentário</h2>
+            <button className="okr-modal__close" onClick={onClose}>
+              <svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              </svg>
+            </button>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="okr-modal__body">
+              <div className="okr-form-group">
+                <label className="okr-form-label">Comentário</label>
+                <textarea
+                  className="okr-form-textarea"
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  placeholder="Seu feedback sobre este Key Result..."
+                  rows={4}
+                  required
+                />
+              </div>
+            </div>
+            <div className="okr-modal__footer">
+              <button type="button" className="okr-btn okr-btn--outline" onClick={onClose}>
+                Cancelar
+              </button>
+              <button type="submit" className="okr-btn okr-btn--primary" disabled={loading}>
+                {loading ? 'Enviando...' : 'Enviar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+// Recovery Plan Dialog
+function RecoveryPlanDialog({ open, onClose, onSuccess, krId, defaultMonth, defaultYear, quarter }) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const currentYear = new Date().getFullYear();
+
+  const quarterMonths = getQuarterMonths(quarter);
+  const currentMonth = new Date().getMonth() + 1;
+  const defaultMonthValue = defaultMonth || (quarterMonths.includes(currentMonth) ? currentMonth : quarterMonths[0]);
+
+  const [formData, setFormData] = useState({
+    mes: defaultMonthValue,
+    ano: defaultYear || currentYear,
+    description: '',
+    actions: ''
+  });
+
+  useEffect(() => {
+    if (open) {
+      setFormData(prev => ({
+        ...prev,
+        mes: defaultMonth || (quarterMonths.includes(currentMonth) ? currentMonth : quarterMonths[0]),
+        ano: defaultYear || currentYear
+      }));
+    }
+  }, [open, defaultMonth, defaultYear, currentYear, quarterMonths, currentMonth]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.description.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.post(`/api/okrs/key-results/${krId}/recovery-plans`, {
+        mes_referencia: formData.mes,
+        ano_referencia: formData.ano,
+        description: formData.description.trim(),
+        actions: formData.actions.trim() || null
+      }, { withCredentials: true });
+
+      if (!response.data.success) throw new Error(response.data.error);
+
+      onSuccess?.();
+      onClose();
+      setFormData({ mes: new Date().getMonth() + 1, ano: currentYear, description: '', actions: '' });
+    } catch (err) {
+      console.error('Error creating recovery plan:', err);
+      alert('Erro ao criar plano: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <Portal>
+      <div className="okr-modal-overlay" onClick={onClose}>
+        <div className="okr-modal okr-modal--lg" onClick={e => e.stopPropagation()}>
+          <div className="okr-modal__header">
+            <h2 className="okr-modal__title">Novo Plano de Recuperação</h2>
+          <button className="okr-modal__close" onClick={onClose}>
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="okr-modal__body">
+            <div className="okr-form-row">
+              <div className="okr-form-group">
+                <label className="okr-form-label">Mês de Referência ({quarter || 'Q1'})</label>
+                <select
+                  className="okr-form-select"
+                  value={formData.mes}
+                  onChange={e => setFormData({ ...formData, mes: parseInt(e.target.value) })}
+                >
+                  {quarterMonths.map((month) => (
+                    <option key={month} value={month}>{monthNames[month - 1]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="okr-form-group">
+                <label className="okr-form-label">Ano</label>
+                <select
+                  className="okr-form-select"
+                  value={formData.ano}
+                  onChange={e => setFormData({ ...formData, ano: parseInt(e.target.value) })}
+                >
+                  <option value={currentYear - 1}>{currentYear - 1}</option>
+                  <option value={currentYear}>{currentYear}</option>
+                  <option value={currentYear + 1}>{currentYear + 1}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="okr-form-group">
+              <label className="okr-form-label">Descrição do Problema *</label>
+              <textarea
+                className="okr-form-textarea"
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Descreva o motivo pelo qual a meta não foi atingida..."
+                rows={3}
+                required
+              />
+            </div>
+
+            <div className="okr-form-group">
+              <label className="okr-form-label">Ações Corretivas</label>
+              <textarea
+                className="okr-form-textarea"
+                value={formData.actions}
+                onChange={e => setFormData({ ...formData, actions: e.target.value })}
+                placeholder="Liste as ações que serão tomadas para recuperar..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="okr-modal__footer">
+            <button type="button" className="okr-btn okr-btn--outline" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className="okr-btn okr-btn--primary" disabled={loading}>
+              {loading ? 'Criando...' : 'Criar Plano'}
+            </button>
+          </div>
+        </form>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+// Edit Recovery Plan Dialog
+function EditRecoveryPlanDialog({ open, onClose, onSuccess, plan }) {
+  const [loading, setLoading] = useState(false);
+  const currentYear = new Date().getFullYear();
+
+  const [formData, setFormData] = useState({
+    mes: 1,
+    ano: currentYear,
+    description: '',
+    actions: ''
+  });
+
+  useEffect(() => {
+    if (plan && open) {
+      setFormData({
+        mes: plan.mes_referencia || 1,
+        ano: plan.ano_referencia || currentYear,
+        description: plan.description || '',
+        actions: plan.actions || ''
+      });
+    }
+  }, [plan, open, currentYear]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.description.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.put(`/api/okrs/recovery-plans/${plan.id}`, {
+        mes_referencia: formData.mes,
+        ano_referencia: formData.ano,
+        description: formData.description.trim(),
+        actions: formData.actions.trim() || null
+      }, { withCredentials: true });
+
+      if (!response.data.success) throw new Error(response.data.error);
+
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      console.error('Error updating recovery plan:', err);
+      alert('Erro ao atualizar plano: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <Portal>
+      <div className="okr-modal-overlay" onClick={onClose}>
+        <div className="okr-modal okr-modal--lg" onClick={e => e.stopPropagation()}>
+          <div className="okr-modal__header">
+            <h2 className="okr-modal__title">Editar Plano de Recuperação</h2>
+          <button className="okr-modal__close" onClick={onClose}>
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="okr-modal__body">
+            <div className="okr-form-row">
+              <div className="okr-form-group">
+                <label className="okr-form-label">Mês de Referência</label>
+                <select
+                  className="okr-form-select"
+                  value={formData.mes}
+                  onChange={e => setFormData({ ...formData, mes: parseInt(e.target.value) })}
+                >
+                  {monthNames.map((name, idx) => (
+                    <option key={idx} value={idx + 1}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="okr-form-group">
+                <label className="okr-form-label">Ano</label>
+                <select
+                  className="okr-form-select"
+                  value={formData.ano}
+                  onChange={e => setFormData({ ...formData, ano: parseInt(e.target.value) })}
+                >
+                  <option value={currentYear - 1}>{currentYear - 1}</option>
+                  <option value={currentYear}>{currentYear}</option>
+                  <option value={currentYear + 1}>{currentYear + 1}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="okr-form-group">
+              <label className="okr-form-label">Descrição do Problema *</label>
+              <textarea
+                className="okr-form-textarea"
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Descreva o motivo pelo qual a meta não foi atingida..."
+                rows={3}
+                required
+              />
+            </div>
+
+            <div className="okr-form-group">
+              <label className="okr-form-label">Ações Corretivas</label>
+              <textarea
+                className="okr-form-textarea"
+                value={formData.actions}
+                onChange={e => setFormData({ ...formData, actions: e.target.value })}
+                placeholder="Liste as ações que serão tomadas para recuperar..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="okr-modal__footer">
+            <button type="button" className="okr-btn okr-btn--outline" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className="okr-btn okr-btn--primary" disabled={loading}>
+              {loading ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
+        </form>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+// Edit KR Dialog
+function EditKeyResultDialog({ open, onClose, onSuccess, kr, quarter }) {
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('general');
+
+  const quarterMonths = getQuarterMonths(quarter);
+
+  const [formData, setFormData] = useState({
+    titulo: '',
+    descricao: '',
+    meta: '',
+    peso: '',
+    tipo_metrica: 'number',
+    consolidation_type: 'last_value',
+    is_inverse: false,
+    responsavel: '',
+    monthly_targets: {}
+  });
+
+  useEffect(() => {
+    if (kr && open) {
+      setFormData({
+        titulo: kr.titulo || kr.descricao || '',
+        descricao: kr.descricao || '',
+        meta: kr.meta?.toString() || '',
+        peso: kr.peso?.toString() || '',
+        tipo_metrica: kr.tipo_metrica || 'number',
+        consolidation_type: kr.consolidation_type || 'last_value',
+        is_inverse: kr.is_inverse || false,
+        responsavel: kr.responsavel || '',
+        monthly_targets: kr.monthly_targets || {}
+      });
+      setActiveTab('general');
+    }
+  }, [kr, open]);
+
+  const handleMonthlyTargetChange = (month, value) => {
+    setFormData(prev => ({
+      ...prev,
+      monthly_targets: {
+        ...prev.monthly_targets,
+        [month]: value === '' ? undefined : parseFloat(value)
+      }
+    }));
+  };
+
+  const distributeTargetEvenly = () => {
+    const totalMeta = parseFloat(formData.meta) || 0;
+    if (totalMeta <= 0) {
+      alert('Defina uma meta total primeiro');
+      return;
+    }
+    const monthlyValue = Math.round((totalMeta / quarterMonths.length) * 100) / 100;
+    const newTargets = { ...formData.monthly_targets };
+    quarterMonths.forEach(month => {
+      newTargets[month] = monthlyValue;
+    });
+    setFormData(prev => ({ ...prev, monthly_targets: newTargets }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.titulo.trim()) return;
+
+    setLoading(true);
+    try {
+      // Clean up monthly_targets - remove undefined values
+      const cleanedTargets = {};
+      Object.entries(formData.monthly_targets).forEach(([month, value]) => {
+        if (value !== undefined && value !== null && !isNaN(value)) {
+          cleanedTargets[month] = value;
+        }
+      });
+
+      const response = await axios.put(`/api/okrs/key-results/${kr.id}`, {
+        titulo: formData.titulo.trim(),
+        descricao: formData.descricao.trim() || null,
+        meta: parseFloat(formData.meta) || 0,
+        peso: parseInt(formData.peso) || 0,
+        tipo_metrica: formData.tipo_metrica,
+        consolidation_type: formData.consolidation_type,
+        is_inverse: formData.is_inverse,
+        responsavel: formData.responsavel.trim() || null,
+        monthly_targets: Object.keys(cleanedTargets).length > 0 ? cleanedTargets : null
+      }, { withCredentials: true });
+
+      if (!response.data.success) throw new Error(response.data.error);
+
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      console.error('Error updating KR:', err);
+      alert('Erro ao atualizar: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <Portal>
+      <div className="okr-modal-overlay" onClick={onClose}>
+        <div className="okr-modal okr-modal--lg" onClick={e => e.stopPropagation()}>
+          <div className="okr-modal__header">
+            <h2 className="okr-modal__title">Editar Key Result</h2>
+          <button className="okr-modal__close" onClick={onClose}>
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="okr-modal__tabs">
+          <button
+            type="button"
+            className={`okr-modal__tab ${activeTab === 'general' ? 'okr-modal__tab--active' : ''}`}
+            onClick={() => setActiveTab('general')}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+            Geral
+          </button>
+          <button
+            type="button"
+            className={`okr-modal__tab ${activeTab === 'monthly' ? 'okr-modal__tab--active' : ''}`}
+            onClick={() => setActiveTab('monthly')}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+            </svg>
+            Metas Mensais
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="okr-modal__body">
+            {activeTab === 'general' && (
+              <>
+                <div className="okr-form-group">
+                  <label className="okr-form-label">Título *</label>
+                  <input
+                    type="text"
+                    className="okr-form-input"
+                    value={formData.titulo}
+                    onChange={e => setFormData({ ...formData, titulo: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="okr-form-group">
+                  <label className="okr-form-label">Descrição</label>
+                  <textarea
+                    className="okr-form-textarea"
+                    value={formData.descricao}
+                    onChange={e => setFormData({ ...formData, descricao: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="okr-form-row">
+                  <div className="okr-form-group">
+                    <label className="okr-form-label">Meta</label>
+                    <input
+                      type="number"
+                      step="any"
+                      className="okr-form-input"
+                      value={formData.meta}
+                      onChange={e => setFormData({ ...formData, meta: e.target.value })}
+                    />
+                  </div>
+                  <div className="okr-form-group">
+                    <label className="okr-form-label">Peso (%)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      className="okr-form-input"
+                      value={formData.peso}
+                      onChange={e => setFormData({ ...formData, peso: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="okr-form-row">
+                  <div className="okr-form-group">
+                    <label className="okr-form-label">Tipo de Métrica</label>
+                    <select
+                      className="okr-form-select"
+                      value={formData.tipo_metrica}
+                      onChange={e => setFormData({ ...formData, tipo_metrica: e.target.value })}
+                    >
+                      <option value="number">Número</option>
+                      <option value="percentage">Porcentagem</option>
+                      <option value="currency">Moeda (R$)</option>
+                      <option value="boolean">Sim/Não</option>
+                    </select>
+                  </div>
+                  <div className="okr-form-group">
+                    <label className="okr-form-label">Consolidação</label>
+                    <select
+                      className="okr-form-select"
+                      value={formData.consolidation_type}
+                      onChange={e => setFormData({ ...formData, consolidation_type: e.target.value })}
+                    >
+                      <option value="last_value">Último Valor</option>
+                      <option value="sum">Soma</option>
+                      <option value="average">Média</option>
+                      <option value="manual">Manual</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="okr-form-group">
+                  <label className="okr-form-label">Responsável</label>
+                  <input
+                    type="text"
+                    className="okr-form-input"
+                    value={formData.responsavel}
+                    onChange={e => setFormData({ ...formData, responsavel: e.target.value })}
+                  />
+                </div>
+
+                <div className="okr-form-group okr-form-group--checkbox">
+                  <label className="okr-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_inverse}
+                      onChange={e => setFormData({ ...formData, is_inverse: e.target.checked })}
+                    />
+                    <span className="okr-checkbox__mark" />
+                    <span className="okr-checkbox__label">
+                      <strong>Métrica inversa</strong>
+                      <small>Valores menores indicam melhor desempenho</small>
+                    </span>
+                  </label>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'monthly' && (
+              <>
+                <div className="okr-form-help">
+                  <svg viewBox="0 0 24 24" width="16" height="16">
+                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                  </svg>
+                  <span>Defina metas para cada mês do trimestre ({quarter || 'Q1'}). Isso permite acompanhar o progresso mensal.</span>
+                </div>
+
+                <div className="okr-form-actions-row">
+                  <button
+                    type="button"
+                    className="okr-btn okr-btn--outline okr-btn--sm"
+                    onClick={distributeTargetEvenly}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14">
+                      <path fill="currentColor" d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
+                    </svg>
+                    Distribuir Meta Igualmente
+                  </button>
+                </div>
+
+                <div className="okr-monthly-targets-grid okr-monthly-targets-grid--quarter">
+                  {quarterMonths.map((month) => {
+                    const value = formData.monthly_targets[month];
+                    return (
+                      <div key={month} className="okr-monthly-target-input">
+                        <label className="okr-form-label">{monthNames[month - 1]}</label>
+                        <input
+                          type="number"
+                          step="any"
+                          className="okr-form-input"
+                          value={value !== undefined && value !== null ? value : ''}
+                          onChange={e => handleMonthlyTargetChange(month, e.target.value)}
+                          placeholder="—"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="okr-modal__footer">
+            <button type="button" className="okr-btn okr-btn--outline" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className="okr-btn okr-btn--primary" disabled={loading}>
+              {loading ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
+        </form>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+// Delete Confirm Dialog
+function DeleteConfirmDialog({ open, onClose, onConfirm, title, message, isDeleting }) {
+  if (!open) return null;
+
+  return (
+    <Portal>
+      <div className="okr-modal-overlay" onClick={onClose}>
+        <div className="okr-modal okr-modal--sm" onClick={e => e.stopPropagation()}>
+          <div className="okr-modal__header">
+            <div className="okr-modal__icon okr-modal__icon--danger">
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+            </div>
+            <h2 className="okr-modal__title">{title}</h2>
+          </div>
+          <div className="okr-modal__body">
+            <p className="okr-modal__message">{message}</p>
+          </div>
+          <div className="okr-modal__footer">
+            <button type="button" className="okr-btn okr-btn--outline" onClick={onClose} disabled={isDeleting}>
+              Cancelar
+            </button>
+            <button type="button" className="okr-btn okr-btn--danger" onClick={onConfirm} disabled={isDeleting}>
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+// Recovery Plan Card
+function RecoveryPlanCard({ plan, canEdit, onRefresh, onEdit }) {
+  const [updating, setUpdating] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const statusColors = {
+    pending: 'warning',
+    in_progress: 'warning',
+    completed: 'success',
+    cancelled: 'danger'
+  };
+
+  const statusLabels = {
+    pending: 'Pendente',
+    in_progress: 'Em Andamento',
+    completed: 'Concluído',
+    cancelled: 'Cancelado'
+  };
+
+  const updateStatus = async (newStatus) => {
+    setUpdating(true);
+    try {
+      const response = await axios.put(`/api/okrs/recovery-plans/${plan.id}`, {
+        status: newStatus
+      }, { withCredentials: true });
+
+      if (!response.data.success) throw new Error(response.data.error);
+      onRefresh?.();
+    } catch (err) {
+      console.error('Error updating plan:', err);
+      alert('Erro ao atualizar: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setUpdating(true);
+    try {
+      const response = await axios.delete(`/api/okrs/recovery-plans/${plan.id}`, {
+        withCredentials: true
+      });
+
+      if (!response.data.success) throw new Error(response.data.error);
+      onRefresh?.();
+    } catch (err) {
+      console.error('Error deleting plan:', err);
+      alert('Erro ao excluir: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setUpdating(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  return (
+    <div className="okr-recovery-card">
+      <div className="okr-recovery-card__header">
+        <div className="okr-recovery-card__month">
+          <svg viewBox="0 0 24 24" width="14" height="14">
+            <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+          </svg>
+          {monthNames[plan.mes_referencia - 1]} {plan.ano_referencia}
+        </div>
+        <div className="okr-recovery-card__header-right">
+          <span className={`okr-badge okr-badge--${statusColors[plan.status]}`}>
+            {statusLabels[plan.status]}
+          </span>
+          {canEdit && (
+            <div className="okr-recovery-card__actions-icons">
+              <button
+                className="okr-icon-btn okr-icon-btn--sm"
+                onClick={() => onEdit?.(plan)}
+                title="Editar"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+              </button>
+              <button
+                className="okr-icon-btn okr-icon-btn--sm okr-icon-btn--danger"
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Excluir"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="okr-recovery-card__description">{plan.description}</p>
+      {plan.actions && (
+        <div className="okr-recovery-card__actions">
+          <strong>Ações:</strong>
+          <p>{plan.actions}</p>
+        </div>
+      )}
+      {canEdit && plan.status !== 'completed' && plan.status !== 'cancelled' && (
+        <div className="okr-recovery-card__buttons">
+          <button
+            className="okr-btn okr-btn--outline okr-btn--sm"
+            onClick={() => updateStatus('in_progress')}
+            disabled={updating || plan.status === 'in_progress'}
+          >
+            Em Andamento
+          </button>
+          <button
+            className="okr-btn okr-btn--primary okr-btn--sm"
+            onClick={() => updateStatus('completed')}
+            disabled={updating}
+          >
+            Concluir
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirmation inline */}
+      {showDeleteConfirm && (
+        <div className="okr-recovery-card__delete-confirm">
+          <p>Tem certeza que deseja excluir este plano?</p>
+          <div className="okr-recovery-card__delete-buttons">
+            <button
+              className="okr-btn okr-btn--outline okr-btn--sm"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={updating}
+            >
+              Cancelar
+            </button>
+            <button
+              className="okr-btn okr-btn--danger okr-btn--sm"
+              onClick={handleDelete}
+              disabled={updating}
+            >
+              {updating ? 'Excluindo...' : 'Excluir'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function KeyResultDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { isPrivileged } = useAuth();
+
+  const [kr, setKr] = useState(null);
+  const [objective, setObjective] = useState(null);
+  const [checkIns, setCheckIns] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [recoveryPlans, setRecoveryPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Dialogs
+  const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [showCommentDialog, setShowCommentDialog] = useState(false);
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [showEditRecoveryDialog, setShowEditRecoveryDialog] = useState(false);
+  const [editingRecoveryPlan, setEditingRecoveryPlan] = useState(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [recoveryMonth, setRecoveryMonth] = useState(null);
+  const [recoveryYear, setRecoveryYear] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    if (!id) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch all OKRs to find the KR
+      const okrsResponse = await axios.get('/api/okrs', { withCredentials: true });
+      if (!okrsResponse.data.success) throw new Error(okrsResponse.data.error);
+
+      // Find the KR in all OKRs
+      let krData = null;
+      let objData = null;
+
+      for (const okr of okrsResponse.data.data || []) {
+        const krs = okr.keyResults || okr.key_results || [];
+        const foundKr = krs.find(kr => kr.id === parseInt(id));
+        if (foundKr) {
+          krData = foundKr;
+          objData = okr;
+          break;
+        }
+      }
+
+      setKr(krData);
+      setObjective(objData);
+
+      if (!krData) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch check-ins for this KR
+      const checkInsResponse = await axios.get('/api/okrs/check-ins', {
+        params: { keyResultIds: id },
+        withCredentials: true
+      });
+      setCheckIns(checkInsResponse.data.data || []);
+
+      // Fetch recovery plans for this KR
+      try {
+        const recoveryResponse = await axios.get(`/api/okrs/key-results/${id}/recovery-plans`, {
+          withCredentials: true
+        });
+        setRecoveryPlans(recoveryResponse.data.data || []);
+      } catch (err) {
+        console.error('Error fetching recovery plans:', err);
+        setRecoveryPlans([]);
+      }
+
+      // Comments - empty for now
+      setComments([]);
+    } catch (err) {
+      console.error('Error fetching KR:', err);
+      setError(err.response?.data?.error || err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Calculate consolidated value
+  const consolidatedValue = useMemo(() => {
+    if (!kr) return 0;
+    const type = kr.consolidation_type || 'last_value';
+
+    if (type === 'manual') return kr.atual || 0;
+    if (checkIns.length === 0) return kr.atual || 0;
+
+    if (type === 'sum') {
+      return checkIns.reduce((sum, c) => sum + (c.valor || 0), 0);
+    }
+    if (type === 'average') {
+      const sum = checkIns.reduce((acc, c) => acc + (c.valor || 0), 0);
+      return Math.round((sum / checkIns.length) * 100) / 100;
+    }
+
+    // last_value
+    const sorted = [...checkIns].sort((a, b) => {
+      if (a.ano !== b.ano) return b.ano - a.ano;
+      return b.mes - a.mes;
+    });
+    return sorted[0]?.valor || kr.atual || 0;
+  }, [kr, checkIns]);
+
+  // Calculate progress
+  const progress = useMemo(() => {
+    if (!kr) return 0;
+    const meta = kr.meta || 0;
+    if (meta === 0) return 0;
+
+    if (kr.is_inverse) {
+      if (consolidatedValue <= meta) return 100;
+      return Math.min(Math.max(Math.round((meta / consolidatedValue) * 100), 0), 100);
+    }
+
+    return Math.min(Math.max(Math.round((consolidatedValue / meta) * 100), 0), 100);
+  }, [kr, consolidatedValue]);
+
+  const trend = useMemo(() => {
+    if (progress > 60) return 'up';
+    if (progress < 40) return 'down';
+    return 'stable';
+  }, [progress]);
+
+  // Get quarter months for filtering
+  const quarterMonths = useMemo(() => {
+    return getQuarterMonths(objective?.quarter);
+  }, [objective?.quarter]);
+
+  // Monthly comparison - filter by quarter months
+  const monthlyComparison = useMemo(() => {
+    const targets = kr?.monthly_targets || {};
+    const year = objective?.quarter?.split('-')[1] || new Date().getFullYear();
+    const isInverse = kr?.is_inverse || false;
+
+    return quarterMonths
+      .map((monthNum) => {
+        const target = targets[monthNum] ?? targets[monthNum.toString()];
+        const checkIn = checkIns.find(c => c.mes === monthNum && c.ano === parseInt(year));
+        const isBehind = (target !== undefined && checkIn)
+          ? (isInverse ? checkIn.valor > target : checkIn.valor < target)
+          : false;
+        const hasRecoveryPlan = recoveryPlans.some(
+          p => p.mes_referencia === monthNum && p.ano_referencia === parseInt(year)
+        );
+
+        return {
+          month: monthNum,
+          target: target ?? null,
+          checkIn,
+          isBehind,
+          needsRecoveryPlan: isBehind && !hasRecoveryPlan,
+          hasRecoveryPlan
+        };
+      });
+  }, [kr, checkIns, recoveryPlans, objective, quarterMonths]);
+
+  const monthsBehind = monthlyComparison.filter(m => m.needsRecoveryPlan);
+
+  const formatValue = (value) => {
+    if (!kr) return value;
+    if (kr.tipo_metrica === 'percentage') return `${value}%`;
+    if (kr.tipo_metrica === 'currency') return `R$ ${value.toLocaleString('pt-BR')}`;
+    if (kr.tipo_metrica === 'boolean') return value >= 1 ? 'Sim' : 'Não';
+    return value.toLocaleString('pt-BR');
+  };
+
+  const getProgressColor = () => {
+    if (progress >= 100) return 'success';
+    if (progress >= 70) return 'warning';
+    return 'danger';
+  };
+
+  const handleDeleteKR = async () => {
+    if (!kr) return;
+    setIsDeleting(true);
+
+    try {
+      const response = await axios.delete(`/api/okrs/key-results/${kr.id}`, {
+        withCredentials: true
+      });
+
+      if (!response.data.success) throw new Error(response.data.error);
+      navigate(objective ? `/okrs/objetivo/${objective.id}` : '/okrs');
+    } catch (err) {
+      console.error('Error deleting KR:', err);
+      alert('Erro ao excluir: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const openRecoveryDialogForMonth = (month, year) => {
+    setRecoveryMonth(month);
+    setRecoveryYear(year);
+    setShowRecoveryDialog(true);
+  };
+
+  const handleEditRecoveryPlan = (plan) => {
+    setEditingRecoveryPlan(plan);
+    setShowEditRecoveryDialog(true);
+  };
+
+  const status = kr?.status || 'on_track';
+  const statusInfo = statusConfig[status] || statusConfig.on_track;
+
+  if (loading) {
+    return (
+      <div className="okr-dashboard okr-dashboard--loading">
+        <div className="okr-loading-pulse">
+          <div className="okr-loading-pulse__ring" />
+          <div className="okr-loading-pulse__ring" />
+          <div className="okr-loading-pulse__ring" />
+        </div>
+        <p className="okr-loading-text">Carregando Key Result...</p>
+      </div>
+    );
+  }
+
+  if (!kr) {
+    return (
+      <div className="okr-dashboard okr-dashboard--error">
+        <div className="okr-error-state">
+          <svg viewBox="0 0 24 24" width="48" height="48" className="okr-error-state__icon">
+            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+          </svg>
+          <p className="okr-error-state__message">Key Result não encontrado</p>
+          <button onClick={() => navigate('/okrs')} className="okr-btn okr-btn--primary">
+            Voltar ao Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="okr-dashboard okr-dashboard--error">
+        <div className="okr-error-state">
+          <svg viewBox="0 0 24 24" width="48" height="48" className="okr-error-state__icon">
+            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+          </svg>
+          <p className="okr-error-state__message">Erro: {error}</p>
+          <button onClick={fetchData} className="okr-btn okr-btn--primary">
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="okr-dashboard">
+      {/* Background effects */}
+      <div className="okr-dashboard__bg">
+        <div className="okr-dashboard__gradient" />
+        <div className="okr-dashboard__noise" />
+      </div>
+
+      {/* Header */}
+      <header className="okr-header">
+        <div className="okr-header__left">
+          <button
+            className="okr-back-btn"
+            onClick={() => navigate(objective ? `/okrs/objetivo/${objective.id}` : '/okrs')}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+          </button>
+          <div>
+            {objective && (
+              <Link
+                to={`/okrs/objetivo/${objective.id}`}
+                className="okr-header__breadcrumb-link"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                {objective.titulo}
+              </Link>
+            )}
+            <div className="okr-header__badges">
+              <span className={`okr-badge okr-badge--${statusInfo.color}`}>
+                {statusInfo.label}
+              </span>
+              <span className="okr-badge okr-badge--secondary">
+                Peso: {kr.peso || 0}%
+              </span>
+              <span className="okr-badge okr-badge--outline">
+                {metricTypeLabels[kr.tipo_metrica] || 'Número'}
+              </span>
+              {kr.is_inverse && (
+                <span className="okr-badge okr-badge--inverse">
+                  <svg viewBox="0 0 24 24" width="12" height="12">
+                    <path fill="currentColor" d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/>
+                  </svg>
+                  Menor é melhor
+                </span>
+              )}
+            </div>
+            <h1 className="okr-header__title">{kr.titulo || kr.descricao}</h1>
+            {kr.descricao && (
+              <p className="okr-header__description">{kr.descricao}</p>
+            )}
+          </div>
+        </div>
+
+        {isPrivileged && (
+          <div className="okr-header__actions">
+            <button className="okr-btn okr-btn--outline" onClick={() => setShowEditDialog(true)}>
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+              </svg>
+              Editar
+            </button>
+            <button className="okr-btn okr-btn--danger-outline" onClick={() => setShowDeleteDialog(true)}>
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+            </button>
+          </div>
+        )}
+      </header>
+
+      {/* Progress Card */}
+      <section className="okr-section">
+        <div className="okr-kr-progress-card">
+          <div className="okr-kr-progress-card__circle-container">
+            <div className={`okr-kr-progress-card__circle okr-kr-progress-card__circle--${getProgressColor()}`}>
+              <span className="okr-kr-progress-card__percent">{progress}%</span>
+            </div>
+            {trend !== 'stable' && (
+              <span className={`okr-kr-progress-card__trend okr-kr-progress-card__trend--${trend}`}>
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  {trend === 'up' ? (
+                    <path fill="currentColor" d="M7 14l5-5 5 5z"/>
+                  ) : (
+                    <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+                  )}
+                </svg>
+              </span>
+            )}
+          </div>
+
+          <div className="okr-kr-progress-card__values">
+            <div className="okr-kr-progress-card__value-item">
+              <span className="okr-kr-progress-card__value-label">Inicial</span>
+              <span className="okr-kr-progress-card__value-num">{formatValue(kr.valor_inicial || 0)}</span>
+            </div>
+            <div className="okr-kr-progress-card__value-item okr-kr-progress-card__value-item--main">
+              <span className="okr-kr-progress-card__value-label">
+                Consolidado
+                <small>({consolidationTypeLabels[kr.consolidation_type || 'last_value']})</small>
+              </span>
+              <span className="okr-kr-progress-card__value-num okr-kr-progress-card__value-num--primary">
+                {formatValue(consolidatedValue)}
+              </span>
+            </div>
+            <div className="okr-kr-progress-card__value-item">
+              <span className="okr-kr-progress-card__value-label">Meta</span>
+              <span className="okr-kr-progress-card__value-num">{formatValue(kr.meta || 0)}</span>
+            </div>
+            <div className="okr-kr-progress-card__value-item">
+              <span className="okr-kr-progress-card__value-label">Check-ins</span>
+              <span className="okr-kr-progress-card__value-num">{checkIns.length}</span>
+            </div>
+          </div>
+
+          {kr.responsavel && (
+            <div className="okr-kr-progress-card__owner">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+              <span>{kr.responsavel}</span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Alert for months behind */}
+      {monthsBehind.length > 0 && isPrivileged && (
+        <section className="okr-section">
+          <div className="okr-alert okr-alert--danger">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+              <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+            </svg>
+            <div className="okr-alert__content">
+              <h3 className="okr-alert__title">Meses Abaixo da Meta</h3>
+              <p className="okr-alert__text">
+                Os seguintes meses ficaram abaixo da meta planejada e precisam de plano de ação:
+              </p>
+              <div className="okr-alert__buttons">
+                {monthsBehind.map(m => (
+                  <button
+                    key={m.month}
+                    className="okr-btn okr-btn--danger-outline okr-btn--sm"
+                    onClick={() => openRecoveryDialogForMonth(m.month, objective?.quarter?.split('-')[1] || new Date().getFullYear())}
+                  >
+                    {monthNames[m.month - 1]}
+                    <span className="okr-btn__detail">
+                      ({formatValue(m.checkIn?.valor || 0)} / {formatValue(m.target)})
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Two Column Layout */}
+      <div className="okr-kr-grid">
+        {/* Left: Monthly Targets */}
+        <section className="okr-section">
+          <div className="okr-card">
+            <div className="okr-card__header">
+              <h2 className="okr-card__title">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                </svg>
+                Metas Mensais
+                {objective?.quarter && (
+                  <span className="okr-card__title-badge">{objective.quarter.split('-')[0]}</span>
+                )}
+              </h2>
+              {isPrivileged && (
+                <button className="okr-btn okr-btn--primary okr-btn--sm" onClick={() => setShowCheckInDialog(true)}>
+                  <svg viewBox="0 0 24 24" width="14" height="14">
+                    <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                  </svg>
+                  Check-in
+                </button>
+              )}
+            </div>
+            <div className="okr-card__body">
+              {monthlyComparison.length > 0 ? (
+                <div className="okr-monthly-list">
+                  {monthlyComparison.map(({ month, target, checkIn, isBehind, hasRecoveryPlan, needsRecoveryPlan }) => {
+                    const hasTarget = target !== null && target !== undefined;
+                    return (
+                    <div
+                      key={month}
+                      className={`okr-monthly-item ${isBehind && !hasRecoveryPlan ? 'okr-monthly-item--danger' : ''} ${isBehind && hasRecoveryPlan ? 'okr-monthly-item--warning' : ''} ${checkIn && !isBehind ? 'okr-monthly-item--success' : ''}`}
+                    >
+                      <div className="okr-monthly-item__header">
+                        <div className="okr-monthly-item__month">
+                          <svg viewBox="0 0 24 24" width="14" height="14">
+                            <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                          </svg>
+                          {monthNames[month - 1]}
+                        </div>
+                        <div className="okr-monthly-item__badges">
+                          {isBehind && (
+                            <span className={`okr-badge okr-badge--${hasRecoveryPlan ? 'warning' : 'danger'}`}>
+                              {hasRecoveryPlan ? 'Com plano' : 'Abaixo da meta'}
+                            </span>
+                          )}
+                          {checkIn && !isBehind && (
+                            <span className="okr-badge okr-badge--success">Atingido</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="okr-monthly-item__values">
+                        <div className="okr-monthly-item__value">
+                          <span className="okr-monthly-item__value-label">Planejado</span>
+                          <span className="okr-monthly-item__value-num">
+                            {hasTarget ? formatValue(target) : '\u2014'}
+                          </span>
+                        </div>
+                        <div className="okr-monthly-item__value">
+                          <span className="okr-monthly-item__value-label">Realizado</span>
+                          <span className={`okr-monthly-item__value-num ${checkIn && !isBehind ? 'okr-monthly-item__value-num--success' : ''} ${checkIn && isBehind ? 'okr-monthly-item__value-num--danger' : ''}`}>
+                            {checkIn ? formatValue(checkIn.valor) : '\u2014'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {checkIn && hasTarget && (
+                        <div className="okr-monthly-item__progress">
+                          <div
+                            className={`okr-monthly-item__progress-bar ${isBehind ? 'okr-monthly-item__progress-bar--danger' : 'okr-monthly-item__progress-bar--success'}`}
+                            style={{ '--progress': `${Math.min((checkIn.valor / target) * 100, 100)}%` }}
+                          />
+                        </div>
+                      )}
+
+                      {checkIn?.notas && (
+                        <div className="okr-monthly-item__notes">
+                          <strong>Observação:</strong> {checkIn.notas}
+                        </div>
+                      )}
+
+                      {needsRecoveryPlan && isPrivileged && (
+                        <button
+                          className="okr-btn okr-btn--danger okr-btn--sm okr-btn--full"
+                          onClick={() => openRecoveryDialogForMonth(month, objective?.quarter?.split('-')[1] || new Date().getFullYear())}
+                        >
+                          <svg viewBox="0 0 24 24" width="14" height="14">
+                            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                          </svg>
+                          Criar Plano de Ação
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                </div>
+              ) : (
+                <div className="okr-empty-state okr-empty-state--compact">
+                  <svg viewBox="0 0 24 24" width="32" height="32">
+                    <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                  </svg>
+                  <p>Nenhuma meta mensal definida</p>
+                  {isPrivileged && (
+                    <button className="okr-btn okr-btn--outline okr-btn--sm" onClick={() => setShowEditDialog(true)}>
+                      Editar para definir metas
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Right: Comments and Recovery Plans */}
+        <div className="okr-kr-right-column">
+          {/* Comments */}
+          <section className="okr-section">
+            <div className="okr-card">
+              <div className="okr-card__header">
+                <h2 className="okr-card__title">
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                  </svg>
+                  Comentários das Áreas
+                </h2>
+                {isPrivileged && (
+                  <button className="okr-btn okr-btn--outline okr-btn--sm" onClick={() => setShowCommentDialog(true)}>
+                    <svg viewBox="0 0 24 24" width="14" height="14">
+                      <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    Comentar
+                  </button>
+                )}
+              </div>
+              <div className="okr-card__body">
+                {comments.length > 0 ? (
+                  <div className="okr-comments-list">
+                    {comments.map(comment => (
+                      <div key={comment.id} className="okr-comment">
+                        <div className="okr-comment__header">
+                          <span className="okr-comment__author">{comment.author_id}</span>
+                          <span className="okr-comment__date">
+                            {new Date(comment.created_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <p className="okr-comment__content">{comment.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="okr-empty-state okr-empty-state--compact">
+                    <svg viewBox="0 0 24 24" width="32" height="32">
+                      <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                    </svg>
+                    <p>Nenhum comentário ainda</p>
+                    <small>Líderes de outras áreas podem comentar aqui</small>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Recovery Plans */}
+          <section className="okr-section">
+            <div className="okr-card">
+              <div className="okr-card__header">
+                <h2 className="okr-card__title">
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                  </svg>
+                  Planos de Recuperação
+                </h2>
+                {isPrivileged && (
+                  <button className="okr-btn okr-btn--outline okr-btn--sm" onClick={() => setShowRecoveryDialog(true)}>
+                    <svg viewBox="0 0 24 24" width="14" height="14">
+                      <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    Novo Plano
+                  </button>
+                )}
+              </div>
+              <div className="okr-card__body">
+                {recoveryPlans.length > 0 ? (
+                  <div className="okr-recovery-list">
+                    {recoveryPlans.map(plan => (
+                      <RecoveryPlanCard
+                        key={plan.id}
+                        plan={plan}
+                        canEdit={isPrivileged}
+                        onRefresh={fetchData}
+                        onEdit={handleEditRecoveryPlan}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="okr-empty-state okr-empty-state--compact">
+                    <svg viewBox="0 0 24 24" width="32" height="32">
+                      <path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                    <p>Nenhum plano de recuperação</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <CheckInDialog
+        open={showCheckInDialog}
+        onClose={() => setShowCheckInDialog(false)}
+        onSuccess={fetchData}
+        kr={kr}
+        checkIns={checkIns}
+        quarter={objective?.quarter}
+      />
+
+      <CommentDialog
+        open={showCommentDialog}
+        onClose={() => setShowCommentDialog(false)}
+        onSuccess={fetchData}
+        krId={id}
+      />
+
+      <RecoveryPlanDialog
+        open={showRecoveryDialog}
+        onClose={() => setShowRecoveryDialog(false)}
+        onSuccess={fetchData}
+        krId={id}
+        defaultMonth={recoveryMonth}
+        defaultYear={recoveryYear}
+        quarter={objective?.quarter}
+      />
+
+      {kr && (
+        <EditKeyResultDialog
+          open={showEditDialog}
+          onClose={() => setShowEditDialog(false)}
+          onSuccess={fetchData}
+          kr={kr}
+          quarter={objective?.quarter}
+        />
+      )}
+
+      <EditRecoveryPlanDialog
+        open={showEditRecoveryDialog}
+        onClose={() => {
+          setShowEditRecoveryDialog(false);
+          setEditingRecoveryPlan(null);
+        }}
+        onSuccess={fetchData}
+        plan={editingRecoveryPlan}
+      />
+
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteKR}
+        title="Excluir Key Result"
+        message="Tem certeza que deseja excluir este Key Result? Todos os check-ins, comentários e planos de recuperação vinculados também serão excluídos. Esta ação não pode ser desfeita."
+        isDeleting={isDeleting}
+      />
+    </div>
+  );
+}

@@ -223,6 +223,155 @@
   box-shadow: inset 0 0 0 1px rgba(255, 221, 0, 0.35), 0 12px 22px rgba(0, 0, 0, 0.14);
 }
 
+/* Seção Colapsável de Setores */
+.nav-section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.08) 20%, rgba(0, 0, 0, 0.08) 80%, transparent 100%);
+  margin: 0.75rem 0;
+}
+
+.nav-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  cursor: pointer;
+  color: #555;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  margin-bottom: 0.25rem;
+}
+
+.nav-section-header:hover {
+  color: #333;
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.nav-section-header .nav-icon {
+  width: 16px;
+  height: 16px;
+  color: #888;
+  transition: color 0.2s ease;
+}
+
+.nav-section-header:hover .nav-icon {
+  color: #555;
+}
+
+.nav-section-header .nav-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.nav-section-title {
+  display: block;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.nav-section-header .nav-section-title {
+  flex: 1;
+  padding: 0;
+  text-align: left;
+}
+
+.nav-section-chevron {
+  display: flex;
+  align-items: center;
+  color: #888;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.nav-section-header:hover .nav-section-chevron {
+  color: #555;
+}
+
+.nav-section-chevron.expanded {
+  transform: rotate(180deg);
+  color: #b89500;
+}
+
+.nav-link-nested {
+  padding: 0.4rem 0.75rem 0.4rem 1.25rem !important;
+  font-size: 0.78rem;
+  border: none !important;
+  background: transparent !important;
+  margin: 0.125rem 0;
+}
+
+.nav-link-nested:hover {
+  background: rgba(255, 221, 0, 0.2) !important;
+  transform: translateX(2px);
+}
+
+.nav-link-nested.nav-link-active {
+  background: rgba(255, 221, 0, 0.35) !important;
+}
+
+.nav-bullet {
+  font-size: 0.5rem;
+  margin-right: 0.5rem;
+  color: #bbb;
+  transition: color 0.2s ease;
+}
+
+.nav-link-nested:hover .nav-bullet,
+.nav-link-nested.nav-link-active .nav-bullet {
+  color: #b89500;
+}
+
+/* Lista de setores scrollável */
+.nav-sectors-list {
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0.25rem 0;
+  padding: 0.25rem 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Scrollbar aparece só no hover */
+.nav-sectors-list::-webkit-scrollbar {
+  width: 3px;
+}
+
+.nav-sectors-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav-sectors-list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.nav-sectors-list:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.nav-sectors-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.sidebar-collapsed .nav-section-header,
+.sidebar-collapsed .nav-section-title,
+.sidebar-collapsed .nav-link-nested {
+  display: none;
+}
+
 .nav-icon {
   width: 18px;
   height: 18px;
