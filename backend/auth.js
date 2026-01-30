@@ -62,7 +62,7 @@ async function hasAccessFromDB(email) {
  */
 function isPrivilegedFromDB(user) {
   if (!user || !user.role) return false;
-  return ['admin', 'leader'].includes(user.role);
+  return ['director', 'admin', 'leader'].includes(user.role);
 }
 
 /**
