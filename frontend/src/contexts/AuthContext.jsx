@@ -4,7 +4,7 @@
  * Gerencia o estado de autenticação do usuário
  */
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 
@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [devMode, setDevMode] = useState({ enabled: false, availableUsers: [] });
+  const [effectiveViews, setEffectiveViews] = useState([]);
 
   /**
    * Verifica se o dev mode está habilitado
@@ -33,6 +34,21 @@ export function AuthProvider({ children }) {
   };
 
   /**
+   * Busca as vistas efetivas que o usuário pode acessar
+   */
+  const fetchEffectiveViews = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/user/effective-views`);
+      if (response.data.success) {
+        setEffectiveViews(response.data.views || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar vistas efetivas:', err);
+      setEffectiveViews([]);
+    }
+  };
+
+  /**
    * Verifica se o usuário está autenticado
    */
   const checkAuth = async () => {
@@ -42,11 +58,15 @@ export function AuthProvider({ children }) {
       if (response.data.success) {
         setUser(response.data.user);
         setError(null);
+        // Buscar vistas efetivas após autenticação bem-sucedida
+        await fetchEffectiveViews();
       } else {
         setUser(null);
+        setEffectiveViews([]);
       }
     } catch (err) {
       setUser(null);
+      setEffectiveViews([]);
       if (err.response?.status !== 401) {
         // 401 é esperado quando não está autenticado
         setError('Erro ao verificar autenticação');
@@ -64,6 +84,8 @@ export function AuthProvider({ children }) {
       const response = await axios.post(`${API_URL}/api/auth/dev-login`, { role });
       if (response.data.success) {
         setUser(response.data.user);
+        // Buscar vistas efetivas após dev login
+        await fetchEffectiveViews();
         return true;
       }
       return false;
@@ -90,6 +112,13 @@ export function AuthProvider({ children }) {
   };
 
   /**
+   * Verifica se o usuário é desenvolvedor (acesso total)
+   */
+  const isDev = () => {
+    return user?.role === 'dev';
+  };
+
+  /**
    * Verifica se o usuário é diretora
    */
   const isDirector = () => {
@@ -104,10 +133,17 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Verifica se o usuário é diretora, admin ou líder
+   * Verifica se o usuário é dev, diretora, admin ou líder
    */
   const isPrivileged = () => {
-    return user?.role === 'director' || user?.role === 'admin' || user?.role === 'leader';
+    return user?.role === 'dev' || user?.role === 'director' || user?.role === 'admin' || user?.role === 'leader';
+  };
+
+  /**
+   * Verifica se o usuário tem acesso total (dev, director ou admin)
+   */
+  const hasFullAccess = () => {
+    return user?.role === 'dev' || user?.role === 'director' || user?.role === 'admin';
   };
 
   /**
@@ -116,6 +152,15 @@ export function AuthProvider({ children }) {
   const isLeader = () => {
     return user?.role === 'leader';
   };
+
+  /**
+   * Verifica se o usuário pode acessar uma vista específica
+   * Devs têm acesso total; outros verificam effectiveViews
+   */
+  const canAccessView = useCallback((viewId) => {
+    if (user?.role === 'dev') return true;
+    return effectiveViews.includes(viewId);
+  }, [user, effectiveViews]);
 
   /**
    * Verifica se o usuário pode acessar Formulário de Passagem
@@ -138,11 +183,16 @@ export function AuthProvider({ children }) {
     loading,
     error,
     isAuthenticated: !!user,
+    isDev: isDev(),
     isDirector: isDirector(),
     isAdmin: isAdmin(),
     isPrivileged: isPrivileged(),
+    hasFullAccess: hasFullAccess(),
     isLeader: isLeader(),
     canAccessFormularioPassagem: canAccessFormularioPassagem(),
+    effectiveViews,
+    canAccessView,
+    fetchEffectiveViews,
     logout,
     checkAuth,
     devMode,

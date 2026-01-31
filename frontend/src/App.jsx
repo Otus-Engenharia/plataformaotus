@@ -18,7 +18,7 @@ import CSView from './components/CSView';
 import EstudoCustosView from './components/EstudoCustosView';
 import HorasView from './components/HorasView';
 import FormularioPassagemView from './components/FormularioPassagemView';
-import FeedbacksView from './components/FeedbacksView';
+// FeedbacksView removido - substituído por FeedbackKanbanView e FeedbackAdminView (lazy loaded)
 import LogsView from './components/LogsView';
 import HomeView from './components/HomeView';
 import Login from './components/Login';
@@ -39,6 +39,9 @@ const AdminSetores = lazy(() => import('./pages/indicadores/AdminSetores'));
 const AdminUsuarios = lazy(() => import('./pages/indicadores/AdminUsuarios'));
 const AdminCargos = lazy(() => import('./pages/indicadores/AdminCargos'));
 const AdminBugReports = lazy(() => import('./pages/indicadores/AdminBugReports'));
+
+// Lazy load das páginas de Feedbacks
+const FeedbackKanbanView = lazy(() => import('./pages/feedbacks/FeedbackKanbanView'));
 
 // Lazy load das páginas de OKRs
 const DashboardOKRs = lazy(() => import('./pages/okrs/DashboardOKRs'));
@@ -166,7 +169,7 @@ const icons = {
 
 function Sidebar({ collapsed, onToggle, area }) {
   const location = useLocation();
-  const { user, logout, isDirector, isAdmin, isPrivileged, canAccessFormularioPassagem } = useAuth();
+  const { user, logout, isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, canAccessFormularioPassagem } = useAuth();
   const linkTitle = (label) => (collapsed ? label : undefined);
 
   // State para setores (carregados dinamicamente para OKRs)
@@ -312,6 +315,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.bugs}</span>
         <span className="nav-text">Bug Reports</span>
+      </Link>
+      <Link
+        to="/acessos?tab=feedbacks"
+        className={`nav-link nav-link-modern ${location.search.includes('tab=feedbacks') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Gerenciar Feedbacks')}
+      >
+        <span className="nav-icon">{icons.feedbacks}</span>
+        <span className="nav-text">Gerenciar Feedbacks</span>
       </Link>
     </>
   );
@@ -529,8 +540,9 @@ function Sidebar({ collapsed, onToggle, area }) {
             {!collapsed && (
               <div className="sidebar-user-info">
                 <span className="nav-user-name">{getShortName(user.name)}</span>
-                {isDirector && <span className="nav-user-badge">Diretora</span>}
-                {!isDirector && isAdmin && <span className="nav-user-badge">Admin</span>}
+                {isDev && <span className="nav-user-badge">Dev</span>}
+                {!isDev && isDirector && <span className="nav-user-badge">Diretora</span>}
+                {!isDev && !isDirector && isAdmin && <span className="nav-user-badge">Admin</span>}
               </div>
             )}
           </div>
@@ -584,15 +596,15 @@ function TopBar() {
 
 function AppContent() {
   const location = useLocation();
-  const { isPrivileged, isAuthenticated, loading, isAdmin, isDirector, isLeader } = useAuth();
+  const { isPrivileged, isAuthenticated, loading, isAdmin, isDirector, isLeader, isDev, hasFullAccess, canAccessView } = useAuth();
   const { isOpen: isOracleOpen } = useOracle();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const isLoginRoute = location.pathname === '/login';
 
-  // Apenas admin e diretor podem acessar Projetos e Configurações
+  // Devs, admin e diretor podem acessar Projetos e Configurações
   // Líderes são redirecionados para /ind
-  const canAccessProjetosArea = isAdmin || isDirector;
-  const canAccessConfiguracoesArea = isAdmin || isDirector;
+  const canAccessProjetosArea = isDev || isAdmin || isDirector;
+  const canAccessConfiguracoesArea = isDev || isAdmin || isDirector;
 
   // 1. Verificando auth: só loading minimalista, sem revelar estrutura do app
   if (loading) {
@@ -833,7 +845,11 @@ function AppContent() {
               path="/feedbacks"
               element={
                 <ProtectedRoute>
-                  {canAccessProjetosArea ? <FeedbacksView /> : <Navigate to="/ind" replace />}
+                  {canAccessProjetosArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <FeedbackKanbanView />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />
