@@ -1,46 +1,157 @@
 /**
- * Componente: Vista de Operação
- * 
- * Gerencia acessos e permissões de vistas dos colaboradores
+ * Componente: Vista de Operacao (Gerenciamento de Acessos)
+ *
+ * Interface moderna com:
+ * - Cards de resumo (KPIs)
+ * - Tabela simplificada com avatares e badges de nivel
+ * - Gerenciamento de overrides de vistas por usuario
+ * - Visual glass-card
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/OperacaoView.css';
 
+// === CONSTANTES ===
 const ACCESS_LABELS = {
+  dev: 'Dev',
   director: 'Diretoria',
   admin: 'Admin',
   leader: 'Lider',
+  user: 'Usuario',
   sem_acesso: 'Sem acesso',
 };
 
-// Lista de todas as vistas disponíveis na aplicação
-const AVAILABLE_VIEWS = [
-  { id: 'indicadores-lideranca', name: 'Indicadores Liderança', path: '/indicadores-lideranca' },
-  { id: 'horas', name: 'Horas', path: '/horas' },
-  { id: 'indicadores', name: 'Indicadores', path: '/indicadores' },
-  { id: 'okrs', name: 'OKRs', path: '/okrs' },
-  { id: 'projetos', name: 'Projetos', path: '/projetos' },
-  { id: 'cs', name: 'CS', path: '/cs' },
-  { id: 'estudo-de-custos', name: 'Estudo de Custos', path: '/estudo-de-custos' },
-  { id: 'contatos', name: 'Contatos', path: '/contatos' },
-  { id: 'formulario-passagem', name: 'Formulário de Passagem', path: '/formulario-passagem' },
-  { id: 'feedbacks', name: 'Feedbacks', path: '/feedbacks' },
-];
+// === ICONS (SVG inline) ===
+const Icons = {
+  Users: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  Check: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  Settings: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  ),
+  List: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  ),
+  Refresh: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </svg>
+  ),
+  Search: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+  Edit: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  ),
+  Trash: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  ),
+  Plus: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  ),
+};
 
+// === HELPERS ===
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.split(' ').filter(Boolean);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+function getAccessLevelClass(level) {
+  const map = {
+    dev: 'level-dev',
+    director: 'level-director',
+    admin: 'level-admin',
+    leader: 'level-leader',
+    user: 'level-user',
+    sem_acesso: 'level-sem_acesso',
+  };
+  return map[level] || 'level-user';
+}
+
+// === COMPONENTE PRINCIPAL ===
 function OperacaoView() {
+  const { isDev, hasFullAccess } = useAuth();
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState('usuarios');
+
+  // === USUARIOS TAB STATE ===
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [teamFilter, setTeamFilter] = useState('all');
-  const [leaderFilter, setLeaderFilter] = useState('all');
   const [cargoFilter, setCargoFilter] = useState('all');
-  const [editingViews, setEditingViews] = useState(null); // email do usuário sendo editado
-  const [userViews, setUserViews] = useState({}); // { email: [viewIds] }
+  const [userViews, setUserViews] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // === VIEWS CATALOG STATE ===
+  const [availableViews, setAvailableViews] = useState([]);
+  const [viewsLoading, setViewsLoading] = useState(false);
+
+
+  // Modal state for editing user views
+  const [showViewsModal, setShowViewsModal] = useState(false);
+  const [editingUserEmail, setEditingUserEmail] = useState(null);
+  const [editingUserName, setEditingUserName] = useState('');
+  const [tempViews, setTempViews] = useState([]);
+
+  // === FETCH FUNCTIONS ===
+  const fetchViews = async () => {
+    try {
+      setViewsLoading(true);
+      const response = await axios.get(`${API_URL}/api/admin/views`, {
+        withCredentials: true,
+      });
+      if (response.data?.success) {
+        setAvailableViews(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar vistas:', err);
+    } finally {
+      setViewsLoading(false);
+    }
+  };
 
   const fetchAccessData = async () => {
     try {
@@ -79,15 +190,23 @@ function OperacaoView() {
         setUserViews(viewsMap);
       }
     } catch (err) {
-      console.error('Erro ao buscar permissões de vistas:', err);
+      console.error('Erro ao buscar permissoes de vistas:', err);
     }
   };
 
-  useEffect(() => {
+  const refreshAll = useCallback(() => {
+    fetchViews();
     fetchAccessData();
     fetchUserViews();
   }, []);
 
+  useEffect(() => {
+    fetchViews();
+    fetchAccessData();
+    fetchUserViews();
+  }, []);
+
+  // === COMPUTED VALUES (memos) ===
   const uniqueTeams = useMemo(() => {
     const teams = new Set();
     data.forEach((row) => {
@@ -101,14 +220,6 @@ function OperacaoView() {
         return { num: num || null, nome };
       })
       .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
-  }, [data]);
-
-  const uniqueLeaders = useMemo(() => {
-    const leaders = new Set();
-    data.forEach((row) => {
-      if (row.lider) leaders.add(row.lider);
-    });
-    return Array.from(leaders).sort();
   }, [data]);
 
   const uniqueCargos = useMemo(() => {
@@ -129,10 +240,6 @@ function OperacaoView() {
       });
     }
 
-    if (leaderFilter !== 'all') {
-      filtered = filtered.filter((row) => row.lider === leaderFilter);
-    }
-
     if (cargoFilter !== 'all') {
       filtered = filtered.filter((row) => row.cargo === cargoFilter);
     }
@@ -140,99 +247,106 @@ function OperacaoView() {
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter((row) => {
-        return [
-          row.colaborador,
-          row.email,
-          row.telefone,
-          row.cargo,
-          row.lider,
-          row.padrinho,
-          row.time_nome,
-          row.nivel_acesso,
-          row.construflow_id,
-          row.discord_id,
-        ]
+        return [row.colaborador, row.email, row.cargo, row.time_nome, row.nivel_acesso]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(term));
       });
     }
 
     return filtered;
-  }, [data, teamFilter, leaderFilter, cargoFilter, searchTerm]);
+  }, [data, teamFilter, cargoFilter, searchTerm]);
 
-  const handleEditViews = (email) => {
-    setEditingViews(email);
-    // Carrega as vistas atuais do usuário
-    const currentViews = userViews[email] || [];
-    setUserViews((prev) => ({
-      ...prev,
-      [email]: [...currentViews],
-    }));
+  // Summary stats
+  const summaryStats = useMemo(() => {
+    const total = data.length;
+    const withAccess = data.filter(
+      (r) => r.nivel_acesso && r.nivel_acesso !== 'sem_acesso'
+    ).length;
+    const withOverrides = Object.keys(userViews).filter(
+      (email) => userViews[email]?.length > 0
+    ).length;
+
+    return { total, withAccess, withOverrides };
+  }, [data, userViews]);
+
+  // === USER VIEWS FUNCTIONS ===
+  const handleOpenViewsModal = (email, name) => {
+    setEditingUserEmail(email);
+    setEditingUserName(name || email);
+    setTempViews(userViews[email] || []);
+    setShowViewsModal(true);
   };
 
-  const handleToggleView = (email, viewId) => {
-    setUserViews((prev) => {
-      const current = prev[email] || [];
-      const updated = current.includes(viewId)
-        ? current.filter((id) => id !== viewId)
-        : [...current, viewId];
-      return {
-        ...prev,
-        [email]: updated,
-      };
-    });
+  const handleToggleView = (viewId) => {
+    setTempViews((prev) =>
+      prev.includes(viewId) ? prev.filter((id) => id !== viewId) : [...prev, viewId]
+    );
   };
 
-  const handleSaveViews = async (email) => {
+  const handleSaveViews = async () => {
     try {
       setSaving(true);
-      const views = userViews[email] || [];
       const response = await axios.put(
         `${API_URL}/api/admin/user-views`,
-        { email, views },
+        { email: editingUserEmail, views: tempViews },
         { withCredentials: true }
       );
 
       if (response.data?.success) {
-        setEditingViews(null);
-        await fetchUserViews(); // Recarrega as permissões
-        alert('Permissões de vistas atualizadas com sucesso!');
+        setShowViewsModal(false);
+        setEditingUserEmail(null);
+        await fetchUserViews();
       } else {
-        alert('Erro ao salvar permissões: ' + (response.data.error || 'Erro desconhecido'));
+        alert('Erro ao salvar: ' + (response.data.error || 'Erro desconhecido'));
       }
     } catch (err) {
-      console.error('Erro ao salvar permissões:', err);
-      alert('Erro ao salvar permissões: ' + (err.response?.data?.error || err.message));
+      console.error('Erro ao salvar permissoes:', err);
+      alert('Erro ao salvar: ' + (err.response?.data?.error || err.message));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCancelEdit = (email) => {
-    setEditingViews(null);
-    // Restaura as vistas originais
-    fetchUserViews();
+  const handleCloseViewsModal = () => {
+    setShowViewsModal(false);
+    setEditingUserEmail(null);
+    setTempViews([]);
   };
 
-  const getUserViewsCount = (email) => {
-    return userViews[email]?.length || 0;
+  // Clear filters
+  const clearFilters = () => {
+    setSearchTerm('');
+    setTeamFilter('all');
+    setCargoFilter('all');
   };
 
-  if (loading) {
+  const hasActiveFilters = searchTerm || teamFilter !== 'all' || cargoFilter !== 'all';
+
+  // Helper to get view name by id
+  const getViewName = useCallback(
+    (viewId) => {
+      const view = availableViews.find((v) => v.id === viewId);
+      return view?.name || viewId;
+    },
+    [availableViews]
+  );
+
+  // === RENDER ===
+  if (loading && activeTab === 'usuarios') {
     return (
       <div className="operacao-container">
-        <div className="loading">Carregando acessos...</div>
+        <div className="loading-state">Carregando dados...</div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && activeTab === 'usuarios') {
     return (
       <div className="operacao-container">
-        <div className="error">
-          <h2>Erro ao carregar dados</h2>
+        <div className="glass-card error-state">
+          <h3>Erro ao carregar dados</h3>
           <p>{error}</p>
-          <button onClick={fetchAccessData} className="retry-button">
+          <button onClick={fetchAccessData} className="btn-refresh">
             Tentar novamente
           </button>
         </div>
@@ -242,183 +356,343 @@ function OperacaoView() {
 
   return (
     <div className="operacao-container">
-      <div className="header">
-        <h2>Conferência de Acessos</h2>
-        <div className="header-actions">
-          <button onClick={fetchAccessData} className="refresh-button">
-            Atualizar
+      {/* Header */}
+      <div className="operacao-header">
+        <h2>Gerenciamento de Acessos</h2>
+        <button onClick={refreshAll} className="btn-refresh">
+          <Icons.Refresh />
+          Atualizar
+        </button>
+      </div>
+
+      {/* Summary Cards */}
+      <section className="summary-section">
+        <div className="summary-card">
+          <div className="summary-icon">
+            <Icons.Users />
+          </div>
+          <div className="summary-content">
+            <span className="summary-value">{summaryStats.total}</span>
+            <span className="summary-label">Colaboradores</span>
+          </div>
+        </div>
+
+        <div className="summary-card highlight-green">
+          <div className="summary-icon">
+            <Icons.Check />
+          </div>
+          <div className="summary-content">
+            <span className="summary-value">{summaryStats.withAccess}</span>
+            <span className="summary-label">Com Acesso</span>
+          </div>
+        </div>
+
+        <div className="summary-card highlight-yellow">
+          <div className="summary-icon">
+            <Icons.Settings />
+          </div>
+          <div className="summary-content">
+            <span className="summary-value">{summaryStats.withOverrides}</span>
+            <span className="summary-label">Com Customizacoes</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Tabs */}
+      <div className="operacao-tabs">
+        <button
+          className={`operacao-tab ${activeTab === 'usuarios' ? 'active' : ''}`}
+          onClick={() => setActiveTab('usuarios')}
+        >
+          Usuarios
+          <span className="tab-count">{data.length}</span>
+        </button>
+        {isDev && (
+          <button
+            className={`operacao-tab ${activeTab === 'vistas' ? 'active' : ''}`}
+            onClick={() => setActiveTab('vistas')}
+          >
+            Catalogo de Vistas
+            <span className="tab-count">{availableViews.length}</span>
           </button>
-        </div>
+        )}
       </div>
 
-      <div className="access-filters">
-        <div className="access-filter">
-          <label htmlFor="team-filter">Time</label>
-          <select
-            id="team-filter"
-            value={teamFilter}
-            onChange={(e) => setTeamFilter(e.target.value)}
-          >
-            <option value="all">Todos</option>
-            {uniqueTeams.map((team) => {
-              const label = team.num ? `${team.num} - ${team.nome}` : team.nome;
-              const value = `${team.num ?? ''}||${team.nome}`;
-              return (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              );
-            })}
-          </select>
-        </div>
+      {/* Tab: Usuarios */}
+      {activeTab === 'usuarios' && (
+        <>
+          {/* Filters */}
+          <div className="operacao-filters glass-card">
+            <div className="filters-row">
+              <div className="filter-group">
+                <label className="filter-label">Time</label>
+                <select
+                  className="filter-select"
+                  value={teamFilter}
+                  onChange={(e) => setTeamFilter(e.target.value)}
+                >
+                  <option value="all">Todos os times</option>
+                  {uniqueTeams.map((team) => {
+                    const label = team.num ? `${team.num} - ${team.nome}` : team.nome;
+                    const value = `${team.num ?? ''}||${team.nome}`;
+                    return (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
 
-        <div className="access-filter">
-          <label htmlFor="leader-filter">Lider</label>
-          <select
-            id="leader-filter"
-            value={leaderFilter}
-            onChange={(e) => setLeaderFilter(e.target.value)}
-          >
-            <option value="all">Todos</option>
-            {uniqueLeaders.map((lider) => (
-              <option key={lider} value={lider}>
-                {lider}
-              </option>
-            ))}
-          </select>
-        </div>
+              <div className="filter-group">
+                <label className="filter-label">Cargo</label>
+                <select
+                  className="filter-select"
+                  value={cargoFilter}
+                  onChange={(e) => setCargoFilter(e.target.value)}
+                >
+                  <option value="all">Todos os cargos</option>
+                  {uniqueCargos.map((cargo) => (
+                    <option key={cargo} value={cargo}>
+                      {cargo}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-        <div className="access-filter">
-          <label htmlFor="cargo-filter">Cargo</label>
-          <select
-            id="cargo-filter"
-            value={cargoFilter}
-            onChange={(e) => setCargoFilter(e.target.value)}
-          >
-            <option value="all">Todos</option>
-            {uniqueCargos.map((cargo) => (
-              <option key={cargo} value={cargo}>
-                {cargo}
-              </option>
-            ))}
-          </select>
-        </div>
+              <div className="filter-group">
+                <label className="filter-label">Buscar</label>
+                <div className="search-wrapper">
+                  <span className="search-icon"><Icons.Search /></span>
+                  <input
+                    type="text"
+                    className="filter-input"
+                    placeholder="Nome, email, cargo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
 
-        <div className="access-filter search">
-          <label htmlFor="search-access">Busca</label>
-          <input
-            id="search-access"
-            type="text"
-            placeholder="Buscar por nome, email, time..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
+            <div className="filters-footer">
+              <span className="results-count">
+                Mostrando <strong>{filteredData.length}</strong> de{' '}
+                <strong>{data.length}</strong> colaboradores
+              </span>
+              {hasActiveFilters && (
+                <button className="btn-clear-filters" onClick={clearFilters}>
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          </div>
 
-      <div className="access-results">
-        Mostrando {filteredData.length} de {data.length} colaboradores
-      </div>
-
-      <div className="access-table-wrapper">
-        <table className="access-table">
-          <thead>
-            <tr>
-              <th>Colaborador</th>
-              <th>Cargo</th>
-              <th>Lider</th>
-              <th>Padrinho</th>
-              <th>Time</th>
-              <th>Telefone</th>
-              <th>Email</th>
-              <th>Nivel de acesso</th>
-              <th>Vistas</th>
-              <th>Construflow</th>
-              <th>Discord</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.length === 0 ? (
-              <tr>
-                <td colSpan={11} className="empty-state">
-                  Nenhum colaborador encontrado
-                </td>
-              </tr>
-            ) : (
-              filteredData.map((row) => {
-                const timeLabel = row.time_nome
-                  ? row.time_numero
-                    ? `${row.time_numero} - ${row.time_nome}`
-                    : row.time_nome
-                  : '-';
-                const accessLabel = ACCESS_LABELS[row.nivel_acesso] || row.nivel_acesso || '-';
-                const isEditing = editingViews === row.email;
-                const viewsCount = getUserViewsCount(row.email);
-                const userViewsList = userViews[row.email] || [];
-
-                return (
-                  <tr key={row.colaborador_id}>
-                    <td>{row.colaborador || '-'}</td>
-                    <td>{row.cargo || '-'}</td>
-                    <td>{row.lider || '-'}</td>
-                    <td>{row.padrinho || '-'}</td>
-                    <td>{timeLabel}</td>
-                    <td>{row.telefone || '-'}</td>
-                    <td>{row.email || '-'}</td>
-                    <td>{accessLabel}</td>
-                    <td className="views-cell">
-                      {isEditing ? (
-                        <div className="views-editor">
-                          <div className="views-checkboxes">
-                            {AVAILABLE_VIEWS.map((view) => (
-                              <label key={view.id} className="view-checkbox">
-                                <input
-                                  type="checkbox"
-                                  checked={userViewsList.includes(view.id)}
-                                  onChange={() => handleToggleView(row.email, view.id)}
-                                />
-                                <span>{view.name}</span>
-                              </label>
-                            ))}
-                          </div>
-                          <div className="views-actions">
-                            <button
-                              onClick={() => handleSaveViews(row.email)}
-                              disabled={saving}
-                              className="btn-save-views"
-                            >
-                              {saving ? 'Salvando...' : 'Salvar'}
-                            </button>
-                            <button
-                              onClick={() => handleCancelEdit(row.email)}
-                              disabled={saving}
-                              className="btn-cancel-views"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="views-display">
-                          <span className="views-count">{viewsCount} vista(s)</span>
-                          <button
-                            onClick={() => handleEditViews(row.email)}
-                            className="btn-edit-views"
-                          >
-                            Editar
-                          </button>
-                        </div>
-                      )}
+          {/* Table */}
+          <div className="glass-card operacao-table-wrapper">
+            <table className="operacao-table">
+              <thead>
+                <tr>
+                  <th>Colaborador</th>
+                  <th>Cargo</th>
+                  <th>Time</th>
+                  <th>Nivel de Acesso</th>
+                  <th>Permissoes de Vistas</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="empty-state">
+                      Nenhum colaborador encontrado
                     </td>
-                    <td>{row.construflow_id || '-'}</td>
-                    <td>{row.discord_id || '-'}</td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                ) : (
+                  filteredData.map((row) => {
+                    const timeLabel = row.time_nome
+                      ? row.time_numero
+                        ? `${row.time_numero} - ${row.time_nome}`
+                        : row.time_nome
+                      : '-';
+                    const accessLabel = ACCESS_LABELS[row.nivel_acesso] || row.nivel_acesso || '-';
+                    const levelClass = getAccessLevelClass(row.nivel_acesso);
+                    const userViewsList = userViews[row.email] || [];
+                    const viewsCount = userViewsList.length;
+
+                    return (
+                      <tr key={row.colaborador_id || row.email}>
+                        {/* Colaborador (avatar + nome + email) */}
+                        <td>
+                          <div className="user-cell">
+                            <div className="user-avatar">{getInitials(row.colaborador)}</div>
+                            <div className="user-info">
+                              <span className="user-name">{row.colaborador || '-'}</span>
+                              <span className="user-email">{row.email || '-'}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Cargo */}
+                        <td>
+                          {row.cargo ? (
+                            <span className="badge badge-muted">{row.cargo}</span>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+
+                        {/* Time */}
+                        <td>{timeLabel}</td>
+
+                        {/* Nivel de Acesso */}
+                        <td>
+                          <span className={`access-badge ${levelClass}`}>
+                            <span className="access-dot"></span>
+                            {accessLabel}
+                          </span>
+                        </td>
+
+                        {/* Permissoes de Vistas */}
+                        <td>
+                          <div className="views-preview">
+                            {viewsCount > 0 ? (
+                              <>
+                                <span className="views-status custom">
+                                  {viewsCount} customizacao(es)
+                                </span>
+                                <div className="views-tags">
+                                  {userViewsList.slice(0, 3).map((viewId) => (
+                                    <span key={viewId} className="view-tag">
+                                      {getViewName(viewId)}
+                                    </span>
+                                  ))}
+                                  {userViewsList.length > 3 && (
+                                    <span className="view-tag more">
+                                      +{userViewsList.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <span className="views-status default">Usando padrao</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Acoes */}
+                        <td>
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleOpenViewsModal(row.email, row.colaborador)}
+                            title="Editar permissoes"
+                          >
+                            <Icons.Edit />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Tab: Catalogo de Vistas (Dev only) */}
+      {activeTab === 'vistas' && isDev && (
+        <section className="vistas-section">
+          <p className="vistas-info">
+            Catalogo de todas as vistas disponiveis na plataforma. Apenas desenvolvedores podem
+            modificar este catalogo.
+          </p>
+
+          {viewsLoading ? (
+            <div className="loading-state">Carregando vistas...</div>
+          ) : (
+            <div className="glass-card operacao-table-wrapper">
+              <table className="operacao-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Area</th>
+                    <th>Rota</th>
+                    <th>Ordem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {availableViews.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="empty-state">
+                        Nenhuma vista cadastrada
+                      </td>
+                    </tr>
+                  ) : (
+                    availableViews.map((view) => (
+                      <tr key={view.id}>
+                        <td>
+                          <code>{view.id}</code>
+                        </td>
+                        <td>{view.name}</td>
+                        <td>{view.area}</td>
+                        <td>
+                          <code>{view.route}</code>
+                        </td>
+                        <td>{view.sort_order}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Modal: Editar Vistas do Usuario */}
+      {showViewsModal && (
+        <div className="modal-overlay" onClick={handleCloseViewsModal}>
+          <div
+            className="modal-content views-editor-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Editar Permissoes</h3>
+              <p>{editingUserName}</p>
+            </div>
+
+            <div className="modal-body">
+              <div className="views-checklist">
+                {availableViews.map((view) => (
+                  <label key={view.id} className="view-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={tempViews.includes(view.id)}
+                      onChange={() => handleToggleView(view.id)}
+                    />
+                    <div className="view-checkbox-label">
+                      <span className="view-checkbox-name">{view.name}</span>
+                      <span className="view-checkbox-route">{view.route}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={handleCloseViewsModal} disabled={saving}>
+                Cancelar
+              </button>
+              <button className="btn-save" onClick={handleSaveViews} disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

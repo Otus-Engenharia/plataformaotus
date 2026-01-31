@@ -5,19 +5,18 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SUPABASE_PORTFOLIO_VIEW = process.env.SUPABASE_PORTFOLIO_VIEW || 'portfolio_realtime';
-const SUPABASE_CURVA_S_VIEW = process.env.SUPABASE_CURVA_S_VIEW || '';
-const SUPABASE_CURVA_S_COLAB_VIEW = process.env.SUPABASE_CURVA_S_COLAB_VIEW || '';
+// Nota: variáveis de ambiente são lidas dentro das funções para garantir
+// que dotenv.config() já foi executado antes do acesso
 
 export function getSupabaseClient() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
     throw new Error('SUPABASE_URL ou SUPABASE_ANON_KEY nao configuradas');
   }
 
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  return createClient(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -30,11 +29,14 @@ export function getSupabaseClient() {
  * Usar apenas no backend para operacoes que precisam ignorar RLS
  */
 export function getSupabaseServiceClient() {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
     throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY nao configuradas');
   }
 
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  return createClient(url, serviceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -44,8 +46,9 @@ export function getSupabaseServiceClient() {
 
 export async function fetchPortfolioRealtime(leaderName = null) {
   const supabase = getSupabaseClient();
+  const portfolioView = process.env.SUPABASE_PORTFOLIO_VIEW || 'portfolio_realtime';
   let query = supabase
-    .from(SUPABASE_PORTFOLIO_VIEW)
+    .from(portfolioView)
     .select('*');
 
   if (leaderName) {
@@ -62,13 +65,14 @@ export async function fetchPortfolioRealtime(leaderName = null) {
 }
 
 export async function fetchCurvaSRealtime(leaderName = null, projectCode = null) {
-  if (!SUPABASE_CURVA_S_VIEW) {
+  const curvaSView = process.env.SUPABASE_CURVA_S_VIEW || '';
+  if (!curvaSView) {
     throw new Error('SUPABASE_CURVA_S_VIEW nao configurada');
   }
 
   const supabase = getSupabaseClient();
   let query = supabase
-    .from(SUPABASE_CURVA_S_VIEW)
+    .from(curvaSView)
     .select('*');
 
   if (leaderName) {
@@ -89,13 +93,14 @@ export async function fetchCurvaSRealtime(leaderName = null, projectCode = null)
 }
 
 export async function fetchCurvaSColaboradoresRealtime(projectCode, leaderName = null) {
-  if (!SUPABASE_CURVA_S_COLAB_VIEW) {
+  const curvaSColabView = process.env.SUPABASE_CURVA_S_COLAB_VIEW || '';
+  if (!curvaSColabView) {
     throw new Error('SUPABASE_CURVA_S_COLAB_VIEW nao configurada');
   }
 
   const supabase = getSupabaseClient();
   let query = supabase
-    .from(SUPABASE_CURVA_S_COLAB_VIEW)
+    .from(curvaSColabView)
     .select('*')
     .eq('project_code', projectCode);
 
@@ -228,49 +233,116 @@ export async function fetchUsuarioToTime() {
 const FEEDBACKS_TABLE = 'feedbacks';
 
 /**
+ * Status válidos para feedbacks
+ */
+const FEEDBACK_STATUS = [
+  'pendente',
+  'em_analise',
+  'backlog_desenvolvimento',
+  'backlog_treinamento',
+  'analise_funcionalidade',
+  'finalizado',
+  'recusado'
+];
+
+/**
  * Busca todos os feedbacks
- * @param {boolean} isPrivileged - Se o usuário é admin/director
- * @param {string} userEmail - Email do usuário (para filtrar feedbacks próprios se não for privilegiado)
+ * Retorna todos feedbacks para todos usuários, com os próprios primeiro
+ * @param {string} userEmail - Email do usuário logado (para ordenar os próprios primeiro)
  * @returns {Promise<Array>}
  */
-export async function fetchFeedbacks(isPrivileged = false, userEmail = null) {
+export async function fetchFeedbacks(userEmail = null) {
   const supabase = getSupabaseClient();
-  let query = supabase
+  const { data, error } = await supabase
     .from(FEEDBACKS_TABLE)
     .select('*')
     .order('created_at', { ascending: false });
-
-  // Se não for privilegiado, mostra apenas seus próprios feedbacks
-  if (!isPrivileged && userEmail) {
-    query = query.eq('created_by', userEmail);
-  }
-
-  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erro ao buscar feedbacks: ${error.message}`);
   }
 
-  return Array.isArray(data) ? data : [];
+  const feedbacks = Array.isArray(data) ? data : [];
+
+  // Se temos email do usuário, ordenar para que os próprios venham primeiro
+  if (userEmail) {
+    feedbacks.sort((a, b) => {
+      const aIsOwn = a.author_email === userEmail;
+      const bIsOwn = b.author_email === userEmail;
+      if (aIsOwn && !bIsOwn) return -1;
+      if (!aIsOwn && bIsOwn) return 1;
+      // Manter ordem por data para feedbacks do mesmo "grupo"
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+  }
+
+  return feedbacks;
+}
+
+/**
+ * Busca estatísticas de feedbacks por status
+ * @returns {Promise<Object>}
+ */
+export async function getFeedbackStats() {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(FEEDBACKS_TABLE)
+    .select('status');
+
+  if (error) {
+    throw new Error(`Erro ao buscar estatísticas: ${error.message}`);
+  }
+
+  const stats = {
+    total: 0,
+    pendente: 0,
+    em_analise: 0,
+    backlog_desenvolvimento: 0,
+    backlog_treinamento: 0,
+    analise_funcionalidade: 0,
+    finalizado: 0,
+    recusado: 0,
+    // Agrupamentos para Kanban
+    novos: 0,
+    em_andamento: 0,
+    finalizados: 0,
+    recusados: 0
+  };
+
+  (data || []).forEach(row => {
+    stats.total++;
+    if (stats[row.status] !== undefined) {
+      stats[row.status]++;
+    }
+    // Agrupamentos
+    if (row.status === 'pendente') stats.novos++;
+    else if (['em_analise', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'].includes(row.status)) stats.em_andamento++;
+    else if (row.status === 'finalizado') stats.finalizados++;
+    else if (row.status === 'recusado') stats.recusados++;
+  });
+
+  return stats;
 }
 
 /**
  * Cria um novo feedback
  * @param {Object} feedback - Dados do feedback
- * @param {string} feedback.tipo - 'processo' ou 'plataforma'
- * @param {string} feedback.titulo - Título do feedback
- * @param {string} feedback.descricao - Descrição do feedback
- * @param {string} feedback.created_by - Email de quem criou
+ * @param {string} feedback.tipo - 'processo', 'plataforma', 'sugestao' ou 'outro'
+ * @param {string} feedback.titulo - Título do feedback (opcional)
+ * @param {string} feedback.feedback_text - Descrição do feedback
+ * @param {string} feedback.author_email - Email de quem criou
+ * @param {string} feedback.author_name - Nome de quem criou (opcional)
  * @returns {Promise<Object>}
  */
 export async function createFeedback(feedback) {
   const supabase = getSupabaseClient();
   const row = {
-    tipo: feedback.tipo,
-    titulo: feedback.titulo || '',
-    descricao: feedback.descricao || '',
+    tipo: feedback.tipo || 'processo',
+    titulo: feedback.titulo || null,
+    feedback_text: feedback.feedback_text || feedback.descricao || '',
     status: 'pendente',
-    created_by: feedback.created_by,
+    author_email: feedback.author_email || feedback.created_by,
+    author_name: feedback.author_name || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -291,19 +363,27 @@ export async function createFeedback(feedback) {
 /**
  * Atualiza o status de um feedback
  * @param {string} id - ID do feedback
- * @param {string} status - Novo status ('pendente', 'em_analise', 'resolvido', 'arquivado')
+ * @param {string} status - Novo status
  * @param {string} updatedBy - Email de quem atualizou
  * @returns {Promise<Object>}
  */
 export async function updateFeedbackStatus(id, status, updatedBy) {
   const supabase = getSupabaseClient();
+
+  const updateData = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Se status é finalizado ou recusado, registrar quem resolveu
+  if (status === 'finalizado' || status === 'recusado') {
+    updateData.resolved_at = new Date().toISOString();
+    updateData.resolved_by = updatedBy;
+  }
+
   const { data, error } = await supabase
     .from(FEEDBACKS_TABLE)
-    .update({
-      status,
-      updated_at: new Date().toISOString(),
-      updated_by: updatedBy,
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
@@ -316,20 +396,61 @@ export async function updateFeedbackStatus(id, status, updatedBy) {
 }
 
 /**
- * Atualiza o parecer de um feedback (apenas admin)
+ * Atualiza feedback completo (apenas admin)
  * @param {string} id - ID do feedback
- * @param {string} parecer - Parecer do admin
+ * @param {Object} updateData - Dados a atualizar
  * @param {string} updatedBy - Email de quem atualizou
  * @returns {Promise<Object>}
  */
-export async function updateFeedbackParecer(id, parecer, updatedBy) {
+export async function updateFeedback(id, updateData, updatedBy) {
+  const supabase = getSupabaseClient();
+
+  const row = {
+    ...updateData,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Se status é finalizado ou recusado, registrar quem resolveu
+  if (updateData.status === 'finalizado' || updateData.status === 'recusado') {
+    row.resolved_at = new Date().toISOString();
+    row.resolved_by = updatedBy;
+  }
+
+  // Remover campos que não devem ser atualizados diretamente
+  delete row.id;
+  delete row.created_at;
+  delete row.author_email;
+
+  const { data, error } = await supabase
+    .from(FEEDBACKS_TABLE)
+    .update(row)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar feedback: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza análise e ação do admin em um feedback
+ * @param {string} id - ID do feedback
+ * @param {string} analysis - Análise do admin
+ * @param {string} action - Ação a tomar
+ * @param {string} updatedBy - Email de quem atualizou
+ * @returns {Promise<Object>}
+ */
+export async function updateFeedbackParecer(id, analysis, action, updatedBy) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(FEEDBACKS_TABLE)
     .update({
-      parecer_admin: parecer,
+      admin_analysis: analysis,
+      admin_action: action,
       updated_at: new Date().toISOString(),
-      updated_by: updatedBy,
     })
     .eq('id', id)
     .select()
@@ -2481,4 +2602,356 @@ export async function fetchHistoryComparison(filters = {}) {
   }
 
   return results;
+}
+
+// ============================================================================
+// VIEWS & ACCESS CONTROL
+// ============================================================================
+
+const VIEWS_TABLE = 'views';
+const VIEW_ACCESS_DEFAULTS_TABLE = 'view_access_defaults';
+
+/**
+ * Busca todas as vistas cadastradas
+ * @returns {Promise<Array>}
+ */
+export async function fetchViews() {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(VIEWS_TABLE)
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar vistas: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Cria uma nova vista
+ * @param {Object} viewData - Dados da vista
+ * @returns {Promise<Object>}
+ */
+export async function createView(viewData) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(VIEWS_TABLE)
+    .insert(viewData)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar vista: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Remove uma vista
+ * @param {string} viewId - ID da vista
+ * @returns {Promise<void>}
+ */
+export async function deleteView(viewId) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from(VIEWS_TABLE)
+    .delete()
+    .eq('id', viewId);
+
+  if (error) {
+    throw new Error(`Erro ao remover vista: ${error.message}`);
+  }
+}
+
+/**
+ * Busca todas as regras de acesso padrão
+ * @param {Object} filters - Filtros opcionais
+ * @returns {Promise<Array>}
+ */
+export async function fetchAccessDefaults(filters = {}) {
+  const supabase = getSupabaseServiceClient();
+  let query = supabase
+    .from(VIEW_ACCESS_DEFAULTS_TABLE)
+    .select(`
+      *,
+      view:views!view_id(id, name, route, area),
+      sector:sectors!sector_id(id, name),
+      position:positions!position_id(id, name)
+    `)
+    .order('view_id');
+
+  if (filters.view_id) {
+    query = query.eq('view_id', filters.view_id);
+  }
+  if (filters.role) {
+    query = query.eq('role', filters.role);
+  }
+  if (filters.sector_id) {
+    query = query.eq('sector_id', filters.sector_id);
+  }
+  if (filters.position_id) {
+    query = query.eq('position_id', filters.position_id);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao buscar regras de acesso: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Cria uma nova regra de acesso padrão
+ * @param {Object} ruleData - Dados da regra
+ * @returns {Promise<Object>}
+ */
+export async function createAccessDefault(ruleData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(VIEW_ACCESS_DEFAULTS_TABLE)
+    .insert({
+      view_id: ruleData.view_id,
+      role: ruleData.role || null,
+      sector_id: ruleData.sector_id || null,
+      position_id: ruleData.position_id || null,
+      has_access: ruleData.has_access ?? true,
+    })
+    .select(`
+      *,
+      view:view_id(*),
+      sector:sector_id(id, name),
+      position:position_id(id, name)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar regra de acesso: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza uma regra de acesso padrão
+ * @param {number} id - ID da regra
+ * @param {Object} ruleData - Dados para atualizar
+ * @returns {Promise<Object>}
+ */
+export async function updateAccessDefault(id, ruleData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(VIEW_ACCESS_DEFAULTS_TABLE)
+    .update({
+      view_id: ruleData.view_id,
+      role: ruleData.role || null,
+      sector_id: ruleData.sector_id || null,
+      position_id: ruleData.position_id || null,
+      has_access: ruleData.has_access ?? true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select(`
+      *,
+      view:view_id(*),
+      sector:sector_id(id, name),
+      position:position_id(id, name)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar regra de acesso: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Remove uma regra de acesso padrão
+ * @param {number} id - ID da regra
+ * @returns {Promise<void>}
+ */
+export async function deleteAccessDefault(id) {
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase
+    .from(VIEW_ACCESS_DEFAULTS_TABLE)
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Erro ao remover regra de acesso: ${error.message}`);
+  }
+}
+
+/**
+ * Busca overrides de vistas para um usuário específico (com has_access)
+ * @param {string} email - Email do usuário
+ * @returns {Promise<Array<{view_id: string, has_access: boolean}>>}
+ */
+export async function getUserViewOverrides(email) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USER_VIEWS_TABLE)
+    .select('view_id, has_access')
+    .eq('email', email);
+
+  if (error) {
+    console.error('Erro ao buscar overrides do usuário:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Atualiza override de vista para um usuário
+ * @param {string} email - Email do usuário
+ * @param {string} viewId - ID da vista
+ * @param {boolean} hasAccess - Se tem acesso ou não
+ * @returns {Promise<void>}
+ */
+export async function setUserViewOverride(email, viewId, hasAccess) {
+  const supabase = getSupabaseClient();
+
+  // Upsert - insere ou atualiza se já existe
+  const { error } = await supabase
+    .from(USER_VIEWS_TABLE)
+    .upsert({
+      email,
+      view_id: viewId,
+      has_access: hasAccess,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'email,view_id',
+    });
+
+  if (error) {
+    throw new Error(`Erro ao definir override: ${error.message}`);
+  }
+}
+
+/**
+ * Remove override de vista para um usuário
+ * @param {string} email - Email do usuário
+ * @param {string} viewId - ID da vista
+ * @returns {Promise<void>}
+ */
+export async function removeUserViewOverride(email, viewId) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from(USER_VIEWS_TABLE)
+    .delete()
+    .eq('email', email)
+    .eq('view_id', viewId);
+
+  if (error) {
+    throw new Error(`Erro ao remover override: ${error.message}`);
+  }
+}
+
+/**
+ * Calcula as vistas efetivas que um usuário pode acessar
+ *
+ * Lógica:
+ * 1. Se role === 'dev' → acesso total
+ * 2. Verificar overrides em user_views para o email
+ * 3. Para vistas sem override, buscar regra mais específica em view_access_defaults
+ *
+ * Prioridade de regras (do mais específico ao menos):
+ * 1. role + sector_id + position_id (todos definidos)
+ * 2. role + sector_id (position_id NULL)
+ * 3. role + position_id (sector_id NULL)
+ * 4. role apenas (sector_id e position_id NULL)
+ * 5. sector_id + position_id (role NULL)
+ * 6. sector_id apenas
+ * 7. position_id apenas
+ * 8. Sem regra → BLOQUEAR
+ *
+ * @param {Object} user - Dados do usuário
+ * @param {string} user.email - Email do usuário
+ * @param {string} user.role - Role do usuário
+ * @param {string|null} user.sector_id - ID do setor do usuário
+ * @param {string|null} user.position_id - ID do cargo do usuário
+ * @returns {Promise<string[]>} - Array de view_ids permitidos
+ */
+export async function getEffectiveViews(user) {
+  const { email, role, sector_id, position_id } = user;
+
+  // 1. Devs têm acesso total
+  if (role === 'dev') {
+    const allViews = await fetchViews();
+    return allViews.map(v => v.id);
+  }
+
+  // 2. Buscar todas as vistas
+  const allViews = await fetchViews();
+
+  // 3. Buscar overrides do usuário
+  const userOverrides = await getUserViewOverrides(email);
+  const overrideMap = new Map(userOverrides.map(o => [o.view_id, o.has_access]));
+
+  // 4. Buscar todas as regras de acesso padrão
+  const allRules = await fetchAccessDefaults();
+
+  // 5. Para cada vista, determinar se tem acesso
+  const allowedViews = [];
+
+  for (const view of allViews) {
+    // Primeiro verificar se existe override
+    if (overrideMap.has(view.id)) {
+      if (overrideMap.get(view.id) === true) {
+        allowedViews.push(view.id);
+      }
+      continue; // Override encontrado, não precisa verificar regras
+    }
+
+    // Buscar regras aplicáveis para esta vista
+    const viewRules = allRules.filter(r => r.view_id === view.id);
+
+    // Calcular score de especificidade para cada regra
+    // Maior score = mais específico
+    const scoredRules = viewRules.map(rule => {
+      let score = 0;
+
+      // Role match
+      const roleMatches = rule.role === null || rule.role === role;
+      if (!roleMatches) return { rule, score: -1, matches: false };
+
+      if (rule.role !== null) score += 100; // Role específico vale mais
+
+      // Sector match
+      const sectorMatches = rule.sector_id === null || rule.sector_id === sector_id;
+      if (!sectorMatches) return { rule, score: -1, matches: false };
+
+      if (rule.sector_id !== null) score += 10;
+
+      // Position match
+      const positionMatches = rule.position_id === null || rule.position_id === position_id;
+      if (!positionMatches) return { rule, score: -1, matches: false };
+
+      if (rule.position_id !== null) score += 1;
+
+      return { rule, score, matches: true };
+    });
+
+    // Filtrar regras que deram match e ordenar por score
+    const matchingRules = scoredRules
+      .filter(sr => sr.matches && sr.score >= 0)
+      .sort((a, b) => b.score - a.score);
+
+    // A regra mais específica (maior score) vence
+    if (matchingRules.length > 0) {
+      const bestRule = matchingRules[0].rule;
+      if (bestRule.has_access) {
+        allowedViews.push(view.id);
+      }
+    }
+    // Se não encontrou regra, bloqueia por padrão (não adiciona à lista)
+  }
+
+  return allowedViews;
 }

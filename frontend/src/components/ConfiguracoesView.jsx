@@ -1,17 +1,16 @@
 /**
  * Componente: Vista de Configurações
- * 
+ *
  * Contém 3 subabas:
- * - Operação: Gerenciamento de acessos e permissões de vistas
- * - Comercial: Configurações comerciais (a implementar)
- * - Clientes: Configurações de clientes (a implementar)
+ * - Operação: Gerenciamento de acessos e overrides de usuários
+ * - Cargos: Permissões padrão por cargo
+ * - Clientes: Configurações de clientes
  */
 
 import React, { useState } from 'react';
 import OperacaoView from './OperacaoView';
-import ComercialView from './ComercialView';
+import CargosView from './CargosView';
 import ClientesView from './ClientesView';
-import LogsView from './LogsView';
 import '../styles/ConfiguracoesView.css';
 
 function ConfiguracoesView() {
@@ -19,9 +18,8 @@ function ConfiguracoesView() {
 
   const tabs = [
     { id: 'operacao', label: 'Operação', component: OperacaoView },
-    { id: 'comercial', label: 'Comercial', component: ComercialView },
+    { id: 'cargos', label: 'Cargos', component: CargosView },
     { id: 'clientes', label: 'Clientes', component: ClientesView },
-    { id: 'logs', label: 'Logs', component: LogsView },
   ];
 
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || OperacaoView;
