@@ -857,10 +857,12 @@ export default function ProjectView() {
             <Icons.ArrowLeft />
           </button>
           <div className="pv-project-info">
-            <div className="pv-project-breadcrumb">
-              <span>{project.workspace?.icon} {project.workspace?.name}</span>
-              <span>/</span>
-            </div>
+            {project.sector && (
+              <div className="pv-project-breadcrumb">
+                <span>{project.sector.name}</span>
+                <span>/</span>
+              </div>
+            )}
             <h1>{project.name}</h1>
             {project.description && <p>{project.description}</p>}
           </div>

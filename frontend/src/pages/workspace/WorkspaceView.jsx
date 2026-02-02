@@ -1,7 +1,7 @@
 /**
- * WorkspaceView - Pagina principal de gestao de tarefas
+ * WorkspaceView - Gestao de Tarefas por Setor
  *
- * Lista setores (da tabela sectors) e seus projetos
+ * Grid de setores com drawer lateral de projetos
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -11,53 +11,45 @@ import './WorkspaceView.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-// Cores padrão para setores (já que sectors não tem campo color)
-const SECTOR_COLORS = {
-  'CS': '#22c55e',
-  'Tecnologia': '#3b82f6',
-  'Marketing': '#ec4899',
-  'Vendas': '#f59e0b',
-  'Gente & Gestão': '#8b5cf6',
-  'Administrativo & Financeiro': '#6b7280',
-  'Diretoria': '#ef4444',
-  'Operação': '#06b6d4',
+// Cores e icones por setor
+const SECTOR_CONFIG = {
+  'CS': { color: '#22c55e', icon: '🎯', gradient: 'linear-gradient(135deg, #22c55e20, #16a34a10)' },
+  'Tecnologia': { color: '#3b82f6', icon: '💻', gradient: 'linear-gradient(135deg, #3b82f620, #2563eb10)' },
+  'Marketing': { color: '#ec4899', icon: '📢', gradient: 'linear-gradient(135deg, #ec489920, #db277710)' },
+  'Vendas': { color: '#f59e0b', icon: '💼', gradient: 'linear-gradient(135deg, #f59e0b20, #d9770610)' },
+  'Gente & Gestão': { color: '#8b5cf6', icon: '👥', gradient: 'linear-gradient(135deg, #8b5cf620, #7c3aed10)' },
+  'Administrativo & Financeiro': { color: '#6366f1', icon: '📊', gradient: 'linear-gradient(135deg, #6366f120, #4f46e510)' },
+  'Operação': { color: '#06b6d4', icon: '⚙️', gradient: 'linear-gradient(135deg, #06b6d420, #0891b210)' },
 };
 
-const SECTOR_ICONS = {
-  'CS': '🎯',
-  'Tecnologia': '💻',
-  'Marketing': '📢',
-  'Vendas': '💼',
-  'Gente & Gestão': '👥',
-  'Administrativo & Financeiro': '📊',
-  'Diretoria': '🏢',
-  'Operação': '⚙️',
+const getSectorConfig = (name) => SECTOR_CONFIG[name] || {
+  color: '#64748b',
+  icon: '📁',
+  gradient: 'linear-gradient(135deg, #64748b20, #47556910)'
 };
 
 // === ICONS ===
 const Icons = {
+  Folder: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>
+  ),
   Plus: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <line x1="12" y1="5" x2="12" y2="19"/>
       <line x1="5" y1="12" x2="19" y2="12"/>
     </svg>
   ),
-  Folder: () => (
+  X: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
     </svg>
   ),
   ChevronRight: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <polyline points="9 18 15 12 9 6"/>
-    </svg>
-  ),
-  Calendar: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="4" width="18" height="18" rx="2"/>
-      <line x1="16" y1="2" x2="16" y2="6"/>
-      <line x1="8" y1="2" x2="8" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
     </svg>
   ),
   Refresh: () => (
@@ -67,10 +59,12 @@ const Icons = {
       <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
     </svg>
   ),
-  X: () => (
+  Calendar: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="18" y1="6" x2="6" y2="18"/>
-      <line x1="6" y1="6" x2="18" y2="18"/>
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
     </svg>
   ),
   Edit: () => (
@@ -85,27 +79,26 @@ const Icons = {
       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
     </svg>
   ),
+  Users: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  ),
 };
 
 // === HELPERS ===
 function formatDate(dateStr) {
-  if (!dateStr) return '-';
+  if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString('pt-BR');
 }
 
-function getSectorColor(name) {
-  return SECTOR_COLORS[name] || '#64748b';
-}
-
-function getSectorIcon(name) {
-  return SECTOR_ICONS[name] || '📁';
-}
-
 // === MODAL DE CRIAR/EDITAR PROJETO ===
-function ProjectModal({ project, sectorId, sectors, onClose, onSave }) {
+function ProjectModal({ project, sectorId, sectorName, onClose, onSave }) {
   const [name, setName] = useState(project?.name || '');
   const [description, setDescription] = useState(project?.description || '');
-  const [selectedSector, setSelectedSector] = useState(project?.sector_id || sectorId || '');
   const [color, setColor] = useState(project?.color || '');
   const [startDate, setStartDate] = useState(project?.start_date || '');
   const [dueDate, setDueDate] = useState(project?.due_date || '');
@@ -115,12 +108,12 @@ function ProjectModal({ project, sectorId, sectors, onClose, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !selectedSector) return;
+    if (!name.trim()) return;
 
     setSaving(true);
     try {
       await onSave({
-        sector_id: selectedSector,
+        sector_id: sectorId,
         name,
         description,
         color: color || null,
@@ -135,6 +128,8 @@ function ProjectModal({ project, sectorId, sectors, onClose, onSave }) {
     }
   };
 
+  const sectorConfig = getSectorConfig(sectorName);
+
   return (
     <div className="ws-modal-overlay" onClick={onClose}>
       <div className="ws-modal" onClick={e => e.stopPropagation()}>
@@ -147,19 +142,11 @@ function ProjectModal({ project, sectorId, sectors, onClose, onSave }) {
         <form onSubmit={handleSubmit}>
           <div className="ws-modal-body">
             <div className="ws-form-group">
-              <label>Setor *</label>
-              <select
-                value={selectedSector}
-                onChange={e => setSelectedSector(e.target.value)}
-                required
-              >
-                <option value="">Selecione...</option>
-                {sectors.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {getSectorIcon(s.name)} {s.name}
-                  </option>
-                ))}
-              </select>
+              <label>Setor</label>
+              <div className="ws-sector-display" style={{ borderColor: sectorConfig.color }}>
+                <span className="ws-sector-icon">{sectorConfig.icon}</span>
+                <span>{sectorName}</span>
+              </div>
             </div>
             <div className="ws-form-group">
               <label>Nome do Projeto *</label>
@@ -167,8 +154,9 @@ function ProjectModal({ project, sectorId, sectors, onClose, onSave }) {
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Ex: Melhoria de NPS Q1..."
+                placeholder="Ex: Sprint Q1, OKR Vendas..."
                 required
+                autoFocus
               />
             </div>
             <div className="ws-form-group">
@@ -219,7 +207,7 @@ function ProjectModal({ project, sectorId, sectors, onClose, onSave }) {
             <button type="button" className="ws-btn-secondary" onClick={onClose}>
               Cancelar
             </button>
-            <button type="submit" className="ws-btn-primary" disabled={saving || !name.trim() || !selectedSector}>
+            <button type="submit" className="ws-btn-primary" disabled={saving || !name.trim()}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
@@ -229,49 +217,207 @@ function ProjectModal({ project, sectorId, sectors, onClose, onSave }) {
   );
 }
 
+// === SECTOR CARD ===
+function SectorCard({ sector, projectCount, onClick }) {
+  const config = getSectorConfig(sector.name);
+
+  return (
+    <div
+      className="ws-sector-card"
+      onClick={onClick}
+      style={{ '--sector-color': config.color }}
+    >
+      <div className="ws-sector-card-bg" style={{ background: config.gradient }} />
+      <div className="ws-sector-card-content">
+        <div className="ws-sector-card-icon">{config.icon}</div>
+        <h3 className="ws-sector-card-title">{sector.name}</h3>
+        <div className="ws-sector-card-meta">
+          <span className="ws-sector-card-count">
+            {projectCount} projeto{projectCount !== 1 ? 's' : ''}
+          </span>
+        </div>
+        <div className="ws-sector-card-arrow">
+          <Icons.ChevronRight />
+        </div>
+      </div>
+      <div className="ws-sector-card-glow" style={{ background: config.color }} />
+    </div>
+  );
+}
+
+// === PROJECT DRAWER ===
+function ProjectDrawer({
+  open,
+  sector,
+  projects,
+  loading,
+  onClose,
+  onProjectClick,
+  onCreateProject,
+  onEditProject,
+  onDeleteProject,
+  isAdmin
+}) {
+  if (!sector) return null;
+
+  const config = getSectorConfig(sector.name);
+
+  return (
+    <>
+      <div
+        className={`ws-drawer-overlay ${open ? 'visible' : ''}`}
+        onClick={onClose}
+      />
+      <div className={`ws-drawer ${open ? 'open' : ''}`}>
+        <div className="ws-drawer-header" style={{ borderBottomColor: `${config.color}30` }}>
+          <button className="ws-drawer-close" onClick={onClose}>
+            <Icons.X />
+          </button>
+          <div className="ws-drawer-title">
+            <span className="ws-drawer-icon">{config.icon}</span>
+            <div>
+              <h2>{sector.name}</h2>
+              <span className="ws-drawer-subtitle">
+                {projects.length} projeto{projects.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+          {isAdmin && (
+            <button className="ws-btn-primary ws-btn-sm" onClick={onCreateProject}>
+              <Icons.Plus /> Novo
+            </button>
+          )}
+        </div>
+
+        <div className="ws-drawer-content">
+          {loading ? (
+            <div className="ws-drawer-loading">
+              <div className="ws-spinner" />
+              <p>Carregando projetos...</p>
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="ws-drawer-empty">
+              <div className="ws-drawer-empty-icon">
+                <Icons.Folder />
+              </div>
+              <h3>Nenhum projeto</h3>
+              <p>Crie o primeiro projeto para este setor</p>
+              {isAdmin && (
+                <button className="ws-btn-primary" onClick={onCreateProject}>
+                  <Icons.Plus /> Criar Projeto
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="ws-drawer-projects">
+              {projects.map(project => (
+                <div
+                  key={project.id}
+                  className="ws-project-item"
+                  onClick={() => onProjectClick(project.id)}
+                >
+                  <div
+                    className="ws-project-item-color"
+                    style={{ backgroundColor: project.color || config.color }}
+                  />
+                  <div className="ws-project-item-content">
+                    <h4>{project.name}</h4>
+                    {project.description && (
+                      <p className="ws-project-item-desc">{project.description}</p>
+                    )}
+                    <div className="ws-project-item-meta">
+                      {project.start_date && (
+                        <span>
+                          <Icons.Calendar />
+                          {formatDate(project.start_date)}
+                        </span>
+                      )}
+                      {project.due_date && (
+                        <span>ate {formatDate(project.due_date)}</span>
+                      )}
+                      <span className={`ws-status ws-status-${project.status}`}>
+                        {project.status === 'ativo' ? 'Ativo' :
+                         project.status === 'arquivado' ? 'Arquivado' : 'Pausado'}
+                      </span>
+                    </div>
+                  </div>
+                  {isAdmin && (
+                    <div className="ws-project-item-actions" onClick={e => e.stopPropagation()}>
+                      <button
+                        className="ws-btn-icon-sm"
+                        onClick={() => onEditProject(project)}
+                        title="Editar"
+                      >
+                        <Icons.Edit />
+                      </button>
+                      <button
+                        className="ws-btn-icon-sm ws-btn-danger"
+                        onClick={() => onDeleteProject(project)}
+                        title="Excluir"
+                      >
+                        <Icons.Trash />
+                      </button>
+                    </div>
+                  )}
+                  <div className="ws-project-item-arrow">
+                    <Icons.ChevronRight />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // === COMPONENTE PRINCIPAL ===
 export default function WorkspaceView() {
-  const { user, hasFullAccess } = useAuth();
   const navigate = useNavigate();
-  const isAdmin = hasFullAccess; // já é booleano no contexto
+  const { hasFullAccess } = useAuth();
+  const isAdmin = hasFullAccess;
 
   const [sectors, setSectors] = useState([]);
-  const [projects, setProjects] = useState([]);
+  const [projectCounts, setProjectCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Drawer state
+  const [selectedSector, setSelectedSector] = useState(null);
+  const [sectorProjects, setSectorProjects] = useState([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+
+  // Modal state
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [selectedSectorId, setSelectedSectorId] = useState(null);
 
-  const [expandedSectors, setExpandedSectors] = useState({});
-
-  // === FETCH DATA ===
-  const fetchData = useCallback(async () => {
+  // === FETCH SECTORS ===
+  const fetchSectors = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [sectorsRes, projRes] = await Promise.all([
+      const [sectorsRes, projectsRes] = await Promise.all([
         fetch(`${API_URL}/api/ind/sectors`, { credentials: 'include' }),
         fetch(`${API_URL}/api/workspace-projects`, { credentials: 'include' }),
       ]);
 
-      if (!sectorsRes.ok || !projRes.ok) {
-        throw new Error('Erro ao carregar dados');
-      }
+      if (!sectorsRes.ok) throw new Error('Erro ao carregar setores');
 
       const sectorsData = await sectorsRes.json();
-      const projData = await projRes.json();
+      const projectsData = projectsRes.ok ? await projectsRes.json() : { data: [] };
 
-      setSectors(sectorsData.data || []);
-      setProjects(projData.data || []);
+      // Filtrar Diretoria
+      const filtered = (sectorsData.data || []).filter(s => s.name !== 'Diretoria');
+      setSectors(filtered);
 
-      // Expandir todos os setores por padrao
-      const expanded = {};
-      (sectorsData.data || []).forEach(s => {
-        expanded[s.id] = true;
+      // Contar projetos por setor
+      const counts = {};
+      (projectsData.data || []).forEach(p => {
+        counts[p.sector_id] = (counts[p.sector_id] || 0) + 1;
       });
-      setExpandedSectors(expanded);
+      setProjectCounts(counts);
     } catch (err) {
       console.error('Erro:', err);
       setError(err.message);
@@ -280,16 +426,91 @@ export default function WorkspaceView() {
     }
   }, []);
 
+  // === FETCH SECTOR PROJECTS ===
+  const fetchSectorProjects = useCallback(async (sectorId) => {
+    setDrawerLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/workspace-projects?sector_id=${sectorId}`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSectorProjects(data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar projetos:', err);
+    } finally {
+      setDrawerLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchSectors();
+  }, [fetchSectors]);
+
+  // Listener para abrir drawer via sidebar
+  useEffect(() => {
+    const handleOpenSectorDrawer = (e) => {
+      const sector = e.detail;
+      if (sector) {
+        setSelectedSector(sector);
+        setDrawerOpen(true);
+        fetchSectorProjects(sector.id);
+      }
+    };
+
+    window.addEventListener('openSectorDrawer', handleOpenSectorDrawer);
+    return () => window.removeEventListener('openSectorDrawer', handleOpenSectorDrawer);
+  }, [fetchSectorProjects]);
 
   // === HANDLERS ===
-  const toggleSector = (sectorId) => {
-    setExpandedSectors(prev => ({
-      ...prev,
-      [sectorId]: !prev[sectorId],
-    }));
+  const handleSectorClick = (sector) => {
+    setSelectedSector(sector);
+    setDrawerOpen(true);
+    fetchSectorProjects(sector.id);
+  };
+
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false);
+    // Delay para animacao terminar
+    setTimeout(() => {
+      setSelectedSector(null);
+      setSectorProjects([]);
+    }, 300);
+  };
+
+  const handleProjectClick = (projectId) => {
+    navigate(`/workspace/project/${projectId}`);
+  };
+
+  const handleCreateProject = () => {
+    setEditingProject(null);
+    setShowProjectModal(true);
+  };
+
+  const handleEditProject = (project) => {
+    setEditingProject(project);
+    setShowProjectModal(true);
+  };
+
+  const handleDeleteProject = async (project) => {
+    if (!confirm(`Excluir "${project.name}"?\n\nTodas as tarefas serao excluidas.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/workspace-projects/${project.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        fetchSectorProjects(selectedSector.id);
+        fetchSectors(); // Atualizar contagem
+      }
+    } catch (err) {
+      console.error('Erro ao excluir:', err);
+      alert('Erro ao excluir projeto');
+    }
   };
 
   const handleSaveProject = async (data) => {
@@ -310,30 +531,8 @@ export default function WorkspaceView() {
       throw new Error(err.error || 'Erro ao salvar');
     }
 
-    fetchData();
-  };
-
-  const handleDeleteProject = async (proj) => {
-    if (!confirm(`Tem certeza que deseja excluir o projeto "${proj.name}"?\n\nTodas as tarefas serao excluidas.`)) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/api/workspace-projects/${proj.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!res.ok) throw new Error('Erro ao excluir');
-      fetchData();
-    } catch (err) {
-      console.error('Erro:', err);
-      alert('Erro ao excluir projeto');
-    }
-  };
-
-  const openProject = (projectId) => {
-    navigate(`/workspace/project/${projectId}`);
+    fetchSectorProjects(selectedSector.id);
+    fetchSectors(); // Atualizar contagem
   };
 
   // === RENDER ===
@@ -350,201 +549,66 @@ export default function WorkspaceView() {
     return (
       <div className="ws-error">
         <p>Erro: {error}</p>
-        <button onClick={fetchData} className="ws-btn-primary">
+        <button onClick={fetchSectors} className="ws-btn-primary">
           <Icons.Refresh /> Tentar novamente
         </button>
       </div>
     );
   }
 
-  // Agrupar projetos por setor
-  const projectsBySector = {};
-  projects.forEach(proj => {
-    if (!projectsBySector[proj.sector_id]) {
-      projectsBySector[proj.sector_id] = [];
-    }
-    projectsBySector[proj.sector_id].push(proj);
-  });
-
   return (
     <div className="ws-container">
       {/* Header */}
       <div className="ws-header">
-        <div className="ws-header-left">
+        <div className="ws-header-content">
           <h1>
-            <Icons.Folder />
-            Gestao de Tarefas
+            <Icons.Users />
+            Gestao por Setor
           </h1>
-          <p>Organize projetos e tarefas por setor</p>
+          <p>Selecione um setor para ver seus projetos e tarefas</p>
         </div>
         <div className="ws-header-actions">
-          <button className="ws-btn-icon" onClick={fetchData} title="Atualizar">
+          <button className="ws-btn-icon" onClick={fetchSectors} title="Atualizar">
             <Icons.Refresh />
           </button>
-          {isAdmin && (
-            <button
-              className="ws-btn-primary"
-              onClick={() => {
-                setEditingProject(null);
-                setSelectedSectorId(null);
-                setShowProjectModal(true);
-              }}
-            >
-              <Icons.Plus /> Novo Projeto
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Lista de Setores */}
-      <div className="ws-list">
-        {sectors.length === 0 ? (
-          <div className="ws-empty">
-            <Icons.Folder />
-            <h3>Nenhum setor encontrado</h3>
-            <p>Configure os setores na area de Configuracoes</p>
-          </div>
-        ) : (
-          sectors.map(sector => {
-            const sectorProjects = projectsBySector[sector.id] || [];
-            const isExpanded = expandedSectors[sector.id];
-            const sectorColor = getSectorColor(sector.name);
-            const sectorIcon = getSectorIcon(sector.name);
-
-            return (
-              <div key={sector.id} className="ws-workspace-card">
-                <div
-                  className="ws-workspace-header"
-                  onClick={() => toggleSector(sector.id)}
-                  style={{ borderLeftColor: sectorColor }}
-                >
-                  <div className="ws-workspace-info">
-                    <span className={`ws-chevron ${isExpanded ? 'expanded' : ''}`}>
-                      <Icons.ChevronRight />
-                    </span>
-                    <span className="ws-workspace-icon">{sectorIcon}</span>
-                    <div className="ws-workspace-text">
-                      <h3>{sector.name}</h3>
-                      {sector.description && <p>{sector.description}</p>}
-                    </div>
-                  </div>
-                  <div className="ws-workspace-meta">
-                    <span className="ws-project-count">
-                      {sectorProjects.length} projeto{sectorProjects.length !== 1 ? 's' : ''}
-                    </span>
-                    {isAdmin && (
-                      <div className="ws-workspace-actions" onClick={e => e.stopPropagation()}>
-                        <button
-                          className="ws-btn-icon-sm"
-                          onClick={() => {
-                            setEditingProject(null);
-                            setSelectedSectorId(sector.id);
-                            setShowProjectModal(true);
-                          }}
-                          title="Adicionar projeto"
-                        >
-                          <Icons.Plus />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="ws-projects-list">
-                    {sectorProjects.length === 0 ? (
-                      <div className="ws-no-projects">
-                        <p>Nenhum projeto neste setor</p>
-                        {isAdmin && (
-                          <button
-                            className="ws-btn-link"
-                            onClick={() => {
-                              setEditingProject(null);
-                              setSelectedSectorId(sector.id);
-                              setShowProjectModal(true);
-                            }}
-                          >
-                            <Icons.Plus /> Criar primeiro projeto
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      sectorProjects.map(proj => (
-                        <div
-                          key={proj.id}
-                          className="ws-project-card"
-                          onClick={() => openProject(proj.id)}
-                        >
-                          <div
-                            className="ws-project-color"
-                            style={{ backgroundColor: proj.color || sectorColor }}
-                          />
-                          <div className="ws-project-info">
-                            <h4>{proj.name}</h4>
-                            {proj.description && <p>{proj.description}</p>}
-                            <div className="ws-project-meta">
-                              {proj.start_date && (
-                                <span>
-                                  <Icons.Calendar /> {formatDate(proj.start_date)}
-                                </span>
-                              )}
-                              {proj.due_date && (
-                                <span>
-                                  ate {formatDate(proj.due_date)}
-                                </span>
-                              )}
-                              <span className={`ws-project-status ws-status-${proj.status}`}>
-                                {proj.status === 'ativo' ? 'Ativo' : proj.status === 'arquivado' ? 'Arquivado' : 'Pausado'}
-                              </span>
-                            </div>
-                          </div>
-                          {isAdmin && (
-                            <div className="ws-project-actions" onClick={e => e.stopPropagation()}>
-                              <button
-                                className="ws-btn-icon-sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingProject(proj);
-                                  setSelectedSectorId(proj.sector_id);
-                                  setShowProjectModal(true);
-                                }}
-                                title="Editar projeto"
-                              >
-                                <Icons.Edit />
-                              </button>
-                              <button
-                                className="ws-btn-icon-sm ws-btn-danger"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteProject(proj);
-                                }}
-                                title="Excluir projeto"
-                              >
-                                <Icons.Trash />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
+      {/* Sector Grid */}
+      <div className="ws-sector-grid">
+        {sectors.map(sector => (
+          <SectorCard
+            key={sector.id}
+            sector={sector}
+            projectCount={projectCounts[sector.id] || 0}
+            onClick={() => handleSectorClick(sector)}
+          />
+        ))}
       </div>
 
-      {/* Modal de Projeto */}
-      {showProjectModal && (
+      {/* Project Drawer */}
+      <ProjectDrawer
+        open={drawerOpen}
+        sector={selectedSector}
+        projects={sectorProjects}
+        loading={drawerLoading}
+        onClose={handleCloseDrawer}
+        onProjectClick={handleProjectClick}
+        onCreateProject={handleCreateProject}
+        onEditProject={handleEditProject}
+        onDeleteProject={handleDeleteProject}
+        isAdmin={isAdmin}
+      />
+
+      {/* Project Modal */}
+      {showProjectModal && selectedSector && (
         <ProjectModal
           project={editingProject}
-          sectorId={selectedSectorId}
-          sectors={sectors}
+          sectorId={selectedSector.id}
+          sectorName={selectedSector.name}
           onClose={() => {
             setShowProjectModal(false);
             setEditingProject(null);
-            setSelectedSectorId(null);
           }}
           onSave={handleSaveProject}
         />

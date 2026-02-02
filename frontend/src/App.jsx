@@ -6,7 +6,7 @@
  * - /cs - Dados do Setor de Sucesso do Cliente
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
@@ -47,6 +47,7 @@ const FeedbackKanbanView = lazy(() => import('./pages/feedbacks/FeedbackKanbanVi
 // Lazy load das páginas de Workspace (Gestao de Tarefas)
 const WorkspaceView = lazy(() => import('./pages/workspace/WorkspaceView'));
 const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
+// SectorWorkspaceView removido - funcionalidade agora no WorkspaceView com drawer
 
 // Lazy load das páginas de OKRs
 const DashboardOKRs = lazy(() => import('./pages/okrs/DashboardOKRs'));
@@ -175,11 +176,17 @@ function Sidebar({ collapsed, onToggle, area }) {
   const { user, logout, isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, canAccessFormularioPassagem } = useAuth();
   const linkTitle = (label) => (collapsed ? label : undefined);
 
-  // State para setores (carregados dinamicamente para OKRs)
+  // State para setores (carregados dinamicamente para OKRs e Workspace)
   const [sectors, setSectors] = useState([]);
   const [sectorsExpanded, setSectorsExpanded] = useState(true);
 
-  // Carregar setores quando estiver na área de OKRs
+  // State para workspace sectors
+  const [workspaceSectors, setWorkspaceSectors] = useState([]);
+  const [workspaceSectorsExpanded, setWorkspaceSectorsExpanded] = useState(true);
+  const [workspaceProjects, setWorkspaceProjects] = useState({});
+  const [expandedSectors, setExpandedSectors] = useState({});
+
+  // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
     if (area === 'okrs') {
       axios.get('/api/ind/sectors', { withCredentials: true })
@@ -190,7 +197,68 @@ function Sidebar({ collapsed, onToggle, area }) {
         })
         .catch(err => console.error('Error loading sectors:', err));
     }
+    if (area === 'workspace') {
+      axios.get('/api/ind/sectors', { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            setWorkspaceSectors(res.data.data || []);
+          }
+        })
+        .catch(err => console.error('Error loading workspace sectors:', err));
+    }
   }, [area]);
+
+  // Função para carregar projetos de um setor (lazy load)
+  const loadSectorProjects = useCallback((sectorId) => {
+    if (workspaceProjects[sectorId]) return; // Já carregado
+    axios.get(`/api/workspace-projects?sector_id=${sectorId}`, { withCredentials: true })
+      .then(res => {
+        if (res.data.success) {
+          setWorkspaceProjects(prev => ({
+            ...prev,
+            [sectorId]: res.data.data || []
+          }));
+        }
+      })
+      .catch(err => console.error('Error loading sector projects:', err));
+  }, [workspaceProjects]);
+
+  // Toggle setor expandido
+  const toggleSectorExpanded = useCallback((sectorId) => {
+    setExpandedSectors(prev => {
+      const newExpanded = { ...prev, [sectorId]: !prev[sectorId] };
+      if (newExpanded[sectorId]) {
+        loadSectorProjects(sectorId);
+      }
+      return newExpanded;
+    });
+  }, [loadSectorProjects]);
+
+  // Cores e ícones para setores
+  const SECTOR_COLORS = {
+    'CS': '#22c55e',
+    'Tecnologia': '#3b82f6',
+    'Marketing': '#ec4899',
+    'Vendas': '#f59e0b',
+    'Gente & Gestão': '#8b5cf6',
+    'Administrativo & Financeiro': '#6b7280',
+    'Diretoria': '#ef4444',
+    'Operação': '#06b6d4',
+  };
+
+  const SECTOR_ICONS = {
+    'CS': '🎯',
+    'Tecnologia': '💻',
+    'Marketing': '📢',
+    'Vendas': '💼',
+    'Gente & Gestão': '👥',
+    'Administrativo & Financeiro': '📊',
+    'Diretoria': '🏢',
+    'Operação': '⚙️',
+  };
+
+  const getSectorIcon = (name) => SECTOR_ICONS[name] || '📁';
+  const getSectorColor = (name) => SECTOR_COLORS[name] || '#64748b';
   const shortcuts = [
     {
       id: 'feedz',
@@ -293,16 +361,56 @@ function Sidebar({ collapsed, onToggle, area }) {
   );
 
   // Links para área de WORKSPACE (Gestão de Tarefas)
+  // Navegação simplificada - setores são gerenciados pelo drawer no WorkspaceView
   const workspaceLinks = (
     <>
       <Link
         to="/workspace"
-        className={`nav-link nav-link-modern ${location.pathname === '/workspace' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Todos os Projetos')}
+        className={`nav-link nav-link-modern ${location.pathname === '/workspace' || location.pathname.startsWith('/workspace/') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Gestao por Setor')}
       >
         <span className="nav-icon">{icons.projetos}</span>
-        <span className="nav-text">Todos os Projetos</span>
+        <span className="nav-text">Gestao por Setor</span>
       </Link>
+
+      {/* Seção SETORES - Lista simples, drawer no WorkspaceView faz a navegação detalhada */}
+      {workspaceSectors.length > 0 && workspaceSectors.filter(s => s.name !== 'Diretoria').length > 0 && (
+        <>
+          <div className="nav-section-divider"></div>
+          <button
+            className={`nav-section-header ${collapsed ? 'sr-only' : ''}`}
+            onClick={() => setWorkspaceSectorsExpanded(!workspaceSectorsExpanded)}
+            title={linkTitle('Setores')}
+          >
+            <span className="nav-icon">{icons.sectors}</span>
+            <span className="nav-section-title">SETORES</span>
+            <span className={`nav-section-chevron ${workspaceSectorsExpanded ? 'expanded' : ''}`}>
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+              </svg>
+            </span>
+          </button>
+          {workspaceSectorsExpanded && (
+            <div className="nav-sectors-list">
+              {workspaceSectors.filter(s => s.name !== 'Diretoria').map(sector => (
+                <Link
+                  key={sector.id}
+                  to="/workspace"
+                  className="nav-link nav-link-modern nav-link-nested nav-link-sector"
+                  title={linkTitle(sector.name)}
+                  onClick={() => {
+                    // Trigger para abrir drawer do setor (via state ou URL param)
+                    window.dispatchEvent(new CustomEvent('openSectorDrawer', { detail: sector }));
+                  }}
+                >
+                  <span className="nav-sector-icon">{getSectorIcon(sector.name)}</span>
+                  <span className="nav-text">{sector.name}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 
@@ -889,6 +997,11 @@ function AppContent() {
                   </Suspense>
                 </ProtectedRoute>
               }
+            />
+            {/* Redirecionar rota antiga de setor para workspace */}
+            <Route
+              path="/workspace/setor/:sectorId"
+              element={<Navigate to="/workspace" replace />}
             />
             <Route
               path="/acessos"
