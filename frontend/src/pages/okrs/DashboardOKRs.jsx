@@ -265,9 +265,18 @@ export default function DashboardOKRs() {
       // Filter by year and cycle
       const filteredObjectives = objectivesData.filter(obj => {
         if (!obj.quarter) return false;
-        const yearMatch = obj.quarter.includes(String(ano));
+
+        // Excluir OKRs anuais da empresa do Dashboard (aparecem apenas em /okrs/empresa)
         const isAnnual = obj.quarter.toLowerCase().includes('anual');
-        return yearMatch || isAnnual;
+        const isCompanyLevel = obj.nivel === 'empresa';
+        if (isAnnual && isCompanyLevel) return false;
+
+        const yearMatch = obj.quarter.includes(String(ano));
+        const cycleMatch = ciclo === 'annual'
+          ? isAnnual
+          : obj.quarter.toLowerCase().includes(ciclo);
+
+        return yearMatch && cycleMatch;
       });
 
       setObjectives(filteredObjectives);

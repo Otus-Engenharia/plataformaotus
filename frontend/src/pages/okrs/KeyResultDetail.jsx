@@ -36,6 +36,18 @@ const monthNames = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
+const quarterNames = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+// Mapeamento de quarters para meses (usamos o último mês do quarter para check-ins)
+const quarterToMonth = { Q1: 3, Q2: 6, Q3: 9, Q4: 12 };
+const monthToQuarter = { 3: 'Q1', 6: 'Q2', 9: 'Q3', 12: 'Q4' };
+
+// Helper para verificar se é OKR anual da empresa
+const isAnnualCompanyOKR = (objective) => {
+  return objective?.nivel === 'empresa' &&
+    objective?.quarter?.toLowerCase().includes('anual');
+};
+
 // Helper to get months for a quarter (Q1 = [1,2,3], Q2 = [4,5,6], etc.)
 const getQuarterMonths = (quarter) => {
   if (!quarter) return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -49,16 +61,32 @@ const getQuarterMonths = (quarter) => {
   }
 };
 
+// Helper para obter o quarter atual
+const getCurrentQuarter = () => {
+  const month = new Date().getMonth() + 1;
+  if (month <= 3) return 'Q1';
+  if (month <= 6) return 'Q2';
+  if (month <= 9) return 'Q3';
+  return 'Q4';
+};
+
 // Check-in Dialog
-function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter }) {
+function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter, objective }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
 
+  // Verificar se é OKR anual da empresa (usa quarters ao invés de meses)
+  const useQuarters = isAnnualCompanyOKR(objective);
+
   const quarterMonths = getQuarterMonths(quarter);
   const currentMonth = new Date().getMonth() + 1;
-  // Default to current month if it's in the quarter, otherwise first month of quarter
-  const defaultMonth = quarterMonths.includes(currentMonth) ? currentMonth : quarterMonths[0];
+  const currentQ = getCurrentQuarter();
+
+  // Para OKRs anuais: usar quarter atual, senão usar mês atual
+  const defaultMonth = useQuarters
+    ? quarterToMonth[currentQ]
+    : (quarterMonths.includes(currentMonth) ? currentMonth : quarterMonths[0]);
 
   const [formData, setFormData] = useState({
     mes: defaultMonth,
@@ -68,7 +96,9 @@ function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter })
   });
 
   const monthlyTargets = kr?.monthly_targets || {};
-  const currentTarget = monthlyTargets[formData.mes.toString()] ?? monthlyTargets[formData.mes];
+  const currentTarget = useQuarters
+    ? (monthlyTargets[monthToQuarter[formData.mes]] ?? monthlyTargets[formData.mes.toString()])
+    : (monthlyTargets[formData.mes.toString()] ?? monthlyTargets[formData.mes]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -99,7 +129,7 @@ function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter })
 
       onSuccess?.();
       onClose();
-      setFormData({ mes: new Date().getMonth() + 1, ano: currentYear, valor: '', notas: '' });
+      setFormData({ mes: defaultMonth, ano: currentYear, valor: '', notas: '' });
     } catch (err) {
       console.error('Error saving check-in:', err);
       alert('Erro ao salvar check-in: ' + (err.response?.data?.error || err.message));
@@ -126,15 +156,23 @@ function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter })
           <div className="okr-modal__body">
             <div className="okr-form-row">
               <div className="okr-form-group">
-                <label className="okr-form-label">Mês ({quarter || 'Q1'})</label>
+                <label className="okr-form-label">
+                  {useQuarters ? 'Trimestre' : `Mês (${quarter || 'Q1'})`}
+                </label>
                 <select
                   className="okr-form-select"
                   value={formData.mes}
                   onChange={e => setFormData({ ...formData, mes: parseInt(e.target.value) })}
                 >
-                  {quarterMonths.map((month) => (
-                    <option key={month} value={month}>{monthNames[month - 1]}</option>
-                  ))}
+                  {useQuarters ? (
+                    quarterNames.map((q) => (
+                      <option key={q} value={quarterToMonth[q]}>{q}</option>
+                    ))
+                  ) : (
+                    quarterMonths.map((month) => (
+                      <option key={month} value={month}>{monthNames[month - 1]}</option>
+                    ))
+                  )}
                 </select>
               </div>
               <div className="okr-form-group">
@@ -153,7 +191,9 @@ function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter })
 
             {currentTarget !== undefined && currentTarget !== null && (
               <div className="okr-info-box">
-                <span className="okr-info-box__label">Meta para {monthNames[formData.mes - 1]}:</span>
+                <span className="okr-info-box__label">
+                  Meta para {useQuarters ? monthToQuarter[formData.mes] : monthNames[formData.mes - 1]}:
+                </span>
                 <span className="okr-info-box__value">{currentTarget}</span>
               </div>
             )}
@@ -194,6 +234,98 @@ function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter })
         </div>
       </div>
     </Portal>
+  );
+}
+
+// Editable Value Component para edição inline
+function EditableValue({ value, onSave, placeholder = '—', type = 'number', canEdit, formatFn }) {
+  const [editing, setEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(value ?? '');
+  const [saving, setSaving] = useState(false);
+  const inputRef = React.useRef(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  useEffect(() => {
+    setTempValue(value ?? '');
+  }, [value]);
+
+  const handleSave = async () => {
+    if (saving) return;
+
+    const newValue = tempValue === '' ? null : parseFloat(tempValue);
+    const oldValue = value ?? null;
+
+    // Se não mudou, apenas fechar
+    if (newValue === oldValue) {
+      setEditing(false);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSave(newValue);
+      setEditing(false);
+    } catch (err) {
+      console.error('Error saving:', err);
+      setTempValue(value ?? '');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setTempValue(value ?? '');
+      setEditing(false);
+    }
+  };
+
+  const displayValue = formatFn ? formatFn(value) : (value ?? placeholder);
+
+  if (!canEdit) {
+    return <span className="okr-value-display">{displayValue}</span>;
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type={type}
+        step="any"
+        value={tempValue}
+        onChange={e => setTempValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+        className="okr-inline-input"
+        disabled={saving}
+        placeholder={placeholder}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="okr-editable-value"
+      onClick={() => {
+        setTempValue(value ?? '');
+        setEditing(true);
+      }}
+      title="Clique para editar"
+    >
+      {displayValue}
+      <svg className="okr-edit-icon" viewBox="0 0 24 24" width="12" height="12">
+        <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+      </svg>
+    </span>
   );
 }
 
@@ -1142,38 +1274,57 @@ export default function KeyResultDetail() {
     return 'stable';
   }, [progress]);
 
+  // Verificar se é OKR anual da empresa (usa quarters)
+  const useQuarters = useMemo(() => isAnnualCompanyOKR(objective), [objective]);
+
   // Get quarter months for filtering
   const quarterMonths = useMemo(() => {
     return getQuarterMonths(objective?.quarter);
   }, [objective?.quarter]);
 
-  // Monthly comparison - filter by quarter months
-  const monthlyComparison = useMemo(() => {
+  // Períodos para exibição (quarters para OKR anual, meses para trimestral)
+  const displayPeriods = useMemo(() => {
+    if (useQuarters) {
+      return quarterNames.map(q => ({ key: q, month: quarterToMonth[q], label: q }));
+    }
+    return quarterMonths.map(m => ({ key: m, month: m, label: monthNames[m - 1] }));
+  }, [useQuarters, quarterMonths]);
+
+  // Monthly/Quarterly comparison
+  const periodComparison = useMemo(() => {
     const targets = kr?.monthly_targets || {};
     const year = objective?.quarter?.split('-')[1] || new Date().getFullYear();
     const isInverse = kr?.is_inverse || false;
 
-    return quarterMonths
-      .map((monthNum) => {
-        const target = targets[monthNum] ?? targets[monthNum.toString()];
-        const checkIn = checkIns.find(c => c.mes === monthNum && c.ano === parseInt(year));
-        const isBehind = (target !== undefined && checkIn)
-          ? (isInverse ? checkIn.valor > target : checkIn.valor < target)
-          : false;
-        const hasRecoveryPlan = recoveryPlans.some(
-          p => p.mes_referencia === monthNum && p.ano_referencia === parseInt(year)
-        );
+    return displayPeriods.map(({ key, month, label }) => {
+      // Para quarters, buscar target pela chave Q1, Q2, etc. ou pelo mês correspondente
+      const target = useQuarters
+        ? (targets[key] ?? targets[month] ?? targets[month.toString()])
+        : (targets[month] ?? targets[month.toString()]);
 
-        return {
-          month: monthNum,
-          target: target ?? null,
-          checkIn,
-          isBehind,
-          needsRecoveryPlan: isBehind && !hasRecoveryPlan,
-          hasRecoveryPlan
-        };
-      });
-  }, [kr, checkIns, recoveryPlans, objective, quarterMonths]);
+      const checkIn = checkIns.find(c => c.mes === month && c.ano === parseInt(year));
+      const isBehind = (target !== undefined && target !== null && checkIn)
+        ? (isInverse ? checkIn.valor > target : checkIn.valor < target)
+        : false;
+      const hasRecoveryPlan = recoveryPlans.some(
+        p => p.mes_referencia === month && p.ano_referencia === parseInt(year)
+      );
+
+      return {
+        key,
+        month,
+        label,
+        target: target ?? null,
+        checkIn,
+        isBehind,
+        needsRecoveryPlan: isBehind && !hasRecoveryPlan,
+        hasRecoveryPlan
+      };
+    });
+  }, [kr, checkIns, recoveryPlans, objective, displayPeriods, useQuarters]);
+
+  // Alias para compatibilidade
+  const monthlyComparison = periodComparison;
 
   const monthsBehind = monthlyComparison.filter(m => m.needsRecoveryPlan);
 
@@ -1220,6 +1371,76 @@ export default function KeyResultDetail() {
   const handleEditRecoveryPlan = (plan) => {
     setEditingRecoveryPlan(plan);
     setShowEditRecoveryDialog(true);
+  };
+
+  // Handler para atualizar meta planejada inline
+  const handleUpdateTarget = async (periodKey, month, newValue) => {
+    if (!kr) return;
+
+    try {
+      const currentTargets = kr.monthly_targets || {};
+      const updatedTargets = { ...currentTargets };
+
+      // Para quarters, usar a chave Q1, Q2, etc.
+      const targetKey = useQuarters ? periodKey : month;
+
+      if (newValue === null || newValue === undefined) {
+        delete updatedTargets[targetKey];
+      } else {
+        updatedTargets[targetKey] = newValue;
+      }
+
+      const response = await axios.put(`/api/okrs/key-results/${kr.id}`, {
+        monthly_targets: Object.keys(updatedTargets).length > 0 ? updatedTargets : null
+      }, { withCredentials: true });
+
+      if (!response.data.success) throw new Error(response.data.error);
+      fetchData();
+    } catch (err) {
+      console.error('Error updating target:', err);
+      alert('Erro ao atualizar meta: ' + (err.response?.data?.error || err.message));
+      throw err;
+    }
+  };
+
+  // Handler para atualizar/criar check-in inline
+  const handleUpdateCheckIn = async (month, newValue, existingCheckIn) => {
+    if (!kr) return;
+
+    const year = objective?.quarter?.split('-')[1] || new Date().getFullYear();
+
+    try {
+      if (newValue === null || newValue === undefined) {
+        // Se valor for nulo e existe check-in, deletar
+        if (existingCheckIn) {
+          const response = await axios.delete(`/api/okrs/check-ins/${existingCheckIn.id}`, {
+            withCredentials: true
+          });
+          if (!response.data.success) throw new Error(response.data.error);
+        }
+      } else if (existingCheckIn) {
+        // Atualizar check-in existente
+        const response = await axios.put(`/api/okrs/check-ins/${existingCheckIn.id}`, {
+          valor: newValue
+        }, { withCredentials: true });
+        if (!response.data.success) throw new Error(response.data.error);
+      } else {
+        // Criar novo check-in
+        const response = await axios.post('/api/okrs/check-ins', {
+          key_result_id: kr.id,
+          mes: month,
+          ano: parseInt(year),
+          valor: newValue
+        }, { withCredentials: true });
+        if (!response.data.success) throw new Error(response.data.error);
+      }
+
+      fetchData();
+    } catch (err) {
+      console.error('Error updating check-in:', err);
+      alert('Erro ao atualizar valor: ' + (err.response?.data?.error || err.message));
+      throw err;
+    }
   };
 
   const status = kr?.status || 'on_track';
@@ -1399,7 +1620,7 @@ export default function KeyResultDetail() {
         </div>
       </section>
 
-      {/* Alert for months behind */}
+      {/* Alert for periods behind */}
       {monthsBehind.length > 0 && isPrivileged && (
         <section className="okr-section">
           <div className="okr-alert okr-alert--danger">
@@ -1407,18 +1628,20 @@ export default function KeyResultDetail() {
               <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
             </svg>
             <div className="okr-alert__content">
-              <h3 className="okr-alert__title">Meses Abaixo da Meta</h3>
+              <h3 className="okr-alert__title">
+                {useQuarters ? 'Trimestres' : 'Meses'} Abaixo da Meta
+              </h3>
               <p className="okr-alert__text">
-                Os seguintes meses ficaram abaixo da meta planejada e precisam de plano de ação:
+                Os seguintes {useQuarters ? 'trimestres' : 'meses'} ficaram abaixo da meta planejada e precisam de plano de ação:
               </p>
               <div className="okr-alert__buttons">
                 {monthsBehind.map(m => (
                   <button
-                    key={m.month}
+                    key={m.key}
                     className="okr-btn okr-btn--danger-outline okr-btn--sm"
                     onClick={() => openRecoveryDialogForMonth(m.month, objective?.quarter?.split('-')[1] || new Date().getFullYear())}
                   >
-                    {monthNames[m.month - 1]}
+                    {m.label}
                     <span className="okr-btn__detail">
                       ({formatValue(m.checkIn?.valor || 0)} / {formatValue(m.target)})
                     </span>
@@ -1432,7 +1655,7 @@ export default function KeyResultDetail() {
 
       {/* Two Column Layout */}
       <div className="okr-kr-grid">
-        {/* Left: Monthly Targets */}
+        {/* Left: Monthly/Quarterly Targets */}
         <section className="okr-section">
           <div className="okr-card">
             <div className="okr-card__header">
@@ -1440,9 +1663,11 @@ export default function KeyResultDetail() {
                 <svg viewBox="0 0 24 24" width="20" height="20">
                   <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                 </svg>
-                Metas Mensais
+                {useQuarters ? 'Metas Trimestrais' : 'Metas Mensais'}
                 {objective?.quarter && (
-                  <span className="okr-card__title-badge">{objective.quarter.split('-')[0]}</span>
+                  <span className="okr-card__title-badge">
+                    {useQuarters ? 'Anual' : objective.quarter.split('-')[0]}
+                  </span>
                 )}
               </h2>
               {isPrivileged && (
@@ -1455,13 +1680,13 @@ export default function KeyResultDetail() {
               )}
             </div>
             <div className="okr-card__body">
-              {monthlyComparison.length > 0 ? (
+              {periodComparison.length > 0 ? (
                 <div className="okr-monthly-list">
-                  {monthlyComparison.map(({ month, target, checkIn, isBehind, hasRecoveryPlan, needsRecoveryPlan }) => {
+                  {periodComparison.map(({ key, month, label, target, checkIn, isBehind, hasRecoveryPlan, needsRecoveryPlan }) => {
                     const hasTarget = target !== null && target !== undefined;
                     return (
                     <div
-                      key={month}
+                      key={key}
                       className={`okr-monthly-item ${isBehind && !hasRecoveryPlan ? 'okr-monthly-item--danger' : ''} ${isBehind && hasRecoveryPlan ? 'okr-monthly-item--warning' : ''} ${checkIn && !isBehind ? 'okr-monthly-item--success' : ''}`}
                     >
                       <div className="okr-monthly-item__header">
@@ -1469,7 +1694,7 @@ export default function KeyResultDetail() {
                           <svg viewBox="0 0 24 24" width="14" height="14">
                             <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                           </svg>
-                          {monthNames[month - 1]}
+                          {label}
                         </div>
                         <div className="okr-monthly-item__badges">
                           {isBehind && (
@@ -1487,13 +1712,23 @@ export default function KeyResultDetail() {
                         <div className="okr-monthly-item__value">
                           <span className="okr-monthly-item__value-label">Planejado</span>
                           <span className="okr-monthly-item__value-num">
-                            {hasTarget ? formatValue(target) : '\u2014'}
+                            <EditableValue
+                              value={target}
+                              onSave={(newVal) => handleUpdateTarget(key, month, newVal)}
+                              canEdit={isPrivileged}
+                              formatFn={formatValue}
+                            />
                           </span>
                         </div>
                         <div className="okr-monthly-item__value">
                           <span className="okr-monthly-item__value-label">Realizado</span>
                           <span className={`okr-monthly-item__value-num ${checkIn && !isBehind ? 'okr-monthly-item__value-num--success' : ''} ${checkIn && isBehind ? 'okr-monthly-item__value-num--danger' : ''}`}>
-                            {checkIn ? formatValue(checkIn.valor) : '\u2014'}
+                            <EditableValue
+                              value={checkIn?.valor}
+                              onSave={(newVal) => handleUpdateCheckIn(month, newVal, checkIn)}
+                              canEdit={isPrivileged}
+                              formatFn={formatValue}
+                            />
                           </span>
                         </div>
                       </div>
@@ -1648,6 +1883,7 @@ export default function KeyResultDetail() {
         kr={kr}
         checkIns={checkIns}
         quarter={objective?.quarter}
+        objective={objective}
       />
 
       <CommentDialog
