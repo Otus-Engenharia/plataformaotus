@@ -28,7 +28,8 @@ export const USER_ROLES = {
   'alicia.paim@otusengenharia.com': 'leader',
   'estevao.goulart@otusengenharia.com': 'leader',
 
-  // Dev mode - usuários de teste
+  // Dev mode - usuários de teste (para verificação local)
+  'dev-dev@otus.dev': 'dev',
   'dev-director@otus.dev': 'director',
   'dev-admin@otus.dev': 'admin',
   'dev-leader@otus.dev': 'leader',

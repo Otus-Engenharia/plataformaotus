@@ -3588,3 +3588,304 @@ export async function deleteHomeModule(moduleId) {
     throw new Error(`Erro ao remover módulo: ${error.message}`);
   }
 }
+
+// ============================================================================
+// UNIFIED MODULES SYSTEM - Sistema unificado de módulos com níveis de acesso
+// ============================================================================
+
+const MODULES_TABLE = 'modules';
+const MODULE_OVERRIDES_TABLE = 'module_overrides';
+
+/**
+ * Mapeamento de roles para níveis de acesso numéricos
+ * Quanto menor o número, maior o privilégio
+ */
+export const ACCESS_LEVELS = {
+  dev: 1,
+  director: 2,
+  admin: 3,
+  leader: 4,
+  user: 5,
+};
+
+/**
+ * Labels para exibição dos níveis de acesso
+ */
+export const ACCESS_LEVEL_LABELS = {
+  1: 'Dev',
+  2: 'Diretor',
+  3: 'Admin',
+  4: 'Líder',
+  5: 'Operação',
+};
+
+/**
+ * Cores para exibição dos níveis de acesso
+ */
+export const ACCESS_LEVEL_COLORS = {
+  1: '#8b5cf6', // roxo - dev
+  2: '#ef4444', // vermelho - diretor
+  3: '#f59e0b', // laranja - admin
+  4: '#3b82f6', // azul - líder
+  5: '#22c55e', // verde - operação
+};
+
+/**
+ * Retorna o nível de acesso numérico de um role
+ * @param {string} role - Role do usuário (dev, director, admin, leader, user)
+ * @returns {number} - Nível de acesso (1-5)
+ */
+export function getUserAccessLevel(role) {
+  return ACCESS_LEVELS[role] || 5;
+}
+
+/**
+ * Busca todos os módulos (para admin)
+ * @returns {Promise<Array>}
+ */
+export async function fetchAllModules() {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(MODULES_TABLE)
+    .select('*')
+    .order('area')
+    .order('sort_order');
+
+  if (error) {
+    throw new Error(`Erro ao buscar módulos: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Busca módulos que o usuário pode acessar
+ * @param {string} email - Email do usuário
+ * @param {number} accessLevel - Nível de acesso do usuário (1-5)
+ * @returns {Promise<Array>}
+ */
+export async function fetchModulesForUser(email, accessLevel) {
+  const supabase = getSupabaseServiceClient();
+
+  // Buscar todos os módulos visíveis
+  const { data: modules, error } = await supabase
+    .from(MODULES_TABLE)
+    .select('*')
+    .eq('visible', true)
+    .order('sort_order');
+
+  if (error) {
+    throw new Error(`Erro ao buscar módulos: ${error.message}`);
+  }
+
+  // Buscar overrides para este usuário
+  const { data: overrides } = await supabase
+    .from(MODULE_OVERRIDES_TABLE)
+    .select('*')
+    .eq('user_email', email);
+
+  // Construir mapa de overrides
+  const overrideMap = {};
+  (overrides || []).forEach(o => {
+    overrideMap[o.module_id] = o.grant_access;
+  });
+
+  // Filtrar módulos baseado em nível de acesso e overrides
+  return (modules || []).filter(module => {
+    // Verificar override explícito primeiro
+    if (overrideMap[module.id] !== undefined) {
+      return overrideMap[module.id];
+    }
+    // Caso contrário, usar nível de acesso
+    return accessLevel <= module.min_access_level;
+  });
+}
+
+/**
+ * Busca módulos para exibir na Home
+ * @param {string} email - Email do usuário
+ * @param {number} accessLevel - Nível de acesso do usuário (1-5)
+ * @returns {Promise<Array>}
+ */
+export async function fetchHomeModulesForUser(email, accessLevel) {
+  const modules = await fetchModulesForUser(email, accessLevel);
+  return modules.filter(m => m.show_on_home);
+}
+
+/**
+ * Atualiza um módulo
+ * @param {string} moduleId - ID do módulo
+ * @param {Object} moduleData - Dados a atualizar
+ * @returns {Promise<Object>}
+ */
+export async function updateModuleUnified(moduleId, moduleData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(MODULES_TABLE)
+    .update({
+      ...moduleData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', moduleId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar módulo: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Cria um novo módulo
+ * @param {Object} moduleData - Dados do módulo
+ * @returns {Promise<Object>}
+ */
+export async function createModuleUnified(moduleData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(MODULES_TABLE)
+    .insert(moduleData)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar módulo: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Remove um módulo
+ * @param {string} moduleId - ID do módulo
+ */
+export async function deleteModuleUnified(moduleId) {
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase
+    .from(MODULES_TABLE)
+    .delete()
+    .eq('id', moduleId);
+
+  if (error) {
+    throw new Error(`Erro ao remover módulo: ${error.message}`);
+  }
+}
+
+/**
+ * Busca matriz de acesso (módulos vs níveis)
+ * @returns {Promise<Object>}
+ */
+export async function getAccessMatrix() {
+  const supabase = getSupabaseServiceClient();
+
+  // Buscar todos os módulos
+  const { data: modules, error: modulesError } = await supabase
+    .from(MODULES_TABLE)
+    .select('*')
+    .order('area')
+    .order('sort_order');
+
+  if (modulesError) {
+    throw new Error(`Erro ao buscar módulos: ${modulesError.message}`);
+  }
+
+  // Buscar todos os overrides
+  const { data: overrides, error: overridesError } = await supabase
+    .from(MODULE_OVERRIDES_TABLE)
+    .select('*');
+
+  if (overridesError) {
+    throw new Error(`Erro ao buscar overrides: ${overridesError.message}`);
+  }
+
+  // Agrupar por área
+  const matrix = {};
+  const roles = ['dev', 'director', 'admin', 'leader', 'user'];
+
+  (modules || []).forEach(m => {
+    if (!matrix[m.area]) matrix[m.area] = [];
+
+    const moduleAccess = {
+      id: m.id,
+      name: m.name,
+      path: m.path,
+      icon_name: m.icon_name,
+      color: m.color,
+      show_on_home: m.show_on_home,
+      min_access_level: m.min_access_level,
+      visible: m.visible,
+      access: {},
+      overrides: (overrides || []).filter(o => o.module_id === m.id),
+    };
+
+    roles.forEach(role => {
+      const level = ACCESS_LEVELS[role];
+      moduleAccess.access[role] = level <= m.min_access_level;
+    });
+
+    matrix[m.area].push(moduleAccess);
+  });
+
+  return {
+    matrix,
+    levels: ACCESS_LEVELS,
+    labels: ACCESS_LEVEL_LABELS,
+    colors: ACCESS_LEVEL_COLORS,
+  };
+}
+
+/**
+ * Busca todos os overrides de módulos
+ * @returns {Promise<Array>}
+ */
+export async function fetchModuleOverrides() {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(MODULE_OVERRIDES_TABLE)
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Erro ao buscar overrides: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Cria um override de módulo
+ * @param {Object} overrideData - {module_id, user_email?, position_id?, grant_access, created_by?}
+ * @returns {Promise<Object>}
+ */
+export async function createModuleOverride(overrideData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(MODULE_OVERRIDES_TABLE)
+    .insert(overrideData)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar override: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Remove um override de módulo
+ * @param {number} overrideId - ID do override
+ */
+export async function deleteModuleOverride(overrideId) {
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase
+    .from(MODULE_OVERRIDES_TABLE)
+    .delete()
+    .eq('id', overrideId);
+
+  if (error) {
+    throw new Error(`Erro ao remover override: ${error.message}`);
+  }
+}

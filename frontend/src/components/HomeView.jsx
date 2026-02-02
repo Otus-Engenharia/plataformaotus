@@ -2,11 +2,8 @@
  * Componente: Vista Inicial (Home)
  *
  * Tela principal com opções de navegação dinâmicas.
- * Módulos são carregados da API e filtrados por permissão:
- * - access_type 'all': todos os usuários (incluindo Operação)
- * - access_type 'leader_up': líder, admin, diretor, dev (exclui Operação)
- * - access_type 'privileged': dev/admin/diretor
- * - access_type 'dev_only': apenas devs
+ * Módulos são carregados da API já filtrados por permissão do usuário.
+ * O backend aplica os filtros baseado no nível de acesso do usuário.
  *
  * Mantém a identidade visual do login
  */
@@ -14,7 +11,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../api';
 import '../styles/HomeView.css';
 
@@ -63,19 +59,15 @@ const ICON_MAP = {
 
 function HomeView() {
   const navigate = useNavigate();
-  const { isDev, isAdmin, isDirector, isLeader } = useAuth();
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Níveis de acesso hierárquicos
-  const canSeePrivileged = isDev || isAdmin || isDirector;
-  const canSeeLeaderUp = isDev || isAdmin || isDirector || isLeader;
-
-  // Buscar módulos da API
+  // Buscar módulos da API (já filtrados pelo backend)
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/home-modules`, {
+        // Novo endpoint que já aplica filtros de permissão
+        const response = await axios.get(`${API_URL}/api/modules/home`, {
           withCredentials: true,
         });
         if (response.data?.success) {
@@ -83,8 +75,17 @@ function HomeView() {
         }
       } catch (error) {
         console.error('Erro ao buscar módulos da Home:', error);
-        // Em caso de erro, não mostra nada
-        setModules([]);
+        // Fallback para endpoint antigo em caso de erro
+        try {
+          const fallbackResponse = await axios.get(`${API_URL}/api/home-modules`, {
+            withCredentials: true,
+          });
+          if (fallbackResponse.data?.success) {
+            setModules(fallbackResponse.data.data || []);
+          }
+        } catch {
+          setModules([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -93,22 +94,9 @@ function HomeView() {
     fetchModules();
   }, []);
 
-  // Filtrar módulos baseado em visibilidade e permissões
-  const visibleModules = useMemo(() => {
-    return modules.filter(module => {
-      // Módulos ocultos não aparecem
-      if (!module.visible) return false;
-      // Filtrar por tipo de acesso
-      if (module.access_type === 'dev_only' && !isDev) return false;
-      if (module.access_type === 'privileged' && !canSeePrivileged) return false;
-      if (module.access_type === 'leader_up' && !canSeeLeaderUp) return false;
-      return true;
-    });
-  }, [modules, isDev, canSeePrivileged, canSeeLeaderUp]);
-
   // Mapear módulos para o formato de renderização
   const options = useMemo(() => {
-    return visibleModules.map(module => ({
+    return modules.map(module => ({
       id: module.id,
       title: module.name,
       description: module.description,
@@ -116,7 +104,7 @@ function HomeView() {
       path: module.path,
       color: module.color,
     }));
-  }, [visibleModules]);
+  }, [modules]);
 
   const handleOptionClick = (option) => {
     navigate(option.path);

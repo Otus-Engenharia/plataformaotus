@@ -49,8 +49,13 @@ import {
   fetchWorkspaceTasks, getWorkspaceTaskById, createWorkspaceTask, updateWorkspaceTask, deleteWorkspaceTask, reorderWorkspaceTasks,
   fetchProjectMembers, addProjectMember, updateProjectMemberRole, removeProjectMember,
   fetchProjectMessages, createProjectMessage, deleteProjectMessage,
-  // Home Modules
-  fetchHomeModules, updateHomeModule, createHomeModule, deleteHomeModule
+  // Home Modules (legacy)
+  fetchHomeModules, updateHomeModule, createHomeModule, deleteHomeModule,
+  // Unified Modules System
+  ACCESS_LEVELS, ACCESS_LEVEL_LABELS, ACCESS_LEVEL_COLORS, getUserAccessLevel,
+  fetchAllModules, fetchModulesForUser, fetchHomeModulesForUser,
+  updateModuleUnified, createModuleUnified, deleteModuleUnified,
+  getAccessMatrix, fetchModuleOverrides, createModuleOverride, deleteModuleOverride
 } from './supabase.js';
 
 const app = express();
@@ -4568,6 +4573,319 @@ app.delete('/api/admin/home-modules/:id', requireAuth, async (req, res) => {
     res.json({ success: true, message: 'Módulo removido com sucesso' });
   } catch (error) {
     console.error('❌ Erro ao remover módulo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// UNIFIED MODULES SYSTEM - Sistema unificado de permissões
+// ============================================
+
+/**
+ * GET /api/modules
+ * Retorna módulos que o usuário pode acessar
+ */
+app.get('/api/modules', requireAuth, async (req, res) => {
+  try {
+    const userRole = getUserRole(req.user.email) || 'user';
+    const accessLevel = getUserAccessLevel(userRole);
+    const modules = await fetchModulesForUser(req.user.email, accessLevel);
+    res.json({ success: true, data: modules });
+  } catch (error) {
+    console.error('❌ Erro ao buscar módulos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/modules/home
+ * Retorna módulos para exibir na Home
+ */
+app.get('/api/modules/home', requireAuth, async (req, res) => {
+  try {
+    const userRole = getUserRole(req.user.email) || 'user';
+    const accessLevel = getUserAccessLevel(userRole);
+    const modules = await fetchHomeModulesForUser(req.user.email, accessLevel);
+    res.json({ success: true, data: modules });
+  } catch (error) {
+    console.error('❌ Erro ao buscar módulos da home:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/modules
+ * Retorna todos os módulos (admin/privilegiado)
+ */
+app.get('/api/admin/modules', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+    const modules = await fetchAllModules();
+    res.json({ success: true, data: modules });
+  } catch (error) {
+    console.error('❌ Erro ao buscar todos os módulos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/modules/access-matrix
+ * Retorna matriz de acesso (módulos vs níveis)
+ */
+app.get('/api/admin/modules/access-matrix', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+    const matrix = await getAccessMatrix();
+    res.json({ success: true, data: matrix });
+  } catch (error) {
+    console.error('❌ Erro ao buscar matriz de acesso:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/admin/modules/:id
+ * Atualiza um módulo (admin/privilegiado)
+ */
+app.put('/api/admin/modules/:id', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { id } = req.params;
+    const { name, description, path, icon_name, color, visible, show_on_home, min_access_level, sort_order, area } = req.body;
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (path !== undefined) updateData.path = path;
+    if (icon_name !== undefined) updateData.icon_name = icon_name;
+    if (color !== undefined) updateData.color = color;
+    if (visible !== undefined) updateData.visible = visible;
+    if (show_on_home !== undefined) updateData.show_on_home = show_on_home;
+    if (min_access_level !== undefined) updateData.min_access_level = min_access_level;
+    if (sort_order !== undefined) updateData.sort_order = sort_order;
+    if (area !== undefined) updateData.area = area;
+
+    const module = await updateModuleUnified(id, updateData);
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.displayName || req.user.email,
+      action: 'update',
+      entity_type: 'module',
+      entity_id: id,
+      details: `Módulo atualizado: ${module.name}`,
+      metadata: updateData,
+    });
+
+    res.json({ success: true, data: module });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar módulo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/modules
+ * Cria um novo módulo (dev only)
+ */
+app.post('/api/admin/modules', requireAuth, async (req, res) => {
+  try {
+    if (!isDev(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas desenvolvedores podem criar módulos',
+      });
+    }
+
+    const { id, name, description, icon_name, path, color, visible, show_on_home, min_access_level, sort_order, area } = req.body;
+
+    if (!id || !name || !path || !area) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos obrigatórios: id, name, path, area',
+      });
+    }
+
+    const module = await createModuleUnified({
+      id,
+      name,
+      description: description || null,
+      icon_name: icon_name || null,
+      path,
+      color: color || '#4285F4',
+      visible: visible !== false,
+      show_on_home: show_on_home || false,
+      min_access_level: min_access_level || 5,
+      sort_order: sort_order || 0,
+      area,
+    });
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.displayName || req.user.email,
+      action: 'create',
+      entity_type: 'module',
+      entity_id: module.id,
+      details: `Módulo criado: ${module.name}`,
+    });
+
+    res.json({ success: true, data: module });
+  } catch (error) {
+    console.error('❌ Erro ao criar módulo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/modules/:id
+ * Remove um módulo (dev only)
+ */
+app.delete('/api/admin/modules/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isDev(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas desenvolvedores podem remover módulos',
+      });
+    }
+
+    const { id } = req.params;
+    await deleteModuleUnified(id);
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.displayName || req.user.email,
+      action: 'delete',
+      entity_type: 'module',
+      entity_id: id,
+      details: `Módulo removido: ${id}`,
+    });
+
+    res.json({ success: true, message: 'Módulo removido com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao remover módulo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/module-overrides
+ * Lista todas as exceções de módulos
+ */
+app.get('/api/admin/module-overrides', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+    const overrides = await fetchModuleOverrides();
+    res.json({ success: true, data: overrides });
+  } catch (error) {
+    console.error('❌ Erro ao buscar overrides:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/module-overrides
+ * Cria uma exceção de módulo
+ */
+app.post('/api/admin/module-overrides', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { module_id, user_email, position_id, grant_access } = req.body;
+
+    if (!module_id || grant_access === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos obrigatórios: module_id, grant_access',
+      });
+    }
+
+    if (!user_email && !position_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'É necessário informar user_email ou position_id',
+      });
+    }
+
+    const override = await createModuleOverride({
+      module_id,
+      user_email: user_email || null,
+      position_id: position_id || null,
+      grant_access,
+      created_by: req.user.email,
+    });
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.displayName || req.user.email,
+      action: 'create',
+      entity_type: 'module_override',
+      entity_id: override.id,
+      details: `Override criado para módulo ${module_id}`,
+      metadata: { module_id, user_email, position_id, grant_access },
+    });
+
+    res.json({ success: true, data: override });
+  } catch (error) {
+    console.error('❌ Erro ao criar override:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/module-overrides/:id
+ * Remove uma exceção de módulo
+ */
+app.delete('/api/admin/module-overrides/:id', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { id } = req.params;
+    await deleteModuleOverride(id);
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.displayName || req.user.email,
+      action: 'delete',
+      entity_type: 'module_override',
+      entity_id: id,
+      details: `Override removido: ${id}`,
+    });
+
+    res.json({ success: true, message: 'Override removido com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao remover override:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
