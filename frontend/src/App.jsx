@@ -19,6 +19,7 @@ import EstudoCustosView from './components/EstudoCustosView';
 import HorasView from './components/HorasView';
 import FormularioPassagemView from './components/FormularioPassagemView';
 // FeedbacksView removido - substituído por FeedbackKanbanView e FeedbackAdminView (lazy loaded)
+import ContatosView from './components/ContatosView';
 import LogsView from './components/LogsView';
 import HomeView from './components/HomeView';
 import Login from './components/Login';
@@ -844,12 +845,7 @@ function AppContent() {
               path="/contatos"
               element={
                 <ProtectedRoute>
-                  {canAccessProjetosArea ? (
-                    <div style={{ padding: '2rem', textAlign: 'center' }}>
-                      <h2>Contatos</h2>
-                      <p>Esta funcionalidade será implementada em breve.</p>
-                    </div>
-                  ) : <Navigate to="/ind" replace />}
+                  {canAccessProjetosArea ? <ContatosView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />

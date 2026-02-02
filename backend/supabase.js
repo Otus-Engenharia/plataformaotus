@@ -3889,3 +3889,501 @@ export async function deleteModuleOverride(overrideId) {
     throw new Error(`Erro ao remover override: ${error.message}`);
   }
 }
+
+// ============================================
+// EQUIPE DO PROJETO (project_disciplines)
+// ============================================
+
+/**
+ * Busca a equipe/disciplinas de um projeto com joins nas tabelas relacionadas
+ * @param {string} construflowId - ID do projeto no Construflow (de project_features)
+ * @returns {Promise<Array>}
+ */
+export async function fetchProjectDisciplines(construflowId) {
+  if (!construflowId) return [];
+
+  const supabase = getSupabaseClient();
+
+  const { data: projectFeature, error: projectError } = await supabase
+    .from('project_features')
+    .select('project_id')
+    .eq('construflow_id', construflowId)
+    .single();
+
+  if (projectError || !projectFeature) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('project_disciplines')
+    .select(`
+      id,
+      project_id,
+      discipline_id,
+      company_id,
+      contact_id,
+      discipline_detail,
+      email,
+      phone,
+      position,
+      status,
+      created_at,
+      update_at,
+      project:project_id(id, name, project_code),
+      discipline:discipline_id(id, discipline_name, short_name),
+      company:company_id(id, name, status),
+      contact:contact_id(id, name, email, phone, position)
+    `)
+    .eq('project_id', projectFeature.project_id)
+    .eq('status', 'ativo');
+
+  if (error) {
+    throw new Error(`Erro ao buscar equipe do projeto: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca o ID interno do projeto pelo construflow_id
+ */
+export async function getProjectIdByConstruflow(construflowId) {
+  if (!construflowId) return null;
+
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('project_features')
+    .select('project_id')
+    .eq('construflow_id', construflowId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.project_id;
+}
+
+/**
+ * Busca todas as disciplinas padrão disponíveis
+ */
+export async function fetchStandardDisciplines() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('standard_disciplines')
+    .select('id, discipline_name, short_name, status')
+    .eq('status', 'validado')
+    .order('discipline_name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar disciplinas: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca todas as empresas disponíveis
+ */
+export async function fetchCompanies() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id, name, company_type, status')
+    .in('status', ['validado', 'pendente'])
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar empresas: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca todos os contatos disponíveis
+ */
+export async function fetchContacts() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .select(`
+      id,
+      name,
+      email,
+      phone,
+      position,
+      company_id,
+      company:company_id(id, name)
+    `)
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar contatos: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Adiciona uma disciplina/equipe a um projeto
+ */
+export async function createProjectDiscipline(disciplineData) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('project_disciplines')
+    .insert({
+      project_id: disciplineData.project_id,
+      discipline_id: disciplineData.discipline_id,
+      company_id: disciplineData.company_id || null,
+      contact_id: disciplineData.contact_id || null,
+      discipline_detail: disciplineData.discipline_detail || null,
+      email: disciplineData.email || null,
+      phone: disciplineData.phone || null,
+      position: disciplineData.position || null,
+      status: 'ativo',
+    })
+    .select(`
+      id,
+      project_id,
+      discipline_id,
+      company_id,
+      contact_id,
+      discipline_detail,
+      email,
+      phone,
+      position,
+      status,
+      created_at,
+      update_at,
+      project:project_id(id, name, project_code),
+      discipline:discipline_id(id, discipline_name, short_name),
+      company:company_id(id, name, status),
+      contact:contact_id(id, name, email, phone, position)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao adicionar equipe: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza uma disciplina/equipe de um projeto
+ */
+export async function updateProjectDiscipline(id, disciplineData) {
+  const supabase = getSupabaseClient();
+
+  const updateData = {
+    update_at: new Date().toISOString(),
+  };
+
+  if (disciplineData.contact_id !== undefined) {
+    updateData.contact_id = disciplineData.contact_id || null;
+  }
+  if (disciplineData.discipline_detail !== undefined) {
+    updateData.discipline_detail = disciplineData.discipline_detail || null;
+  }
+  if (disciplineData.email !== undefined) {
+    updateData.email = disciplineData.email || null;
+  }
+  if (disciplineData.phone !== undefined) {
+    updateData.phone = disciplineData.phone || null;
+  }
+  if (disciplineData.position !== undefined) {
+    updateData.position = disciplineData.position || null;
+  }
+  if (disciplineData.discipline_id !== undefined) {
+    updateData.discipline_id = disciplineData.discipline_id;
+  }
+  if (disciplineData.company_id !== undefined) {
+    updateData.company_id = disciplineData.company_id || null;
+  }
+
+  const { data, error } = await supabase
+    .from('project_disciplines')
+    .update(updateData)
+    .eq('id', id)
+    .select(`
+      id,
+      project_id,
+      discipline_id,
+      company_id,
+      contact_id,
+      discipline_detail,
+      email,
+      phone,
+      position,
+      status,
+      created_at,
+      update_at,
+      project:project_id(id, name, project_code),
+      discipline:discipline_id(id, discipline_name, short_name),
+      company:company_id(id, name, status),
+      contact:contact_id(id, name, email, phone, position)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar equipe: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Desativa uma disciplina/equipe de um projeto (soft delete)
+ */
+export async function deleteProjectDiscipline(id) {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase
+    .from('project_disciplines')
+    .update({
+      status: 'desativado',
+      update_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Erro ao desativar equipe: ${error.message}`);
+  }
+}
+
+// ============================================
+// VISTA DE CONTATOS (Agregação por Disciplina/Empresa)
+// ============================================
+
+/**
+ * Busca todas as disciplinas padrão para filtro
+ */
+export async function fetchAllDisciplines() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('standard_disciplines')
+    .select('id, discipline_name, short_name, status')
+    .order('discipline_name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar disciplinas: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca todas as empresas para filtro
+ */
+export async function fetchAllCompanies() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id, name, company_type, status')
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar empresas: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca todos os projetos para filtro
+ */
+export async function fetchAllProjects() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, name, project_code, status, sector')
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar projetos: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Busca dados agregados de disciplina/empresa com contagem de projetos
+ */
+export async function fetchDisciplineCompanyAggregation(filters = {}) {
+  const supabase = getSupabaseClient();
+
+  let query = supabase
+    .from('project_disciplines')
+    .select('discipline_id, company_id, project_id')
+    .eq('status', 'ativo');
+
+  if (filters.discipline_id) {
+    query = query.eq('discipline_id', filters.discipline_id);
+  }
+  if (filters.company_id) {
+    query = query.eq('company_id', filters.company_id);
+  }
+  if (filters.project_id) {
+    query = query.eq('project_id', filters.project_id);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao buscar dados de contatos: ${error.message}`);
+  }
+
+  const [disciplinesRes, companiesRes] = await Promise.all([
+    supabase.from('standard_disciplines').select('id, discipline_name, short_name'),
+    supabase.from('companies').select('id, name, status'),
+  ]);
+
+  const disciplinesMap = new Map();
+  for (const d of disciplinesRes.data || []) {
+    disciplinesMap.set(d.id, d);
+  }
+
+  const companiesMap = new Map();
+  for (const c of companiesRes.data || []) {
+    companiesMap.set(c.id, c);
+  }
+
+  const aggregationMap = new Map();
+
+  for (const item of data || []) {
+    const discipline = disciplinesMap.get(item.discipline_id);
+    const company = companiesMap.get(item.company_id);
+
+    if (!discipline || !company) continue;
+
+    const key = `${item.discipline_id}-${item.company_id}`;
+
+    if (!aggregationMap.has(key)) {
+      aggregationMap.set(key, {
+        discipline_id: item.discipline_id,
+        company_id: item.company_id,
+        discipline_name: discipline.discipline_name || '',
+        discipline_short_name: discipline.short_name || '',
+        company_name: company.name || '',
+        company_status: company.status || '',
+        projects: new Set(),
+      });
+    }
+
+    if (item.project_id) {
+      aggregationMap.get(key).projects.add(item.project_id);
+    }
+  }
+
+  const result = Array.from(aggregationMap.values()).map((item) => ({
+    discipline_id: item.discipline_id,
+    company_id: item.company_id,
+    discipline_name: item.discipline_name,
+    discipline_short_name: item.discipline_short_name,
+    company_name: item.company_name,
+    company_status: item.company_status,
+    project_count: item.projects.size,
+  }));
+
+  result.sort((a, b) => {
+    const discComp = a.discipline_name.localeCompare(b.discipline_name, 'pt-BR');
+    if (discComp !== 0) return discComp;
+    return a.company_name.localeCompare(b.company_name, 'pt-BR');
+  });
+
+  return result;
+}
+
+/**
+ * Busca detalhes de contatos e projetos para uma combinação disciplina/empresa
+ */
+export async function fetchDisciplineCompanyDetails(disciplineId, companyId) {
+  const supabase = getSupabaseClient();
+
+  const { data: records, error: recordsError } = await supabase
+    .from('project_disciplines')
+    .select('id, project_id, contact_id, email, phone, position, discipline_detail')
+    .eq('discipline_id', disciplineId)
+    .eq('company_id', companyId)
+    .eq('status', 'ativo');
+
+  if (recordsError) {
+    throw new Error(`Erro ao buscar detalhes: ${recordsError.message}`);
+  }
+
+  const projectIds = [...new Set((records || []).map(r => r.project_id).filter(Boolean))];
+  const contactIds = [...new Set((records || []).map(r => r.contact_id).filter(Boolean))];
+
+  const [discResult, compResult, projectsResult, contactsResult] = await Promise.all([
+    supabase.from('standard_disciplines').select('id, discipline_name, short_name').eq('id', disciplineId).single(),
+    supabase.from('companies').select('id, name, status').eq('id', companyId).single(),
+    projectIds.length > 0
+      ? supabase.from('projects').select('id, name, project_code').in('id', projectIds)
+      : Promise.resolve({ data: [] }),
+    contactIds.length > 0
+      ? supabase.from('contacts').select('id, name, email, phone, position').in('id', contactIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const contactsMap = new Map();
+  for (const c of contactsResult.data || []) {
+    contactsMap.set(c.id, c);
+  }
+
+  const projectsMap = new Map();
+  for (const p of projectsResult.data || []) {
+    projectsMap.set(p.id, p);
+  }
+
+  const enrichedContacts = [];
+  const seenContactIds = new Set();
+  const projectContactMap = new Map();
+
+  for (const record of records || []) {
+    if (record.project_id && record.contact_id) {
+      const contactName = contactsMap.get(record.contact_id)?.name || '';
+      if (!projectContactMap.has(record.project_id)) {
+        projectContactMap.set(record.project_id, []);
+      }
+      const existingContacts = projectContactMap.get(record.project_id);
+      if (!existingContacts.includes(contactName) && contactName) {
+        existingContacts.push(contactName);
+      }
+    }
+
+    if (!record.contact_id || seenContactIds.has(record.contact_id)) continue;
+    seenContactIds.add(record.contact_id);
+
+    const baseContact = contactsMap.get(record.contact_id) || {};
+    enrichedContacts.push({
+      id: record.contact_id,
+      name: baseContact.name || '',
+      email: record.email || baseContact.email || '',
+      phone: record.phone || baseContact.phone || '',
+      position: record.position || baseContact.position || '',
+    });
+  }
+
+  const enrichedProjects = (projectsResult.data || []).map((p) => ({
+    id: p.id,
+    name: p.name || '',
+    project_code: p.project_code || '',
+    contact_names: projectContactMap.get(p.id) || [],
+  }));
+
+  return {
+    discipline: discResult.data || { id: disciplineId, discipline_name: '', short_name: '' },
+    company: compResult.data || { id: companyId, name: '', status: '' },
+    contacts: enrichedContacts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR')),
+    projects: enrichedProjects.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR')),
+  };
+}

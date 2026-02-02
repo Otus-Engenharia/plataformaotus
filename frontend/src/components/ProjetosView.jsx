@@ -12,6 +12,7 @@ import ApontamentosView from './ApontamentosView';
 import PortfolioProjetoView from './PortfolioProjetoView';
 import FerramentasView from './FerramentasView';
 import CronogramaView from './CronogramaView';
+import EquipeView from './EquipeView';
 import { API_URL } from '../api';
 import '../styles/ProjetosView.css';
 
@@ -100,6 +101,11 @@ const SUBVIEWS = {
     id: 'apontamentos',
     name: 'Apontamentos',
     component: ApontamentosView,
+  },
+  equipe: {
+    id: 'equipe',
+    name: 'Equipe',
+    component: EquipeView,
   },
 };
 
@@ -296,9 +302,13 @@ function ProjetosView() {
               selectedProjectId={selectedProjectId}
             />
           ) : activeSubview === 'cronograma' ? (
-            <SubviewComponent 
+            <SubviewComponent
               selectedProjectId={selectedProjectId}
               portfolio={portfolio}
+            />
+          ) : activeSubview === 'equipe' ? (
+            <SubviewComponent
+              selectedProjectId={selectedProjectId}
             />
           ) : (
             <SubviewComponent />

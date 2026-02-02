@@ -55,7 +55,14 @@ import {
   ACCESS_LEVELS, ACCESS_LEVEL_LABELS, ACCESS_LEVEL_COLORS, getUserAccessLevel,
   fetchAllModules, fetchModulesForUser, fetchHomeModulesForUser,
   updateModuleUnified, createModuleUnified, deleteModuleUnified,
-  getAccessMatrix, fetchModuleOverrides, createModuleOverride, deleteModuleOverride
+  getAccessMatrix, fetchModuleOverrides, createModuleOverride, deleteModuleOverride,
+  // Equipe do projeto
+  fetchProjectDisciplines, fetchStandardDisciplines, fetchCompanies, fetchContacts,
+  createProjectDiscipline, updateProjectDiscipline, deleteProjectDiscipline,
+  getProjectIdByConstruflow,
+  // Vista de Contatos
+  fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
+  fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails
 } from './supabase.js';
 
 const app = express();
@@ -4886,6 +4893,244 @@ app.delete('/api/admin/module-overrides/:id', requireAuth, async (req, res) => {
     res.json({ success: true, message: 'Override removido com sucesso' });
   } catch (error) {
     console.error('❌ Erro ao remover override:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// ROTAS - EQUIPE DO PROJETO
+// ============================================
+
+/**
+ * Rota: GET /api/projetos/equipe
+ * Retorna a equipe/disciplinas de um projeto
+ */
+app.get('/api/projetos/equipe', requireAuth, async (req, res) => {
+  try {
+    const projectId = req.query.projectId;
+    if (!projectId) {
+      return res.status(400).json({ success: false, error: 'projectId é obrigatório' });
+    }
+
+    const data = await fetchProjectDisciplines(projectId);
+    res.json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar equipe do projeto:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/projetos/equipe/disciplinas
+ * Retorna todas as disciplinas padrão disponíveis
+ */
+app.get('/api/projetos/equipe/disciplinas', requireAuth, async (req, res) => {
+  try {
+    const data = await fetchStandardDisciplines();
+    res.json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar disciplinas:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/projetos/equipe/empresas
+ * Retorna todas as empresas disponíveis
+ */
+app.get('/api/projetos/equipe/empresas', requireAuth, async (req, res) => {
+  try {
+    const data = await fetchCompanies();
+    res.json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar empresas:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/projetos/equipe/contatos
+ * Retorna todos os contatos disponíveis
+ */
+app.get('/api/projetos/equipe/contatos', requireAuth, async (req, res) => {
+  try {
+    const data = await fetchContacts();
+    res.json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar contatos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/projetos/equipe
+ * Adiciona uma disciplina/equipe a um projeto
+ */
+app.post('/api/projetos/equipe', requireAuth, async (req, res) => {
+  try {
+    const { construflow_id, discipline_id, company_id, contact_id, discipline_detail } = req.body;
+
+    if (!construflow_id || !discipline_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'construflow_id e discipline_id são obrigatórios'
+      });
+    }
+
+    const projectId = await getProjectIdByConstruflow(construflow_id);
+    if (!projectId) {
+      return res.status(404).json({
+        success: false,
+        error: 'Projeto não encontrado no Supabase'
+      });
+    }
+
+    const data = await createProjectDiscipline({
+      project_id: projectId,
+      discipline_id,
+      company_id,
+      contact_id,
+      discipline_detail
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao adicionar equipe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/projetos/equipe/:id
+ * Atualiza uma disciplina/equipe de um projeto
+ */
+app.put('/api/projetos/equipe/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { discipline_id, company_id, contact_id, discipline_detail } = req.body;
+
+    if (!discipline_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'discipline_id é obrigatório'
+      });
+    }
+
+    const data = await updateProjectDiscipline(id, {
+      discipline_id,
+      company_id,
+      contact_id,
+      discipline_detail
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar equipe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/projetos/equipe/:id
+ * Remove uma disciplina/equipe de um projeto
+ */
+app.delete('/api/projetos/equipe/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await deleteProjectDiscipline(id);
+    res.json({ success: true, message: 'Equipe removida com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao remover equipe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// ROTAS: VISTA DE CONTATOS
+// ==========================================
+
+/**
+ * Rota: GET /api/contatos/agregado
+ * Retorna dados agregados de disciplina/empresa com contagem de projetos
+ */
+app.get('/api/contatos/agregado', requireAuth, async (req, res) => {
+  try {
+    const { discipline_id, company_id, project_id } = req.query;
+    const filters = {};
+
+    if (discipline_id) filters.discipline_id = discipline_id;
+    if (company_id) filters.company_id = company_id;
+    if (project_id) filters.project_id = project_id;
+
+    const data = await fetchDisciplineCompanyAggregation(filters);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar dados agregados de contatos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/contatos/detalhes
+ * Retorna detalhes de contatos e projetos para uma combinação disciplina/empresa
+ */
+app.get('/api/contatos/detalhes', requireAuth, async (req, res) => {
+  try {
+    const { discipline_id, company_id } = req.query;
+
+    if (!discipline_id || !company_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'discipline_id e company_id são obrigatórios'
+      });
+    }
+
+    const data = await fetchDisciplineCompanyDetails(discipline_id, company_id);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar detalhes de contatos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/contatos/filtros/disciplinas
+ * Retorna lista de todas as disciplinas para o filtro
+ */
+app.get('/api/contatos/filtros/disciplinas', requireAuth, async (req, res) => {
+  try {
+    const data = await fetchAllDisciplines();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar disciplinas para filtro:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/contatos/filtros/empresas
+ * Retorna lista de todas as empresas para o filtro
+ */
+app.get('/api/contatos/filtros/empresas', requireAuth, async (req, res) => {
+  try {
+    const data = await fetchAllCompanies();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar empresas para filtro:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/contatos/filtros/projetos
+ * Retorna lista de todos os projetos para o filtro
+ */
+app.get('/api/contatos/filtros/projetos', requireAuth, async (req, res) => {
+  try {
+    const data = await fetchAllProjects();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar projetos para filtro:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
