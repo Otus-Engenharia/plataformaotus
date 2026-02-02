@@ -122,8 +122,21 @@ function OperacaoView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [teamFilter, setTeamFilter] = useState('all');
   const [cargoFilter, setCargoFilter] = useState('all');
+  const [accessFilter, setAccessFilter] = useState('all');
+  const [leaderFilter, setLeaderFilter] = useState('');
   const [userViews, setUserViews] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // === DADOS PARA EDICAO DE USUARIO ===
+  const [sectors, setSectors] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+
+  // === MODAL DE EDICAO DE USUARIO ===
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({ sector_id: '', position_id: '', role: '', leader_id: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // === VIEWS CATALOG STATE ===
   const [availableViews, setAvailableViews] = useState([]);
@@ -194,16 +207,61 @@ function OperacaoView() {
     }
   };
 
+  const fetchSectors = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/ind/sectors`, {
+        withCredentials: true,
+      });
+      if (response.data?.success) {
+        setSectors(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar setores:', err);
+    }
+  };
+
+  const fetchPositions = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/ind/positions`, {
+        withCredentials: true,
+      });
+      if (response.data?.success) {
+        setPositions(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar cargos:', err);
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/ind/admin/users`, {
+        withCredentials: true,
+      });
+      if (response.data?.success) {
+        setAllUsers(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar usuarios:', err);
+    }
+  };
+
   const refreshAll = useCallback(() => {
     fetchViews();
     fetchAccessData();
     fetchUserViews();
+    fetchSectors();
+    fetchPositions();
+    fetchAllUsers();
   }, []);
 
   useEffect(() => {
     fetchViews();
     fetchAccessData();
     fetchUserViews();
+    fetchSectors();
+    fetchPositions();
+    fetchAllUsers();
   }, []);
 
   // === COMPUTED VALUES (memos) ===
@@ -230,6 +288,30 @@ function OperacaoView() {
     return Array.from(cargos).sort();
   }, [data]);
 
+  const uniqueAccessLevels = useMemo(() => {
+    const levels = new Set();
+    data.forEach((row) => {
+      if (row.nivel_acesso) levels.add(row.nivel_acesso);
+    });
+    return Array.from(levels).sort();
+  }, [data]);
+
+  const uniqueLeaders = useMemo(() => {
+    const leaders = new Set();
+    data.forEach((row) => {
+      if (row.lider) leaders.add(row.lider);
+    });
+    return Array.from(leaders).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [data]);
+
+  const potentialLeaders = useMemo(() => {
+    return allUsers.filter(u => {
+      const hasLeaderRole = u.role === 'leader' || u.role === 'admin' || u.role === 'director';
+      const isLeadershipPosition = u.cargo?.is_leadership === true;
+      return hasLeaderRole || isLeadershipPosition;
+    });
+  }, [allUsers]);
+
   const filteredData = useMemo(() => {
     let filtered = [...data];
 
@@ -244,17 +326,25 @@ function OperacaoView() {
       filtered = filtered.filter((row) => row.cargo === cargoFilter);
     }
 
+    if (accessFilter !== 'all') {
+      filtered = filtered.filter((row) => row.nivel_acesso === accessFilter);
+    }
+
+    if (leaderFilter) {
+      filtered = filtered.filter((row) => row.lider === leaderFilter);
+    }
+
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter((row) => {
-        return [row.colaborador, row.email, row.cargo, row.time_nome, row.nivel_acesso]
+        return [row.colaborador, row.email, row.cargo, row.time_nome, row.nivel_acesso, row.lider]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(term));
       });
     }
 
     return filtered;
-  }, [data, teamFilter, cargoFilter, searchTerm]);
+  }, [data, teamFilter, cargoFilter, accessFilter, leaderFilter, searchTerm]);
 
   // Summary stats
   const summaryStats = useMemo(() => {
@@ -318,9 +408,72 @@ function OperacaoView() {
     setSearchTerm('');
     setTeamFilter('all');
     setCargoFilter('all');
+    setAccessFilter('all');
+    setLeaderFilter('');
   };
 
-  const hasActiveFilters = searchTerm || teamFilter !== 'all' || cargoFilter !== 'all';
+  const hasActiveFilters = searchTerm || teamFilter !== 'all' || cargoFilter !== 'all' ||
+                           accessFilter !== 'all' || leaderFilter !== '';
+
+  // === FUNCOES DE EDICAO DE USUARIO ===
+  const handleOpenEditUserModal = (row) => {
+    const user = allUsers.find(u => u.email === row.email);
+    if (!user) {
+      alert('Usuario nao encontrado para edicao. Tente atualizar a pagina.');
+      return;
+    }
+
+    setEditingUser(user);
+    setEditForm({
+      sector_id: user.setor?.id || '',
+      position_id: user.cargo?.id || '',
+      role: user.role || 'user',
+      leader_id: user.leader?.id || ''
+    });
+    setShowEditUserModal(true);
+  };
+
+  const handleEditUserSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setIsSubmitting(true);
+    try {
+      await axios.put(
+        `${API_URL}/api/ind/admin/users/${editingUser.id}/sector`,
+        { sector_id: editForm.sector_id || null },
+        { withCredentials: true }
+      );
+
+      await axios.put(
+        `${API_URL}/api/ind/admin/users/${editingUser.id}/position`,
+        { position_id: editForm.position_id || null },
+        { withCredentials: true }
+      );
+
+      await axios.put(
+        `${API_URL}/api/ind/admin/users/${editingUser.id}/role`,
+        { role: editForm.role },
+        { withCredentials: true }
+      );
+
+      await axios.put(
+        `${API_URL}/api/ind/admin/users/${editingUser.id}/leader`,
+        { leader_id: editForm.leader_id || null },
+        { withCredentials: true }
+      );
+
+      setShowEditUserModal(false);
+      setEditingUser(null);
+
+      await fetchAccessData();
+      await fetchAllUsers();
+    } catch (err) {
+      alert('Erro ao atualizar usuario: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Helper to get view name by id
   const getViewName = useCallback(
@@ -461,6 +614,38 @@ function OperacaoView() {
               </div>
 
               <div className="filter-group">
+                <label className="filter-label">Nivel de Acesso</label>
+                <select
+                  className="filter-select"
+                  value={accessFilter}
+                  onChange={(e) => setAccessFilter(e.target.value)}
+                >
+                  <option value="all">Todos os niveis</option>
+                  {uniqueAccessLevels.map((level) => (
+                    <option key={level} value={level}>
+                      {ACCESS_LABELS[level] || level}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label className="filter-label">Lider</label>
+                <select
+                  className="filter-select"
+                  value={leaderFilter}
+                  onChange={(e) => setLeaderFilter(e.target.value)}
+                >
+                  <option value="">Todos os lideres</option>
+                  {uniqueLeaders.map((leader) => (
+                    <option key={leader} value={leader}>
+                      {leader}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
                 <label className="filter-label">Buscar</label>
                 <div className="search-wrapper">
                   <span className="search-icon"><Icons.Search /></span>
@@ -582,13 +767,22 @@ function OperacaoView() {
 
                         {/* Acoes */}
                         <td>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleOpenViewsModal(row.email, row.colaborador)}
-                            title="Editar permissoes"
-                          >
-                            <Icons.Edit />
-                          </button>
+                          <div className="action-buttons">
+                            <button
+                              className="btn-icon"
+                              onClick={() => handleOpenEditUserModal(row)}
+                              title="Editar dados do usuario"
+                            >
+                              <Icons.Settings />
+                            </button>
+                            <button
+                              className="btn-icon"
+                              onClick={() => handleOpenViewsModal(row.email, row.colaborador)}
+                              title="Editar permissoes de vistas"
+                            >
+                              <Icons.Edit />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -689,6 +883,118 @@ function OperacaoView() {
                 {saving ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Dados do Usuario */}
+      {showEditUserModal && editingUser && (
+        <div className="modal-overlay" onClick={() => setShowEditUserModal(false)}>
+          <div className="modal-content user-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-user-info">
+                <div className="user-avatar modal-avatar">{getInitials(editingUser.name)}</div>
+                <div>
+                  <h3>{editingUser.name}</h3>
+                  <p>{editingUser.email}</p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleEditUserSubmit} className="modal-body">
+              {/* Papel de Acesso */}
+              <div className="form-field">
+                <label className="form-label">Papel de Acesso</label>
+                <div className="role-selector">
+                  {[
+                    { value: 'user', label: 'Usuario', desc: 'Acesso basico' },
+                    { value: 'leader', label: 'Lider', desc: 'Gerencia equipe' },
+                    { value: 'admin', label: 'Admin', desc: 'Acesso total' },
+                    ...(isDev ? [{ value: 'dev', label: 'Dev', desc: 'Desenvolvedor' }] : [])
+                  ].map(opt => (
+                    <label
+                      key={opt.value}
+                      className={`role-option ${editForm.role === opt.value ? 'selected' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="role"
+                        value={opt.value}
+                        checked={editForm.role === opt.value}
+                        onChange={e => setEditForm({...editForm, role: e.target.value})}
+                      />
+                      <span className={`role-indicator role-${opt.value}`}></span>
+                      <div>
+                        <span className="role-label">{opt.label}</span>
+                        <span className="role-desc">{opt.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Setor e Cargo */}
+              <div className="form-row">
+                <div className="form-field">
+                  <label className="form-label">Setor</label>
+                  <select
+                    className="form-select"
+                    value={editForm.sector_id}
+                    onChange={e => setEditForm({...editForm, sector_id: e.target.value})}
+                  >
+                    <option value="">Selecione...</option>
+                    {sectors.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">Cargo</label>
+                  <select
+                    className="form-select"
+                    value={editForm.position_id}
+                    onChange={e => setEditForm({...editForm, position_id: e.target.value})}
+                  >
+                    <option value="">Selecione...</option>
+                    {positions.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Lider */}
+              <div className="form-field">
+                <label className="form-label">Lider</label>
+                <select
+                  className="form-select"
+                  value={editForm.leader_id}
+                  onChange={e => setEditForm({...editForm, leader_id: e.target.value})}
+                >
+                  <option value="">Sem lider</option>
+                  {potentialLeaders
+                    .filter(l => l.id !== editingUser?.id)
+                    .map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => setShowEditUserModal(false)}
+                  disabled={isSubmitting}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-save" disabled={isSubmitting}>
+                  {isSubmitting ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

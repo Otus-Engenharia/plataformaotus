@@ -5,7 +5,6 @@
  * - Permissões: Sistema unificado de permissões (matriz de acesso, módulos, exceções)
  * - Usuários: Gerenciamento de usuários e níveis de acesso
  * - Clientes: Configurações de clientes
- * - Feedbacks: Gerenciamento de feedbacks da plataforma
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -14,7 +13,6 @@ import { useAuth } from '../contexts/AuthContext';
 import PermissoesView from './PermissoesView';
 import OperacaoView from './OperacaoView';
 import ClientesView from './ClientesView';
-import FeedbackAdminView from '../pages/feedbacks/FeedbackAdminView';
 import '../styles/ConfiguracoesView.css';
 
 function ConfiguracoesView() {
@@ -31,7 +29,6 @@ function ConfiguracoesView() {
       { id: 'permissoes', label: 'Permissões', component: PermissoesView },
       { id: 'usuarios', label: 'Usuários', component: OperacaoView },
       { id: 'clientes', label: 'Clientes', component: ClientesView },
-      { id: 'feedbacks', label: 'Feedbacks', component: FeedbackAdminView },
     ];
     return baseTabs;
   }, []);

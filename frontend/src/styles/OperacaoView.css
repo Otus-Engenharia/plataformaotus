@@ -296,18 +296,25 @@
 
 /* ========== TABELA DE USUARIOS ========== */
 .operacao-table-wrapper {
-  overflow: auto;
+  max-height: 520px;
+  overflow-y: auto;
+  overflow-x: auto;
+  position: relative;
 }
 
 .operacao-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 800px;
+  min-width: 900px;
 }
 
 .operacao-table thead {
-  background: rgba(26, 26, 26, 0.03);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
 }
 
 .operacao-table th {
@@ -318,7 +325,8 @@
   letter-spacing: 0.05em;
   color: #737373;
   text-align: left;
-  border-bottom: 1px solid rgba(26, 26, 26, 0.1);
+  border-bottom: 2px solid rgba(26, 26, 26, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .operacao-table td {
@@ -968,6 +976,153 @@ code {
   color: #6366f1;
 }
 
+/* ========== BOTOES DE ACAO ========== */
+.action-buttons {
+  display: flex;
+  gap: 0.375rem;
+}
+
+/* ========== MODAL DE EDICAO DE USUARIO ========== */
+.user-edit-modal {
+  max-width: 520px;
+}
+
+.modal-user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.modal-avatar {
+  width: 48px;
+  height: 48px;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.modal-user-info h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: #1a1a1a;
+}
+
+.modal-user-info p {
+  font-size: 0.8125rem;
+  color: #737373;
+  margin: 0;
+}
+
+/* Form Fields */
+.form-field {
+  margin-bottom: 1.25rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  border: 1px solid rgba(26, 26, 26, 0.15);
+  border-radius: 8px;
+  background: white;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.form-select:hover {
+  border-color: rgba(26, 26, 26, 0.3);
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.2);
+}
+
+/* Role Selector */
+.role-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.role-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  background: rgba(26, 26, 26, 0.03);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.role-option:hover {
+  background: rgba(26, 26, 26, 0.06);
+}
+
+.role-option.selected {
+  border-color: #ffdd00;
+  background: rgba(255, 221, 0, 0.1);
+}
+
+.role-option input[type="radio"] {
+  display: none;
+}
+
+.role-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.role-indicator.role-user {
+  background: #737373;
+}
+
+.role-indicator.role-leader {
+  background: #ffdd00;
+}
+
+.role-indicator.role-admin {
+  background: #34A853;
+}
+
+.role-indicator.role-dev {
+  background: #4285F4;
+}
+
+.role-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  display: block;
+}
+
+.role-desc {
+  font-size: 0.75rem;
+  color: #737373;
+  display: block;
+}
+
+/* Form Row */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
 /* ========== RESPONSIVO ========== */
 @media (max-width: 768px) {
   .operacao-container {
@@ -999,5 +1154,13 @@ code {
   .modal-content {
     margin: 0.5rem;
     max-height: calc(100vh - 1rem);
+  }
+
+  .role-selector {
+    flex-direction: column;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
   }
 }

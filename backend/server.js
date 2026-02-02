@@ -490,6 +490,7 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
       .select(`
         id,
         name,
+        role,
         position_type,
         phone,
         email,
@@ -522,7 +523,7 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
       time_nome: row.team?.team_name ?? null,
       telefone: row.phone ?? null,
       email: row.email ?? null,
-      nivel_acesso: getUserRole(row.email) || 'sem_acesso',
+      nivel_acesso: getUserRole(row.email) === 'dev' ? 'dev' : (row.role || getUserRole(row.email) || 'sem_acesso'),
       construflow_id: row.construflow_user_id ?? null,
       discord_id: row.discord_user_id ?? null,
     }));
@@ -3722,9 +3723,27 @@ app.put('/api/ind/admin/users/:id/role', requireAuth, async (req, res) => {
     }
 
     const { role } = req.body;
-    const validRoles = ['user', 'leader', 'admin', 'director'];
+    const validRoles = ['user', 'leader', 'admin', 'director', 'dev'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ success: false, error: 'Role inválido' });
+    }
+
+    // Buscar usuário alvo para verificar role atual
+    const supabase = getSupabaseClient();
+    const { data: targetUser } = await supabase
+      .from('users_otus')
+      .select('role, email')
+      .eq('id', req.params.id)
+      .single();
+
+    // Somente devs podem atribuir o role 'dev'
+    if (role === 'dev' && !isDev(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Somente desenvolvedores podem atribuir o papel Dev' });
+    }
+
+    // Somente devs podem alterar o role de quem já é dev
+    if (targetUser?.role === 'dev' && !isDev(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Somente desenvolvedores podem alterar o papel de outros desenvolvedores' });
     }
 
     const user = await updateUserRole(req.params.id, role);
