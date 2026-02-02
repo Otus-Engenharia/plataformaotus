@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import FeedbackCard, { STATUS_CONFIG, TIPO_CONFIG } from '../../components/feedbacks/FeedbackCard';
+import FeedbackCard, { STATUS_CONFIG, TIPO_CONFIG, CATEGORY_CONFIG } from '../../components/feedbacks/FeedbackCard';
 import FeedbackDetailDialog from '../../components/feedbacks/FeedbackDetailDialog';
+import MentionInput from '../../components/feedbacks/MentionInput';
 import './FeedbackKanbanView.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -45,6 +46,7 @@ export default function FeedbackKanbanView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('todos'); // 'todos' ou 'meus'
+  const [categoryFilter, setCategoryFilter] = useState(''); // Filtro por categoria
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -125,9 +127,14 @@ export default function FeedbackKanbanView() {
   };
 
   // Filter feedbacks
-  const filteredFeedbacks = filter === 'meus'
+  let filteredFeedbacks = filter === 'meus'
     ? feedbacks.filter(f => f.author_email === user?.email)
     : feedbacks;
+
+  // Apply category filter
+  if (categoryFilter) {
+    filteredFeedbacks = filteredFeedbacks.filter(f => f.category === categoryFilter);
+  }
 
   // Group feedbacks by Kanban column
   const getColumnFeedbacks = (column) => {
@@ -136,6 +143,16 @@ export default function FeedbackKanbanView() {
 
   // Check if feedback belongs to current user
   const isOwnFeedback = (feedback) => feedback.author_email === user?.email;
+
+  // Callback para quando uma menção @FB-XXX é clicada
+  const handleMentionClick = useCallback((code) => {
+    const mentioned = feedbacks.find(f => f.code === code);
+    if (mentioned) {
+      setSelectedFeedback(mentioned);
+    } else {
+      alert(`Feedback ${code} não encontrado`);
+    }
+  }, [feedbacks]);
 
   // Stats
   const stats = {
@@ -156,56 +173,66 @@ export default function FeedbackKanbanView() {
 
   return (
     <div className="feedback-kanban">
-      {/* Header */}
-      <div className="feedback-kanban__header">
-        <div className="feedback-kanban__title-section">
-          <h1>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            Feedbacks
-          </h1>
-          <p>Acompanhe e envie feedbacks sobre processos e plataforma</p>
+      {/* Toolbar: Título + Tabs + Ações */}
+      <div className="feedback-kanban__toolbar">
+        <div className="feedback-kanban__title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <h1>Feedbacks</h1>
         </div>
 
-        <button
-          className="feedback-kanban__create-btn"
-          onClick={() => setShowCreateForm(true)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Novo Feedback
-        </button>
-      </div>
+        <div className="feedback-kanban__tabs">
+          <button
+            className={`feedback-kanban__tab ${filter === 'todos' ? 'active' : ''}`}
+            onClick={() => setFilter('todos')}
+          >
+            Todos
+            <span className="feedback-kanban__tab-count">{stats.total}</span>
+          </button>
+          <button
+            className={`feedback-kanban__tab ${filter === 'meus' ? 'active' : ''}`}
+            onClick={() => setFilter('meus')}
+          >
+            Meus Feedbacks
+            <span className="feedback-kanban__tab-count">{stats.meus}</span>
+          </button>
+        </div>
 
-      {/* Tabs */}
-      <div className="feedback-kanban__tabs">
-        <button
-          className={`feedback-kanban__tab ${filter === 'todos' ? 'active' : ''}`}
-          onClick={() => setFilter('todos')}
+        <select
+          className="feedback-kanban__category-filter"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          title="Filtrar por categoria"
         >
-          Todos
-          <span className="feedback-kanban__tab-count">{stats.total}</span>
-        </button>
-        <button
-          className={`feedback-kanban__tab ${filter === 'meus' ? 'active' : ''}`}
-          onClick={() => setFilter('meus')}
-        >
-          Meus Feedbacks
-          <span className="feedback-kanban__tab-count">{stats.meus}</span>
-        </button>
-        <button
-          className="feedback-kanban__refresh"
-          onClick={fetchFeedbacks}
-          title="Atualizar"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M23 4v6h-6M1 20v-6h6"/>
-            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-          </svg>
-        </button>
+          <option value="">Todas categorias</option>
+          {Object.entries(CATEGORY_CONFIG).map(([value, config]) => (
+            <option key={value} value={value}>{config.label}</option>
+          ))}
+        </select>
+
+        <div className="feedback-kanban__actions">
+          <button
+            className="feedback-kanban__refresh"
+            onClick={fetchFeedbacks}
+            title="Atualizar"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 4v6h-6M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+          </button>
+          <button
+            className="feedback-kanban__create-btn"
+            onClick={() => setShowCreateForm(true)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Novo Feedback
+          </button>
+        </div>
       </div>
 
       {/* Error */}
@@ -241,6 +268,7 @@ export default function FeedbackKanbanView() {
                       feedback={feedback}
                       isOwn={isOwnFeedback(feedback)}
                       onClick={() => setSelectedFeedback(feedback)}
+                      onMentionClick={handleMentionClick}
                     />
                   ))
                 )}
@@ -257,6 +285,8 @@ export default function FeedbackKanbanView() {
           isPrivileged={isPrivileged}
           onUpdate={handleUpdateFeedback}
           onClose={() => setSelectedFeedback(null)}
+          onMentionClick={handleMentionClick}
+          feedbacks={feedbacks}
         />
       )}
 
@@ -298,11 +328,12 @@ export default function FeedbackKanbanView() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="feedback-text">Feedback *</label>
-                <textarea
+                <label htmlFor="feedback-text">Feedback * <span className="form-hint">Digite @ para mencionar outro feedback</span></label>
+                <MentionInput
                   id="feedback-text"
                   value={formData.feedback_text}
-                  onChange={(e) => setFormData(prev => ({ ...prev, feedback_text: e.target.value }))}
+                  onChange={(val) => setFormData(prev => ({ ...prev, feedback_text: val }))}
+                  feedbacks={feedbacks}
                   placeholder="Descreva seu feedback em detalhes..."
                   rows={5}
                   required

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { STATUS_CONFIG, TIPO_CONFIG } from './FeedbackCard';
+import { STATUS_CONFIG, TIPO_CONFIG, CATEGORY_CONFIG } from './FeedbackCard';
+import { renderTextWithMentions } from './FeedbackMention';
+import MentionInput from './MentionInput';
 import '../indicadores/dialogs/Dialogs.css';
 import './FeedbackDetailDialog.css';
+import './FeedbackMention.css';
 
 /**
  * Formata data para exibição
@@ -42,14 +45,19 @@ function getInitials(name, email) {
  * @param {boolean} props.isPrivileged - Se o usuário é admin/director
  * @param {Function} props.onUpdate - Callback para atualizar (admin)
  * @param {Function} props.onClose - Callback para fechar
+ * @param {Function} props.onMentionClick - Callback quando uma menção @FB-XXX é clicada
+ * @param {Array} props.feedbacks - Lista de feedbacks para autocomplete de menções
  */
 export default function FeedbackDetailDialog({
   feedback,
   isPrivileged = false,
   onUpdate,
-  onClose
+  onClose,
+  onMentionClick,
+  feedbacks = []
 }) {
   const [status, setStatus] = useState(feedback.status);
+  const [category, setCategory] = useState(feedback.category || '');
   const [adminAnalysis, setAdminAnalysis] = useState(feedback.admin_analysis || '');
   const [adminAction, setAdminAction] = useState(feedback.admin_action || '');
   const [loading, setLoading] = useState(false);
@@ -57,15 +65,17 @@ export default function FeedbackDetailDialog({
 
   const statusConfig = STATUS_CONFIG[feedback.status] || STATUS_CONFIG.pendente;
   const tipoConfig = TIPO_CONFIG[feedback.tipo] || TIPO_CONFIG.outro;
+  const categoryConfig = feedback.category ? CATEGORY_CONFIG[feedback.category] : null;
 
   useEffect(() => {
     // Check if there are changes
     const changed =
       status !== feedback.status ||
+      category !== (feedback.category || '') ||
       adminAnalysis !== (feedback.admin_analysis || '') ||
       adminAction !== (feedback.admin_action || '');
     setHasChanges(changed);
-  }, [status, adminAnalysis, adminAction, feedback]);
+  }, [status, category, adminAnalysis, adminAction, feedback]);
 
   const handleSave = async () => {
     if (!onUpdate) return;
@@ -74,6 +84,7 @@ export default function FeedbackDetailDialog({
     try {
       await onUpdate(feedback.id, {
         status,
+        category: category || null,
         admin_analysis: adminAnalysis || null,
         admin_action: adminAction || null
       });
@@ -104,6 +115,9 @@ export default function FeedbackDetailDialog({
         <div className="dialog-header">
           <div className="feedback-detail__header-info">
             <div className="feedback-detail__badges">
+              {feedback.code && (
+                <span className="feedback-detail__code">{feedback.code}</span>
+              )}
               <span
                 className="feedback-detail__status"
                 style={{ '--status-color': statusConfig.color }}
@@ -114,6 +128,14 @@ export default function FeedbackDetailDialog({
                 <span className="feedback-detail__tipo-icon">{tipoConfig.icon}</span>
                 {tipoConfig.label}
               </span>
+              {categoryConfig && (
+                <span
+                  className="feedback-detail__category"
+                  style={{ '--category-color': categoryConfig.color }}
+                >
+                  {categoryConfig.label}
+                </span>
+              )}
             </div>
             {feedback.titulo && (
               <h2 className="feedback-detail__title">{feedback.titulo}</h2>
@@ -145,7 +167,9 @@ export default function FeedbackDetailDialog({
           {/* Feedback content */}
           <div className="feedback-detail__content-section">
             <h4>Feedback</h4>
-            <p className="feedback-detail__text">{feedback.feedback_text}</p>
+            <p className="feedback-detail__text">
+              {renderTextWithMentions(feedback.feedback_text, onMentionClick)}
+            </p>
           </div>
 
           {/* Admin response (read-only for non-privileged) */}
@@ -155,13 +179,13 @@ export default function FeedbackDetailDialog({
               {feedback.admin_analysis && (
                 <div className="feedback-detail__response-item">
                   <span className="feedback-detail__response-label">Análise</span>
-                  <p>{feedback.admin_analysis}</p>
+                  <p>{renderTextWithMentions(feedback.admin_analysis, onMentionClick)}</p>
                 </div>
               )}
               {feedback.admin_action && (
                 <div className="feedback-detail__response-item">
                   <span className="feedback-detail__response-label">Ação a tomar</span>
-                  <p>{feedback.admin_action}</p>
+                  <p>{renderTextWithMentions(feedback.admin_action, onMentionClick)}</p>
                 </div>
               )}
               {feedback.resolved_at && (
@@ -191,22 +215,38 @@ export default function FeedbackDetailDialog({
               </div>
 
               <div className="form-group">
-                <label htmlFor="feedback-analysis">Análise</label>
-                <textarea
+                <label htmlFor="feedback-category">Categoria (Dev)</label>
+                <select
+                  id="feedback-category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <option value="">Sem categoria</option>
+                  {Object.entries(CATEGORY_CONFIG).map(([value, config]) => (
+                    <option key={value} value={value}>{config.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="feedback-analysis">Análise <span className="form-hint">@ para mencionar</span></label>
+                <MentionInput
                   id="feedback-analysis"
                   value={adminAnalysis}
-                  onChange={(e) => setAdminAnalysis(e.target.value)}
+                  onChange={setAdminAnalysis}
+                  feedbacks={feedbacks}
                   placeholder="Descreva sua análise sobre este feedback..."
                   rows={3}
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="feedback-action">Ação a tomar</label>
-                <textarea
+                <label htmlFor="feedback-action">Ação a tomar <span className="form-hint">@ para mencionar</span></label>
+                <MentionInput
                   id="feedback-action"
                   value={adminAction}
-                  onChange={(e) => setAdminAction(e.target.value)}
+                  onChange={setAdminAction}
+                  feedbacks={feedbacks}
                   placeholder="Descreva a ação que será tomada..."
                   rows={3}
                 />

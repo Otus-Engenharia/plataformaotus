@@ -336,7 +336,22 @@ export async function getFeedbackStats() {
  */
 export async function createFeedback(feedback) {
   const supabase = getSupabaseClient();
+
+  // Gerar código sequencial (FB-001, FB-002, etc.)
+  const { data: lastFeedback } = await supabase
+    .from(FEEDBACKS_TABLE)
+    .select('code')
+    .not('code', 'is', null)
+    .order('code', { ascending: false })
+    .limit(1);
+
+  const lastNum = lastFeedback?.[0]?.code
+    ? parseInt(lastFeedback[0].code.replace('FB-', ''), 10)
+    : 0;
+  const newCode = `FB-${String(lastNum + 1).padStart(3, '0')}`;
+
   const row = {
+    code: newCode,
     tipo: feedback.tipo || 'processo',
     titulo: feedback.titulo || null,
     feedback_text: feedback.feedback_text || feedback.descricao || '',

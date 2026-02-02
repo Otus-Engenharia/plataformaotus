@@ -1,0 +1,32 @@
+/**
+ * Estilos para menções de feedbacks @FB-XXX
+ */
+
+.feedback-mention {
+  display: inline;
+  padding: 0.125rem 0.375rem;
+  margin: 0 0.125rem;
+  font-size: inherit;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  color: #0066cc;
+  background: rgba(0, 102, 204, 0.08);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  vertical-align: baseline;
+  line-height: inherit;
+}
+
+.feedback-mention:hover {
+  color: #0052a3;
+  background: rgba(0, 102, 204, 0.15);
+  text-decoration: underline;
+}
+
+.feedback-mention:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.25);
+}

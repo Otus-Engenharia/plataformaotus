@@ -1,5 +1,7 @@
 import React from 'react';
 import './FeedbackCard.css';
+import './FeedbackMention.css';
+import { renderTextWithMentions } from './FeedbackMention';
 
 /**
  * Status colors for visual identification
@@ -22,16 +24,34 @@ const TIPO_CONFIG = {
 };
 
 /**
- * Formata data para exibição
+ * Categorias disponíveis para classificação por devs
  */
-function formatDate(dateStr) {
+const CATEGORY_CONFIG = {
+  ux: { label: 'UX', color: '#8b5cf6' },
+  bug: { label: 'Bug', color: '#ef4444' },
+  performance: { label: 'Performance', color: '#f59e0b' },
+  feature: { label: 'Feature', color: '#22c55e' },
+  integracao: { label: 'Integração', color: '#3b82f6' },
+  documentacao: { label: 'Documentação', color: '#64748b' },
+  treinamento: { label: 'Treinamento', color: '#ec4899' },
+  processo: { label: 'Processo', color: '#06b6d4' }
+};
+
+/**
+ * Formata data para exibição relativa
+ */
+function formatRelativeDate(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  return date.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Hoje';
+  if (diffDays === 1) return 'Ontem';
+  if (diffDays < 7) return `${diffDays}d`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}sem`;
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
 /**
@@ -52,15 +72,11 @@ function getInitials(name, email) {
 }
 
 /**
- * Card de feedback para visualização em Kanban
- * @param {Object} props
- * @param {Object} props.feedback - Dados do feedback
- * @param {boolean} props.isOwn - Se é do próprio usuário
- * @param {Function} props.onClick - Callback ao clicar
+ * Card de feedback minimalista para Kanban
  */
-export default function FeedbackCard({ feedback, isOwn = false, onClick }) {
-  const statusConfig = STATUS_CONFIG[feedback.status] || STATUS_CONFIG.pendente;
+export default function FeedbackCard({ feedback, isOwn = false, onClick, onMentionClick }) {
   const tipoConfig = TIPO_CONFIG[feedback.tipo] || TIPO_CONFIG.outro;
+  const categoryConfig = feedback.category ? CATEGORY_CONFIG[feedback.category] : null;
 
   const handleClick = () => {
     if (onClick) onClick(feedback);
@@ -73,76 +89,63 @@ export default function FeedbackCard({ feedback, isOwn = false, onClick }) {
     }
   };
 
-  // Trunca o texto do feedback para 3 linhas (~120 chars)
-  const truncatedText = feedback.feedback_text?.length > 120
-    ? feedback.feedback_text.substring(0, 120) + '...'
-    : feedback.feedback_text;
+  // Trunca o texto para preview
+  const rawPreviewText = feedback.titulo ||
+    (feedback.feedback_text?.length > 80
+      ? feedback.feedback_text.substring(0, 80) + '...'
+      : feedback.feedback_text);
+
+  // Renderiza com menções clicáveis
+  const previewContent = renderTextWithMentions(rawPreviewText, onMentionClick);
+
+  const authorName = feedback.author_name ||
+    feedback.author_email?.split('@')[0] ||
+    'Anônimo';
 
   return (
-    <div
-      className={`feedback-card glass-card ${isOwn ? 'feedback-card--own' : ''}`}
+    <article
+      className={`fcard ${isOwn ? 'fcard--own' : ''}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="button"
-      aria-label={`Feedback: ${feedback.titulo || truncatedText}`}
+      aria-label={`Feedback: ${rawPreviewText}`}
     >
-      {/* Header: Status + Tipo + Data */}
-      <div className="feedback-card__header">
-        <div className="feedback-card__badges">
-          <span
-            className="feedback-card__status"
-            style={{ '--status-color': statusConfig.color }}
-          >
-            {statusConfig.label}
+      {/* Top row: código + tipo + categoria + data */}
+      <div className="fcard__top">
+        <div className="fcard__meta">
+          {feedback.code && <span className="fcard__code">{feedback.code}</span>}
+          <span className="fcard__tipo">
+            {tipoConfig.icon} {tipoConfig.label}
           </span>
-          <span className="feedback-card__tipo">
-            <span className="feedback-card__tipo-icon">{tipoConfig.icon}</span>
-            {tipoConfig.label}
-          </span>
+          {categoryConfig && (
+            <span
+              className="fcard__category"
+              style={{ '--category-color': categoryConfig.color }}
+            >
+              {categoryConfig.label}
+            </span>
+          )}
         </div>
-        <span className="feedback-card__date">{formatDate(feedback.created_at)}</span>
+        <span className="fcard__date">{formatRelativeDate(feedback.created_at)}</span>
       </div>
 
-      {/* Body: Título (se houver) + Texto */}
-      <div className="feedback-card__body">
-        {feedback.titulo && (
-          <h4 className="feedback-card__title">{feedback.titulo}</h4>
-        )}
-        <p className="feedback-card__text">{truncatedText}</p>
-      </div>
+      {/* Content */}
+      <p className="fcard__text">{previewContent}</p>
 
-      {/* Footer: Avatar + Nome do autor */}
-      <div className="feedback-card__footer">
-        <div className="feedback-card__author">
-          <div
-            className="feedback-card__avatar"
-            title={feedback.author_email}
-          >
-            {getInitials(feedback.author_name, feedback.author_email)}
-          </div>
-          <span className="feedback-card__author-name">
-            {feedback.author_name || feedback.author_email?.split('@')[0] || 'Anônimo'}
-          </span>
+      {/* Footer: autor + indicadores */}
+      <div className="fcard__footer">
+        <div className="fcard__author">
+          <span className="fcard__avatar">{getInitials(feedback.author_name, feedback.author_email)}</span>
+          <span className="fcard__name">{authorName}</span>
         </div>
-        {feedback.admin_analysis && (
-          <span className="feedback-card__has-response" title="Tem resposta do admin">
-            💬
-          </span>
-        )}
+        <div className="fcard__indicators">
+          {feedback.admin_analysis && <span title="Tem resposta">💬</span>}
+          {isOwn && <span title="Seu feedback">⭐</span>}
+        </div>
       </div>
-
-      {/* Indicador de próprio */}
-      {isOwn && (
-        <div className="feedback-card__own-indicator" title="Seu feedback">
-          ⭐
-        </div>
-      )}
-    </div>
+    </article>
   );
 }
 
-/**
- * Retorna a configuração de status para uso externo
- */
-export { STATUS_CONFIG, TIPO_CONFIG };
+export { STATUS_CONFIG, TIPO_CONFIG, CATEGORY_CONFIG };

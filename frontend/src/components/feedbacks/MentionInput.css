@@ -1,0 +1,147 @@
+/**
+ * MentionInput - Textarea com autocomplete para @menções
+ */
+
+.mention-input {
+  position: relative;
+  width: 100%;
+}
+
+.mention-input textarea {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  color: #18181b;
+}
+
+.mention-input textarea::placeholder {
+  color: #a1a1aa;
+}
+
+.mention-input textarea:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.15);
+}
+
+/* Dropdown de sugestões */
+.mention-input__suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.mention-input__header {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a1a1aa;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+}
+
+.mention-input__item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.mention-input__item:hover,
+.mention-input__item.selected {
+  background: rgba(255, 221, 0, 0.1);
+}
+
+.mention-input__item.selected {
+  background: rgba(255, 221, 0, 0.15);
+}
+
+.mention-input__code {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  color: #0066cc;
+  background: rgba(0, 102, 204, 0.08);
+  padding: 0.1875rem 0.4375rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.mention-input__preview {
+  font-size: 0.8125rem;
+  color: #525252;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.mention-input__hint {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.625rem;
+  color: #a1a1aa;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  gap: 0.75rem;
+  background: #fafafa;
+  border-radius: 0 0 10px 10px;
+  position: sticky;
+  bottom: 0;
+}
+
+.mention-input__hint kbd {
+  font-family: ui-monospace, monospace;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  background: #e5e5e5;
+  padding: 0.125rem 0.3125rem;
+  border-radius: 3px;
+  margin-right: 0.25rem;
+}
+
+/* Scrollbar */
+.mention-input__suggestions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mention-input__suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mention-input__suggestions::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.mention-input__suggestions::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
