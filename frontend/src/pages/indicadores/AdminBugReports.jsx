@@ -287,20 +287,18 @@ export default function AdminBugReports() {
                 {filteredReports.map(report => (
                   <tr
                     key={report.id}
-                    className={selectedReport?.id === report.id ? 'bug-admin__row--selected' : ''}
+                    className={`bug-admin__row ${selectedReport?.id === report.id ? 'bug-admin__row--selected' : ''}`}
+                    onClick={() => {
+                      setSelectedReport(report);
+                      setAdminNotes(report.admin_notes || '');
+                    }}
                   >
                     <td className="bug-admin__cell--date">
                       {formatDate(report.created_at)}
                     </td>
                     <td>{getTypeLabel(report.type)}</td>
                     <td className="bug-admin__cell--title">
-                      <span
-                        className="bug-admin__title-link"
-                        onClick={() => {
-                          setSelectedReport(report);
-                          setAdminNotes(report.admin_notes || '');
-                        }}
-                      >
+                      <span className="bug-admin__title-link">
                         {report.title}
                       </span>
                     </td>
@@ -313,6 +311,7 @@ export default function AdminBugReports() {
                       <select
                         value={report.status}
                         onChange={(e) => handleStatusChange(report.id, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
                         className="bug-admin__status-select"
                         disabled={updating}
                       >

@@ -48,7 +48,9 @@ import {
   fetchWorkspaceProjects, getWorkspaceProjectById, createWorkspaceProject, updateWorkspaceProject, deleteWorkspaceProject,
   fetchWorkspaceTasks, getWorkspaceTaskById, createWorkspaceTask, updateWorkspaceTask, deleteWorkspaceTask, reorderWorkspaceTasks,
   fetchProjectMembers, addProjectMember, updateProjectMemberRole, removeProjectMember,
-  fetchProjectMessages, createProjectMessage, deleteProjectMessage
+  fetchProjectMessages, createProjectMessage, deleteProjectMessage,
+  // Home Modules
+  fetchHomeModules, updateHomeModule, createHomeModule, deleteHomeModule
 } from './supabase.js';
 
 const app = express();
@@ -226,6 +228,7 @@ app.get('/api/auth/dev-mode', (req, res) => {
     enabled: process.env.DEV_MODE === 'true',
     // Operação não tem acesso à plataforma por enquanto
     availableUsers: process.env.DEV_MODE === 'true' ? [
+      { email: 'dev-dev@otus.dev', name: 'Dev (Full Access)', role: 'dev' },
       { email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
       { email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
       { email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
@@ -256,6 +259,7 @@ app.post('/api/auth/dev-login', (req, res) => {
   }
 
   const devUsers = {
+    dev: { id: 'dev-0', email: 'dev-dev@otus.dev', name: 'Dev (Full Access)', role: 'dev' },
     director: { id: 'dev-1', email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
     admin: { id: 'dev-2', email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
     leader: { id: 'dev-3', email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
@@ -4420,6 +4424,150 @@ app.delete('/api/project-messages/:id', requireAuth, async (req, res) => {
     res.json({ success: true, message: 'Mensagem deletada com sucesso' });
   } catch (error) {
     console.error('❌ Erro ao deletar mensagem:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// Home Modules - Configuração dos módulos da Home
+// ============================================
+
+/**
+ * GET /api/home-modules
+ * Retorna todos os módulos da Home (para montar a tela inicial)
+ */
+app.get('/api/home-modules', requireAuth, async (req, res) => {
+  try {
+    const modules = await fetchHomeModules();
+    res.json({ success: true, data: modules });
+  } catch (error) {
+    console.error('❌ Erro ao buscar módulos da Home:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/admin/home-modules/:id
+ * Atualiza um módulo (dev only)
+ */
+app.put('/api/admin/home-modules/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isDev(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas desenvolvedores podem atualizar módulos',
+      });
+    }
+
+    const { id } = req.params;
+    const { name, description, path, color, visible, access_type, sort_order } = req.body;
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (path !== undefined) updateData.path = path;
+    if (color !== undefined) updateData.color = color;
+    if (visible !== undefined) updateData.visible = visible;
+    if (access_type !== undefined) updateData.access_type = access_type;
+    if (sort_order !== undefined) updateData.sort_order = sort_order;
+
+    const module = await updateHomeModule(id, updateData);
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.displayName || req.user.email,
+      action: 'update',
+      entity_type: 'home_module',
+      entity_id: id,
+      details: `Módulo atualizado: ${module.name}`,
+      metadata: updateData,
+    });
+
+    res.json({ success: true, data: module });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar módulo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/home-modules
+ * Cria um novo módulo (dev only)
+ */
+app.post('/api/admin/home-modules', requireAuth, async (req, res) => {
+  try {
+    if (!isDev(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas desenvolvedores podem criar módulos',
+      });
+    }
+
+    const { id, name, description, icon_name, path, color, visible, access_type, sort_order } = req.body;
+
+    if (!id || !name || !icon_name || !path) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos obrigatórios: id, name, icon_name, path',
+      });
+    }
+
+    const module = await createHomeModule({
+      id,
+      name,
+      description: description || null,
+      icon_name,
+      path,
+      color: color || '#4285F4',
+      visible: visible !== false,
+      access_type: access_type || 'all',
+      sort_order: sort_order || 0,
+    });
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.displayName || req.user.email,
+      action: 'create',
+      entity_type: 'home_module',
+      entity_id: module.id,
+      details: `Módulo criado: ${module.name}`,
+    });
+
+    res.json({ success: true, data: module });
+  } catch (error) {
+    console.error('❌ Erro ao criar módulo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/home-modules/:id
+ * Remove um módulo (dev only)
+ */
+app.delete('/api/admin/home-modules/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isDev(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas desenvolvedores podem remover módulos',
+      });
+    }
+
+    const { id } = req.params;
+    await deleteHomeModule(id);
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.displayName || req.user.email,
+      action: 'delete',
+      entity_type: 'home_module',
+      entity_id: id,
+      details: `Módulo removido: ${id}`,
+    });
+
+    res.json({ success: true, message: 'Módulo removido com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao remover módulo:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

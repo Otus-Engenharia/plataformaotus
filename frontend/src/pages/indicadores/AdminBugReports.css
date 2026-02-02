@@ -263,7 +263,12 @@
   font-size: 14px;
 }
 
-.bug-admin__table tr:hover {
+.bug-admin__row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.bug-admin__row:hover {
   background: #f9f9f9;
 }
 

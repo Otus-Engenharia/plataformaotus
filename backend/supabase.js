@@ -3502,3 +3502,89 @@ export async function deleteProjectMessage(messageId) {
     throw new Error(`Erro ao deletar mensagem: ${error.message}`);
   }
 }
+
+// ============================================================================
+// HOME MODULES - Configuração dos módulos da Home
+// ============================================================================
+
+const HOME_MODULES_TABLE = 'home_modules';
+
+/**
+ * Busca todos os módulos da Home ordenados por sort_order
+ * @returns {Promise<Array>}
+ */
+export async function fetchHomeModules() {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(HOME_MODULES_TABLE)
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar módulos: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Atualiza um módulo da Home
+ * @param {string} moduleId - ID do módulo
+ * @param {Object} moduleData - Dados a atualizar
+ * @returns {Promise<Object>}
+ */
+export async function updateHomeModule(moduleId, moduleData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(HOME_MODULES_TABLE)
+    .update({
+      ...moduleData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', moduleId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar módulo: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Cria um novo módulo da Home
+ * @param {Object} moduleData - Dados do módulo
+ * @returns {Promise<Object>}
+ */
+export async function createHomeModule(moduleData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(HOME_MODULES_TABLE)
+    .insert(moduleData)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar módulo: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Remove um módulo da Home
+ * @param {string} moduleId - ID do módulo
+ * @returns {Promise<void>}
+ */
+export async function deleteHomeModule(moduleId) {
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase
+    .from(HOME_MODULES_TABLE)
+    .delete()
+    .eq('id', moduleId);
+
+  if (error) {
+    throw new Error(`Erro ao remover módulo: ${error.message}`);
+  }
+}
