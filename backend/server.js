@@ -43,7 +43,12 @@ import {
   // Views & Access Control
   fetchViews, createView, deleteView,
   fetchAccessDefaults, createAccessDefault, updateAccessDefault, deleteAccessDefault,
-  getUserViewOverrides, setUserViewOverride, removeUserViewOverride, getEffectiveViews
+  getUserViewOverrides, setUserViewOverride, removeUserViewOverride, getEffectiveViews,
+  // Workspace Management (usa sectors existente)
+  fetchWorkspaceProjects, getWorkspaceProjectById, createWorkspaceProject, updateWorkspaceProject, deleteWorkspaceProject,
+  fetchWorkspaceTasks, getWorkspaceTaskById, createWorkspaceTask, updateWorkspaceTask, deleteWorkspaceTask, reorderWorkspaceTasks,
+  fetchProjectMembers, addProjectMember, updateProjectMemberRole, removeProjectMember,
+  fetchProjectMessages, createProjectMessage, deleteProjectMessage
 } from './supabase.js';
 
 const app = express();
@@ -4049,6 +4054,372 @@ app.delete('/api/bug-reports/:id', requireAuth, async (req, res) => {
     res.json({ success: true, message: 'Bug report excluído com sucesso' });
   } catch (error) {
     console.error('❌ Erro ao excluir bug report:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// Workspace Management (Gestão de Tarefas)
+// Usa a tabela sectors existente como "workspaces"
+// Para listar setores, usar /api/ind/sectors
+// ============================================
+
+// --- WORKSPACE PROJECTS (usa sector_id) ---
+
+/**
+ * GET /api/workspace-projects
+ * Retorna projetos (opcionalmente filtrado por setor)
+ */
+app.get('/api/workspace-projects', requireAuth, async (req, res) => {
+  try {
+    const { sector_id } = req.query;
+    const projects = await fetchWorkspaceProjects(sector_id);
+    res.json({ success: true, data: projects });
+  } catch (error) {
+    console.error('❌ Erro ao buscar projetos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/workspace-projects/:id
+ * Retorna um projeto por ID
+ */
+app.get('/api/workspace-projects/:id', requireAuth, async (req, res) => {
+  try {
+    const project = await getWorkspaceProjectById(req.params.id);
+    res.json({ success: true, data: project });
+  } catch (error) {
+    console.error('❌ Erro ao buscar projeto:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/workspace-projects
+ * Cria um novo projeto (admin only)
+ */
+app.post('/api/workspace-projects', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Apenas admins podem criar projetos' });
+    }
+
+    const { sector_id, name, description, color, start_date, due_date } = req.body;
+    if (!sector_id || !name) {
+      return res.status(400).json({ success: false, error: 'sector_id e name são obrigatórios' });
+    }
+
+    const project = await createWorkspaceProject({
+      sector_id,
+      name,
+      description,
+      color,
+      start_date,
+      due_date,
+      created_by: req.user.id
+    });
+
+    await logAction(req, 'create', 'workspace_project', project.id, `Projeto criado: ${name}`);
+    res.status(201).json({ success: true, data: project });
+  } catch (error) {
+    console.error('❌ Erro ao criar projeto:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/workspace-projects/:id
+ * Atualiza um projeto (admin only)
+ */
+app.put('/api/workspace-projects/:id', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Apenas admins podem editar projetos' });
+    }
+
+    const project = await updateWorkspaceProject(req.params.id, req.body);
+    await logAction(req, 'update', 'workspace_project', req.params.id, `Projeto atualizado: ${project.name}`);
+    res.json({ success: true, data: project });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar projeto:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/workspace-projects/:id
+ * Deleta um projeto (admin only)
+ */
+app.delete('/api/workspace-projects/:id', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Apenas admins podem deletar projetos' });
+    }
+
+    await deleteWorkspaceProject(req.params.id);
+    await logAction(req, 'delete', 'workspace_project', req.params.id, 'Projeto deletado');
+    res.json({ success: true, message: 'Projeto deletado com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar projeto:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- WORKSPACE TASKS ---
+
+/**
+ * GET /api/workspace-tasks
+ * Retorna tarefas com filtros
+ */
+app.get('/api/workspace-tasks', requireAuth, async (req, res) => {
+  try {
+    const { project_id, status, assignee_id, priority } = req.query;
+    const tasks = await fetchWorkspaceTasks({ project_id, status, assignee_id, priority });
+    res.json({ success: true, data: tasks });
+  } catch (error) {
+    console.error('❌ Erro ao buscar tarefas:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/workspace-tasks/:id
+ * Retorna uma tarefa por ID
+ */
+app.get('/api/workspace-tasks/:id', requireAuth, async (req, res) => {
+  try {
+    const task = await getWorkspaceTaskById(req.params.id);
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('❌ Erro ao buscar tarefa:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/workspace-tasks
+ * Cria uma nova tarefa
+ */
+app.post('/api/workspace-tasks', requireAuth, async (req, res) => {
+  try {
+    const { project_id, title, description, status, priority, start_date, due_date, assignee_id, parent_task_id, tags } = req.body;
+    if (!project_id || !title) {
+      return res.status(400).json({ success: false, error: 'project_id e title são obrigatórios' });
+    }
+
+    const task = await createWorkspaceTask({
+      project_id,
+      parent_task_id,
+      title,
+      description,
+      status,
+      priority,
+      start_date,
+      due_date,
+      assignee_id,
+      tags,
+      created_by: req.user.id
+    });
+
+    await logAction(req, 'create', 'workspace_task', task.id, `Tarefa criada: ${title}`);
+    res.status(201).json({ success: true, data: task });
+  } catch (error) {
+    console.error('❌ Erro ao criar tarefa:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/workspace-tasks/:id
+ * Atualiza uma tarefa
+ */
+app.put('/api/workspace-tasks/:id', requireAuth, async (req, res) => {
+  try {
+    const task = await updateWorkspaceTask(req.params.id, req.body);
+    await logAction(req, 'update', 'workspace_task', req.params.id, `Tarefa atualizada: ${task.title}`);
+    res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar tarefa:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/workspace-tasks/:id
+ * Deleta uma tarefa
+ */
+app.delete('/api/workspace-tasks/:id', requireAuth, async (req, res) => {
+  try {
+    await deleteWorkspaceTask(req.params.id);
+    await logAction(req, 'delete', 'workspace_task', req.params.id, 'Tarefa deletada');
+    res.json({ success: true, message: 'Tarefa deletada com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar tarefa:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/workspace-tasks/reorder
+ * Reordena tarefas no kanban
+ */
+app.post('/api/workspace-tasks/reorder', requireAuth, async (req, res) => {
+  try {
+    const { updates } = req.body;
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ success: false, error: 'updates deve ser um array' });
+    }
+
+    await reorderWorkspaceTasks(updates);
+    res.json({ success: true, message: 'Tarefas reordenadas com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao reordenar tarefas:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- PROJECT MEMBERS ---
+
+/**
+ * GET /api/workspace-projects/:id/members
+ * Retorna membros de um projeto
+ */
+app.get('/api/workspace-projects/:id/members', requireAuth, async (req, res) => {
+  try {
+    const members = await fetchProjectMembers(req.params.id);
+    res.json({ success: true, data: members });
+  } catch (error) {
+    console.error('❌ Erro ao buscar membros:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/workspace-projects/:id/members
+ * Adiciona um membro ao projeto (admin only)
+ */
+app.post('/api/workspace-projects/:id/members', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Apenas admins podem adicionar membros' });
+    }
+
+    const { user_id, role } = req.body;
+    if (!user_id) {
+      return res.status(400).json({ success: false, error: 'user_id é obrigatório' });
+    }
+
+    const member = await addProjectMember({
+      project_id: req.params.id,
+      user_id,
+      role,
+      invited_by: req.user.id
+    });
+
+    await logAction(req, 'create', 'project_member', member.id, `Membro adicionado ao projeto`);
+    res.status(201).json({ success: true, data: member });
+  } catch (error) {
+    console.error('❌ Erro ao adicionar membro:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/project-members/:id
+ * Atualiza role de um membro (admin only)
+ */
+app.put('/api/project-members/:id', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Apenas admins podem editar membros' });
+    }
+
+    const { role } = req.body;
+    const member = await updateProjectMemberRole(req.params.id, role);
+    await logAction(req, 'update', 'project_member', req.params.id, `Role do membro atualizado`);
+    res.json({ success: true, data: member });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar membro:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/project-members/:id
+ * Remove um membro do projeto (admin only)
+ */
+app.delete('/api/project-members/:id', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Apenas admins podem remover membros' });
+    }
+
+    await removeProjectMember(req.params.id);
+    await logAction(req, 'delete', 'project_member', req.params.id, 'Membro removido do projeto');
+    res.json({ success: true, message: 'Membro removido com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao remover membro:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- PROJECT MESSAGES (Chat) ---
+
+/**
+ * GET /api/workspace-projects/:id/messages
+ * Retorna mensagens de um projeto
+ */
+app.get('/api/workspace-projects/:id/messages', requireAuth, async (req, res) => {
+  try {
+    const { limit, offset } = req.query;
+    const messages = await fetchProjectMessages(req.params.id, {
+      limit: parseInt(limit) || 50,
+      offset: parseInt(offset) || 0
+    });
+    res.json({ success: true, data: messages });
+  } catch (error) {
+    console.error('❌ Erro ao buscar mensagens:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/workspace-projects/:id/messages
+ * Cria uma nova mensagem no projeto
+ */
+app.post('/api/workspace-projects/:id/messages', requireAuth, async (req, res) => {
+  try {
+    const { content, reply_to_id, attachments } = req.body;
+    if (!content) {
+      return res.status(400).json({ success: false, error: 'content é obrigatório' });
+    }
+
+    const message = await createProjectMessage({
+      project_id: req.params.id,
+      user_id: req.user.id,
+      content,
+      reply_to_id,
+      attachments
+    });
+
+    res.status(201).json({ success: true, data: message });
+  } catch (error) {
+    console.error('❌ Erro ao criar mensagem:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/project-messages/:id
+ * Deleta uma mensagem
+ */
+app.delete('/api/project-messages/:id', requireAuth, async (req, res) => {
+  try {
+    await deleteProjectMessage(req.params.id);
+    res.json({ success: true, message: 'Mensagem deletada com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao deletar mensagem:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -658,7 +658,7 @@ export default function FeedbackAdminView() {
         </div>
       ) : (
         /* Kanban View */
-        <div className="feedback-kanban">
+        <div className="feedback-admin-kanban">
           {KANBAN_COLUMNS.map((column) => {
             const columnFeedbacks = filteredFeedbacks.filter(
               (f) => column.statuses.includes(f.status)

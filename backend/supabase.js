@@ -2970,3 +2970,535 @@ export async function getEffectiveViews(user) {
 
   return allowedViews;
 }
+
+// ============================================
+// Workspace Management (Gestão de Tarefas)
+// Usa a tabela sectors existente como "workspaces"
+// ============================================
+
+const WORKSPACE_PROJECTS_TABLE = 'workspace_projects';
+const WORKSPACE_TASKS_TABLE = 'workspace_tasks';
+const WORKSPACE_PROJECT_MEMBERS_TABLE = 'workspace_project_members';
+const PROJECT_MESSAGES_TABLE = 'project_messages';
+
+// ---- Workspace Projects (usa sector_id) ----
+
+/**
+ * Busca projetos (opcionalmente filtrado por setor)
+ * @param {string} sectorId - ID do setor (opcional)
+ * @returns {Promise<Array>}
+ */
+export async function fetchWorkspaceProjects(sectorId = null) {
+  const supabase = getSupabaseServiceClient();
+  let query = supabase
+    .from(WORKSPACE_PROJECTS_TABLE)
+    .select(`
+      *,
+      sector:sector_id(id, name, description),
+      created_by_user:created_by(id, name, email)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (sectorId) {
+    query = query.eq('sector_id', sectorId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao buscar projetos: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Busca um projeto por ID
+ * @param {string} id - ID do projeto
+ * @returns {Promise<Object>}
+ */
+export async function getWorkspaceProjectById(id) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(WORKSPACE_PROJECTS_TABLE)
+    .select(`
+      *,
+      sector:sector_id(id, name, description),
+      created_by_user:created_by(id, name, email)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao buscar projeto: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Cria um novo projeto
+ * @param {Object} projectData - Dados do projeto
+ * @returns {Promise<Object>}
+ */
+export async function createWorkspaceProject(projectData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(WORKSPACE_PROJECTS_TABLE)
+    .insert({
+      sector_id: projectData.sector_id,
+      name: projectData.name,
+      description: projectData.description || null,
+      status: projectData.status || 'ativo',
+      color: projectData.color || null,
+      start_date: projectData.start_date || null,
+      due_date: projectData.due_date || null,
+      created_by: projectData.created_by || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select(`
+      *,
+      sector:sector_id(id, name, description)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar projeto: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza um projeto
+ * @param {string} id - ID do projeto
+ * @param {Object} projectData - Dados para atualizar
+ * @returns {Promise<Object>}
+ */
+export async function updateWorkspaceProject(id, projectData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(WORKSPACE_PROJECTS_TABLE)
+    .update({
+      ...projectData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select(`
+      *,
+      sector:sector_id(id, name, description)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar projeto: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta um projeto
+ * @param {string} id - ID do projeto
+ * @returns {Promise<void>}
+ */
+export async function deleteWorkspaceProject(id) {
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase
+    .from(WORKSPACE_PROJECTS_TABLE)
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Erro ao deletar projeto: ${error.message}`);
+  }
+}
+
+// ---- Workspace Tasks ----
+
+/**
+ * Busca tarefas com filtros
+ * @param {Object} filters - Filtros
+ * @returns {Promise<Array>}
+ */
+export async function fetchWorkspaceTasks(filters = {}) {
+  const supabase = getSupabaseServiceClient();
+  let query = supabase
+    .from(WORKSPACE_TASKS_TABLE)
+    .select(`
+      *,
+      project:project_id(id, name, workspace_id, color),
+      assignee:assignee_id(id, name, email),
+      created_by_user:created_by(id, name, email),
+      subtasks:workspace_tasks!parent_task_id(id, title, status, priority, assignee_id)
+    `)
+    .is('parent_task_id', null) // Apenas tarefas raiz
+    .order('position_order')
+    .order('created_at', { ascending: false });
+
+  if (filters.project_id) {
+    query = query.eq('project_id', filters.project_id);
+  }
+
+  if (filters.status) {
+    query = query.eq('status', filters.status);
+  }
+
+  if (filters.assignee_id) {
+    query = query.eq('assignee_id', filters.assignee_id);
+  }
+
+  if (filters.priority) {
+    query = query.eq('priority', filters.priority);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao buscar tarefas: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Busca uma tarefa por ID com subtarefas
+ * @param {string} id - ID da tarefa
+ * @returns {Promise<Object>}
+ */
+export async function getWorkspaceTaskById(id) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(WORKSPACE_TASKS_TABLE)
+    .select(`
+      *,
+      project:project_id(id, name, workspace_id, color),
+      assignee:assignee_id(id, name, email),
+      created_by_user:created_by(id, name, email),
+      parent_task:parent_task_id(id, title),
+      subtasks:workspace_tasks!parent_task_id(
+        id, title, status, priority, due_date, position_order,
+        assignee:assignee_id(id, name, email)
+      )
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao buscar tarefa: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Cria uma nova tarefa
+ * @param {Object} taskData - Dados da tarefa
+ * @returns {Promise<Object>}
+ */
+export async function createWorkspaceTask(taskData) {
+  const supabase = getSupabaseServiceClient();
+
+  // Buscar próximo position_order
+  const { data: maxOrder } = await supabase
+    .from(WORKSPACE_TASKS_TABLE)
+    .select('position_order')
+    .eq('project_id', taskData.project_id)
+    .eq('status', taskData.status || 'a_fazer')
+    .order('position_order', { ascending: false })
+    .limit(1)
+    .single();
+
+  const nextOrder = (maxOrder?.position_order || 0) + 1;
+
+  const { data, error } = await supabase
+    .from(WORKSPACE_TASKS_TABLE)
+    .insert({
+      project_id: taskData.project_id,
+      parent_task_id: taskData.parent_task_id || null,
+      title: taskData.title,
+      description: taskData.description || null,
+      status: taskData.status || 'a_fazer',
+      priority: taskData.priority || 'media',
+      start_date: taskData.start_date || null,
+      due_date: taskData.due_date || null,
+      assignee_id: taskData.assignee_id || null,
+      created_by: taskData.created_by || null,
+      tags: taskData.tags || [],
+      custom_fields: taskData.custom_fields || {},
+      position_order: nextOrder,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select(`
+      *,
+      project:project_id(id, name, workspace_id, color),
+      assignee:assignee_id(id, name, email)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar tarefa: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza uma tarefa
+ * @param {string} id - ID da tarefa
+ * @param {Object} taskData - Dados para atualizar
+ * @returns {Promise<Object>}
+ */
+export async function updateWorkspaceTask(id, taskData) {
+  const supabase = getSupabaseServiceClient();
+
+  // Se mudou para concluido, setar completed_at
+  const updateData = { ...taskData };
+  if (taskData.status === 'concluido' && !taskData.completed_at) {
+    updateData.completed_at = new Date().toISOString();
+  } else if (taskData.status && taskData.status !== 'concluido') {
+    updateData.completed_at = null;
+  }
+
+  const { data, error } = await supabase
+    .from(WORKSPACE_TASKS_TABLE)
+    .update({
+      ...updateData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select(`
+      *,
+      project:project_id(id, name, workspace_id, color),
+      assignee:assignee_id(id, name, email)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar tarefa: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta uma tarefa
+ * @param {string} id - ID da tarefa
+ * @returns {Promise<void>}
+ */
+export async function deleteWorkspaceTask(id) {
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase
+    .from(WORKSPACE_TASKS_TABLE)
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Erro ao deletar tarefa: ${error.message}`);
+  }
+}
+
+/**
+ * Reordena tarefas no kanban
+ * @param {Array} updates - Array de {id, status, position_order}
+ * @returns {Promise<void>}
+ */
+export async function reorderWorkspaceTasks(updates) {
+  const supabase = getSupabaseServiceClient();
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from(WORKSPACE_TASKS_TABLE)
+      .update({
+        status: update.status,
+        position_order: update.position_order,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', update.id);
+
+    if (error) {
+      throw new Error(`Erro ao reordenar tarefa ${update.id}: ${error.message}`);
+    }
+  }
+}
+
+// ---- Project Members ----
+
+/**
+ * Busca membros de um projeto
+ * @param {string} projectId - ID do projeto
+ * @returns {Promise<Array>}
+ */
+export async function fetchProjectMembers(projectId) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(WORKSPACE_PROJECT_MEMBERS_TABLE)
+    .select(`
+      *,
+      user:user_id(id, name, email),
+      invited_by_user:invited_by(id, name, email)
+    `)
+    .eq('project_id', projectId)
+    .order('joined_at');
+
+  if (error) {
+    throw new Error(`Erro ao buscar membros: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Adiciona um membro ao projeto
+ * @param {Object} memberData - Dados do membro
+ * @returns {Promise<Object>}
+ */
+export async function addProjectMember(memberData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(WORKSPACE_PROJECT_MEMBERS_TABLE)
+    .insert({
+      project_id: memberData.project_id,
+      user_id: memberData.user_id,
+      role: memberData.role || 'member',
+      invited_by: memberData.invited_by || null,
+      joined_at: new Date().toISOString(),
+    })
+    .select(`
+      *,
+      user:user_id(id, name, email)
+    `)
+    .single();
+
+  if (error) {
+    if (error.code === '23505') { // Unique violation
+      throw new Error('Usuário já é membro deste projeto');
+    }
+    throw new Error(`Erro ao adicionar membro: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza role de um membro
+ * @param {string} memberId - ID do membro
+ * @param {string} role - Novo role
+ * @returns {Promise<Object>}
+ */
+export async function updateProjectMemberRole(memberId, role) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(WORKSPACE_PROJECT_MEMBERS_TABLE)
+    .update({ role })
+    .eq('id', memberId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar membro: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Remove um membro do projeto
+ * @param {string} memberId - ID do membro
+ * @returns {Promise<void>}
+ */
+export async function removeProjectMember(memberId) {
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase
+    .from(WORKSPACE_PROJECT_MEMBERS_TABLE)
+    .delete()
+    .eq('id', memberId);
+
+  if (error) {
+    throw new Error(`Erro ao remover membro: ${error.message}`);
+  }
+}
+
+// ---- Project Messages (Chat) ----
+
+/**
+ * Busca mensagens de um projeto
+ * @param {string} projectId - ID do projeto
+ * @param {Object} options - Opções de paginação
+ * @returns {Promise<Array>}
+ */
+export async function fetchProjectMessages(projectId, options = {}) {
+  const supabase = getSupabaseServiceClient();
+  const limit = options.limit || 50;
+  const offset = options.offset || 0;
+
+  let query = supabase
+    .from(PROJECT_MESSAGES_TABLE)
+    .select(`
+      *,
+      user:user_id(id, name, email),
+      reply_to:reply_to_id(id, content, user:user_id(id, name))
+    `)
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao buscar mensagens: ${error.message}`);
+  }
+
+  // Retornar em ordem cronológica
+  return (data || []).reverse();
+}
+
+/**
+ * Cria uma nova mensagem
+ * @param {Object} messageData - Dados da mensagem
+ * @returns {Promise<Object>}
+ */
+export async function createProjectMessage(messageData) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(PROJECT_MESSAGES_TABLE)
+    .insert({
+      project_id: messageData.project_id,
+      user_id: messageData.user_id,
+      content: messageData.content,
+      reply_to_id: messageData.reply_to_id || null,
+      attachments: messageData.attachments || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select(`
+      *,
+      user:user_id(id, name, email)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar mensagem: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta uma mensagem
+ * @param {string} messageId - ID da mensagem
+ * @returns {Promise<void>}
+ */
+export async function deleteProjectMessage(messageId) {
+  const supabase = getSupabaseServiceClient();
+  const { error } = await supabase
+    .from(PROJECT_MESSAGES_TABLE)
+    .delete()
+    .eq('id', messageId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar mensagem: ${error.message}`);
+  }
+}

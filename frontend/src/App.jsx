@@ -43,6 +43,10 @@ const AdminBugReports = lazy(() => import('./pages/indicadores/AdminBugReports')
 // Lazy load das páginas de Feedbacks
 const FeedbackKanbanView = lazy(() => import('./pages/feedbacks/FeedbackKanbanView'));
 
+// Lazy load das páginas de Workspace (Gestao de Tarefas)
+const WorkspaceView = lazy(() => import('./pages/workspace/WorkspaceView'));
+const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
+
 // Lazy load das páginas de OKRs
 const DashboardOKRs = lazy(() => import('./pages/okrs/DashboardOKRs'));
 const CompanyOKRs = lazy(() => import('./pages/okrs/CompanyOKRs'));
@@ -276,13 +280,27 @@ function Sidebar({ collapsed, onToggle, area }) {
           <span className="nav-text">Formulário de Passagem</span>
         </Link>
       )}
-      <Link 
-        to="/feedbacks" 
+      <Link
+        to="/feedbacks"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/feedbacks') ? 'nav-link-active' : ''}`}
         title={linkTitle('Feedbacks')}
       >
         <span className="nav-icon">{icons.feedbacks}</span>
         <span className="nav-text">Feedbacks</span>
+      </Link>
+    </>
+  );
+
+  // Links para área de WORKSPACE (Gestão de Tarefas)
+  const workspaceLinks = (
+    <>
+      <Link
+        to="/workspace"
+        className={`nav-link nav-link-modern ${location.pathname === '/workspace' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Todos os Projetos')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Todos os Projetos</span>
       </Link>
     </>
   );
@@ -501,6 +519,7 @@ function Sidebar({ collapsed, onToggle, area }) {
         {area === 'configuracoes' && configuracoesLinks}
         {area === 'indicadores' && indicadoresIndLinks}
         {area === 'okrs' && okrsLinks}
+        {area === 'workspace' && workspaceLinks}
       </nav>
       <button
         type="button"
@@ -654,6 +673,9 @@ function AppContent() {
     }
     if (path.startsWith('/okrs')) {
       return 'okrs';
+    }
+    if (path.startsWith('/workspace')) {
+      return 'workspace';
     }
     return null;
   };
@@ -848,6 +870,27 @@ function AppContent() {
                       <FeedbackKanbanView />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            {/* Area de Workspace (Gestao de Tarefas) */}
+            <Route
+              path="/workspace"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <WorkspaceView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workspace/project/:projectId"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <ProjectView />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
