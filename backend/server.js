@@ -19,11 +19,11 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
-import { isDirector, isAdmin, isPrivileged, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
+import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
   fetchCobrancasFeitas, upsertCobranca, fetchTimesList, fetchUsuarioToTime,
-  fetchFeedbacks, createFeedback, updateFeedbackStatus, updateFeedbackParecer,
+  fetchFeedbacks, createFeedback, updateFeedbackStatus, updateFeedbackParecer, updateFeedback, getFeedbackStats,
   fetchUserViews, updateUserViews, getUserViews, createLog, fetchLogs, countLogsByAction, countViewUsage,
   fetchOKRs, fetchOKRById, createOKR, updateOKR, deleteOKR, createKeyResult, updateKeyResult,
   fetchOKRCheckIns, createOKRCheckIn, updateOKRCheckIn, deleteOKRCheckIn,
@@ -39,7 +39,11 @@ import {
   fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan,
   fetchPeopleWithScores, getPersonById, fetchTeam,
   fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, getUserSectorByEmail, getUserByEmail,
-  fetchSectorsOverview, fetchHistoryComparison
+  fetchSectorsOverview, fetchHistoryComparison,
+  // Views & Access Control
+  fetchViews, createView, deleteView,
+  fetchAccessDefaults, createAccessDefault, updateAccessDefault, deleteAccessDefault,
+  getUserViewOverrides, setUserViewOverride, removeUserViewOverride, getEffectiveViews
 } from './supabase.js';
 
 const app = express();
@@ -1165,25 +1169,47 @@ app.get('/api/projetos/apontamentos', requireAuth, async (req, res) => {
 
 /**
  * Rota: GET /api/feedbacks
- * Retorna todos os feedbacks
- * Usuários normais veem apenas seus próprios feedbacks
- * Admin/Director veem todos
+ * Retorna todos os feedbacks, ordenados com os do usuário primeiro
  */
 app.get('/api/feedbacks', requireAuth, async (req, res) => {
   try {
-    const isPrivilegedUser = isPrivileged(req.user.email);
-    const feedbacks = await fetchFeedbacks(isPrivilegedUser, req.user.email);
-    
+    const userEmail = req.user?.email || null;
+    console.log('📋 Buscando feedbacks para:', userEmail);
+
+    const feedbacks = await fetchFeedbacks(userEmail);
+
     res.json({
       success: true,
       count: feedbacks.length,
       data: feedbacks,
     });
   } catch (error) {
-    console.error('❌ Erro ao buscar feedbacks:', error);
+    console.error('❌ Erro ao buscar feedbacks:', error.message);
+    console.error('Stack:', error.stack);
     res.status(500).json({
       success: false,
       error: error.message || 'Erro ao buscar feedbacks',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/feedbacks/stats
+ * Retorna estatísticas dos feedbacks (contagem por status)
+ */
+app.get('/api/feedbacks/stats', requireAuth, async (req, res) => {
+  try {
+    const stats = await getFeedbackStats();
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar estatísticas de feedbacks:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar estatísticas',
     });
   }
 });
@@ -1194,31 +1220,36 @@ app.get('/api/feedbacks', requireAuth, async (req, res) => {
  */
 app.post('/api/feedbacks', requireAuth, async (req, res) => {
   try {
-    const { tipo, titulo, descricao } = req.body;
+    const { tipo, titulo, descricao, feedback_text } = req.body;
 
-    if (!tipo || !['processo', 'plataforma'].includes(tipo)) {
+    // Aceita tanto 'descricao' (legacy) quanto 'feedback_text' (novo)
+    const text = feedback_text || descricao;
+
+    const validTipos = ['processo', 'plataforma', 'sugestao', 'outro'];
+    if (!tipo || !validTipos.includes(tipo)) {
       return res.status(400).json({
         success: false,
-        error: 'Tipo deve ser "processo" ou "plataforma"',
+        error: `Tipo deve ser um dos seguintes: ${validTipos.join(', ')}`,
       });
     }
 
-    if (!titulo || !descricao) {
+    if (!text) {
       return res.status(400).json({
         success: false,
-        error: 'Título e descrição são obrigatórios',
+        error: 'Texto do feedback é obrigatório',
       });
     }
 
     const feedback = await createFeedback({
       tipo,
-      titulo,
-      descricao,
-      created_by: req.user.email,
+      titulo: titulo || null,
+      feedback_text: text,
+      author_email: req.user.email,
+      author_name: req.user.displayName || req.user.name || null,
     });
 
     // Registra a criação do feedback
-    await logAction(req, 'create', 'feedback', feedback.id, `Feedback: ${titulo}`, { tipo });
+    await logAction(req, 'create', 'feedback', feedback.id, `Feedback: ${titulo || text.substring(0, 50)}`, { tipo });
 
     res.json({
       success: true,
@@ -1235,14 +1266,31 @@ app.post('/api/feedbacks', requireAuth, async (req, res) => {
 
 /**
  * Rota: PUT /api/feedbacks/:id/status
- * Atualiza o status de um feedback
+ * Atualiza o status de um feedback (apenas admin/director)
  */
 app.put('/api/feedbacks/:id/status', requireAuth, async (req, res) => {
   try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+        message: 'Somente admin ou director podem alterar o status',
+      });
+    }
+
     const { id } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ['pendente', 'em_analise', 'resolvido', 'arquivado'];
+    const validStatuses = [
+      'pendente',
+      'em_analise',
+      'backlog_desenvolvimento',
+      'backlog_treinamento',
+      'analise_funcionalidade',
+      'finalizado',
+      'recusado'
+    ];
+
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -1251,6 +1299,9 @@ app.put('/api/feedbacks/:id/status', requireAuth, async (req, res) => {
     }
 
     const feedback = await updateFeedbackStatus(id, status, req.user.email);
+
+    // Registra a alteração de status
+    await logAction(req, 'update', 'feedback', id, `Status alterado para: ${status}`, { status });
 
     res.json({
       success: true,
@@ -1268,6 +1319,7 @@ app.put('/api/feedbacks/:id/status', requireAuth, async (req, res) => {
 /**
  * Rota: PUT /api/feedbacks/:id/parecer
  * Atualiza o parecer de um feedback (apenas admin/director)
+ * Aceita: admin_analysis (análise) e admin_action (ação a tomar)
  */
 app.put('/api/feedbacks/:id/parecer', requireAuth, async (req, res) => {
   try {
@@ -1280,16 +1332,23 @@ app.put('/api/feedbacks/:id/parecer', requireAuth, async (req, res) => {
     }
 
     const { id } = req.params;
-    const { parecer } = req.body;
+    const { parecer, admin_analysis, admin_action } = req.body;
 
-    if (!parecer || typeof parecer !== 'string') {
+    // Suporte legacy: 'parecer' vai para admin_analysis se não houver admin_analysis
+    const analysis = admin_analysis || parecer || null;
+    const action = admin_action || null;
+
+    if (!analysis && !action) {
       return res.status(400).json({
         success: false,
-        error: 'Parecer é obrigatório',
+        error: 'Análise ou ação a tomar é obrigatória',
       });
     }
 
-    const feedback = await updateFeedbackParecer(id, parecer, req.user.email);
+    const feedback = await updateFeedbackParecer(id, analysis, action, req.user.email);
+
+    // Registra a ação
+    await logAction(req, 'update', 'feedback', id, 'Parecer atualizado', { hasAnalysis: !!analysis, hasAction: !!action });
 
     res.json({
       success: true,
@@ -1300,6 +1359,74 @@ app.put('/api/feedbacks/:id/parecer', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Erro ao atualizar parecer do feedback',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/feedbacks/:id
+ * Atualização completa de um feedback (apenas admin/director)
+ * Permite atualizar status, análise e ação de uma só vez
+ */
+app.put('/api/feedbacks/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+        message: 'Somente admin ou director podem atualizar feedbacks',
+      });
+    }
+
+    const { id } = req.params;
+    const { status, admin_analysis, admin_action } = req.body;
+
+    // Validar status se fornecido
+    if (status) {
+      const validStatuses = [
+        'pendente',
+        'em_analise',
+        'backlog_desenvolvimento',
+        'backlog_treinamento',
+        'analise_funcionalidade',
+        'finalizado',
+        'recusado'
+      ];
+
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          error: `Status deve ser um dos seguintes: ${validStatuses.join(', ')}`,
+        });
+      }
+    }
+
+    const updateData = {};
+    if (status !== undefined) updateData.status = status;
+    if (admin_analysis !== undefined) updateData.admin_analysis = admin_analysis;
+    if (admin_action !== undefined) updateData.admin_action = admin_action;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nenhum campo para atualizar foi fornecido',
+      });
+    }
+
+    const feedback = await updateFeedback(id, updateData, req.user.email);
+
+    // Registra a ação
+    await logAction(req, 'update', 'feedback', id, 'Feedback atualizado', updateData);
+
+    res.json({
+      success: true,
+      data: feedback,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar feedback:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar feedback',
     });
   }
 });
@@ -1399,6 +1526,449 @@ app.get('/api/user/my-views', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Erro ao buscar vistas do usuário',
+    });
+  }
+});
+
+// ============================================================================
+// VIEWS & ACCESS CONTROL ENDPOINTS
+// ============================================================================
+
+/**
+ * Rota: GET /api/user/effective-views
+ * Retorna as vistas efetivas que o usuário pode acessar
+ * Considera: role, setor, cargo e overrides específicos
+ */
+app.get('/api/user/effective-views', requireAuth, async (req, res) => {
+  try {
+    const userInfo = await getUserByEmail(req.user.email);
+
+    const user = {
+      email: req.user.email,
+      role: req.user.role || getUserRole(req.user.email),
+      sector_id: userInfo?.setor_id || null,
+      position_id: userInfo?.cargo?.id || null,
+    };
+
+    const views = await getEffectiveViews(user);
+
+    res.json({
+      success: true,
+      views,
+      user: {
+        email: user.email,
+        role: user.role,
+        sector_id: user.sector_id,
+        position_id: user.position_id,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar vistas efetivas:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar vistas efetivas',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/admin/views
+ * Retorna todas as vistas cadastradas
+ * Apenas admin/director/dev
+ */
+app.get('/api/admin/views', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const views = await fetchViews();
+    res.json({
+      success: true,
+      data: views,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar vistas:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar vistas',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/admin/views
+ * Cria uma nova vista
+ * Apenas dev
+ */
+app.post('/api/admin/views', requireAuth, async (req, res) => {
+  try {
+    if (!isDev(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+        message: 'Apenas desenvolvedores podem criar vistas',
+      });
+    }
+
+    const { id, name, area, route, description, sort_order } = req.body;
+
+    if (!id || !name || !area || !route) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos obrigatórios: id, name, area, route',
+      });
+    }
+
+    const view = await createView({ id, name, area, route, description, sort_order });
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.name,
+      action_type: 'create',
+      resource_type: 'view',
+      resource_id: id,
+      resource_name: name,
+    });
+
+    res.json({
+      success: true,
+      data: view,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar vista:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar vista',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/admin/views/:id
+ * Remove uma vista
+ * Apenas dev
+ */
+app.delete('/api/admin/views/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isDev(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+        message: 'Apenas desenvolvedores podem remover vistas',
+      });
+    }
+
+    const { id } = req.params;
+    await deleteView(id);
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.name,
+      action_type: 'delete',
+      resource_type: 'view',
+      resource_id: id,
+    });
+
+    res.json({
+      success: true,
+      message: 'Vista removida com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao remover vista:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao remover vista',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/admin/access-defaults
+ * Retorna todas as regras de acesso padrão
+ * Apenas admin/director/dev
+ */
+app.get('/api/admin/access-defaults', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const filters = {
+      view_id: req.query.view_id || null,
+      role: req.query.role || null,
+      sector_id: req.query.sector_id || null,
+      position_id: req.query.position_id || null,
+    };
+
+    const rules = await fetchAccessDefaults(filters);
+    res.json({
+      success: true,
+      data: rules,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar regras de acesso:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar regras de acesso',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/admin/access-defaults
+ * Cria uma nova regra de acesso padrão
+ * Apenas admin/director/dev
+ */
+app.post('/api/admin/access-defaults', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { view_id, role, sector_id, position_id, has_access } = req.body;
+
+    if (!view_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo obrigatório: view_id',
+      });
+    }
+
+    const rule = await createAccessDefault({ view_id, role, sector_id, position_id, has_access });
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.name,
+      action_type: 'create',
+      resource_type: 'access_default',
+      resource_id: String(rule.id),
+      details: { view_id, role, sector_id, position_id, has_access },
+    });
+
+    res.json({
+      success: true,
+      data: rule,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar regra de acesso:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar regra de acesso',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/admin/access-defaults/:id
+ * Atualiza uma regra de acesso padrão
+ * Apenas admin/director/dev
+ */
+app.put('/api/admin/access-defaults/:id', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { id } = req.params;
+    const { view_id, role, sector_id, position_id, has_access } = req.body;
+
+    const rule = await updateAccessDefault(parseInt(id, 10), { view_id, role, sector_id, position_id, has_access });
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.name,
+      action_type: 'update',
+      resource_type: 'access_default',
+      resource_id: id,
+      details: { view_id, role, sector_id, position_id, has_access },
+    });
+
+    res.json({
+      success: true,
+      data: rule,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar regra de acesso:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar regra de acesso',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/admin/access-defaults/:id
+ * Remove uma regra de acesso padrão
+ * Apenas admin/director/dev
+ */
+app.delete('/api/admin/access-defaults/:id', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { id } = req.params;
+    await deleteAccessDefault(parseInt(id, 10));
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.name,
+      action_type: 'delete',
+      resource_type: 'access_default',
+      resource_id: id,
+    });
+
+    res.json({
+      success: true,
+      message: 'Regra de acesso removida com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao remover regra de acesso:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao remover regra de acesso',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/admin/user-view-override
+ * Define ou atualiza um override de vista para um usuário específico
+ * Body: { email, view_id, has_access }
+ * Apenas admin/director/dev
+ */
+app.put('/api/admin/user-view-override', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { email, view_id, has_access } = req.body;
+
+    if (!email || !view_id || has_access === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos obrigatórios: email, view_id, has_access',
+      });
+    }
+
+    await setUserViewOverride(email, view_id, has_access);
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.name,
+      action_type: 'update',
+      resource_type: 'user_view_override',
+      resource_id: email,
+      details: { view_id, has_access },
+    });
+
+    res.json({
+      success: true,
+      message: 'Override de vista atualizado com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao definir override de vista:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao definir override de vista',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/admin/user-view-override
+ * Remove um override de vista para um usuário
+ * Query params: email, view_id
+ * Apenas admin/director/dev
+ */
+app.delete('/api/admin/user-view-override', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { email, view_id } = req.query;
+
+    if (!email || !view_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query params obrigatórios: email, view_id',
+      });
+    }
+
+    await removeUserViewOverride(email, view_id);
+
+    await createLog({
+      user_email: req.user.email,
+      user_name: req.user.name,
+      action_type: 'delete',
+      resource_type: 'user_view_override',
+      resource_id: email,
+      details: { view_id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Override de vista removido com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao remover override de vista:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao remover override de vista',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/admin/user-view-overrides/:email
+ * Retorna os overrides de vista de um usuário específico
+ * Apenas admin/director/dev
+ */
+app.get('/api/admin/user-view-overrides/:email', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+      });
+    }
+
+    const { email } = req.params;
+    const overrides = await getUserViewOverrides(decodeURIComponent(email));
+
+    res.json({
+      success: true,
+      data: overrides,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar overrides do usuário:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar overrides do usuário',
     });
   }
 });

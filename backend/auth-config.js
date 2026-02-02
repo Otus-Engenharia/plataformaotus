@@ -1,21 +1,27 @@
 /**
  * Configuração de Usuários e Roles
- * 
+ *
  * Define quais usuários têm acesso e seus respectivos roles:
+ * - 'dev': Acesso total + permissões especiais de desenvolvedor (hardcoded)
  * - 'director': Acesso total a todos os projetos
  * - 'admin': Acesso total a todos os projetos
  * - 'leader': Acesso apenas aos projetos onde é líder
- * 
+ * - 'user': Acesso básico (indicadores próprios)
+ *
  * IMPORTANTE: Use o email do Google Account do usuário
+ *
+ * Hierarquia: dev > director > admin > leader > user
  */
 
 export const USER_ROLES = {
+  // DEV - Acesso total + permissões especiais (hardcoded, não gerenciável pela UI)
+  'pedro.kupka@otusengenharia.com': 'dev',
+  'felipe.simoni@otusengenharia.com': 'dev',
+
   // Acesso total (Diretora e equipe de gestão)
   'carla.bedin@otusengenharia.com': 'director',
   'arthur.oliveira@otusengenharia.com': 'director',
   'ana.reisdorfer@otusengenharia.com': 'admin',
-  'felipe.simoni@otusengenharia.com': 'admin',
-  'pedro.kupka@otusengenharia.com': 'admin',
 
   // Acesso de líder - apenas aos seus projetos
   'anna.bastos@otusengenharia.com': 'leader',
@@ -109,6 +115,16 @@ export function getUserRole(email) {
 }
 
 /**
+ * Verifica se um usuário é dev (permissão máxima)
+ * Devs têm bypass de todas as verificações de acesso
+ * @param {string} email - Email do usuário
+ * @returns {boolean}
+ */
+export function isDev(email) {
+  return getUserRole(email) === 'dev';
+}
+
+/**
  * Verifica se um usuário é diretora
  * @param {string} email - Email do usuário
  * @returns {boolean}
@@ -127,13 +143,13 @@ export function isAdmin(email) {
 }
 
 /**
- * Verifica se um usuário é diretora, admin ou líder
+ * Verifica se um usuário é dev, diretora, admin ou líder
  * @param {string} email - Email do usuário
  * @returns {boolean}
  */
 export function isPrivileged(email) {
   const role = getUserRole(email);
-  return role === 'director' || role === 'admin' || role === 'leader';
+  return role === 'dev' || role === 'director' || role === 'admin' || role === 'leader';
 }
 
 /**
@@ -166,10 +182,21 @@ export function isVendas(email) {
 
 /**
  * Verifica se um usuário pode acessar o Formulário de Passagem
- * (Diretores, Admin e Vendas)
+ * (Dev, Diretores, Admin, Líderes e Vendas)
  * @param {string} email - Email do usuário
  * @returns {boolean}
  */
 export function canAccessFormularioPassagem(email) {
   return isPrivileged(email) || isVendas(email);
+}
+
+/**
+ * Verifica se um usuário tem acesso administrativo total
+ * (Dev, Director ou Admin)
+ * @param {string} email - Email do usuário
+ * @returns {boolean}
+ */
+export function hasFullAccess(email) {
+  const role = getUserRole(email);
+  return role === 'dev' || role === 'director' || role === 'admin';
 }
