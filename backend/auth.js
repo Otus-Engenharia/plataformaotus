@@ -56,13 +56,13 @@ async function hasAccessFromDB(email) {
 }
 
 /**
- * Verifica se usuário é privilegiado (admin ou leader)
+ * Verifica se usuário é privilegiado (dev, director, admin ou leader)
  * @param {Object} user - Dados do usuário
  * @returns {boolean}
  */
 function isPrivilegedFromDB(user) {
   if (!user || !user.role) return false;
-  return ['director', 'admin', 'leader'].includes(user.role);
+  return ['dev', 'director', 'admin', 'leader'].includes(user.role);
 }
 
 /**
