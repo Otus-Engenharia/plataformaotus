@@ -17,7 +17,6 @@ export default function AdminUsuarios() {
   // Filter states
   const [filterRole, setFilterRole] = useState('');
   const [filterSetor, setFilterSetor] = useState('');
-  const [filterCargo, setFilterCargo] = useState('');
   const [filterLider, setFilterLider] = useState('');
   const [showOnlyActive, setShowOnlyActive] = useState(true);
 
@@ -67,19 +66,10 @@ export default function AdminUsuarios() {
   // Unique setors for filter dropdown (always show all)
   const uniqueSetors = [...new Set(users.map(u => u.setor?.name).filter(Boolean))].sort();
 
-  // Cargos filtered by selected setor (cascading filter)
-  const uniqueCargos = [...new Set(
-    users
-      .filter(u => !filterSetor || u.setor?.name === filterSetor)
-      .map(u => u.cargo?.name)
-      .filter(Boolean)
-  )].sort();
-
-  // Liders filtered by selected setor and cargo (cascading filter)
+  // Liders filtered by selected setor (cascading filter)
   const uniqueLiders = [...new Set(
     users
       .filter(u => !filterSetor || u.setor?.name === filterSetor)
-      .filter(u => !filterCargo || u.cargo?.name === filterCargo)
       .map(u => u.leader?.name)
       .filter(Boolean)
   )].sort();
@@ -97,9 +87,6 @@ export default function AdminUsuarios() {
     // Setor filter
     const matchesSetor = !filterSetor || user.setor?.name === filterSetor;
 
-    // Cargo filter
-    const matchesCargo = !filterCargo || user.cargo?.name === filterCargo;
-
     // Lider filter
     const matchesLider = !filterLider || user.leader?.name === filterLider;
 
@@ -107,18 +94,17 @@ export default function AdminUsuarios() {
     const isActive = user.is_active !== false;
     const matchesActive = !showOnlyActive || isActive;
 
-    return matchesSearch && matchesRole && matchesSetor && matchesCargo && matchesLider && matchesActive;
+    return matchesSearch && matchesRole && matchesSetor && matchesLider && matchesActive;
   });
 
   // Check if any filter is active
-  const hasActiveFilters = filterRole || filterSetor || filterCargo || filterLider || !showOnlyActive;
+  const hasActiveFilters = filterRole || filterSetor || filterLider || !showOnlyActive;
 
   // Clear all filters
   const clearAllFilters = () => {
     setFilter('');
     setFilterRole('');
     setFilterSetor('');
-    setFilterCargo('');
     setFilterLider('');
     setShowOnlyActive(true);
   };
@@ -458,24 +444,12 @@ export default function AdminUsuarios() {
             />
 
             <SearchableDropdown
-              value={filterCargo}
-              onChange={(val) => {
-                setFilterCargo(val);
-                setFilterLider(''); // Reset dependent filter
-              }}
-              options={uniqueCargos}
-              placeholder="Cargo"
-              disabled={uniqueCargos.length === 0}
-              count={filterSetor && uniqueCargos.length > 0 ? uniqueCargos.length : null}
-            />
-
-            <SearchableDropdown
               value={filterLider}
               onChange={(val) => setFilterLider(val)}
               options={uniqueLiders}
               placeholder="Líder"
               disabled={uniqueLiders.length === 0}
-              count={(filterSetor || filterCargo) && uniqueLiders.length > 0 ? uniqueLiders.length : null}
+              count={filterSetor && uniqueLiders.length > 0 ? uniqueLiders.length : null}
             />
 
             <button
@@ -505,7 +479,7 @@ export default function AdminUsuarios() {
                 <th className="col-user">Usuário</th>
                 <th className="col-role">Papel</th>
                 <th className="col-sector">Setor</th>
-                <th className="col-position">Cargo</th>
+                <th className="col-cargo">Cargo</th>
                 <th className="col-leader">Líder</th>
                 <th className="col-status">Status</th>
               </tr>
@@ -555,7 +529,7 @@ export default function AdminUsuarios() {
                       <td className="col-sector">
                         <span className="field-text">{user.setor?.name || '—'}</span>
                       </td>
-                      <td className="col-position">
+                      <td className="col-cargo">
                         <span className="field-text">{user.cargo?.name || '—'}</span>
                       </td>
                       <td className="col-leader">
