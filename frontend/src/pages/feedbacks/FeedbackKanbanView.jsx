@@ -54,9 +54,33 @@ export default function FeedbackKanbanView() {
   const [formData, setFormData] = useState({
     tipo: 'processo',
     titulo: '',
-    feedback_text: ''
+    feedback_text: '',
+    screenshot_url: null
   });
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Handle screenshot upload
+  const handleScreenshotChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result);
+        setFormData(prev => ({ ...prev, screenshot_url: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeScreenshot = () => {
+    setScreenshotPreview(null);
+    setFormData(prev => ({ ...prev, screenshot_url: null }));
+  };
 
   const fetchFeedbacks = useCallback(async () => {
     setLoading(true);
@@ -100,7 +124,8 @@ export default function FeedbackKanbanView() {
       }
 
       // Reset form and refresh
-      setFormData({ tipo: 'processo', titulo: '', feedback_text: '' });
+      setFormData({ tipo: 'processo', titulo: '', feedback_text: '', screenshot_url: null });
+      setScreenshotPreview(null);
       setShowCreateForm(false);
       fetchFeedbacks();
     } catch (err) {
@@ -292,58 +317,119 @@ export default function FeedbackKanbanView() {
 
       {/* Create Form Dialog */}
       {showCreateForm && (
-        <div className="dialog-overlay" onClick={() => setShowCreateForm(false)}>
-          <div className="dialog-content glass-card" onClick={e => e.stopPropagation()}>
-            <div className="dialog-header">
-              <h2>Novo Feedback</h2>
-              <button className="dialog-close" onClick={() => setShowCreateForm(false)}>&times;</button>
+        <div className="feedback-dialog-overlay" onClick={() => setShowCreateForm(false)}>
+          <div className="feedback-dialog" onClick={e => e.stopPropagation()}>
+            <div className="feedback-dialog__header">
+              <div className="feedback-dialog__title-row">
+                <svg className="feedback-dialog__header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <h2>Novo Feedback</h2>
+              </div>
+              <button className="feedback-dialog__close" onClick={() => setShowCreateForm(false)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
 
-            <form className="dialog-form" onSubmit={handleCreateFeedback}>
-              <div className="form-group">
-                <label htmlFor="feedback-tipo">Tipo *</label>
-                <select
-                  id="feedback-tipo"
-                  value={formData.tipo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, tipo: e.target.value }))}
-                  required
-                >
+            <form className="feedback-dialog__form" onSubmit={handleCreateFeedback}>
+              {/* Type Selection */}
+              <div className="feedback-dialog__field">
+                <label className="feedback-dialog__label">Tipo</label>
+                <div className="feedback-dialog__type-grid">
                   {Object.entries(TIPO_CONFIG).map(([value, config]) => (
-                    <option key={value} value={value}>
-                      {config.icon} {config.label}
-                    </option>
+                    <button
+                      key={value}
+                      type="button"
+                      className={`feedback-dialog__type-btn ${formData.tipo === value ? 'feedback-dialog__type-btn--active' : ''}`}
+                      onClick={() => setFormData(prev => ({ ...prev, tipo: value }))}
+                    >
+                      <span className="feedback-dialog__type-icon">{config.icon}</span>
+                      <span className="feedback-dialog__type-label">{config.label}</span>
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="feedback-titulo">Título (opcional)</label>
+              {/* Title */}
+              <div className="feedback-dialog__field">
+                <label className="feedback-dialog__label" htmlFor="feedback-titulo">
+                  Título <span className="feedback-dialog__optional">(opcional)</span>
+                </label>
                 <input
                   id="feedback-titulo"
                   type="text"
+                  className="feedback-dialog__input"
                   value={formData.titulo}
                   onChange={(e) => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
                   placeholder="Resumo do seu feedback"
+                  maxLength={200}
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="feedback-text">Feedback * <span className="form-hint">Digite @ para mencionar outro feedback</span></label>
+              {/* Description */}
+              <div className="feedback-dialog__field">
+                <label className="feedback-dialog__label" htmlFor="feedback-text">
+                  Descrição <span className="feedback-dialog__required">*</span>
+                  <span className="feedback-dialog__hint">Digite @ para mencionar outro feedback</span>
+                </label>
                 <MentionInput
                   id="feedback-text"
+                  className="feedback-dialog__textarea"
                   value={formData.feedback_text}
                   onChange={(val) => setFormData(prev => ({ ...prev, feedback_text: val }))}
                   feedbacks={feedbacks}
                   placeholder="Descreva seu feedback em detalhes..."
-                  rows={5}
+                  rows={4}
                   required
                 />
               </div>
 
-              <div className="dialog-actions">
+              {/* Screenshot */}
+              <div className="feedback-dialog__field">
+                <label className="feedback-dialog__label">
+                  Screenshot <span className="feedback-dialog__optional">(opcional)</span>
+                </label>
+                {screenshotPreview ? (
+                  <div className="feedback-dialog__screenshot-preview">
+                    <img src={screenshotPreview} alt="Screenshot preview" />
+                    <button
+                      type="button"
+                      className="feedback-dialog__screenshot-remove"
+                      onClick={removeScreenshot}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <label className="feedback-dialog__upload">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScreenshotChange}
+                      className="feedback-dialog__upload-input"
+                    />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <span>Clique ou arraste uma imagem</span>
+                    <span className="feedback-dialog__upload-hint">PNG, JPG até 5MB</span>
+                  </label>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="feedback-dialog__actions">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="feedback-dialog__btn feedback-dialog__btn--secondary"
                   onClick={() => setShowCreateForm(false)}
                   disabled={submitting}
                 >
@@ -351,7 +437,7 @@ export default function FeedbackKanbanView() {
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary"
+                  className="feedback-dialog__btn feedback-dialog__btn--primary"
                   disabled={submitting || !formData.feedback_text.trim()}
                 >
                   {submitting ? 'Enviando...' : 'Enviar Feedback'}

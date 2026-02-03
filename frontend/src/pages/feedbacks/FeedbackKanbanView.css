@@ -582,3 +582,390 @@
     max-height: 300px;
   }
 }
+
+/* ========================================
+   NEW FEEDBACK DIALOG (style matching BugReportDialog)
+   ======================================== */
+
+.feedback-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  animation: feedback-overlay-in 0.2s ease-out;
+}
+
+@keyframes feedback-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.feedback-dialog {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: feedback-dialog-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes feedback-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.feedback-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.feedback-dialog__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.feedback-dialog__header-icon {
+  width: 28px;
+  height: 28px;
+  color: #d4a800;
+}
+
+.feedback-dialog__header h2 {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.02em;
+}
+
+.feedback-dialog__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: #f5f5f5;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.feedback-dialog__close:hover {
+  background: #eee;
+  color: #333;
+  border-color: #ddd;
+}
+
+.feedback-dialog__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.feedback-dialog__form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.feedback-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feedback-dialog__label {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feedback-dialog__required {
+  color: #dc2626;
+}
+
+.feedback-dialog__optional {
+  font-weight: 400;
+  color: #999;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.feedback-dialog__hint {
+  font-weight: 400;
+  color: #999;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 11px;
+  margin-left: auto;
+}
+
+/* Type Selection Grid */
+.feedback-dialog__type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.feedback-dialog__type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.feedback-dialog__type-btn:hover {
+  background: #f0f0f0;
+  border-color: #ddd;
+  color: #333;
+}
+
+.feedback-dialog__type-btn--active {
+  background: #fffbeb;
+  border-color: #d4a800;
+  color: #92700c;
+}
+
+.feedback-dialog__type-icon {
+  font-size: 20px;
+}
+
+.feedback-dialog__type-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Input & Textarea */
+.feedback-dialog__input,
+.feedback-dialog__textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  color: #1a1a1a;
+  font-family: inherit;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.feedback-dialog__input::placeholder,
+.feedback-dialog__textarea::placeholder {
+  color: #999;
+}
+
+.feedback-dialog__input:focus,
+.feedback-dialog__textarea:focus {
+  outline: none;
+  border-color: #d4a800;
+  box-shadow: 0 0 0 3px rgba(212, 168, 0, 0.15);
+}
+
+.feedback-dialog__textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Upload Area */
+.feedback-dialog__upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: #f9f9f9;
+  border: 2px dashed #ddd;
+  border-radius: 12px;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.feedback-dialog__upload:hover {
+  background: #f5f5f5;
+  border-color: #d4a800;
+  color: #666;
+}
+
+.feedback-dialog__upload svg {
+  width: 32px;
+  height: 32px;
+  opacity: 0.5;
+}
+
+.feedback-dialog__upload span {
+  font-size: 13px;
+}
+
+.feedback-dialog__upload-hint {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.feedback-dialog__upload-input {
+  display: none;
+}
+
+/* Screenshot Preview */
+.feedback-dialog__screenshot-preview {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e5e5;
+}
+
+.feedback-dialog__screenshot-preview img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background: #f5f5f5;
+}
+
+.feedback-dialog__screenshot-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.feedback-dialog__screenshot-remove:hover {
+  background: #ef4444;
+}
+
+.feedback-dialog__screenshot-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Actions */
+.feedback-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.feedback-dialog__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.feedback-dialog__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.feedback-dialog__btn--secondary {
+  background: #fff;
+  border: 1px solid #ddd;
+  color: #666;
+}
+
+.feedback-dialog__btn--secondary:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #ccc;
+  color: #333;
+}
+
+.feedback-dialog__btn--primary {
+  background: linear-gradient(135deg, #ffdd00 0%, #e6c700 100%);
+  border: none;
+  color: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(255, 221, 0, 0.3);
+}
+
+.feedback-dialog__btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 221, 0, 0.4);
+}
+
+/* Mobile */
+@media (max-width: 540px) {
+  .feedback-dialog-overlay {
+    padding: 12px;
+  }
+
+  .feedback-dialog__header {
+    padding: 16px 20px;
+  }
+
+  .feedback-dialog__form {
+    padding: 20px;
+  }
+
+  .feedback-dialog__type-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .feedback-dialog__actions {
+    flex-direction: column;
+  }
+
+  .feedback-dialog__btn {
+    width: 100%;
+  }
+}

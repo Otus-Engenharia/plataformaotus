@@ -84,8 +84,102 @@
   color: #737373;
 }
 
+/* Toggle Active Button */
+.access-filters .toggle-active-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #f5f5f5;
+  border: 1px solid #e5e5e5;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-end;
+  height: fit-content;
+}
+
+.access-filters .toggle-active-btn:hover {
+  background: #e5e5e5;
+}
+
+.access-filters .toggle-active-btn.active {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.access-filters .toggle-active-btn .toggle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #999;
+  transition: background 0.2s ease;
+}
+
+.access-filters .toggle-active-btn.active .toggle-dot {
+  background: #22c55e;
+}
+
+/* Status Toggle */
+.status-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.status-toggle .toggle-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: #e5e5e5;
+  border-radius: 11px;
+  transition: background 0.2s ease;
+}
+
+.status-toggle.toggle-active .toggle-track {
+  background: #22c55e;
+}
+
+.status-toggle.toggle-inactive .toggle-track {
+  background: #e5e5e5;
+}
+
+.status-toggle .toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.status-toggle.toggle-active .toggle-thumb {
+  transform: translateX(18px);
+}
+
+.status-toggle:hover .toggle-track {
+  opacity: 0.9;
+}
+
 @media (max-width: 768px) {
   .access-table {
     min-width: 720px;
+  }
+
+  .access-filters .toggle-active-btn {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 }

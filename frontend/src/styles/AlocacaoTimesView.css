@@ -312,6 +312,58 @@
   color: var(--text-tertiary, #999);
 }
 
+/* Editable Cells */
+.editable-cell {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.editable-cell:hover {
+  background: var(--surface-hover, #f0f0f0);
+  box-shadow: 0 0 0 2px var(--primary-light, #fef3c7);
+}
+
+.editable-cell.text-muted:hover {
+  background: var(--surface-hover, #f0f0f0);
+  color: var(--text-secondary, #666);
+}
+
+.editable-cell.badge:hover {
+  filter: brightness(0.95);
+}
+
+.editable-cell.team-number:hover {
+  transform: scale(1.05);
+}
+
+/* Inline Select/Input */
+.inline-select,
+.inline-input {
+  width: 100%;
+  min-width: 140px;
+  padding: 0.375rem 0.625rem;
+  background: var(--surface, #fff);
+  border: 2px solid var(--primary, #f5c400);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.inline-select:focus,
+.inline-input:focus {
+  border-color: var(--primary, #f5c400);
+  box-shadow: 0 0 0 3px rgba(245, 196, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.inline-input-number {
+  min-width: 60px;
+  width: 60px;
+  text-align: center;
+}
+
 /* Team Number */
 .team-number {
   display: inline-flex;
@@ -589,6 +641,93 @@
   cursor: not-allowed;
 }
 
+/* Toggle Active Button */
+.toggle-active-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--surface-secondary, #f5f5f5);
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-active-btn:hover {
+  background: var(--surface-hover, #e5e5e5);
+}
+
+.toggle-active-btn.active {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.toggle-active-btn .toggle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-tertiary, #999);
+  transition: background 0.2s ease;
+}
+
+.toggle-active-btn.active .toggle-dot {
+  background: #22c55e;
+}
+
+/* Status Toggle */
+.status-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.status-toggle .toggle-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: #e5e5e5;
+  border-radius: 11px;
+  transition: background 0.2s ease;
+}
+
+.status-toggle.toggle-active .toggle-track {
+  background: #22c55e;
+}
+
+.status-toggle.toggle-inactive .toggle-track {
+  background: #e5e5e5;
+}
+
+.status-toggle .toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.status-toggle.toggle-active .toggle-thumb {
+  transform: translateX(18px);
+}
+
+.status-toggle:hover .toggle-track {
+  opacity: 0.9;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .summary-section {
@@ -610,5 +749,9 @@
 
   .results-count {
     text-align: center;
+  }
+
+  .toggle-active-btn {
+    align-self: flex-start;
   }
 }

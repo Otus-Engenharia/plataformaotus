@@ -23,12 +23,16 @@ function AdminAccessView() {
   const [teamFilter, setTeamFilter] = useState('all');
   const [leaderFilter, setLeaderFilter] = useState('all');
   const [cargoFilter, setCargoFilter] = useState('all');
+  const [showOnlyActive, setShowOnlyActive] = useState(true);
 
-  const fetchAccessData = async () => {
+  const fetchAccessData = async (showAll = false) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`${API_URL}/api/admin/colaboradores`, {
+      const url = showAll
+        ? `${API_URL}/api/admin/colaboradores?show_all=true`
+        : `${API_URL}/api/admin/colaboradores`;
+      const response = await axios.get(url, {
         withCredentials: true,
       });
 
@@ -46,8 +50,44 @@ function AdminAccessView() {
   };
 
   useEffect(() => {
-    fetchAccessData();
-  }, []);
+    fetchAccessData(!showOnlyActive);
+  }, [showOnlyActive]);
+
+  // Toggle user status
+  const handleToggleUserStatus = async (e, user) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const newStatus = !user.is_active;
+    const previousStatus = user.is_active;
+
+    // Optimistic update
+    setData(prevData =>
+      prevData.map(u =>
+        u.colaborador_id === user.colaborador_id ? { ...u, is_active: newStatus } : u
+      )
+    );
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/ind/admin/users/${user.colaborador_id}/status`,
+        { is_active: newStatus },
+        { withCredentials: true }
+      );
+
+      if (!response.data?.success) {
+        throw new Error('Erro ao atualizar status');
+      }
+    } catch (err) {
+      // Revert on error
+      setData(prevData =>
+        prevData.map(u =>
+          u.colaborador_id === user.colaborador_id ? { ...u, is_active: previousStatus } : u
+        )
+      );
+      alert('Erro ao atualizar status: ' + (err.response?.data?.error || err.message));
+    }
+  };
 
   const uniqueTeams = useMemo(() => {
     const teams = new Set();
@@ -217,6 +257,15 @@ function AdminAccessView() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
+        <button
+          type="button"
+          className={`toggle-active-btn ${showOnlyActive ? 'active' : ''}`}
+          onClick={() => setShowOnlyActive(!showOnlyActive)}
+        >
+          <span className="toggle-dot"></span>
+          <span>Apenas ativos</span>
+        </button>
       </div>
 
       <div className="access-results">
@@ -237,12 +286,13 @@ function AdminAccessView() {
               <th>Nivel de acesso</th>
               <th>Construflow</th>
               <th>Discord</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={10} className="empty-state">
+                <td colSpan={11} className="empty-state">
                   Nenhum colaborador encontrado
                 </td>
               </tr>
@@ -266,6 +316,18 @@ function AdminAccessView() {
                     <td>{accessLabel}</td>
                     <td>{row.construflow_id || '-'}</td>
                     <td>{row.discord_id || '-'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className={`status-toggle ${row.is_active ? 'toggle-active' : 'toggle-inactive'}`}
+                        onClick={(e) => handleToggleUserStatus(e, row)}
+                        title={row.is_active ? 'Clique para desativar' : 'Clique para reativar'}
+                      >
+                        <span className="toggle-track">
+                          <span className="toggle-thumb"></span>
+                        </span>
+                      </button>
+                    </td>
                   </tr>
                 );
               })

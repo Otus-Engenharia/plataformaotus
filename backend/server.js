@@ -62,7 +62,9 @@ import {
   getProjectIdByConstruflow,
   // Vista de Contatos
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
-  fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails
+  fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
+  // Portfolio - Edicao
+  fetchProjectsFromSupabase, updateProjectField, fetchPortfolioEditOptions
 } from './supabase.js';
 
 const app = express();
@@ -450,7 +452,35 @@ app.get('/api/portfolio', requireAuth, async (req, res) => {
       console.warn('⚠️ Supabase falhou, usando BigQuery:', supabaseError.message);
       data = await queryPortfolio(leaderName);
     }
-    
+
+    // Mesclar dados do Supabase projects (prioridade sobre BigQuery/Realtime)
+    try {
+      const supabaseProjects = await fetchProjectsFromSupabase();
+      const supabaseMap = {};
+      supabaseProjects.forEach(p => { supabaseMap[p.project_code] = p; });
+
+      data = data.map(row => {
+        const sp = supabaseMap[row.project_code_norm];
+        if (sp) {
+          return {
+            ...row,
+            comercial_name: sp.comercial_name ?? row.comercial_name,
+            status: sp.status ?? row.status,
+            client: sp.companies?.name ?? row.client,
+            nome_time: sp.teams?.team_name ?? row.nome_time,
+            lider: sp.users_otus?.name ?? row.lider,
+            // IDs para edicao no frontend
+            _company_id: sp.company_id,
+            _team_id: sp.team_id,
+            _project_manager_id: sp.project_manager_id
+          };
+        }
+        return row;
+      });
+    } catch (mergeError) {
+      console.warn('⚠️ Erro ao mesclar dados do Supabase projects:', mergeError.message);
+    }
+
     // Registra o acesso
     await logAction(req, 'view', 'portfolio', null, 'Portfólio', { count: data.length });
     
@@ -461,10 +491,90 @@ app.get('/api/portfolio', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Erro ao buscar portfólio:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: error.message,
       details: 'Verifique Supabase/BigQuery e a view de portfolio'
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/portfolio/edit-options
+ * Retorna opcoes para dropdowns de edicao (times, empresas, lideres)
+ * Apenas diretoria/admin
+ */
+app.get('/api/portfolio/edit-options', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+        message: 'Somente diretoria ou admin podem editar o portfolio'
+      });
+    }
+
+    const options = await fetchPortfolioEditOptions();
+
+    res.json({
+      success: true,
+      data: options
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar opcoes de edicao:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/portfolio/:projectCode
+ * Atualiza um campo do portfolio
+ * Apenas diretoria/admin
+ */
+app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso negado',
+        message: 'Somente diretoria ou admin podem editar o portfolio'
+      });
+    }
+
+    const { projectCode } = req.params;
+    const { field, value, oldValue } = req.body;
+
+    const editableFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
+    if (!editableFields.includes(field)) {
+      return res.status(400).json({
+        success: false,
+        error: `Campo '${field}' nao e editavel`
+      });
+    }
+
+    const result = await updateProjectField(projectCode, field, value);
+
+    // Log da edicao
+    await logAction(req, 'update', 'portfolio', projectCode, `Projeto ${projectCode}`, {
+      field,
+      oldValue,
+      newValue: value
+    });
+
+    console.log(`✅ Portfolio atualizado: ${projectCode}.${field} = ${value}`);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar portfolio:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -485,7 +595,9 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
     }
 
     const supabase = getSupabaseClient();
-    const { data, error } = await supabase
+    const showAll = req.query.show_all === 'true';
+
+    let query = supabase
       .from('users_otus')
       .select(`
         id,
@@ -496,14 +608,21 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
         email,
         construflow_user_id,
         discord_user_id,
+        is_active,
         leader:leader_id(name),
         padrinho:onboarding_buddy_id(name),
         team:team_id(team_number, team_name),
         setor:setor_id(id, name),
         status
       `)
-      .eq('status', 'ativo')
       .order('name', { ascending: true });
+
+    // Se não for show_all, filtra apenas ativos
+    if (!showAll) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('❌ Erro ao buscar colaboradores no Supabase:', error);
@@ -524,6 +643,7 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
       nivel_acesso: getUserRole(row.email) === 'dev' ? 'dev' : (row.role || getUserRole(row.email) || 'sem_acesso'),
       construflow_id: row.construflow_user_id ?? null,
       discord_id: row.discord_user_id ?? null,
+      is_active: row.is_active !== false,
     }));
 
     res.json({
@@ -1414,7 +1534,7 @@ app.get('/api/feedbacks/stats', requireAuth, async (req, res) => {
  */
 app.post('/api/feedbacks', requireAuth, async (req, res) => {
   try {
-    const { tipo, titulo, descricao, feedback_text } = req.body;
+    const { tipo, titulo, descricao, feedback_text, screenshot_url } = req.body;
 
     // Aceita tanto 'descricao' (legacy) quanto 'feedback_text' (novo)
     const text = feedback_text || descricao;
@@ -1438,6 +1558,7 @@ app.post('/api/feedbacks', requireAuth, async (req, res) => {
       tipo,
       titulo: titulo || null,
       feedback_text: text,
+      screenshot_url: screenshot_url || null,
       author_email: req.user.email,
       author_name: req.user.displayName || req.user.name || null,
     });

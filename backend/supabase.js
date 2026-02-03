@@ -355,6 +355,7 @@ export async function createFeedback(feedback) {
     tipo: feedback.tipo || 'processo',
     titulo: feedback.titulo || null,
     feedback_text: feedback.feedback_text || feedback.descricao || '',
+    screenshot_url: feedback.screenshot_url || null,
     status: 'pendente',
     author_email: feedback.author_email || feedback.created_by,
     author_name: feedback.author_name || null,
@@ -4447,5 +4448,107 @@ export async function fetchDisciplineCompanyDetails(disciplineId, companyId) {
     company: compResult.data || { id: companyId, name: '', status: '' },
     contacts: enrichedContacts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR')),
     projects: enrichedProjects.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR')),
+  };
+}
+
+// ============================================
+// Portfolio - Edicao de Projetos
+// ============================================
+
+/**
+ * Busca projetos do Supabase com joins para edicao
+ * @returns {Promise<Array>}
+ */
+export async function fetchProjectsFromSupabase() {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      project_code,
+      comercial_name,
+      status,
+      team_id,
+      company_id,
+      project_manager_id,
+      teams:team_id (id, team_name, team_number),
+      companies:company_id (id, name),
+      users_otus:project_manager_id (id, name)
+    `);
+
+  if (error) {
+    throw new Error(`Erro ao buscar projetos: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Atualiza um campo do projeto no Supabase
+ * @param {string} projectCode - Codigo do projeto
+ * @param {string} field - Campo a atualizar (comercial_name, status, client, nome_time, lider)
+ * @param {any} value - Novo valor
+ * @returns {Promise<Object>}
+ */
+export async function updateProjectField(projectCode, field, value) {
+  const supabase = getSupabaseClient();
+
+  // Mapear campo do frontend para campo do banco
+  const fieldMap = {
+    'comercial_name': 'comercial_name',
+    'status': 'status',
+    'client': 'company_id',
+    'nome_time': 'team_id',
+    'lider': 'project_manager_id'
+  };
+
+  const dbField = fieldMap[field];
+  if (!dbField) {
+    throw new Error(`Campo '${field}' nao mapeado`);
+  }
+
+  // Converter valor vazio para null
+  const dbValue = value === '' || value === undefined ? null : value;
+
+  const { data, error } = await supabase
+    .from('projects')
+    .update({ [dbField]: dbValue })
+    .eq('project_code', projectCode)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar projeto: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Busca opcoes para dropdowns de edicao de portfolio
+ * @returns {Promise<Object>}
+ */
+export async function fetchPortfolioEditOptions() {
+  const supabase = getSupabaseClient();
+
+  const [teamsResult, companiesResult, leadersResult] = await Promise.all([
+    supabase.from('teams').select('id, team_name, team_number').order('team_number'),
+    supabase.from('companies').select('id, name').order('name'),
+    supabase.from('users_otus').select('id, name').eq('is_active', true).order('name')
+  ]);
+
+  if (teamsResult.error) {
+    throw new Error(`Erro ao buscar times: ${teamsResult.error.message}`);
+  }
+  if (companiesResult.error) {
+    throw new Error(`Erro ao buscar empresas: ${companiesResult.error.message}`);
+  }
+  if (leadersResult.error) {
+    throw new Error(`Erro ao buscar lideres: ${leadersResult.error.message}`);
+  }
+
+  return {
+    teams: teamsResult.data || [],
+    companies: companiesResult.data || [],
+    leaders: leadersResult.data || []
   };
 }

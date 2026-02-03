@@ -11,6 +11,12 @@ const BUG_TYPES = [
   { value: 'outro', label: 'Outro', icon: '📝', description: 'Dúvida ou outro assunto' }
 ];
 
+const SUGGESTION_CATEGORIES = [
+  { value: 'processo', label: 'Processo', icon: '⚙️' },
+  { value: 'plataforma', label: 'Plataforma', icon: '💻' },
+  { value: 'outro', label: 'Outro', icon: '📝' }
+];
+
 /**
  * Dialog para criar um novo relatório de bug
  */
@@ -19,6 +25,7 @@ export default function BugReportDialog({ onClose }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState('bug');
+  const [suggestionCategory, setSuggestionCategory] = useState('plataforma');
   const [screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -66,26 +73,48 @@ export default function BugReportDialog({ onClose }) {
         screenshotBase64 = screenshotPreview;
       }
 
-      const response = await fetch(`${API_URL}/api/bug-reports`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          type,
-          screenshot: screenshotBase64,
-          page_url: window.location.href,
-          reporter_email: user?.email,
-          reporter_name: user?.name
-        })
-      });
+      // Se for sugestão, envia para feedbacks, caso contrário para bug-reports
+      if (type === 'sugestao') {
+        const response = await fetch(`${API_URL}/api/feedbacks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            tipo: suggestionCategory,
+            titulo: title.trim(),
+            feedback_text: description.trim(),
+            screenshot_url: screenshotBase64
+          })
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Erro ao enviar relatório');
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Erro ao enviar sugestão');
+        }
+      } else {
+        const response = await fetch(`${API_URL}/api/bug-reports`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim(),
+            type,
+            screenshot: screenshotBase64,
+            page_url: window.location.href,
+            reporter_email: user?.email,
+            reporter_name: user?.name
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Erro ao enviar relatório');
+        }
       }
 
       setSuccess(true);
@@ -158,6 +187,26 @@ export default function BugReportDialog({ onClose }) {
               ))}
             </div>
           </div>
+
+          {/* Suggestion Category - only shown when type is 'sugestao' */}
+          {type === 'sugestao' && (
+            <div className="bug-dialog__field">
+              <label className="bug-dialog__label">Categoria da Sugestão</label>
+              <div className="bug-dialog__category-grid">
+                {SUGGESTION_CATEGORIES.map(cat => (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    className={`bug-dialog__category-btn ${suggestionCategory === cat.value ? 'bug-dialog__category-btn--active' : ''}`}
+                    onClick={() => setSuggestionCategory(cat.value)}
+                  >
+                    <span className="bug-dialog__category-icon">{cat.icon}</span>
+                    <span className="bug-dialog__category-label">{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Title */}
           <div className="bug-dialog__field">

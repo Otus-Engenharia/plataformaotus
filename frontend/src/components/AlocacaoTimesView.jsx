@@ -88,6 +88,7 @@ function AlocacaoTimesView() {
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showOnlyActive, setShowOnlyActive] = useState(true);
 
   // === STATE: GERENCIAR TIMES TAB ===
   const [showTeamModal, setShowTeamModal] = useState(false);
@@ -95,10 +96,9 @@ function AlocacaoTimesView() {
   const [teamForm, setTeamForm] = useState({ team_number: '', team_name: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // === STATE: EDIT USER MODAL ===
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [userForm, setUserForm] = useState({ team_id: '', position_id: '' });
+  // === STATE: INLINE EDITING ===
+  // Format: { type: 'cargo'|'time'|'team_name'|'team_number', id: string }
+  const [editingCell, setEditingCell] = useState(null);
 
   // === FETCH DATA ===
   const fetchUsers = useCallback(async () => {
@@ -162,13 +162,60 @@ function AlocacaoTimesView() {
 
   // === FILTERED DATA ===
   const filteredUsers = useMemo(() => {
-    if (!searchTerm.trim()) return users;
-    const term = searchTerm.toLowerCase();
-    return users.filter(u =>
-      u.name?.toLowerCase().includes(term) ||
-      u.email?.toLowerCase().includes(term)
+    let filtered = users;
+
+    // Filtrar por status ativo
+    if (showOnlyActive) {
+      filtered = filtered.filter(u => u.is_active !== false);
+    }
+
+    // Filtrar por busca
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(u =>
+        u.name?.toLowerCase().includes(term) ||
+        u.email?.toLowerCase().includes(term)
+      );
+    }
+
+    return filtered;
+  }, [users, searchTerm, showOnlyActive]);
+
+  // === TOGGLE USER STATUS ===
+  const handleToggleUserStatus = async (e, user) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const newStatus = user.is_active === false ? true : false;
+    const previousStatus = user.is_active;
+
+    // Optimistic update
+    setUsers(prevUsers =>
+      prevUsers.map(u =>
+        u.id === user.id ? { ...u, is_active: newStatus } : u
+      )
     );
-  }, [users, searchTerm]);
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/ind/admin/users/${user.id}/status`,
+        { is_active: newStatus },
+        { withCredentials: true }
+      );
+
+      if (!response.data?.success) {
+        throw new Error('Erro ao atualizar status');
+      }
+    } catch (err) {
+      // Revert on error
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === user.id ? { ...u, is_active: previousStatus } : u
+        )
+      );
+      alert('Erro ao atualizar status: ' + (err.response?.data?.error || err.message));
+    }
+  };
 
   // === TEAM CRUD HANDLERS ===
   const handleOpenTeamModal = (team = null) => {
@@ -238,48 +285,119 @@ function AlocacaoTimesView() {
     }
   };
 
-  // === USER ALLOCATION HANDLERS ===
-  const handleOpenUserModal = (user) => {
-    setEditingUser(user);
-    setUserForm({
-      team_id: user.team?.id || '',
-      position_id: user.cargo?.id || '',
-    });
-    setShowUserModal(true);
+  // === INLINE EDIT HANDLERS ===
+  const handleInlineEdit = (type, id) => {
+    setEditingCell({ type, id });
   };
 
-  const handleCloseUserModal = () => {
-    setShowUserModal(false);
-    setEditingUser(null);
-    setUserForm({ team_id: '', position_id: '' });
+  const handleCancelInlineEdit = () => {
+    setEditingCell(null);
   };
 
-  const handleSaveUserAllocation = async (e) => {
-    e.preventDefault();
-    if (!editingUser) return;
+  const handleSaveUserPosition = async (userId, positionId) => {
+    const user = users.find(u => u.id === userId);
+    const previousPositionId = user?.cargo?.id;
 
-    setIsSubmitting(true);
+    // Optimistic update
+    setUsers(prevUsers =>
+      prevUsers.map(u =>
+        u.id === userId
+          ? { ...u, cargo: positionId ? positions.find(p => p.id === positionId) : null }
+          : u
+      )
+    );
+    setEditingCell(null);
+
     try {
-      // Update team
-      await axios.put(
-        `${API_URL}/api/operacao/users/${editingUser.id}/team`,
-        { team_id: userForm.team_id || null },
+      const response = await axios.put(
+        `${API_URL}/api/ind/admin/users/${userId}/position`,
+        { position_id: positionId || null },
         { withCredentials: true }
       );
 
-      // Update position
-      await axios.put(
-        `${API_URL}/api/ind/admin/users/${editingUser.id}/position`,
-        { position_id: userForm.position_id || null },
-        { withCredentials: true }
-      );
-
-      handleCloseUserModal();
-      await fetchUsers();
+      if (!response.data?.success) {
+        throw new Error('Erro ao atualizar cargo');
+      }
     } catch (err) {
-      alert('Erro ao salvar alocacao: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setIsSubmitting(false);
+      // Revert on error
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === userId
+            ? { ...u, cargo: previousPositionId ? positions.find(p => p.id === previousPositionId) : null }
+            : u
+        )
+      );
+      alert('Erro ao atualizar cargo: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleSaveUserTeam = async (userId, teamId) => {
+    const user = users.find(u => u.id === userId);
+    const previousTeamId = user?.team?.id;
+
+    // Optimistic update
+    setUsers(prevUsers =>
+      prevUsers.map(u =>
+        u.id === userId
+          ? { ...u, team: teamId ? teams.find(t => t.id === teamId) : null }
+          : u
+      )
+    );
+    setEditingCell(null);
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/operacao/users/${userId}/team`,
+        { team_id: teamId || null },
+        { withCredentials: true }
+      );
+
+      if (!response.data?.success) {
+        throw new Error('Erro ao atualizar time');
+      }
+    } catch (err) {
+      // Revert on error
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === userId
+            ? { ...u, team: previousTeamId ? teams.find(t => t.id === previousTeamId) : null }
+            : u
+        )
+      );
+      alert('Erro ao atualizar time: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleSaveTeamInline = async (teamId, field, value) => {
+    const team = teams.find(t => t.id === teamId);
+    const previousValue = team?.[field];
+
+    // Optimistic update
+    setTeams(prevTeams =>
+      prevTeams.map(t =>
+        t.id === teamId ? { ...t, [field]: value } : t
+      )
+    );
+    setEditingCell(null);
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/operacao/teams/${teamId}`,
+        { [field]: value },
+        { withCredentials: true }
+      );
+
+      if (!response.data?.success) {
+        throw new Error('Erro ao atualizar time');
+      }
+    } catch (err) {
+      // Revert on error
+      setTeams(prevTeams =>
+        prevTeams.map(t =>
+          t.id === teamId ? { ...t, [field]: previousValue } : t
+        )
+      );
+      alert('Erro ao atualizar time: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -371,6 +489,14 @@ function AlocacaoTimesView() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <button
+              type="button"
+              className={`toggle-active-btn ${showOnlyActive ? 'active' : ''}`}
+              onClick={() => setShowOnlyActive(!showOnlyActive)}
+            >
+              <span className="toggle-dot"></span>
+              <span>Apenas ativos</span>
+            </button>
             <span className="results-count">
               {filteredUsers.length} de {users.length} colaboradores
             </span>
@@ -384,7 +510,7 @@ function AlocacaoTimesView() {
                   <th>Colaborador</th>
                   <th>Cargo</th>
                   <th>Time</th>
-                  <th>Acoes</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -414,26 +540,71 @@ function AlocacaoTimesView() {
                           </div>
                         </td>
                         <td>
-                          {user.cargo?.name ? (
-                            <span className="badge badge-muted">{user.cargo.name}</span>
+                          {editingCell?.type === 'cargo' && editingCell?.id === user.id ? (
+                            <select
+                              className="inline-select"
+                              defaultValue={user.cargo?.id || ''}
+                              autoFocus
+                              onChange={(e) => handleSaveUserPosition(user.id, e.target.value)}
+                              onBlur={handleCancelInlineEdit}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') handleCancelInlineEdit();
+                              }}
+                            >
+                              <option value="">Sem cargo</option>
+                              {positions.map((p) => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                              ))}
+                            </select>
                           ) : (
-                            <span className="text-muted">-</span>
+                            <span
+                              className={`editable-cell ${user.cargo?.name ? 'badge badge-muted' : 'text-muted'}`}
+                              onClick={() => handleInlineEdit('cargo', user.id)}
+                              title="Clique para editar"
+                            >
+                              {user.cargo?.name || 'Selecionar...'}
+                            </span>
                           )}
                         </td>
                         <td>
-                          {user.team ? (
-                            <span className="badge badge-blue">{teamLabel}</span>
+                          {editingCell?.type === 'time' && editingCell?.id === user.id ? (
+                            <select
+                              className="inline-select"
+                              defaultValue={user.team?.id || ''}
+                              autoFocus
+                              onChange={(e) => handleSaveUserTeam(user.id, e.target.value)}
+                              onBlur={handleCancelInlineEdit}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') handleCancelInlineEdit();
+                              }}
+                            >
+                              <option value="">Sem time</option>
+                              {teams.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.team_number ? `${t.team_number} - ${t.team_name}` : t.team_name}
+                                </option>
+                              ))}
+                            </select>
                           ) : (
-                            <span className="text-muted">-</span>
+                            <span
+                              className={`editable-cell ${user.team ? 'badge badge-blue' : 'text-muted'}`}
+                              onClick={() => handleInlineEdit('time', user.id)}
+                              title="Clique para editar"
+                            >
+                              {user.team ? teamLabel : 'Selecionar...'}
+                            </span>
                           )}
                         </td>
                         <td>
                           <button
-                            className="btn-icon"
-                            onClick={() => handleOpenUserModal(user)}
-                            title="Editar alocacao"
+                            type="button"
+                            className={`status-toggle ${user.is_active !== false ? 'toggle-active' : 'toggle-inactive'}`}
+                            onClick={(e) => handleToggleUserStatus(e, user)}
+                            title={user.is_active !== false ? 'Clique para desativar' : 'Clique para reativar'}
                           >
-                            <Icons.Edit />
+                            <span className="toggle-track">
+                              <span className="toggle-thumb"></span>
+                            </span>
                           </button>
                         </td>
                       </tr>
@@ -482,31 +653,84 @@ function AlocacaoTimesView() {
                     return (
                       <tr key={team.id}>
                         <td>
-                          <span className="team-number">{team.team_number || '-'}</span>
+                          {editingCell?.type === 'team_number' && editingCell?.id === team.id ? (
+                            <input
+                              type="number"
+                              className="inline-input inline-input-number"
+                              defaultValue={team.team_number || ''}
+                              autoFocus
+                              placeholder="Nº"
+                              onBlur={(e) => {
+                                const value = e.target.value ? parseInt(e.target.value, 10) : null;
+                                if (value !== team.team_number) {
+                                  handleSaveTeamInline(team.id, 'team_number', value);
+                                } else {
+                                  handleCancelInlineEdit();
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.target.blur();
+                                } else if (e.key === 'Escape') {
+                                  handleCancelInlineEdit();
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span
+                              className={`editable-cell ${team.team_number ? 'team-number' : 'text-muted'}`}
+                              onClick={() => handleInlineEdit('team_number', team.id)}
+                              title="Clique para editar"
+                            >
+                              {team.team_number || '-'}
+                            </span>
+                          )}
                         </td>
                         <td>
-                          <span className="team-name">{team.team_name || '-'}</span>
+                          {editingCell?.type === 'team_name' && editingCell?.id === team.id ? (
+                            <input
+                              type="text"
+                              className="inline-input"
+                              defaultValue={team.team_name || ''}
+                              autoFocus
+                              placeholder="Nome do time"
+                              onBlur={(e) => {
+                                const value = e.target.value.trim();
+                                if (value && value !== team.team_name) {
+                                  handleSaveTeamInline(team.id, 'team_name', value);
+                                } else {
+                                  handleCancelInlineEdit();
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.target.blur();
+                                } else if (e.key === 'Escape') {
+                                  handleCancelInlineEdit();
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span
+                              className="editable-cell team-name"
+                              onClick={() => handleInlineEdit('team_name', team.id)}
+                              title="Clique para editar"
+                            >
+                              {team.team_name || 'Sem nome'}
+                            </span>
+                          )}
                         </td>
                         <td>
                           <span className="badge badge-muted">{membersCount} membro(s)</span>
                         </td>
                         <td>
-                          <div className="action-buttons">
-                            <button
-                              className="btn-icon"
-                              onClick={() => handleOpenTeamModal(team)}
-                              title="Editar time"
-                            >
-                              <Icons.Edit />
-                            </button>
-                            <button
-                              className="btn-icon btn-danger"
-                              onClick={() => handleDeleteTeam(team)}
-                              title="Excluir time"
-                            >
-                              <Icons.Trash />
-                            </button>
-                          </div>
+                          <button
+                            className="btn-icon btn-danger"
+                            onClick={() => handleDeleteTeam(team)}
+                            title="Excluir time"
+                          >
+                            <Icons.Trash />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -563,63 +787,6 @@ function AlocacaoTimesView() {
         </div>
       )}
 
-      {/* Modal: Editar Alocacao de Usuario */}
-      {showUserModal && editingUser && (
-        <div className="modal-overlay" onClick={handleCloseUserModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-user-info">
-                <div className="user-avatar">{getInitials(editingUser.name)}</div>
-                <div>
-                  <h3>{editingUser.name}</h3>
-                  <p>{editingUser.email}</p>
-                </div>
-              </div>
-              <button className="btn-close" onClick={handleCloseUserModal}>
-                <Icons.X />
-              </button>
-            </div>
-            <form onSubmit={handleSaveUserAllocation} className="modal-body">
-              <div className="form-field">
-                <label className="form-label">Cargo</label>
-                <select
-                  className="form-select"
-                  value={userForm.position_id}
-                  onChange={(e) => setUserForm({ ...userForm, position_id: e.target.value })}
-                >
-                  <option value="">Selecione...</option>
-                  {positions.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-field">
-                <label className="form-label">Time</label>
-                <select
-                  className="form-select"
-                  value={userForm.team_id}
-                  onChange={(e) => setUserForm({ ...userForm, team_id: e.target.value })}
-                >
-                  <option value="">Selecione...</option>
-                  {teams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.team_number ? `${t.team_number} - ${t.team_name}` : t.team_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-cancel" onClick={handleCloseUserModal} disabled={isSubmitting}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn-save" disabled={isSubmitting}>
-                  {isSubmitting ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -620,7 +620,7 @@ export default function AdminUsuarios() {
                   <label>Setor</label>
                   <select
                     value={editForm.sector_id}
-                    onChange={e => setEditForm({...editForm, sector_id: e.target.value})}
+                    onChange={e => setEditForm({...editForm, sector_id: e.target.value, position_id: ''})}
                   >
                     <option value="">Selecione...</option>
                     {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -633,7 +633,9 @@ export default function AdminUsuarios() {
                     onChange={e => setEditForm({...editForm, position_id: e.target.value})}
                   >
                     <option value="">Selecione...</option>
-                    {positions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    {positions
+                      .filter(p => !editForm.sector_id || p.sector_id === editForm.sector_id || p.sector?.id === editForm.sector_id)
+                      .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
               </div>

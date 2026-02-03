@@ -172,6 +172,20 @@ export default function FeedbackDetailDialog({
             </p>
           </div>
 
+          {/* Screenshot (if exists) */}
+          {feedback.screenshot_url && (
+            <div className="feedback-detail__screenshot-section">
+              <h4>Screenshot</h4>
+              <div className="feedback-detail__screenshot">
+                <img
+                  src={feedback.screenshot_url}
+                  alt="Screenshot do feedback"
+                  onClick={() => window.open(feedback.screenshot_url, '_blank')}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Admin response (read-only for non-privileged) */}
           {!isPrivileged && (feedback.admin_analysis || feedback.admin_action) && (
             <div className="feedback-detail__response-section">

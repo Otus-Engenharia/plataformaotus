@@ -7,9 +7,10 @@
  */
 
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
+import { PortfolioProvider } from './contexts/PortfolioContext';
 import axios from 'axios';
 import IndicadoresLiderancaView from './components/IndicadoresLiderancaView';
 import ProjetosView from './components/ProjetosView';
@@ -23,6 +24,7 @@ import ContatosView from './components/ContatosView';
 import LogsView from './components/LogsView';
 import HomeView from './components/HomeView';
 import PortfolioView from './components/PortfolioView';
+import IndicadoresView from './components/IndicadoresView';
 import CurvaSView from './components/CurvaSView';
 import BaselinesView from './components/BaselinesView';
 import CSAreaView from './components/CSAreaView';
@@ -49,6 +51,7 @@ const AdminBugReports = lazy(() => import('./pages/indicadores/AdminBugReports')
 
 // Lazy load das páginas de Feedbacks
 const FeedbackKanbanView = lazy(() => import('./pages/feedbacks/FeedbackKanbanView'));
+const FeedbackAdminView = lazy(() => import('./pages/feedbacks/FeedbackAdminView'));
 
 // Lazy load das páginas de Workspace (Gestao de Tarefas)
 const WorkspaceView = lazy(() => import('./pages/workspace/WorkspaceView'));
@@ -362,8 +365,16 @@ function Sidebar({ collapsed, onToggle, area }) {
   const lideresLinks = (
     <>
       <Link
+        to="/lideres-projeto/indicadores"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/indicadores' || location.pathname === '/lideres-projeto' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Indicadores')}
+      >
+        <span className="nav-icon">{icons.indicadores}</span>
+        <span className="nav-text">Indicadores</span>
+      </Link>
+      <Link
         to="/lideres-projeto/portfolio"
-        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/portfolio' || location.pathname === '/lideres-projeto' ? 'nav-link-active' : ''}`}
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/portfolio' ? 'nav-link-active' : ''}`}
         title={linkTitle('Portfolio')}
       >
         <span className="nav-icon">{icons.projetos}</span>
@@ -508,8 +519,8 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">Bug Reports</span>
       </Link>
       <Link
-        to="/acessos?tab=feedbacks"
-        className={`nav-link nav-link-modern ${location.search.includes('tab=feedbacks') ? 'nav-link-active' : ''}`}
+        to="/gerenciar-feedbacks"
+        className={`nav-link nav-link-modern ${location.pathname === '/gerenciar-feedbacks' ? 'nav-link-active' : ''}`}
         title={linkTitle('Gerenciar Feedbacks')}
       >
         <span className="nav-icon">{icons.feedbacks}</span>
@@ -854,7 +865,7 @@ function AppContent() {
         path.startsWith('/feedbacks')) {
       return 'projetos';
     }
-    if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports')) {
+    if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks')) {
       return 'configuracoes';
     }
     if (path.startsWith('/ind')) {
@@ -921,45 +932,28 @@ function AppContent() {
             {/* Redirect antigo /indicadores-lideranca para nova área */}
             <Route
               path="/indicadores-lideranca"
-              element={<Navigate to="/lideres-projeto/portfolio" replace />}
+              element={<Navigate to="/lideres-projeto/indicadores" replace />}
             />
-            {/* Área Líderes de Projeto */}
+            {/* Área Líderes de Projeto - rotas aninhadas com PortfolioProvider compartilhado */}
             <Route
               path="/lideres-projeto"
-              element={<Navigate to="/lideres-projeto/portfolio" replace />}
-            />
-            <Route
-              path="/lideres-projeto/portfolio"
               element={
                 <ProtectedRoute>
-                  {canAccessProjetosArea ? <PortfolioView /> : <Navigate to="/ind" replace />}
+                  {canAccessProjetosArea ? (
+                    <PortfolioProvider>
+                      <Outlet />
+                    </PortfolioProvider>
+                  ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/lideres-projeto/curva-s"
-              element={
-                <ProtectedRoute>
-                  {canAccessProjetosArea ? <CurvaSView /> : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/lideres-projeto/baselines"
-              element={
-                <ProtectedRoute>
-                  {canAccessProjetosArea ? <BaselinesView /> : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/lideres-projeto/alocacao-times"
-              element={
-                <ProtectedRoute>
-                  {isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
+            >
+              <Route index element={<Navigate to="indicadores" replace />} />
+              <Route path="indicadores" element={<IndicadoresView />} />
+              <Route path="portfolio" element={<PortfolioView />} />
+              <Route path="curva-s" element={<CurvaSView />} />
+              <Route path="baselines" element={<BaselinesView />} />
+              <Route path="alocacao-times" element={isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />} />
+            </Route>
             {/* Área CS */}
             <Route
               path="/cs-area"
@@ -1104,6 +1098,18 @@ function AppContent() {
                   {canAccessProjetosArea ? (
                     <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                       <FeedbackKanbanView />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/gerenciar-feedbacks"
+              element={
+                <ProtectedRoute>
+                  {canAccessConfiguracoesArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <FeedbackAdminView />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>

@@ -1447,3 +1447,132 @@
     justify-content: center;
   }
 }
+
+/* ============================================
+   EDICAO INLINE - Celulas Editaveis
+   ============================================ */
+
+/* Container da celula editavel */
+.editable-cell-td {
+  position: relative;
+}
+
+/* Celula clicavel (modo visualizacao) */
+.portfolio-table .editable-cell {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  transition: all 0.15s ease;
+  display: inline-block;
+  min-width: 40px;
+}
+
+.portfolio-table .editable-cell:hover {
+  background: rgba(245, 196, 0, 0.15);
+  box-shadow: 0 0 0 2px rgba(245, 196, 0, 0.3);
+}
+
+/* Placeholder para valores vazios */
+.portfolio-table .placeholder-text {
+  color: #999;
+  font-style: italic;
+}
+
+/* Select inline (dropdowns) */
+.portfolio-table .inline-select {
+  width: 100%;
+  min-width: 100px;
+  max-width: 180px;
+  padding: 4px 8px;
+  background: #fff;
+  border: 2px solid #ffdd00;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: Verdana, sans-serif;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.portfolio-table .inline-select:focus {
+  box-shadow: 0 0 0 3px rgba(245, 196, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Input inline (texto) */
+.portfolio-table .inline-input {
+  width: 100%;
+  min-width: 80px;
+  max-width: 200px;
+  padding: 4px 8px;
+  background: #fff;
+  border: 2px solid #ffdd00;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: Verdana, sans-serif;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.portfolio-table .inline-input:focus {
+  box-shadow: 0 0 0 3px rgba(245, 196, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================================
+   FILTROS ATIVOS - Chips
+   ============================================ */
+
+.active-filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid #ededed;
+  margin-top: 12px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #fff9e6;
+  border: 1px solid #ffdd00;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.filter-chip button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-chip button:hover {
+  color: #1a1a1a;
+}
+
+.clear-all-btn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid #ccc;
+  border-radius: 16px;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clear-all-btn:hover {
+  border-color: #999;
+  color: #1a1a1a;
+}

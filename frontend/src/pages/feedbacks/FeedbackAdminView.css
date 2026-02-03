@@ -714,6 +714,41 @@
   white-space: pre-wrap;
 }
 
+/* Screenshot section */
+.feedback-screenshot-section {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.feedback-screenshot-section h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.625rem;
+}
+
+.feedback-screenshot {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #f8f8f7;
+}
+
+.feedback-screenshot img {
+  display: block;
+  width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.feedback-screenshot img:hover {
+  opacity: 0.9;
+}
+
 /* Admin section */
 .admin-section {
   padding-top: 1rem;

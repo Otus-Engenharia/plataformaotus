@@ -785,6 +785,20 @@ export default function FeedbackAdminView() {
                 <p className="feedback-text">{selectedFeedback.feedback_text}</p>
               </div>
 
+              {/* Screenshot (if exists) */}
+              {selectedFeedback.screenshot_url && (
+                <div className="feedback-screenshot-section">
+                  <h4>Screenshot</h4>
+                  <div className="feedback-screenshot">
+                    <img
+                      src={selectedFeedback.screenshot_url}
+                      alt="Screenshot do feedback"
+                      onClick={() => window.open(selectedFeedback.screenshot_url, '_blank')}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Admin Section */}
               <div className="admin-section">
                 <div className="admin-section-header">

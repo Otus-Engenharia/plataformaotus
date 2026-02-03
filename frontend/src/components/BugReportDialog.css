@@ -199,6 +199,50 @@
   color: #a38a1a;
 }
 
+/* Category Selection Grid (for suggestions) */
+.bug-dialog__category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.bug-dialog__category-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 10px;
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bug-dialog__category-btn:hover {
+  background: #f0f0f0;
+  border-color: #ddd;
+  color: #333;
+}
+
+.bug-dialog__category-btn--active {
+  background: #fffbeb;
+  border-color: #d4a800;
+  color: #92700c;
+}
+
+.bug-dialog__category-icon {
+  font-size: 18px;
+}
+
+.bug-dialog__category-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 /* Input & Textarea */
 .bug-dialog__input,
 .bug-dialog__textarea {
