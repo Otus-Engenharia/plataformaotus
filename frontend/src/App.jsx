@@ -22,6 +22,12 @@ import FormularioPassagemView from './components/FormularioPassagemView';
 import ContatosView from './components/ContatosView';
 import LogsView from './components/LogsView';
 import HomeView from './components/HomeView';
+import PortfolioView from './components/PortfolioView';
+import CurvaSView from './components/CurvaSView';
+import BaselinesView from './components/BaselinesView';
+import CSAreaView from './components/CSAreaView';
+import ApoioProjetosView from './components/ApoioProjetosView';
+import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLoading from './components/AuthLoading';
@@ -291,15 +297,7 @@ function Sidebar({ collapsed, onToggle, area }) {
   // Links para área de PROJETOS
   const projetosLinks = (
     <>
-      <Link 
-        to="/indicadores-lideranca" 
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/indicadores-lideranca') ? 'nav-link-active' : ''}`}
-        title={linkTitle('Indicadores Liderança')}
-      >
-        <span className="nav-icon">{icons.indicadoresLideranca}</span>
-        <span className="nav-text">Indicadores Liderança</span>
-      </Link>
-      <Link 
+      <Link
         to="/horas" 
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/horas') ? 'nav-link-active' : ''}`}
         title={linkTitle('Horas')}
@@ -356,6 +354,74 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.feedbacks}</span>
         <span className="nav-text">Feedbacks</span>
+      </Link>
+    </>
+  );
+
+  // Links para área de LÍDERES DE PROJETO
+  const lideresLinks = (
+    <>
+      <Link
+        to="/lideres-projeto/portfolio"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/portfolio' || location.pathname === '/lideres-projeto' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Portfolio')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Portfolio</span>
+      </Link>
+      <Link
+        to="/lideres-projeto/curva-s"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/curva-s' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Curva S')}
+      >
+        <span className="nav-icon">{icons.indicadoresLideranca}</span>
+        <span className="nav-text">Curva S</span>
+      </Link>
+      <Link
+        to="/lideres-projeto/baselines"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/baselines' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Baselines')}
+      >
+        <span className="nav-icon">{icons.indicadoresLideranca}</span>
+        <span className="nav-text">Baselines</span>
+      </Link>
+      {isPrivileged && (
+        <Link
+          to="/lideres-projeto/alocacao-times"
+          className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/alocacao-times' ? 'nav-link-active' : ''}`}
+          title={linkTitle('Alocacao de Times')}
+        >
+          <span className="nav-icon">{icons.team}</span>
+          <span className="nav-text">Alocacao de Times</span>
+        </Link>
+      )}
+    </>
+  );
+
+  // Links para área de CS (placeholder - expandir depois)
+  const csLinks = (
+    <>
+      <Link
+        to="/cs-area"
+        className={`nav-link nav-link-modern nav-link-active`}
+        title={linkTitle('CS')}
+      >
+        <span className="nav-icon">{icons.cs}</span>
+        <span className="nav-text">Dashboard CS</span>
+      </Link>
+    </>
+  );
+
+  // Links para área de APOIO DE PROJETOS (placeholder - expandir depois)
+  const apoioLinks = (
+    <>
+      <Link
+        to="/apoio-projetos"
+        className={`nav-link nav-link-modern nav-link-active`}
+        title={linkTitle('Apoio de Projetos')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Dashboard Apoio</span>
       </Link>
     </>
   );
@@ -625,6 +691,9 @@ function Sidebar({ collapsed, onToggle, area }) {
     <aside className={`sidebar glass-sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <nav className="sidebar-links">
         {area === 'projetos' && projetosLinks}
+        {area === 'lideres' && lideresLinks}
+        {area === 'cs' && csLinks}
+        {area === 'apoio' && apoioLinks}
         {area === 'configuracoes' && configuracoesLinks}
         {area === 'indicadores' && indicadoresIndLinks}
         {area === 'okrs' && okrsLinks}
@@ -764,8 +833,19 @@ function AppContent() {
   // Detectar área atual baseado na rota
   const getCurrentArea = () => {
     const path = location.pathname;
-    if (path.startsWith('/indicadores-lideranca') ||
-        path.startsWith('/horas') ||
+    // Área Líderes de Projeto (separada de projetos)
+    if (path.startsWith('/lideres-projeto')) {
+      return 'lideres';
+    }
+    // Área CS
+    if (path.startsWith('/cs-area')) {
+      return 'cs';
+    }
+    // Área Apoio de Projetos
+    if (path.startsWith('/apoio-projetos')) {
+      return 'apoio';
+    }
+    if (path.startsWith('/horas') ||
         path.startsWith('/projetos') ||
         path.startsWith('/cs') ||
         path.startsWith('/estudo-de-custos') ||
@@ -838,11 +918,63 @@ function AppContent() {
         )}
         <main className={`main-content ${showSidebar ? 'main-content-sidebar' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
+            {/* Redirect antigo /indicadores-lideranca para nova área */}
             <Route
               path="/indicadores-lideranca"
+              element={<Navigate to="/lideres-projeto/portfolio" replace />}
+            />
+            {/* Área Líderes de Projeto */}
+            <Route
+              path="/lideres-projeto"
+              element={<Navigate to="/lideres-projeto/portfolio" replace />}
+            />
+            <Route
+              path="/lideres-projeto/portfolio"
               element={
                 <ProtectedRoute>
-                  {canAccessProjetosArea ? <IndicadoresLiderancaView /> : <Navigate to="/ind" replace />}
+                  {canAccessProjetosArea ? <PortfolioView /> : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lideres-projeto/curva-s"
+              element={
+                <ProtectedRoute>
+                  {canAccessProjetosArea ? <CurvaSView /> : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lideres-projeto/baselines"
+              element={
+                <ProtectedRoute>
+                  {canAccessProjetosArea ? <BaselinesView /> : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lideres-projeto/alocacao-times"
+              element={
+                <ProtectedRoute>
+                  {isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            {/* Área CS */}
+            <Route
+              path="/cs-area"
+              element={
+                <ProtectedRoute>
+                  <CSAreaView />
+                </ProtectedRoute>
+              }
+            />
+            {/* Área Apoio de Projetos */}
+            <Route
+              path="/apoio-projetos"
+              element={
+                <ProtectedRoute>
+                  <ApoioProjetosView />
                 </ProtectedRoute>
               }
             />

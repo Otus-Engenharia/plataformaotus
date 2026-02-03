@@ -120,10 +120,8 @@ function OperacaoView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [teamFilter, setTeamFilter] = useState('all');
-  const [cargoFilter, setCargoFilter] = useState('all');
   const [accessFilter, setAccessFilter] = useState('all');
-  const [leaderFilter, setLeaderFilter] = useState('');
+  const [sectorFilter, setSectorFilter] = useState('all');
   const [userViews, setUserViews] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -265,27 +263,12 @@ function OperacaoView() {
   }, []);
 
   // === COMPUTED VALUES (memos) ===
-  const uniqueTeams = useMemo(() => {
-    const teams = new Set();
+  const uniqueSectors = useMemo(() => {
+    const sectorSet = new Set();
     data.forEach((row) => {
-      if (row.time_nome) {
-        teams.add(`${row.time_numero ?? ''}||${row.time_nome}`);
-      }
+      if (row.setor) sectorSet.add(row.setor);
     });
-    return Array.from(teams)
-      .map((item) => {
-        const [num, nome] = item.split('||');
-        return { num: num || null, nome };
-      })
-      .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
-  }, [data]);
-
-  const uniqueCargos = useMemo(() => {
-    const cargos = new Set();
-    data.forEach((row) => {
-      if (row.cargo) cargos.add(row.cargo);
-    });
-    return Array.from(cargos).sort();
+    return Array.from(sectorSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [data]);
 
   const uniqueAccessLevels = useMemo(() => {
@@ -294,14 +277,6 @@ function OperacaoView() {
       if (row.nivel_acesso) levels.add(row.nivel_acesso);
     });
     return Array.from(levels).sort();
-  }, [data]);
-
-  const uniqueLeaders = useMemo(() => {
-    const leaders = new Set();
-    data.forEach((row) => {
-      if (row.lider) leaders.add(row.lider);
-    });
-    return Array.from(leaders).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [data]);
 
   const potentialLeaders = useMemo(() => {
@@ -315,36 +290,25 @@ function OperacaoView() {
   const filteredData = useMemo(() => {
     let filtered = [...data];
 
-    if (teamFilter !== 'all') {
-      filtered = filtered.filter((row) => {
-        const key = `${row.time_numero ?? ''}||${row.time_nome ?? ''}`;
-        return key === teamFilter;
-      });
-    }
-
-    if (cargoFilter !== 'all') {
-      filtered = filtered.filter((row) => row.cargo === cargoFilter);
+    if (sectorFilter !== 'all') {
+      filtered = filtered.filter((row) => row.setor === sectorFilter);
     }
 
     if (accessFilter !== 'all') {
       filtered = filtered.filter((row) => row.nivel_acesso === accessFilter);
     }
 
-    if (leaderFilter) {
-      filtered = filtered.filter((row) => row.lider === leaderFilter);
-    }
-
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter((row) => {
-        return [row.colaborador, row.email, row.cargo, row.time_nome, row.nivel_acesso, row.lider]
+        return [row.colaborador, row.email, row.setor, row.nivel_acesso]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(term));
       });
     }
 
     return filtered;
-  }, [data, teamFilter, cargoFilter, accessFilter, leaderFilter, searchTerm]);
+  }, [data, sectorFilter, accessFilter, searchTerm]);
 
   // Summary stats
   const summaryStats = useMemo(() => {
@@ -406,14 +370,11 @@ function OperacaoView() {
   // Clear filters
   const clearFilters = () => {
     setSearchTerm('');
-    setTeamFilter('all');
-    setCargoFilter('all');
+    setSectorFilter('all');
     setAccessFilter('all');
-    setLeaderFilter('');
   };
 
-  const hasActiveFilters = searchTerm || teamFilter !== 'all' || cargoFilter !== 'all' ||
-                           accessFilter !== 'all' || leaderFilter !== '';
+  const hasActiveFilters = searchTerm || sectorFilter !== 'all' || accessFilter !== 'all';
 
   // === FUNCOES DE EDICAO DE USUARIO ===
   const handleOpenEditUserModal = (row) => {
@@ -578,36 +539,16 @@ function OperacaoView() {
           <div className="operacao-filters glass-card">
             <div className="filters-row">
               <div className="filter-group">
-                <label className="filter-label">Time</label>
+                <label className="filter-label">Setor</label>
                 <select
                   className="filter-select"
-                  value={teamFilter}
-                  onChange={(e) => setTeamFilter(e.target.value)}
+                  value={sectorFilter}
+                  onChange={(e) => setSectorFilter(e.target.value)}
                 >
-                  <option value="all">Todos os times</option>
-                  {uniqueTeams.map((team) => {
-                    const label = team.num ? `${team.num} - ${team.nome}` : team.nome;
-                    const value = `${team.num ?? ''}||${team.nome}`;
-                    return (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div className="filter-group">
-                <label className="filter-label">Cargo</label>
-                <select
-                  className="filter-select"
-                  value={cargoFilter}
-                  onChange={(e) => setCargoFilter(e.target.value)}
-                >
-                  <option value="all">Todos os cargos</option>
-                  {uniqueCargos.map((cargo) => (
-                    <option key={cargo} value={cargo}>
-                      {cargo}
+                  <option value="all">Todos os setores</option>
+                  {uniqueSectors.map((setor) => (
+                    <option key={setor} value={setor}>
+                      {setor}
                     </option>
                   ))}
                 </select>
@@ -630,29 +571,13 @@ function OperacaoView() {
               </div>
 
               <div className="filter-group">
-                <label className="filter-label">Lider</label>
-                <select
-                  className="filter-select"
-                  value={leaderFilter}
-                  onChange={(e) => setLeaderFilter(e.target.value)}
-                >
-                  <option value="">Todos os lideres</option>
-                  {uniqueLeaders.map((leader) => (
-                    <option key={leader} value={leader}>
-                      {leader}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="filter-group">
                 <label className="filter-label">Buscar</label>
                 <div className="search-wrapper">
                   <span className="search-icon"><Icons.Search /></span>
                   <input
                     type="text"
                     className="filter-input"
-                    placeholder="Nome, email, cargo..."
+                    placeholder="Nome, email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -679,8 +604,7 @@ function OperacaoView() {
               <thead>
                 <tr>
                   <th>Colaborador</th>
-                  <th>Cargo</th>
-                  <th>Time</th>
+                  <th>Setor</th>
                   <th>Nivel de Acesso</th>
                   <th>Permissoes de Vistas</th>
                   <th>Acoes</th>
@@ -689,17 +613,12 @@ function OperacaoView() {
               <tbody>
                 {filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="empty-state">
+                    <td colSpan={5} className="empty-state">
                       Nenhum colaborador encontrado
                     </td>
                   </tr>
                 ) : (
                   filteredData.map((row) => {
-                    const timeLabel = row.time_nome
-                      ? row.time_numero
-                        ? `${row.time_numero} - ${row.time_nome}`
-                        : row.time_nome
-                      : '-';
                     const accessLabel = ACCESS_LABELS[row.nivel_acesso] || row.nivel_acesso || '-';
                     const levelClass = getAccessLevelClass(row.nivel_acesso);
                     const userViewsList = userViews[row.email] || [];
@@ -718,17 +637,14 @@ function OperacaoView() {
                           </div>
                         </td>
 
-                        {/* Cargo */}
+                        {/* Setor */}
                         <td>
-                          {row.cargo ? (
-                            <span className="badge badge-muted">{row.cargo}</span>
+                          {row.setor ? (
+                            <span className="badge badge-muted">{row.setor}</span>
                           ) : (
                             '-'
                           )}
                         </td>
-
-                        {/* Time */}
-                        <td>{timeLabel}</td>
 
                         {/* Nivel de Acesso */}
                         <td>

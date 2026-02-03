@@ -53,7 +53,7 @@ import {
   fetchHomeModules, updateHomeModule, createHomeModule, deleteHomeModule,
   // Unified Modules System
   ACCESS_LEVELS, ACCESS_LEVEL_LABELS, ACCESS_LEVEL_COLORS, getUserAccessLevel,
-  fetchAllModules, fetchModulesForUser, fetchHomeModulesForUser,
+  fetchAllModules, fetchModulesForUser, fetchHomeModulesForUser, getUserOtusByEmail,
   updateModuleUnified, createModuleUnified, deleteModuleUnified,
   getAccessMatrix, fetchModuleOverrides, createModuleOverride, deleteModuleOverride,
   // Equipe do projeto
@@ -499,6 +499,7 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
         leader:leader_id(name),
         padrinho:onboarding_buddy_id(name),
         team:team_id(team_number, team_name),
+        setor:setor_id(id, name),
         status
       `)
       .eq('status', 'ativo')
@@ -516,11 +517,8 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
     const mapped = (data || []).map((row) => ({
       colaborador_id: row.id ?? null,
       colaborador: row.name ?? null,
-      cargo: row.position_type ?? null,
-      lider: row.leader?.name ?? null,
-      padrinho: row.padrinho?.name ?? null,
-      time_numero: row.team?.team_number ?? null,
-      time_nome: row.team?.team_name ?? null,
+      setor: row.setor?.name ?? null,
+      setor_id: row.setor?.id ?? null,
       telefone: row.phone ?? null,
       email: row.email ?? null,
       nivel_acesso: getUserRole(row.email) === 'dev' ? 'dev' : (row.role || getUserRole(row.email) || 'sem_acesso'),
@@ -1069,6 +1067,180 @@ app.get('/api/times', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar times:', err);
     res.status(500).json({ success: false, error: err.message || 'Erro ao buscar times' });
+  }
+});
+
+// ============================================
+// ROTAS: OPERACAO - TIMES CRUD
+// ============================================
+
+/**
+ * Rota: GET /api/operacao/teams
+ * Lista todos os times para gerenciamento
+ * Acesso: usuarios privilegiados
+ */
+app.get('/api/operacao/teams', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('teams')
+      .select('id, team_number, team_name, created_at')
+      .order('team_number', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    console.error('Erro ao buscar teams:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Rota: POST /api/operacao/teams
+ * Cria um novo time
+ */
+app.post('/api/operacao/teams', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { team_number, team_name } = req.body;
+    if (!team_name?.trim()) {
+      return res.status(400).json({ success: false, error: 'Nome do time e obrigatorio' });
+    }
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('teams')
+      .insert([{
+        team_number: team_number || null,
+        team_name: team_name.trim()
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('Erro ao criar team:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/operacao/teams/:id
+ * Atualiza um time existente
+ */
+app.put('/api/operacao/teams/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { id } = req.params;
+    const { team_number, team_name } = req.body;
+
+    if (!team_name?.trim()) {
+      return res.status(400).json({ success: false, error: 'Nome do time e obrigatorio' });
+    }
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('teams')
+      .update({
+        team_number: team_number || null,
+        team_name: team_name.trim()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('Erro ao atualizar team:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/operacao/teams/:id
+ * Exclui um time (verifica se nao ha usuarios alocados)
+ */
+app.delete('/api/operacao/teams/:id', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { id } = req.params;
+    const supabase = getSupabaseClient();
+
+    // Verifica se ha usuarios alocados
+    const { data: usersInTeam, error: checkError } = await supabase
+      .from('users_otus')
+      .select('id')
+      .eq('team_id', id)
+      .limit(1);
+
+    if (checkError) throw checkError;
+
+    if (usersInTeam?.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nao e possivel excluir: existem usuarios alocados neste time'
+      });
+    }
+
+    const { error } = await supabase
+      .from('teams')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Time excluido com sucesso' });
+  } catch (err) {
+    console.error('Erro ao excluir team:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/operacao/users/:id/team
+ * Atualiza o time de um usuario
+ */
+app.put('/api/operacao/users/:id/team', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { id } = req.params;
+    const { team_id } = req.body;
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('users_otus')
+      .update({ team_id: team_id || null })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('Erro ao atualizar team do usuario:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -4615,7 +4787,10 @@ app.get('/api/modules', requireAuth, async (req, res) => {
   try {
     const userRole = getUserRole(req.user.email) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
-    const modules = await fetchModulesForUser(req.user.email, accessLevel);
+    // Buscar setor do usuário para filtro por setor
+    const userOtus = await getUserOtusByEmail(req.user.email);
+    const sectorId = userOtus?.setor_id || null;
+    const modules = await fetchModulesForUser(req.user.email, accessLevel, sectorId);
     res.json({ success: true, data: modules });
   } catch (error) {
     console.error('❌ Erro ao buscar módulos:', error);
@@ -4631,7 +4806,10 @@ app.get('/api/modules/home', requireAuth, async (req, res) => {
   try {
     const userRole = getUserRole(req.user.email) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
-    const modules = await fetchHomeModulesForUser(req.user.email, accessLevel);
+    // Buscar setor do usuário para filtro por setor
+    const userOtus = await getUserOtusByEmail(req.user.email);
+    const sectorId = userOtus?.setor_id || null;
+    const modules = await fetchHomeModulesForUser(req.user.email, accessLevel, sectorId);
     res.json({ success: true, data: modules });
   } catch (error) {
     console.error('❌ Erro ao buscar módulos da home:', error);
@@ -4843,7 +5021,7 @@ app.post('/api/admin/module-overrides', requireAuth, async (req, res) => {
       });
     }
 
-    const { module_id, user_email, position_id, grant_access } = req.body;
+    const { module_id, user_email, position_id, sector_id, grant_access } = req.body;
 
     if (!module_id || grant_access === undefined) {
       return res.status(400).json({
@@ -4852,10 +5030,10 @@ app.post('/api/admin/module-overrides', requireAuth, async (req, res) => {
       });
     }
 
-    if (!user_email && !position_id) {
+    if (!user_email && !position_id && !sector_id) {
       return res.status(400).json({
         success: false,
-        error: 'É necessário informar user_email ou position_id',
+        error: 'É necessário informar user_email, position_id ou sector_id',
       });
     }
 
@@ -4863,6 +5041,7 @@ app.post('/api/admin/module-overrides', requireAuth, async (req, res) => {
       module_id,
       user_email: user_email || null,
       position_id: position_id || null,
+      sector_id: sector_id || null,
       grant_access,
       created_by: req.user.email,
     });
@@ -4874,7 +5053,7 @@ app.post('/api/admin/module-overrides', requireAuth, async (req, res) => {
       entity_type: 'module_override',
       entity_id: override.id,
       details: `Override criado para módulo ${module_id}`,
-      metadata: { module_id, user_email, position_id, grant_access },
+      metadata: { module_id, user_email, position_id, sector_id, grant_access },
     });
 
     res.json({ success: true, data: override });

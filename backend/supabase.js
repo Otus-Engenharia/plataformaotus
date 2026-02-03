@@ -2359,11 +2359,13 @@ function calculateIndicatorScore(indicador) {
 // --- ADMIN: USUÁRIOS ---
 
 /**
- * Busca usuários com informações de setor e cargo
+ * Busca usuários com informações de setor, cargo e indicadores
  * @returns {Promise<Array>}
  */
 export async function fetchUsersWithRoles() {
   const supabase = getSupabaseClient();
+
+  // Busca usuarios com setor, cargo e time
   const { data, error } = await supabase
     .from(USERS_OTUS_TABLE)
     .select(`
@@ -2372,9 +2374,11 @@ export async function fetchUsersWithRoles() {
       email,
       role,
       status,
+      is_active,
       leader_id,
       setor:setor_id(id, name),
-      cargo:position_id(id, name, is_leadership)
+      cargo:position_id(id, name, is_leadership),
+      team:team_id(id, team_number, team_name)
     `)
     .eq('status', 'ativo')
     .order('name', { ascending: true });
@@ -2385,12 +2389,32 @@ export async function fetchUsersWithRoles() {
 
   const users = Array.isArray(data) ? data : [];
 
+  // Busca contagem de indicadores por cargo
+  const positionIds = [...new Set(users.map(u => u.cargo?.id).filter(Boolean))];
+  let indicatorCountMap = new Map();
+
+  if (positionIds.length > 0) {
+    const { data: indicators, error: indError } = await supabase
+      .from(POSITION_INDICATORS_TABLE)
+      .select('position_id')
+      .in('position_id', positionIds);
+
+    if (!indError && indicators) {
+      // Conta indicadores por position_id
+      indicators.forEach(ind => {
+        const count = indicatorCountMap.get(ind.position_id) || 0;
+        indicatorCountMap.set(ind.position_id, count + 1);
+      });
+    }
+  }
+
   // Map leaders from the same user list (self-referential relationship)
   const userMap = new Map(users.map(u => [u.id, { id: u.id, name: u.name, email: u.email }]));
 
   return users.map(user => ({
     ...user,
-    leader: user.leader_id ? userMap.get(user.leader_id) || null : null
+    leader: user.leader_id ? userMap.get(user.leader_id) || null : null,
+    indicadores_count: user.cargo?.id ? indicatorCountMap.get(user.cargo.id) || 0 : 0
   }));
 }
 
@@ -3662,9 +3686,10 @@ export async function fetchAllModules() {
  * Busca módulos que o usuário pode acessar
  * @param {string} email - Email do usuário
  * @param {number} accessLevel - Nível de acesso do usuário (1-5)
+ * @param {string|null} sectorId - ID do setor do usuário (opcional)
  * @returns {Promise<Array>}
  */
-export async function fetchModulesForUser(email, accessLevel) {
+export async function fetchModulesForUser(email, accessLevel, sectorId = null) {
   const supabase = getSupabaseServiceClient();
 
   // Buscar todos os módulos visíveis
@@ -3678,15 +3703,34 @@ export async function fetchModulesForUser(email, accessLevel) {
     throw new Error(`Erro ao buscar módulos: ${error.message}`);
   }
 
-  // Buscar overrides para este usuário
-  const { data: overrides } = await supabase
+  // Buscar overrides para este usuário (por email)
+  const { data: userOverrides } = await supabase
     .from(MODULE_OVERRIDES_TABLE)
     .select('*')
     .eq('user_email', email);
 
-  // Construir mapa de overrides
+  // Buscar overrides por setor (se sectorId fornecido)
+  let sectorOverrides = [];
+  if (sectorId) {
+    const { data: sectorData } = await supabase
+      .from(MODULE_OVERRIDES_TABLE)
+      .select('*')
+      .eq('sector_id', sectorId);
+    sectorOverrides = sectorData || [];
+  }
+
+  // Construir mapa de overrides com prioridade: user_email > sector_id
   const overrideMap = {};
-  (overrides || []).forEach(o => {
+
+  // Primeiro, aplicar overrides por setor (menor prioridade)
+  sectorOverrides.forEach(o => {
+    if (!o.user_email) { // Apenas overrides de setor puro
+      overrideMap[o.module_id] = o.grant_access;
+    }
+  });
+
+  // Depois, aplicar overrides por usuário (maior prioridade)
+  (userOverrides || []).forEach(o => {
     overrideMap[o.module_id] = o.grant_access;
   });
 
@@ -3705,10 +3749,11 @@ export async function fetchModulesForUser(email, accessLevel) {
  * Busca módulos para exibir na Home
  * @param {string} email - Email do usuário
  * @param {number} accessLevel - Nível de acesso do usuário (1-5)
+ * @param {string|null} sectorId - ID do setor do usuário (opcional)
  * @returns {Promise<Array>}
  */
-export async function fetchHomeModulesForUser(email, accessLevel) {
-  const modules = await fetchModulesForUser(email, accessLevel);
+export async function fetchHomeModulesForUser(email, accessLevel, sectorId = null) {
+  const modules = await fetchModulesForUser(email, accessLevel, sectorId);
   return modules.filter(m => m.show_on_home);
 }
 
@@ -3771,6 +3816,23 @@ export async function deleteModuleUnified(moduleId) {
   if (error) {
     throw new Error(`Erro ao remover módulo: ${error.message}`);
   }
+}
+
+/**
+ * Busca dados do usuário pelo email (incluindo setor)
+ * @param {string} email - Email do usuário
+ * @returns {Promise<Object|null>}
+ */
+export async function getUserOtusByEmail(email) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .select('id, setor_id, position_id, name')
+    .eq('email', email)
+    .single();
+
+  if (error) return null;
+  return data;
 }
 
 /**
@@ -3856,7 +3918,7 @@ export async function fetchModuleOverrides() {
 
 /**
  * Cria um override de módulo
- * @param {Object} overrideData - {module_id, user_email?, position_id?, grant_access, created_by?}
+ * @param {Object} overrideData - {module_id, user_email?, position_id?, sector_id?, grant_access, created_by?}
  * @returns {Promise<Object>}
  */
 export async function createModuleOverride(overrideData) {

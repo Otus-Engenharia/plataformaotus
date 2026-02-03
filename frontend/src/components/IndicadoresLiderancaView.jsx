@@ -12,13 +12,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import PortfolioView from './PortfolioView';
 import CurvaSView from './CurvaSView';
 import BaselinesView from './BaselinesView';
+import AlocacaoTimesView from './AlocacaoTimesView';
 import '../styles/IndicadoresLiderancaView.css';
 
 // Definição das subabas disponíveis
 const SUBVIEWS = {
   portfolio: {
     id: 'portfolio',
-    name: 'Portfólio de Projetos',
+    name: 'Portfolio',
     component: PortfolioView,
   },
   'curva-s': {
@@ -30,6 +31,11 @@ const SUBVIEWS = {
     id: 'baselines',
     name: 'Baselines',
     component: BaselinesView,
+  },
+  'alocacao-times': {
+    id: 'alocacao-times',
+    name: 'Alocacao de Times',
+    component: AlocacaoTimesView,
   },
 };
 

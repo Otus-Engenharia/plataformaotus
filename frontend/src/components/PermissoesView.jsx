@@ -115,19 +115,21 @@ function PermissoesView() {
   const [matrixData, setMatrixData] = useState(null);
   const [overrides, setOverrides] = useState([]);
   const [expandedAreas, setExpandedAreas] = useState({});
+  const [sectors, setSectors] = useState([]);
 
   // Modal states
   const [editingModule, setEditingModule] = useState(null);
   const [showOverrideModal, setShowOverrideModal] = useState(false);
-  const [newOverride, setNewOverride] = useState({ module_id: '', user_email: '', grant_access: true });
+  const [newOverride, setNewOverride] = useState({ module_id: '', user_email: '', sector_id: '', grant_access: true });
 
   // Fetch data
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [matrixRes, overridesRes] = await Promise.all([
+      const [matrixRes, overridesRes, sectorsRes] = await Promise.all([
         axios.get(`${API_URL}/api/admin/modules/access-matrix`, { withCredentials: true }),
         axios.get(`${API_URL}/api/admin/module-overrides`, { withCredentials: true }),
+        axios.get(`${API_URL}/api/ind/sectors`, { withCredentials: true }),
       ]);
 
       if (matrixRes.data?.success) {
@@ -140,6 +142,9 @@ function PermissoesView() {
       }
       if (overridesRes.data?.success) {
         setOverrides(overridesRes.data.data || []);
+      }
+      if (sectorsRes.data?.success) {
+        setSectors(sectorsRes.data.data || []);
       }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
@@ -197,19 +202,27 @@ function PermissoesView() {
 
   // Criar override
   const createOverride = async () => {
-    if (!newOverride.module_id || !newOverride.user_email) {
-      alert('Preencha módulo e email');
+    if (!newOverride.module_id || (!newOverride.user_email && !newOverride.sector_id)) {
+      alert('Preencha módulo e email ou setor');
       return;
     }
     try {
       setSaving(true);
+      // Preparar dados - enviar apenas os campos preenchidos
+      const overrideData = {
+        module_id: newOverride.module_id,
+        grant_access: newOverride.grant_access,
+      };
+      if (newOverride.user_email) overrideData.user_email = newOverride.user_email;
+      if (newOverride.sector_id) overrideData.sector_id = newOverride.sector_id;
+
       await axios.post(
         `${API_URL}/api/admin/module-overrides`,
-        newOverride,
+        overrideData,
         { withCredentials: true }
       );
       setShowOverrideModal(false);
-      setNewOverride({ module_id: '', user_email: '', grant_access: true });
+      setNewOverride({ module_id: '', user_email: '', sector_id: '', grant_access: true });
       await fetchData();
     } catch (err) {
       console.error('Erro ao criar exceção:', err);
@@ -217,6 +230,12 @@ function PermissoesView() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Helper para obter nome do setor
+  const getSectorName = (sectorId) => {
+    const sector = sectors.find(s => s.id === sectorId);
+    return sector ? sector.name : sectorId;
   };
 
   // Deletar override
@@ -251,6 +270,44 @@ function PermissoesView() {
     });
     return modules;
   }, [matrixData]);
+
+  // Mapa de overrides por setor: { moduleId: { sectorId: grant_access } }
+  const sectorOverridesMap = useMemo(() => {
+    const map = {};
+    overrides.forEach(o => {
+      if (o.sector_id && !o.user_email) {
+        if (!map[o.module_id]) map[o.module_id] = {};
+        map[o.module_id][o.sector_id] = { grant_access: o.grant_access, id: o.id };
+      }
+    });
+    return map;
+  }, [overrides]);
+
+  // Toggle acesso de setor para módulo
+  const toggleSectorAccess = async (moduleId, sectorId) => {
+    try {
+      setSaving(true);
+      const existingOverride = sectorOverridesMap[moduleId]?.[sectorId];
+
+      if (existingOverride) {
+        // Se já existe, remove o override
+        await axios.delete(`${API_URL}/api/admin/module-overrides/${existingOverride.id}`, { withCredentials: true });
+      } else {
+        // Se não existe, cria um override de acesso
+        await axios.post(
+          `${API_URL}/api/admin/module-overrides`,
+          { module_id: moduleId, sector_id: sectorId, grant_access: true },
+          { withCredentials: true }
+        );
+      }
+      await fetchData();
+    } catch (err) {
+      console.error('Erro ao alterar acesso do setor:', err);
+      alert('Erro ao alterar acesso');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -311,6 +368,13 @@ function PermissoesView() {
         >
           <Icons.Grid />
           Matriz de Acesso
+        </button>
+        <button
+          className={`tab-btn ${activeSection === 'sectors' ? 'active' : ''}`}
+          onClick={() => setActiveSection('sectors')}
+        >
+          <Icons.Users />
+          Matriz por Setor
         </button>
         <button
           className={`tab-btn ${activeSection === 'modules' ? 'active' : ''}`}
@@ -414,6 +478,97 @@ function PermissoesView() {
           </div>
         )}
 
+        {/* === MATRIZ POR SETOR === */}
+        {activeSection === 'sectors' && matrixData?.matrix && (
+          <div className="matrix-section">
+            <div className="matrix-legend">
+              <span className="legend-item granted">
+                <span className="legend-dot granted"></span>
+                Setor tem acesso especial
+              </span>
+              <span className="legend-item denied">
+                <span className="legend-dot denied"></span>
+                Sem override (usa permissão padrão)
+              </span>
+            </div>
+
+            {sectors.length === 0 ? (
+              <div className="empty-state">
+                <Icons.Users />
+                <p>Nenhum setor cadastrado</p>
+              </div>
+            ) : (
+              <div className="matrix-table-wrapper">
+                <table className="matrix-table sector-matrix">
+                  <thead>
+                    <tr>
+                      <th className="col-module">Módulo</th>
+                      {sectors.map(sector => (
+                        <th key={sector.id} title={sector.description || sector.name}>
+                          {sector.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(matrixData.matrix).map(([area, areaModules]) => (
+                      <React.Fragment key={area}>
+                        <tr className="area-row" onClick={() => toggleArea(area)}>
+                          <td colSpan={sectors.length + 1}>
+                            <span className="area-toggle">
+                              {expandedAreas[area] ? <Icons.ChevronDown /> : <Icons.ChevronRight />}
+                            </span>
+                            <span className="area-name">{AREA_LABELS[area] || area}</span>
+                            <span className="area-count">{areaModules.length}</span>
+                          </td>
+                        </tr>
+                        {expandedAreas[area] && areaModules.map(module => (
+                          <tr key={module.id} className="module-row">
+                            <td className="col-module">
+                              <div className="module-cell">
+                                {module.show_on_home && (
+                                  <span className="home-badge" title="Exibido na Home">
+                                    <Icons.Home />
+                                  </span>
+                                )}
+                                <span className="module-name">{module.name}</span>
+                                <span className="module-path">{module.path}</span>
+                              </div>
+                            </td>
+                            {sectors.map(sector => {
+                              const override = sectorOverridesMap[module.id]?.[sector.id];
+                              const hasOverride = !!override;
+                              return (
+                                <td
+                                  key={sector.id}
+                                  className={`access-cell ${hasOverride ? 'granted current' : 'denied'}`}
+                                  onClick={() => toggleSectorAccess(module.id, sector.id)}
+                                  title={hasOverride
+                                    ? `${sector.name} tem acesso especial. Clique para remover.`
+                                    : `Clique para dar acesso especial ao setor ${sector.name}`}
+                                >
+                                  <span className={`access-dot ${hasOverride ? 'granted' : 'denied'}`}>
+                                    {hasOverride ? <Icons.Check /> : <Icons.X />}
+                                  </span>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="matrix-help">
+              <p><strong>Como usar:</strong> Clique em uma célula para conceder acesso especial ao setor para aquele módulo.</p>
+              <p>Isso cria uma exceção que permite o acesso independente do papel do usuário (desde que ele pertença ao setor).</p>
+            </div>
+          </div>
+        )}
+
         {/* === LISTA DE MÓDULOS === */}
         {activeSection === 'modules' && (
           <div className="modules-section">
@@ -482,7 +637,7 @@ function PermissoesView() {
         {activeSection === 'overrides' && (
           <div className="overrides-section">
             <div className="overrides-header">
-              <p>Exceções permitem conceder ou negar acesso a módulos específicos para usuários individuais.</p>
+              <p>Exceções permitem conceder ou negar acesso a módulos específicos para usuários ou setores.</p>
               <button className="btn-primary" onClick={() => setShowOverrideModal(true)}>
                 <Icons.Plus />
                 Nova Exceção
@@ -499,7 +654,7 @@ function PermissoesView() {
                 <thead>
                   <tr>
                     <th>Módulo</th>
-                    <th>Usuário</th>
+                    <th>Aplicado a</th>
                     <th>Tipo</th>
                     <th>Criado em</th>
                     <th>Ações</th>
@@ -509,7 +664,15 @@ function PermissoesView() {
                   {overrides.map(override => (
                     <tr key={override.id}>
                       <td>{override.module_id}</td>
-                      <td>{override.user_email || `Cargo: ${override.position_id}`}</td>
+                      <td>
+                        {override.user_email
+                          ? `Usuário: ${override.user_email}`
+                          : override.sector_id
+                            ? `Setor: ${getSectorName(override.sector_id)}`
+                            : override.position_id
+                              ? `Cargo: ${override.position_id}`
+                              : '-'}
+                      </td>
                       <td>
                         <span className={`badge ${override.grant_access ? 'yes' : 'no'}`}>
                           {override.grant_access ? 'Conceder' : 'Negar'}
@@ -611,13 +774,28 @@ function PermissoesView() {
               </select>
             </div>
             <div className="form-group">
-              <label>Email do Usuário</label>
+              <label>Email do Usuário (opcional se setor preenchido)</label>
               <input
                 type="email"
                 value={newOverride.user_email}
                 onChange={e => setNewOverride({ ...newOverride, user_email: e.target.value })}
                 placeholder="usuario@otusengenharia.com"
               />
+            </div>
+            <div className="form-group">
+              <label>Setor (opcional se email preenchido)</label>
+              <select
+                value={newOverride.sector_id}
+                onChange={e => setNewOverride({ ...newOverride, sector_id: e.target.value })}
+              >
+                <option value="">Nenhum setor</option>
+                {sectors.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <small style={{ color: 'var(--text-tertiary)', marginTop: '4px', display: 'block' }}>
+                Preencha email para exceção individual ou setor para exceção por setor
+              </small>
             </div>
             <div className="form-group">
               <label>Tipo</label>
