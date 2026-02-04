@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { STATUS_CONFIG, TIPO_CONFIG, CATEGORY_CONFIG } from './FeedbackCard';
+import { STATUS_CONFIG, TYPE_CONFIG, CATEGORY_CONFIG } from './FeedbackCard';
 import { renderTextWithMentions } from './FeedbackMention';
 import MentionInput from './MentionInput';
 import '../indicadores/dialogs/Dialogs.css';
@@ -64,7 +64,7 @@ export default function FeedbackDetailDialog({
   const [hasChanges, setHasChanges] = useState(false);
 
   const statusConfig = STATUS_CONFIG[feedback.status] || STATUS_CONFIG.pendente;
-  const tipoConfig = TIPO_CONFIG[feedback.tipo] || TIPO_CONFIG.outro;
+  const typeConfig = TYPE_CONFIG[feedback.type] || TYPE_CONFIG.outro;
   const categoryConfig = feedback.category ? CATEGORY_CONFIG[feedback.category] : null;
 
   useEffect(() => {
@@ -115,9 +115,7 @@ export default function FeedbackDetailDialog({
         <div className="dialog-header">
           <div className="feedback-detail__header-info">
             <div className="feedback-detail__badges">
-              {feedback.code && (
-                <span className="feedback-detail__code">{feedback.code}</span>
-              )}
+              <span className="feedback-detail__code">FB-{feedback.id}</span>
               <span
                 className="feedback-detail__status"
                 style={{ '--status-color': statusConfig.color }}
@@ -125,8 +123,8 @@ export default function FeedbackDetailDialog({
                 {statusConfig.label}
               </span>
               <span className="feedback-detail__tipo">
-                <span className="feedback-detail__tipo-icon">{tipoConfig.icon}</span>
-                {tipoConfig.label}
+                <span className="feedback-detail__tipo-icon">{typeConfig.icon}</span>
+                {typeConfig.label}
               </span>
               {categoryConfig && (
                 <span

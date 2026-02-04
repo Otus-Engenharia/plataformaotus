@@ -38,9 +38,10 @@ const DROPDOWN_STATUS_OPTIONS = [
 ];
 
 const TIPO_CONFIG = {
-  processo: { label: 'Processo', icon: '⚙️' },
-  plataforma: { label: 'Plataforma', icon: '💻' },
-  sugestao: { label: 'Sugestão', icon: '💡' },
+  bug: { label: 'Bug', icon: '🐛' },
+  erro: { label: 'Erro', icon: '❌' },
+  feedback_processo: { label: 'Processo', icon: '⚙️' },
+  feedback_plataforma: { label: 'Plataforma', icon: '💻' },
   outro: { label: 'Outro', icon: '📝' },
 };
 
@@ -379,7 +380,7 @@ export default function FeedbackAdminView() {
           return false;
         }
       }
-      if (filterTipo && feedback.tipo !== filterTipo) return false;
+      if (filterTipo && feedback.type !== filterTipo) return false;
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
         // Buscar também pelo nome no cadastro de usuários
@@ -608,7 +609,7 @@ export default function FeedbackAdminView() {
               <tbody>
                 {filteredFeedbacks.map((feedback) => {
                   const statusConfig = STATUS_CONFIG[feedback.status] || STATUS_CONFIG.pendente;
-                  const tipoConfig = TIPO_CONFIG[feedback.tipo] || TIPO_CONFIG.outro;
+                  const tipoConfig = TIPO_CONFIG[feedback.type] || TIPO_CONFIG.outro;
 
                   return (
                     <tr
@@ -620,7 +621,7 @@ export default function FeedbackAdminView() {
                         <span className="date-day">{formatDateShort(feedback.created_at)}</span>
                       </td>
                       <td>
-                        <span className={`tipo-badge tipo-badge--${feedback.tipo || 'outro'}`}>
+                        <span className={`tipo-badge tipo-badge--${feedback.type || 'outro'}`}>
                           <span className="tipo-icon">{tipoConfig.icon}</span>
                           {tipoConfig.label}
                         </span>
@@ -687,7 +688,7 @@ export default function FeedbackAdminView() {
                     </div>
                   ) : (
                     columnFeedbacks.map((feedback) => {
-                      const tipoConfig = TIPO_CONFIG[feedback.tipo] || TIPO_CONFIG.outro;
+                      const tipoConfig = TIPO_CONFIG[feedback.type] || TIPO_CONFIG.outro;
                       const isDragging = draggingId === feedback.id;
                       return (
                         <div
@@ -699,7 +700,7 @@ export default function FeedbackAdminView() {
                           onClick={() => openModal(feedback)}
                         >
                           <div className="kanban-card-header">
-                            <span className={`tipo-badge tipo-badge--${feedback.tipo || 'outro'}`}>
+                            <span className={`tipo-badge tipo-badge--${feedback.type || 'outro'}`}>
                               <span className="tipo-icon">{tipoConfig.icon}</span>
                               {tipoConfig.label}
                             </span>
@@ -745,9 +746,9 @@ export default function FeedbackAdminView() {
                     <span className="status-dot"></span>
                     {STATUS_CONFIG[selectedFeedback.status]?.label}
                   </span>
-                  <span className={`tipo-badge tipo-badge--${selectedFeedback.tipo || 'outro'}`}>
-                    <span className="tipo-icon">{TIPO_CONFIG[selectedFeedback.tipo]?.icon}</span>
-                    {TIPO_CONFIG[selectedFeedback.tipo]?.label}
+                  <span className={`tipo-badge tipo-badge--${selectedFeedback.type || 'outro'}`}>
+                    <span className="tipo-icon">{TIPO_CONFIG[selectedFeedback.type]?.icon}</span>
+                    {TIPO_CONFIG[selectedFeedback.type]?.label}
                   </span>
                 </div>
                 {selectedFeedback.titulo && (

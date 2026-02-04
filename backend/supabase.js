@@ -248,11 +248,13 @@ const FEEDBACK_STATUS = [
 /**
  * Busca todos os feedbacks
  * Retorna todos feedbacks para todos usuários, com os próprios primeiro
- * @param {string} userEmail - Email do usuário logado (para ordenar os próprios primeiro)
+ * @param {string} userId - UUID do usuário logado (para ordenar os próprios primeiro)
  * @returns {Promise<Array>}
  */
-export async function fetchFeedbacks(userEmail = null) {
+export async function fetchFeedbacks(userId = null) {
   const supabase = getSupabaseClient();
+
+  // Busca feedbacks
   const { data, error } = await supabase
     .from(FEEDBACKS_TABLE)
     .select('*')
@@ -264,11 +266,42 @@ export async function fetchFeedbacks(userEmail = null) {
 
   const feedbacks = Array.isArray(data) ? data : [];
 
-  // Se temos email do usuário, ordenar para que os próprios venham primeiro
-  if (userEmail) {
-    feedbacks.sort((a, b) => {
-      const aIsOwn = a.author_email === userEmail;
-      const bIsOwn = b.author_email === userEmail;
+  // Coleta IDs únicos de autores e resolvedores
+  const authorIds = [...new Set(feedbacks.map(f => f.author_id).filter(Boolean))];
+  const resolvedByIds = [...new Set(feedbacks.map(f => f.resolved_by_id).filter(Boolean))];
+  const allUserIds = [...new Set([...authorIds, ...resolvedByIds])];
+
+  // Busca dados dos usuários
+  let usersMap = new Map();
+  if (allUserIds.length > 0) {
+    const { data: users, error: usersError } = await supabase
+      .from('users_otus')
+      .select('id, name, email')
+      .in('id', allUserIds);
+
+    if (!usersError && users) {
+      users.forEach(u => usersMap.set(u.id, u));
+    }
+  }
+
+  // Enriquece feedbacks com dados dos usuários (para compatibilidade com frontend)
+  const enrichedFeedbacks = feedbacks.map(f => {
+    const author = usersMap.get(f.author_id);
+    const resolvedBy = usersMap.get(f.resolved_by_id);
+    return {
+      ...f,
+      // Campos para compatibilidade com frontend
+      author_name: author?.name || null,
+      author_email: author?.email || null,
+      resolved_by: resolvedBy?.name || null,
+    };
+  });
+
+  // Se temos ID do usuário, ordenar para que os próprios venham primeiro
+  if (userId) {
+    enrichedFeedbacks.sort((a, b) => {
+      const aIsOwn = a.author_id === userId;
+      const bIsOwn = b.author_id === userId;
       if (aIsOwn && !bIsOwn) return -1;
       if (!aIsOwn && bIsOwn) return 1;
       // Manter ordem por data para feedbacks do mesmo "grupo"
@@ -276,7 +309,7 @@ export async function fetchFeedbacks(userEmail = null) {
     });
   }
 
-  return feedbacks;
+  return enrichedFeedbacks;
 }
 
 /**
@@ -327,38 +360,26 @@ export async function getFeedbackStats() {
 /**
  * Cria um novo feedback
  * @param {Object} feedback - Dados do feedback
- * @param {string} feedback.tipo - 'processo', 'plataforma', 'sugestao' ou 'outro'
+ * @param {string} feedback.type - 'bug', 'feedback_processo', 'feedback_plataforma', 'erro' ou 'outro'
  * @param {string} feedback.titulo - Título do feedback (opcional)
  * @param {string} feedback.feedback_text - Descrição do feedback
- * @param {string} feedback.author_email - Email de quem criou
- * @param {string} feedback.author_name - Nome de quem criou (opcional)
+ * @param {string} feedback.author_id - UUID do autor (auth.users.id)
+ * @param {string} feedback.page_url - URL da página onde foi criado (opcional)
+ * @param {string} feedback.screenshot_url - URL do screenshot (opcional)
  * @returns {Promise<Object>}
  */
 export async function createFeedback(feedback) {
   const supabase = getSupabaseClient();
 
-  // Gerar código sequencial (FB-001, FB-002, etc.)
-  const { data: lastFeedback } = await supabase
-    .from(FEEDBACKS_TABLE)
-    .select('code')
-    .not('code', 'is', null)
-    .order('code', { ascending: false })
-    .limit(1);
-
-  const lastNum = lastFeedback?.[0]?.code
-    ? parseInt(lastFeedback[0].code.replace('FB-', ''), 10)
-    : 0;
-  const newCode = `FB-${String(lastNum + 1).padStart(3, '0')}`;
-
   const row = {
-    code: newCode,
-    tipo: feedback.tipo || 'processo',
+    type: feedback.type || 'feedback_plataforma',
     titulo: feedback.titulo || null,
     feedback_text: feedback.feedback_text || feedback.descricao || '',
     screenshot_url: feedback.screenshot_url || null,
     status: 'pendente',
-    author_email: feedback.author_email || feedback.created_by,
-    author_name: feedback.author_name || null,
+    author_id: feedback.author_id,
+    page_url: feedback.page_url || null,
+    screenshot_url: feedback.screenshot_url || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -380,10 +401,10 @@ export async function createFeedback(feedback) {
  * Atualiza o status de um feedback
  * @param {string} id - ID do feedback
  * @param {string} status - Novo status
- * @param {string} updatedBy - Email de quem atualizou
+ * @param {string} resolvedById - UUID de quem atualizou (auth.users.id)
  * @returns {Promise<Object>}
  */
-export async function updateFeedbackStatus(id, status, updatedBy) {
+export async function updateFeedbackStatus(id, status, resolvedById) {
   const supabase = getSupabaseClient();
 
   const updateData = {
@@ -394,7 +415,7 @@ export async function updateFeedbackStatus(id, status, updatedBy) {
   // Se status é finalizado ou recusado, registrar quem resolveu
   if (status === 'finalizado' || status === 'recusado') {
     updateData.resolved_at = new Date().toISOString();
-    updateData.resolved_by = updatedBy;
+    updateData.resolved_by_id = resolvedById;
   }
 
   const { data, error } = await supabase
@@ -415,10 +436,10 @@ export async function updateFeedbackStatus(id, status, updatedBy) {
  * Atualiza feedback completo (apenas admin)
  * @param {string} id - ID do feedback
  * @param {Object} updateData - Dados a atualizar
- * @param {string} updatedBy - Email de quem atualizou
+ * @param {string} resolvedById - UUID de quem atualizou (auth.users.id)
  * @returns {Promise<Object>}
  */
-export async function updateFeedback(id, updateData, updatedBy) {
+export async function updateFeedback(id, updateData, resolvedById) {
   const supabase = getSupabaseClient();
 
   const row = {
@@ -429,13 +450,13 @@ export async function updateFeedback(id, updateData, updatedBy) {
   // Se status é finalizado ou recusado, registrar quem resolveu
   if (updateData.status === 'finalizado' || updateData.status === 'recusado') {
     row.resolved_at = new Date().toISOString();
-    row.resolved_by = updatedBy;
+    row.resolved_by_id = resolvedById;
   }
 
   // Remover campos que não devem ser atualizados diretamente
   delete row.id;
   delete row.created_at;
-  delete row.author_email;
+  delete row.author_id;
 
   const { data, error } = await supabase
     .from(FEEDBACKS_TABLE)

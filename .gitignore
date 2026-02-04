@@ -5,7 +5,11 @@ yarn.lock
 
 # Variáveis de ambiente (contém credenciais)
 .env
-.env.local
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
 
 # Credenciais do Google Cloud
 *.json

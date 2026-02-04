@@ -13,8 +13,7 @@ const BUG_TYPES = [
 
 const SUGGESTION_CATEGORIES = [
   { value: 'processo', label: 'Processo', icon: '⚙️' },
-  { value: 'plataforma', label: 'Plataforma', icon: '💻' },
-  { value: 'outro', label: 'Outro', icon: '📝' }
+  { value: 'plataforma', label: 'Plataforma', icon: '💻' }
 ];
 
 /**
@@ -73,48 +72,31 @@ export default function BugReportDialog({ onClose }) {
         screenshotBase64 = screenshotPreview;
       }
 
-      // Se for sugestão, envia para feedbacks, caso contrário para bug-reports
-      if (type === 'sugestao') {
-        const response = await fetch(`${API_URL}/api/feedbacks`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            tipo: suggestionCategory,
-            titulo: title.trim(),
-            feedback_text: description.trim(),
-            screenshot_url: screenshotBase64
-          })
-        });
+      // Determina o tipo correto para o backend
+      // Sugestões: feedback_processo ou feedback_plataforma
+      // Outros: bug, erro, outro
+      const feedbackType = type === 'sugestao'
+        ? `feedback_${suggestionCategory}`
+        : type;
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Erro ao enviar sugestão');
-        }
-      } else {
-        const response = await fetch(`${API_URL}/api/bug-reports`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            title: title.trim(),
-            description: description.trim(),
-            type,
-            screenshot: screenshotBase64,
-            page_url: window.location.href,
-            reporter_email: user?.email,
-            reporter_name: user?.name
-          })
-        });
+      const response = await fetch(`${API_URL}/api/feedbacks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          type: feedbackType,
+          titulo: title.trim(),
+          feedback_text: description.trim(),
+          screenshot_url: screenshotBase64,
+          page_url: window.location.href
+        })
+      });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Erro ao enviar relatório');
-        }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao enviar relatório');
       }
 
       setSuccess(true);

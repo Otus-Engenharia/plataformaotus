@@ -1,0 +1,41 @@
+/**
+ * Use Case: ListFeedbacks
+ *
+ * Lista todos os feedbacks, enriquecidos com dados dos autores.
+ */
+
+class ListFeedbacks {
+  #feedbackRepository;
+
+  constructor(feedbackRepository) {
+    this.#feedbackRepository = feedbackRepository;
+  }
+
+  /**
+   * Executa o use case
+   * @param {Object} options
+   * @param {string} options.userId - ID do usuário logado (para ordenar próprios primeiro)
+   * @returns {Promise<Array>}
+   */
+  async execute({ userId = null } = {}) {
+    // Busca todos os feedbacks
+    const feedbacks = await this.#feedbackRepository.findAll({ userId });
+
+    // Coleta IDs únicos de autores e resolvedores
+    const authorIds = [...new Set(feedbacks.map(f => f.authorId).filter(Boolean))];
+    const resolvedByIds = [...new Set(feedbacks.map(f => f.resolvedById).filter(Boolean))];
+    const allUserIds = [...new Set([...authorIds, ...resolvedByIds])];
+
+    // Busca dados dos usuários
+    const usersMap = await this.#feedbackRepository.getUsersByIds(allUserIds);
+
+    // Converte para formato de resposta
+    return feedbacks.map(feedback => {
+      const authorData = usersMap.get(feedback.authorId);
+      const resolvedByData = usersMap.get(feedback.resolvedById);
+      return feedback.toResponse(authorData, resolvedByData);
+    });
+  }
+}
+
+export { ListFeedbacks };

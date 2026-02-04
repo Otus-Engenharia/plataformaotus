@@ -16,10 +16,11 @@ const STATUS_CONFIG = {
   recusado: { label: 'Recusado', color: '#6b7280' }
 };
 
-const TIPO_CONFIG = {
-  processo: { label: 'Processo', icon: '⚙️' },
-  plataforma: { label: 'Plataforma', icon: '💻' },
-  sugestao: { label: 'Sugestão', icon: '💡' },
+const TYPE_CONFIG = {
+  bug: { label: 'Bug', icon: '🐛' },
+  feedback_processo: { label: 'Processo', icon: '⚙️' },
+  feedback_plataforma: { label: 'Plataforma', icon: '💻' },
+  erro: { label: 'Erro', icon: '❌' },
   outro: { label: 'Outro', icon: '📝' }
 };
 
@@ -75,7 +76,7 @@ function getInitials(name, email) {
  * Card de feedback minimalista para Kanban
  */
 export default function FeedbackCard({ feedback, isOwn = false, onClick, onMentionClick }) {
-  const tipoConfig = TIPO_CONFIG[feedback.tipo] || TIPO_CONFIG.outro;
+  const typeConfig = TYPE_CONFIG[feedback.type] || TYPE_CONFIG.outro;
   const categoryConfig = feedback.category ? CATEGORY_CONFIG[feedback.category] : null;
 
   const handleClick = () => {
@@ -114,9 +115,9 @@ export default function FeedbackCard({ feedback, isOwn = false, onClick, onMenti
       {/* Top row: código + tipo + categoria + data */}
       <div className="fcard__top">
         <div className="fcard__meta">
-          {feedback.code && <span className="fcard__code">{feedback.code}</span>}
+          <span className="fcard__code">FB-{feedback.id}</span>
           <span className="fcard__tipo">
-            {tipoConfig.icon} {tipoConfig.label}
+            {typeConfig.icon} {typeConfig.label}
           </span>
           {categoryConfig && (
             <span
@@ -148,4 +149,4 @@ export default function FeedbackCard({ feedback, isOwn = false, onClick, onMenti
   );
 }
 
-export { STATUS_CONFIG, TIPO_CONFIG, CATEGORY_CONFIG };
+export { STATUS_CONFIG, TYPE_CONFIG, CATEGORY_CONFIG };

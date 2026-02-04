@@ -47,7 +47,7 @@ const HistoryView = lazy(() => import('./pages/indicadores/HistoryView'));
 const AdminSetores = lazy(() => import('./pages/indicadores/AdminSetores'));
 const AdminUsuarios = lazy(() => import('./pages/indicadores/AdminUsuarios'));
 const AdminCargos = lazy(() => import('./pages/indicadores/AdminCargos'));
-const AdminBugReports = lazy(() => import('./pages/indicadores/AdminBugReports'));
+// AdminBugReports removido - substituído por FeedbackAdminView
 
 // Lazy load das páginas de Feedbacks
 const FeedbackKanbanView = lazy(() => import('./pages/feedbacks/FeedbackKanbanView'));
@@ -1163,7 +1163,7 @@ function AppContent() {
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? (
                     <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <AdminBugReports />
+                      <FeedbackAdminView />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>

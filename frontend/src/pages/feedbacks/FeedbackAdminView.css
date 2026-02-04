@@ -474,22 +474,28 @@
   color: #525252;
 }
 
-.tipo-badge--processo {
+.tipo-badge--bug {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+}
+
+.tipo-badge--erro {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+  border-color: rgba(220, 38, 38, 0.2);
+  color: #b91c1c;
+}
+
+.tipo-badge--feedback_processo {
   background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(107, 114, 128, 0.05) 100%);
   border-color: rgba(107, 114, 128, 0.2);
   color: #4b5563;
 }
 
-.tipo-badge--plataforma {
+.tipo-badge--feedback_plataforma {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
   border-color: rgba(59, 130, 246, 0.2);
   color: #2563eb;
-}
-
-.tipo-badge--sugestao {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
-  border-color: rgba(245, 158, 11, 0.2);
-  color: #d97706;
 }
 
 .tipo-badge--outro {

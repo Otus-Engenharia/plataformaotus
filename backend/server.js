@@ -18,12 +18,12 @@ import session from 'express-session';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, queryProximasTarefasAll, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
+import { setupDDDRoutes } from './routes/index.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
   fetchCobrancasFeitas, upsertCobranca, fetchTimesList, fetchUsuarioToTime,
-  fetchFeedbacks, createFeedback, updateFeedbackStatus, updateFeedbackParecer, updateFeedback, getFeedbackStats,
   fetchUserViews, updateUserViews, getUserViews, createLog, fetchLogs, countLogsByAction, countViewUsage,
   fetchOKRs, fetchOKRById, createOKR, updateOKR, deleteOKR, createKeyResult, updateKeyResult,
   fetchOKRCheckIns, createOKRCheckIn, updateOKRCheckIn, deleteOKRCheckIn,
@@ -62,11 +62,8 @@ import {
   getProjectIdByConstruflow,
   // Vista de Contatos
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
-  fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
-  // Portfolio - Edicao
-  fetchProjectsFromSupabase, updateProjectField, fetchPortfolioEditOptions
+  fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails
 } from './supabase.js';
-import { sendStatusChangeNotification, getWebhookUrls } from './discord.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -150,11 +147,71 @@ app.use(express.json());
 
 // Rota de teste para verificar se o servidor está funcionando
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Servidor funcionando!',
     timestamp: new Date().toISOString()
   });
+});
+
+/**
+ * Rota: GET /api/debug/modules
+ * Debug: Lista todos os módulos e mostra quais o usuário atual pode ver
+ * APENAS em DEV_MODE
+ */
+app.get('/api/debug/modules', requireAuth, async (req, res) => {
+  if (process.env.DEV_MODE !== 'true') {
+    return res.status(403).json({ success: false, error: 'Apenas em DEV_MODE' });
+  }
+
+  try {
+    const userRole = getUserRole(req.user.email) || 'user';
+    const accessLevel = getUserAccessLevel(userRole);
+    const userOtus = await getUserOtusByEmail(req.user.email);
+    const sectorId = userOtus?.setor_id || null;
+
+    // Buscar TODOS os módulos (sem filtro)
+    const allModules = await fetchAllModules();
+
+    // Buscar módulos que o usuário tem acesso
+    const userModules = await fetchHomeModulesForUser(req.user.email, accessLevel, sectorId);
+    const userModuleIds = new Set(userModules.map(m => m.id));
+
+    // Mapear com info de acesso
+    const modulesWithAccess = allModules.map(m => ({
+      id: m.id,
+      name: m.name,
+      path: m.path,
+      area: m.area,
+      min_access_level: m.min_access_level,
+      show_on_home: m.show_on_home,
+      visible: m.visible,
+      has_access: userModuleIds.has(m.id),
+      reason: !m.visible ? 'invisible' :
+              !m.show_on_home ? 'not_on_home' :
+              !userModuleIds.has(m.id) ? 'access_denied' : 'ok'
+    }));
+
+    res.json({
+      success: true,
+      user: {
+        email: req.user.email,
+        role: userRole,
+        accessLevel,
+        sectorId,
+        hasUserOtus: !!userOtus
+      },
+      accessLevels: ACCESS_LEVELS,
+      modules: {
+        total: allModules.length,
+        accessible: userModules.length,
+        list: modulesWithAccess
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro no debug de módulos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 /**
@@ -273,11 +330,15 @@ app.post('/api/auth/dev-login', (req, res) => {
     });
   }
 
+  // Usa um ID real existente no banco para evitar erros de FK
+  // Diego Duarte (dev) - ID real do banco users_otus
+  const DEV_USER_ID = '895103f1-e355-467d-b7bf-38d4b581d4aa';
+
   const devUsers = {
-    dev: { id: 'dev-0', email: 'dev-dev@otus.dev', name: 'Dev (Full Access)', role: 'dev' },
-    director: { id: 'dev-1', email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
-    admin: { id: 'dev-2', email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
-    leader: { id: 'dev-3', email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
+    dev: { id: DEV_USER_ID, email: 'dev-dev@otus.dev', name: 'Dev (Full Access)', role: 'dev' },
+    director: { id: DEV_USER_ID, email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
+    admin: { id: DEV_USER_ID, email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
+    leader: { id: DEV_USER_ID, email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
   };
 
   const user = devUsers[role];
@@ -308,6 +369,7 @@ app.get('/api/auth/user', requireAuth, (req, res) => {
   res.json({
     success: true,
     user: {
+      id: req.user.id, // Incluído para debug
       email: req.user.email,
       name: req.user.name,
       picture: req.user.picture,
@@ -453,35 +515,7 @@ app.get('/api/portfolio', requireAuth, async (req, res) => {
       console.warn('⚠️ Supabase falhou, usando BigQuery:', supabaseError.message);
       data = await queryPortfolio(leaderName);
     }
-
-    // Mesclar dados do Supabase projects (prioridade sobre BigQuery/Realtime)
-    try {
-      const supabaseProjects = await fetchProjectsFromSupabase();
-      const supabaseMap = {};
-      supabaseProjects.forEach(p => { supabaseMap[p.project_code] = p; });
-
-      data = data.map(row => {
-        const sp = supabaseMap[row.project_code_norm];
-        if (sp) {
-          return {
-            ...row,
-            comercial_name: sp.comercial_name ?? row.comercial_name,
-            status: sp.status ?? row.status,
-            client: sp.companies?.name ?? row.client,
-            nome_time: sp.teams?.team_name ?? row.nome_time,
-            lider: sp.users_otus?.name ?? row.lider,
-            // IDs para edicao no frontend
-            _company_id: sp.company_id,
-            _team_id: sp.team_id,
-            _project_manager_id: sp.project_manager_id
-          };
-        }
-        return row;
-      });
-    } catch (mergeError) {
-      console.warn('⚠️ Erro ao mesclar dados do Supabase projects:', mergeError.message);
-    }
-
+    
     // Registra o acesso
     await logAction(req, 'view', 'portfolio', null, 'Portfólio', { count: data.length });
     
@@ -492,103 +526,10 @@ app.get('/api/portfolio', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Erro ao buscar portfólio:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
       error: error.message,
       details: 'Verifique Supabase/BigQuery e a view de portfolio'
-    });
-  }
-});
-
-/**
- * Rota: GET /api/portfolio/edit-options
- * Retorna opcoes para dropdowns de edicao (times, empresas, lideres)
- * Apenas diretoria/admin
- */
-app.get('/api/portfolio/edit-options', requireAuth, async (req, res) => {
-  try {
-    if (!hasFullAccess(req.user.email)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Acesso negado',
-        message: 'Somente diretoria ou admin podem editar o portfolio'
-      });
-    }
-
-    const options = await fetchPortfolioEditOptions();
-
-    res.json({
-      success: true,
-      data: options
-    });
-  } catch (error) {
-    console.error('❌ Erro ao buscar opcoes de edicao:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * Rota: PUT /api/portfolio/:projectCode
- * Atualiza um campo do portfolio
- * Apenas diretoria/admin
- */
-app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
-  try {
-    if (!hasFullAccess(req.user.email)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Acesso negado',
-        message: 'Somente diretoria ou admin podem editar o portfolio'
-      });
-    }
-
-    const { projectCode } = req.params;
-    const { field, value, oldValue } = req.body;
-
-    const editableFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
-    if (!editableFields.includes(field)) {
-      return res.status(400).json({
-        success: false,
-        error: `Campo '${field}' nao e editavel`
-      });
-    }
-
-    const result = await updateProjectField(projectCode, field, value);
-
-    // Log da edicao
-    await logAction(req, 'update', 'portfolio', projectCode, `Projeto ${projectCode}`, {
-      field,
-      oldValue,
-      newValue: value
-    });
-
-    // Notificação Discord para mudança de status
-    if (field === 'status' && oldValue !== value) {
-      sendStatusChangeNotification({
-        projectCode,
-        projectName: result?.comercial_name || projectCode,
-        oldStatus: oldValue,
-        newStatus: value,
-        userName: req.user.name,
-        userPicture: req.user.picture,
-        webhookUrls: getWebhookUrls(oldValue, value)
-      }).catch(err => console.error('❌ Discord notification failed:', err));
-    }
-
-    console.log(`✅ Portfolio atualizado: ${projectCode}.${field} = ${value}`);
-
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    console.error('❌ Erro ao atualizar portfolio:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
     });
   }
 });
@@ -609,9 +550,7 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
     }
 
     const supabase = getSupabaseClient();
-    const showAll = req.query.show_all === 'true';
-
-    let query = supabase
+    const { data, error } = await supabase
       .from('users_otus')
       .select(`
         id,
@@ -622,21 +561,14 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
         email,
         construflow_user_id,
         discord_user_id,
-        is_active,
         leader:leader_id(name),
         padrinho:onboarding_buddy_id(name),
         team:team_id(team_number, team_name),
         setor:setor_id(id, name),
         status
       `)
+      .eq('status', 'ativo')
       .order('name', { ascending: true });
-
-    // Se não for show_all, filtra apenas ativos
-    if (!showAll) {
-      query = query.eq('is_active', true);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       console.error('❌ Erro ao buscar colaboradores no Supabase:', error);
@@ -657,7 +589,6 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
       nivel_acesso: getUserRole(row.email) === 'dev' ? 'dev' : (row.role || getUserRole(row.email) || 'sem_acesso'),
       construflow_id: row.construflow_user_id ?? null,
       discord_id: row.discord_user_id ?? null,
-      is_active: row.is_active !== false,
     }));
 
     res.json({
@@ -885,50 +816,6 @@ app.put('/api/projetos/cronograma/cobrancas', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Erro ao salvar cobrança:', err);
     res.status(500).json({ success: false, error: err.message || 'Erro ao salvar cobrança' });
-  }
-});
-
-// =============================================
-// ROTAS APOIO DE PROJETOS
-// =============================================
-
-/**
- * Rota: GET /api/apoio-projetos/proximas-tarefas
- * Retorna próximas tarefas de TODOS os projetos do portfólio
- * Usado pela equipe de Apoio de Projetos para visualizar cronograma consolidado
- *
- * Query params:
- * - weeksAhead: número de semanas à frente (padrão: 2)
- */
-app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) => {
-  try {
-    const weeksAhead = parseInt(req.query.weeksAhead) || 2;
-
-    // Líderes veem apenas seus projetos; privilegiados veem todos
-    let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
-      leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        // Usuário não é privilegiado e não tem mapeamento de líder
-        return res.json({ success: true, count: 0, data: [] });
-      }
-    }
-
-    console.log(`📋 [/api/apoio-projetos/proximas-tarefas] User: ${req.user.email}, weeksAhead: ${weeksAhead}, leaderName: ${leaderName || 'ALL'}`);
-
-    const data = await queryProximasTarefasAll(leaderName, { weeksAhead });
-
-    res.json({
-      success: true,
-      count: data.length,
-      data: data
-    });
-  } catch (error) {
-    console.error('❌ Erro ao buscar próximas tarefas:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao carregar próximas tarefas'
-    });
   }
 });
 
@@ -1539,270 +1426,12 @@ app.get('/api/projetos/apontamentos', requireAuth, async (req, res) => {
   }
 });
 
-/**
- * Rota: GET /api/feedbacks
- * Retorna todos os feedbacks, ordenados com os do usuário primeiro
- */
-app.get('/api/feedbacks', requireAuth, async (req, res) => {
-  try {
-    const userEmail = req.user?.email || null;
-    console.log('📋 Buscando feedbacks para:', userEmail);
-
-    const feedbacks = await fetchFeedbacks(userEmail);
-
-    res.json({
-      success: true,
-      count: feedbacks.length,
-      data: feedbacks,
-    });
-  } catch (error) {
-    console.error('❌ Erro ao buscar feedbacks:', error.message);
-    console.error('Stack:', error.stack);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao buscar feedbacks',
-    });
-  }
-});
-
-/**
- * Rota: GET /api/feedbacks/stats
- * Retorna estatísticas dos feedbacks (contagem por status)
- */
-app.get('/api/feedbacks/stats', requireAuth, async (req, res) => {
-  try {
-    const stats = await getFeedbackStats();
-
-    res.json({
-      success: true,
-      data: stats,
-    });
-  } catch (error) {
-    console.error('❌ Erro ao buscar estatísticas de feedbacks:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao buscar estatísticas',
-    });
-  }
-});
-
-/**
- * Rota: POST /api/feedbacks
- * Cria um novo feedback
- */
-app.post('/api/feedbacks', requireAuth, async (req, res) => {
-  try {
-    const { tipo, titulo, descricao, feedback_text, screenshot_url } = req.body;
-
-    // Aceita tanto 'descricao' (legacy) quanto 'feedback_text' (novo)
-    const text = feedback_text || descricao;
-
-    const validTipos = ['processo', 'plataforma', 'sugestao', 'outro'];
-    if (!tipo || !validTipos.includes(tipo)) {
-      return res.status(400).json({
-        success: false,
-        error: `Tipo deve ser um dos seguintes: ${validTipos.join(', ')}`,
-      });
-    }
-
-    if (!text) {
-      return res.status(400).json({
-        success: false,
-        error: 'Texto do feedback é obrigatório',
-      });
-    }
-
-    const feedback = await createFeedback({
-      tipo,
-      titulo: titulo || null,
-      feedback_text: text,
-      screenshot_url: screenshot_url || null,
-      author_email: req.user.email,
-      author_name: req.user.displayName || req.user.name || null,
-    });
-
-    // Registra a criação do feedback
-    await logAction(req, 'create', 'feedback', feedback.id, `Feedback: ${titulo || text.substring(0, 50)}`, { tipo });
-
-    res.json({
-      success: true,
-      data: feedback,
-    });
-  } catch (error) {
-    console.error('❌ Erro ao criar feedback:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao criar feedback',
-    });
-  }
-});
-
-/**
- * Rota: PUT /api/feedbacks/:id/status
- * Atualiza o status de um feedback (apenas admin/director)
- */
-app.put('/api/feedbacks/:id/status', requireAuth, async (req, res) => {
-  try {
-    if (!isPrivileged(req.user.email)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Acesso negado',
-        message: 'Somente admin ou director podem alterar o status',
-      });
-    }
-
-    const { id } = req.params;
-    const { status } = req.body;
-
-    const validStatuses = [
-      'pendente',
-      'em_analise',
-      'backlog_desenvolvimento',
-      'backlog_treinamento',
-      'analise_funcionalidade',
-      'finalizado',
-      'recusado'
-    ];
-
-    if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: `Status deve ser um dos seguintes: ${validStatuses.join(', ')}`,
-      });
-    }
-
-    const feedback = await updateFeedbackStatus(id, status, req.user.email);
-
-    // Registra a alteração de status
-    await logAction(req, 'update', 'feedback', id, `Status alterado para: ${status}`, { status });
-
-    res.json({
-      success: true,
-      data: feedback,
-    });
-  } catch (error) {
-    console.error('❌ Erro ao atualizar status do feedback:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao atualizar status do feedback',
-    });
-  }
-});
-
-/**
- * Rota: PUT /api/feedbacks/:id/parecer
- * Atualiza o parecer de um feedback (apenas admin/director)
- * Aceita: admin_analysis (análise) e admin_action (ação a tomar)
- */
-app.put('/api/feedbacks/:id/parecer', requireAuth, async (req, res) => {
-  try {
-    if (!isPrivileged(req.user.email)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Acesso negado',
-        message: 'Somente admin ou director podem adicionar parecer',
-      });
-    }
-
-    const { id } = req.params;
-    const { parecer, admin_analysis, admin_action } = req.body;
-
-    // Suporte legacy: 'parecer' vai para admin_analysis se não houver admin_analysis
-    const analysis = admin_analysis || parecer || null;
-    const action = admin_action || null;
-
-    if (!analysis && !action) {
-      return res.status(400).json({
-        success: false,
-        error: 'Análise ou ação a tomar é obrigatória',
-      });
-    }
-
-    const feedback = await updateFeedbackParecer(id, analysis, action, req.user.email);
-
-    // Registra a ação
-    await logAction(req, 'update', 'feedback', id, 'Parecer atualizado', { hasAnalysis: !!analysis, hasAction: !!action });
-
-    res.json({
-      success: true,
-      data: feedback,
-    });
-  } catch (error) {
-    console.error('❌ Erro ao atualizar parecer do feedback:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao atualizar parecer do feedback',
-    });
-  }
-});
-
-/**
- * Rota: PUT /api/feedbacks/:id
- * Atualização completa de um feedback (apenas admin/director)
- * Permite atualizar status, análise e ação de uma só vez
- */
-app.put('/api/feedbacks/:id', requireAuth, async (req, res) => {
-  try {
-    if (!isPrivileged(req.user.email)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Acesso negado',
-        message: 'Somente admin ou director podem atualizar feedbacks',
-      });
-    }
-
-    const { id } = req.params;
-    const { status, admin_analysis, admin_action } = req.body;
-
-    // Validar status se fornecido
-    if (status) {
-      const validStatuses = [
-        'pendente',
-        'em_analise',
-        'backlog_desenvolvimento',
-        'backlog_treinamento',
-        'analise_funcionalidade',
-        'finalizado',
-        'recusado'
-      ];
-
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          error: `Status deve ser um dos seguintes: ${validStatuses.join(', ')}`,
-        });
-      }
-    }
-
-    const updateData = {};
-    if (status !== undefined) updateData.status = status;
-    if (admin_analysis !== undefined) updateData.admin_analysis = admin_analysis;
-    if (admin_action !== undefined) updateData.admin_action = admin_action;
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Nenhum campo para atualizar foi fornecido',
-      });
-    }
-
-    const feedback = await updateFeedback(id, updateData, req.user.email);
-
-    // Registra a ação
-    await logAction(req, 'update', 'feedback', id, 'Feedback atualizado', updateData);
-
-    res.json({
-      success: true,
-      data: feedback,
-    });
-  } catch (error) {
-    console.error('❌ Erro ao atualizar feedback:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao atualizar feedback',
-    });
-  }
-});
+// ============================================
+// ROTAS DE FEEDBACKS (DDD)
+// Migrado para arquitetura Domain Driven Design
+// Ver: backend/routes/feedbacks.js
+// ============================================
+setupDDDRoutes(app, { requireAuth, isPrivileged, logAction });
 
 /**
  * Rota: GET /api/admin/user-views
@@ -4312,137 +3941,9 @@ app.get('/api/ind/my-templates', requireAuth, async (req, res) => {
 });
 
 // =====================================================
-// BUG REPORTS - Sistema de relatórios de bugs/erros
+// BUG REPORTS - REMOVIDO (unificado com feedbacks)
+// Use as rotas /api/feedbacks com type='bug'
 // =====================================================
-
-/**
- * GET /api/bug-reports
- * Lista todos os relatórios de bugs
- */
-app.get('/api/bug-reports', requireAuth, async (req, res) => {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('bug_reports')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json({ success: true, data });
-  } catch (error) {
-    console.error('❌ Erro ao buscar bug reports:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * POST /api/bug-reports
- * Cria um novo relatório de bug
- */
-app.post('/api/bug-reports', requireAuth, async (req, res) => {
-  try {
-    const { title, description, type, screenshot, page_url, reporter_email, reporter_name } = req.body;
-
-    if (!title || !description || !type) {
-      return res.status(400).json({
-        success: false,
-        error: 'Título, descrição e tipo são obrigatórios'
-      });
-    }
-
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('bug_reports')
-      .insert({
-        title,
-        description,
-        type,
-        screenshot_url: screenshot,
-        page_url,
-        reporter_email: reporter_email || req.user?.email,
-        reporter_name: reporter_name || req.user?.name,
-        status: 'pendente'
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Log da ação
-    await logAction(req, 'create', 'bug_report', data.id, title, { type });
-
-    res.status(201).json({ success: true, data });
-  } catch (error) {
-    console.error('❌ Erro ao criar bug report:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * PATCH /api/bug-reports/:id
- * Atualiza um relatório de bug (status, notas admin, etc)
- */
-app.patch('/api/bug-reports/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-
-    // Adiciona updated_at
-    updates.updated_at = new Date().toISOString();
-
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('bug_reports')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Log da ação
-    await logAction(req, 'update', 'bug_report', id, data.title, { updates });
-
-    res.json({ success: true, data });
-  } catch (error) {
-    console.error('❌ Erro ao atualizar bug report:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * DELETE /api/bug-reports/:id
- * Exclui um relatório de bug
- */
-app.delete('/api/bug-reports/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const supabase = getSupabaseClient();
-
-    // Busca o report antes de deletar para o log
-    const { data: report } = await supabase
-      .from('bug_reports')
-      .select('title')
-      .eq('id', id)
-      .single();
-
-    const { error } = await supabase
-      .from('bug_reports')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-
-    // Log da ação
-    await logAction(req, 'delete', 'bug_report', id, report?.title);
-
-    res.json({ success: true, message: 'Bug report excluído com sucesso' });
-  } catch (error) {
-    console.error('❌ Erro ao excluir bug report:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 
 // ============================================
 // Workspace Management (Gestão de Tarefas)

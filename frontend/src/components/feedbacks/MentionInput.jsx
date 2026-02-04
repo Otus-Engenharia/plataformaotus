@@ -38,7 +38,7 @@ export default function MentionInput({
     const q = query.toLowerCase();
     return feedbacks
       .filter(f => {
-        const code = (f.code || '').toLowerCase();
+        const code = `fb-${f.id}`.toLowerCase();
         const titulo = (f.titulo || '').toLowerCase();
         const text = (f.feedback_text || '').toLowerCase().substring(0, 50);
         return code.includes(q) || titulo.includes(q) || text.includes(q);
@@ -82,7 +82,7 @@ export default function MentionInput({
 
     const beforeMention = value.substring(0, mentionStartPos);
     const afterMention = value.substring(mentionStartPos + 1 + mentionQuery.length);
-    const mention = `@${feedback.code} `;
+    const mention = `@FB-${feedback.id} `;
 
     const newValue = beforeMention + mention + afterMention;
     onChange(newValue);
@@ -193,7 +193,7 @@ export default function MentionInput({
               onClick={() => insertMention(feedback)}
               onMouseEnter={() => setSelectedIndex(index)}
             >
-              <span className="mention-input__code">{feedback.code}</span>
+              <span className="mention-input__code">FB-{feedback.id}</span>
               <span className="mention-input__preview">
                 {truncate(feedback.titulo || feedback.feedback_text)}
               </span>

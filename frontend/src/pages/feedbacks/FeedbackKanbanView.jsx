@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import FeedbackCard, { STATUS_CONFIG, TIPO_CONFIG, CATEGORY_CONFIG } from '../../components/feedbacks/FeedbackCard';
+import FeedbackCard, { STATUS_CONFIG, TYPE_CONFIG, CATEGORY_CONFIG } from '../../components/feedbacks/FeedbackCard';
 import FeedbackDetailDialog from '../../components/feedbacks/FeedbackDetailDialog';
 import MentionInput from '../../components/feedbacks/MentionInput';
 import './FeedbackKanbanView.css';
@@ -52,7 +52,7 @@ export default function FeedbackKanbanView() {
 
   // Form state
   const [formData, setFormData] = useState({
-    tipo: 'processo',
+    type: 'feedback_processo',
     titulo: '',
     feedback_text: '',
     screenshot_url: null
@@ -124,7 +124,7 @@ export default function FeedbackKanbanView() {
       }
 
       // Reset form and refresh
-      setFormData({ tipo: 'processo', titulo: '', feedback_text: '', screenshot_url: null });
+      setFormData({ type: 'feedback_processo', titulo: '', feedback_text: '', screenshot_url: null });
       setScreenshotPreview(null);
       setShowCreateForm(false);
       fetchFeedbacks();
@@ -171,7 +171,10 @@ export default function FeedbackKanbanView() {
 
   // Callback para quando uma menção @FB-XXX é clicada
   const handleMentionClick = useCallback((code) => {
-    const mentioned = feedbacks.find(f => f.code === code);
+    // Extrai o número do código (FB-123 -> 123)
+    const idMatch = code.match(/FB-(\d+)/i);
+    const id = idMatch ? parseInt(idMatch[1], 10) : null;
+    const mentioned = id ? feedbacks.find(f => f.id === id) : null;
     if (mentioned) {
       setSelectedFeedback(mentioned);
     } else {
@@ -339,12 +342,12 @@ export default function FeedbackKanbanView() {
               <div className="feedback-dialog__field">
                 <label className="feedback-dialog__label">Tipo</label>
                 <div className="feedback-dialog__type-grid">
-                  {Object.entries(TIPO_CONFIG).map(([value, config]) => (
+                  {Object.entries(TYPE_CONFIG).map(([value, config]) => (
                     <button
                       key={value}
                       type="button"
-                      className={`feedback-dialog__type-btn ${formData.tipo === value ? 'feedback-dialog__type-btn--active' : ''}`}
-                      onClick={() => setFormData(prev => ({ ...prev, tipo: value }))}
+                      className={`feedback-dialog__type-btn ${formData.type === value ? 'feedback-dialog__type-btn--active' : ''}`}
+                      onClick={() => setFormData(prev => ({ ...prev, type: value }))}
                     >
                       <span className="feedback-dialog__type-icon">{config.icon}</span>
                       <span className="feedback-dialog__type-label">{config.label}</span>
