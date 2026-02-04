@@ -6,16 +6,16 @@ Mapeamento dos domínios da Plataforma Otus seguindo a metodologia de Domain Dri
 
 ## Visão Geral
 
-| Domínio | Descrição | Status |
-|---------|-----------|--------|
-| Gestão de Projetos | Ciclo de vida dos projetos de engenharia | Parcial |
-| Controle de Cronograma | Planejamento e controle temporal | Parcial |
-| Equipes e Stakeholders | Empresas e pessoas envolvidas | Implementado |
-| Indicadores Individuais | Métricas de desempenho por cargo | Implementado |
-| OKRs | Objetivos e Resultados-Chave | Implementado |
-| Workspace | Tarefas e projetos internos | Implementado |
-| Feedbacks | Registro de feedbacks internos | Implementado |
-| Customer Success | Satisfação e relacionamento com clientes | Parcial |
+| Domínio | Descrição | Status | DDD |
+|---------|-----------|--------|-----|
+| Gestão de Projetos | Ciclo de vida dos projetos de engenharia | Parcial | ❌ |
+| Controle de Cronograma | Planejamento e controle temporal | Parcial | ❌ |
+| Equipes e Stakeholders | Empresas e pessoas envolvidas | Implementado | ❌ |
+| Indicadores Individuais | Métricas de desempenho por cargo | Implementado | ❌ |
+| OKRs | Objetivos e Resultados-Chave | Implementado | ❌ |
+| Workspace | Tarefas e projetos internos | Implementado | ❌ |
+| **Feedbacks** | Registro de feedbacks internos | **Implementado** | **✅** |
+| Customer Success | Satisfação e relacionamento com clientes | Parcial | ❌ |
 
 ---
 
@@ -125,17 +125,88 @@ Metodologia de gestão de metas organizacionais através de Objetivos e Resultad
 
 ---
 
-## Domínio: Feedbacks
+## Domínio: Feedbacks ✅ DDD IMPLEMENTADO
 
-Sistema de registro e acompanhamento de feedbacks sobre processos, entregas e colaboradores.
+Sistema de registro e acompanhamento de feedbacks sobre processos, plataforma, bugs e sugestões. **Primeiro domínio com arquitetura DDD completa.**
 
-### Entidades
+### Arquitetura DDD
 
-| Entidade | Tabela | Status |
-|----------|--------|--------|
-| Feedback | `feedbacks` | ✅ Implementado |
-| Categoria de Feedback | `feedbacks.category` | ✅ Implementado |
-| Status do Feedback | `feedbacks.status` | ✅ Implementado |
+```
+backend/
+├── domain/feedbacks/
+│   ├── entities/
+│   │   └── Feedback.js          # Aggregate Root
+│   ├── value-objects/
+│   │   ├── FeedbackStatus.js    # Value Object (7 estados)
+│   │   └── FeedbackType.js      # Value Object (5 tipos)
+│   └── FeedbackRepository.js    # Interface do repositório
+├── application/use-cases/feedbacks/
+│   ├── CreateFeedback.js        # Criar feedback
+│   ├── GetFeedback.js           # Buscar por ID
+│   ├── ListFeedbacks.js         # Listar todos
+│   ├── UpdateFeedback.js        # Atualizar campos
+│   ├── UpdateFeedbackStatus.js  # Mudar status
+│   └── GetFeedbackStats.js      # Estatísticas
+├── infrastructure/repositories/
+│   └── SupabaseFeedbackRepository.js  # Implementação Supabase
+└── routes/
+    └── feedbacks.js             # Rotas REST /api/feedbacks
+```
+
+### Entidades e Value Objects
+
+| Elemento | Tipo | Localização | Status |
+|----------|------|-------------|--------|
+| Feedback | Aggregate Root | `domain/feedbacks/entities/` | ✅ DDD |
+| FeedbackStatus | Value Object | `domain/feedbacks/value-objects/` | ✅ DDD |
+| FeedbackType | Value Object | `domain/feedbacks/value-objects/` | ✅ DDD |
+
+### Value Object: FeedbackStatus
+
+| Valor | Label | Fechado? |
+|-------|-------|----------|
+| `pendente` | Pendente | Não |
+| `em_analise` | Em Análise | Não |
+| `backlog_desenvolvimento` | Backlog Desenvolvimento | Não |
+| `backlog_treinamento` | Backlog Treinamento | Não |
+| `analise_funcionalidade` | Análise de Funcionalidade | Não |
+| `finalizado` | Finalizado | **Sim** |
+| `recusado` | Recusado | **Sim** |
+
+### Value Object: FeedbackType
+
+| Valor | Label | Ícone | Técnico? |
+|-------|-------|-------|----------|
+| `bug` | Bug | 🐛 | **Sim** |
+| `erro` | Erro | ❌ | **Sim** |
+| `feedback_processo` | Processo | ⚙️ | Não |
+| `feedback_plataforma` | Plataforma | 💻 | Não |
+| `outro` | Outro | 📝 | Não |
+
+### Use Cases
+
+| Use Case | Descrição | Método HTTP |
+|----------|-----------|-------------|
+| CreateFeedback | Cria novo feedback | POST /api/feedbacks |
+| GetFeedback | Busca feedback por ID | GET /api/feedbacks/:id |
+| ListFeedbacks | Lista todos os feedbacks | GET /api/feedbacks |
+| UpdateFeedback | Atualiza campos do feedback | PUT /api/feedbacks/:id |
+| UpdateFeedbackStatus | Atualiza status | PUT /api/feedbacks/:id/status |
+| GetFeedbackStats | Retorna estatísticas | GET /api/feedbacks/stats |
+
+### Aderência DDD: ~80%
+
+**Pontos fortes:**
+- ✅ Separação de camadas (Domain, Application, Infrastructure)
+- ✅ Value Objects imutáveis com validação
+- ✅ Entidade rica com comportamentos (não anêmica)
+- ✅ Repository Pattern com interface abstrata
+- ✅ Use Cases isolados e focados
+
+**Pontos de melhoria:**
+- ⚠️ `toResponse()` na entidade (deveria ser DTO/Presenter)
+- ⚠️ Busca de usuários no FeedbackRepository (vazamento de domínio)
+- ❌ Domain Events não implementados
 
 ---
 
@@ -159,3 +230,4 @@ Acompanhamento de satisfação, relacionamento e sucesso dos clientes da Otus.
 | Data | Alteração |
 |------|-----------|
 | 2026-02-04 | Documento criado com mapeamento dos 8 domínios |
+| 2026-02-04 | Domínio Feedbacks atualizado com arquitetura DDD completa (Value Objects, Use Cases, Repository) |

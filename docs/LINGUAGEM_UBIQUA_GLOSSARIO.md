@@ -395,47 +395,71 @@ São marcadores textuais livres que permitem categorizar e filtrar tarefas por t
 
 ## BC: Feedbacks
 
-Sistema de registro e acompanhamento de feedbacks sobre processos, entregas e colaboradores.
+Sistema de registro e acompanhamento de feedbacks sobre processos, plataforma, bugs e sugestões. **Primeiro domínio implementado com arquitetura DDD completa.**
 
-### Feedback
+### Feedback (Aggregate Root)
 
-É o registro formal de uma observação, sugestão, elogio ou crítica sobre um processo, entrega ou comportamento. O feedback serve como instrumento de melhoria contínua e comunicação estruturada.
+É o registro formal de uma observação, bug, erro ou sugestão sobre processos ou a plataforma. O feedback serve como instrumento de melhoria contínua e comunicação estruturada entre usuários e administradores.
 
 **Tabela:** `feedbacks`
 
 **Atributos importantes:**
-- `title`: Título do feedback
-- `description`: Descrição detalhada
-- `category`: Categoria/tipo
-- `status`: Estado do tratamento
-- `created_by`: Autor do feedback
-- `assigned_to`: Responsável pelo tratamento
+- `titulo`: Título resumido do feedback
+- `feedback_text`: Descrição detalhada do feedback
+- `type`: Tipo do feedback (Value Object)
+- `status`: Estado no fluxo de tratamento (Value Object)
+- `author_id`: UUID do autor do feedback
+- `page_url`: URL da página onde o feedback foi criado
+- `screenshot_url`: Screenshot anexada (base64)
+- `admin_analysis`: Análise do administrador
+- `admin_action`: Ação a ser tomada
+- `resolved_by_id`: UUID de quem resolveu
+- `resolved_at`: Data/hora da resolução
+- `category`: Categoria técnica (classificação do dev)
 
-### Categoria de Feedback
+### Tipo de Feedback (Value Object: FeedbackType)
 
-É a classificação do feedback por tipo ou tema, facilitando a organização e análise.
+É a classificação do feedback por natureza, indicando se é um problema técnico ou sugestão de melhoria.
 
-**Campo:** `feedbacks.category`
+**Campo:** `feedbacks.type`
 
-**Exemplos:**
-- Processo
-- Entrega
-- Comunicação
-- Ferramenta
-- Sugestão de melhoria
+**Valores válidos:**
+- **bug** 🐛: Funcionalidade que faz algo errado
+- **erro** ❌: Funcionalidade que não funciona ou trava
+- **feedback_processo** ⚙️: Sugestão sobre processos da empresa
+- **feedback_plataforma** 💻: Sugestão sobre a plataforma/sistema
+- **outro** 📝: Dúvidas ou outros assuntos
 
-### Status do Feedback
+**Propriedades derivadas:**
+- `isTechnical`: true para `bug` e `erro`
+- `isBug`: true apenas para `bug`
 
-É o estado atual do feedback no fluxo de tratamento.
+### Status do Feedback (Value Object: FeedbackStatus)
+
+É o estado atual do feedback no fluxo de tratamento, desde a criação até a resolução.
 
 **Campo:** `feedbacks.status`
 
-**Valores:**
-- **Novo:** Feedback recém-criado
-- **Em análise:** Sendo avaliado
-- **Em andamento:** Ação em execução
-- **Resolvido:** Tratamento concluído
-- **Arquivado:** Feedback arquivado sem ação
+**Valores válidos:**
+- **pendente**: Feedback recém-criado, aguardando análise
+- **em_analise**: Sendo avaliado pela equipe
+- **backlog_desenvolvimento**: Aguardando implementação técnica
+- **backlog_treinamento**: Requer treinamento/documentação
+- **analise_funcionalidade**: Em análise de viabilidade
+- **finalizado**: Tratamento concluído com sucesso
+- **recusado**: Feedback recusado (não será implementado)
+
+**Propriedades derivadas:**
+- `isClosed`: true para `finalizado` e `recusado`
+- `isOpen`: inverso de `isClosed`
+- `isPending`: true apenas para `pendente`
+
+### Regras de Negócio
+
+1. **Transição de Status:** Feedbacks finalizados ou recusados não podem ser reabertos
+2. **Resolução:** Ao finalizar/recusar, é obrigatório informar `resolved_by_id`
+3. **Validação:** Texto do feedback e autor são obrigatórios
+4. **Código:** Formato `FB-{id}` para identificação única
 
 ---
 
@@ -502,6 +526,12 @@ Acompanhamento de satisfação, relacionamento e sucesso dos clientes da Otus.
 | `workspace_projects` | Projeto Interno | Supabase |
 | `workspace_tasks` | Tarefa | Supabase |
 | `feedbacks` | Feedback | Supabase |
+| `feedbacks.type` | Tipo de Feedback | Value Object: FeedbackType |
+| `feedbacks.status` | Status do Feedback | Value Object: FeedbackStatus |
+| `feedbacks.titulo` | Título do Feedback | Supabase |
+| `feedbacks.feedback_text` | Descrição do Feedback | Supabase |
+| `feedbacks.author_id` | Autor do Feedback | Supabase (FK → users_otus) |
+| `feedbacks.resolved_by_id` | Resolvido por | Supabase (FK → users_otus) |
 | `construflow_data.issues` | Apontamentos | BigQuery |
 | `CS_NPS_pbi` | NPS | BigQuery |
 | `port_clientes` | Cliente Ativo | BigQuery |
@@ -513,5 +543,6 @@ Acompanhamento de satisfação, relacionamento e sucesso dos clientes da Otus.
 
 | Data | Versão | Descrição |
 |------|--------|-----------|
-| 2025-02-04 | 1.0 | Versão inicial com todos os Bounded Contexts |
+| 2026-02-04 | 1.0 | Versão inicial com todos os Bounded Contexts |
+| 2026-02-04 | 1.1 | Atualização BC Feedbacks com implementação DDD (Value Objects, Status, Types) |
 
