@@ -2,39 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
+import { calculateKRProgress } from '../../utils/indicator-utils';
 import './DashboardOKRs.css';
-
-// Calculate KR progress (handles inverse metrics)
-function calculateKRProgress(kr, checkIns = []) {
-  if (!kr) return 0;
-  const meta = kr.meta || 0;
-  if (meta === 0) return 0;
-
-  let consolidatedValue = kr.atual || 0;
-
-  if (checkIns && checkIns.length > 0) {
-    const sortedCheckIns = [...checkIns].sort((a, b) =>
-      (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes)
-    );
-
-    if (kr.consolidation_type === 'sum') {
-      consolidatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0);
-    } else if (kr.consolidation_type === 'average') {
-      consolidatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0) / checkIns.length;
-    } else {
-      consolidatedValue = sortedCheckIns[0]?.valor || kr.atual || 0;
-    }
-  }
-
-  if (kr.is_inverse) {
-    const initial = kr.valor_inicial || meta * 1.5;
-    if (initial === meta) return consolidatedValue <= meta ? 100 : 0;
-    const progress = ((initial - consolidatedValue) / (initial - meta)) * 100;
-    return Math.max(0, Math.min(100, progress));
-  }
-
-  return Math.max(0, Math.min(100, (consolidatedValue / meta) * 100));
-}
 
 // Objective Card Component
 function ObjectiveCard({ objective, checkIns = [], index }) {

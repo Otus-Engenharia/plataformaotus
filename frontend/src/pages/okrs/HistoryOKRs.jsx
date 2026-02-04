@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { calculateKRProgress } from '../../utils/indicator-utils';
 import './HistoryOKRs.css';
 
 // Helper: extract year and cycle from quarter field (e.g., "Q1-2026" -> { year: 2026, cycle: 'q1' })
@@ -22,38 +23,6 @@ function parseQuarter(quarter) {
   const cycle = parts[0].toLowerCase();
   const year = parseInt(parts[1], 10);
   return { year, cycle };
-}
-
-// Helper: calcular progresso de um KR baseado em check-ins
-function calculateKRProgress(kr, checkIns) {
-  if (!kr) return 0;
-
-  const meta = kr.meta || 0;
-  if (meta === 0) return 0;
-
-  let consolidatedValue = kr.atual || 0;
-  const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
-
-  if (krCheckIns && krCheckIns.length > 0) {
-    const sortedCheckIns = [...krCheckIns].sort((a, b) =>
-      (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes)
-    );
-
-    if (kr.consolidation_type === 'sum') {
-      consolidatedValue = krCheckIns.reduce((sum, c) => sum + (c.valor || 0), 0);
-    } else if (kr.consolidation_type === 'average') {
-      consolidatedValue = krCheckIns.reduce((sum, c) => sum + (c.valor || 0), 0) / krCheckIns.length;
-    } else {
-      consolidatedValue = sortedCheckIns[0]?.valor || kr.atual || 0;
-    }
-  }
-
-  if (kr.is_inverse) {
-    if (consolidatedValue <= meta) return 100;
-    return Math.min(Math.max(Math.round((meta / consolidatedValue) * 100), 0), 100);
-  }
-
-  return Math.min(Math.max(Math.round((consolidatedValue / meta) * 100), 0), 100);
 }
 
 // Icons

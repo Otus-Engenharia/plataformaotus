@@ -345,3 +345,69 @@ export function sortIndicatorsByScore(indicadores, ascending = true) {
 export function filterAtRiskIndicators(indicadores) {
   return indicadores.filter(ind => isIndicatorAtRisk(ind));
 }
+
+/**
+ * Calcula o progresso de um Key Result considerando metas mensais
+ * @param {Object} kr - Key Result com meta, monthly_targets, consolidation_type, is_inverse
+ * @param {Array} checkIns - Array de check-ins com { valor, mes, ano }
+ * @returns {number} Progresso de 0 a 100
+ */
+export function calculateKRProgress(kr, checkIns = []) {
+  if (!kr) return 0;
+  const metaFinal = kr.meta || 0;
+  const type = kr.consolidation_type || 'last_value';
+
+  // Calcular valor consolidado
+  let consolidatedValue = kr.atual || 0;
+  if (checkIns && checkIns.length > 0) {
+    const sortedCheckIns = [...checkIns].sort((a, b) =>
+      (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes)
+    );
+
+    if (type === 'sum') {
+      consolidatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0);
+    } else if (type === 'average') {
+      consolidatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0) / checkIns.length;
+    } else {
+      consolidatedValue = sortedCheckIns[0]?.valor ?? kr.atual ?? 0;
+    }
+
+    // Para "último valor" com metas mensais, usar a meta do período atual
+    if (type === 'last_value' && kr.monthly_targets && checkIns.length > 0) {
+      const lastCheckIn = sortedCheckIns[0];
+      const periodKey = lastCheckIn.mes?.toString() || lastCheckIn.mes;
+      const metaPeriodo = kr.monthly_targets[periodKey];
+
+      // Se existe meta definida para o período
+      if (metaPeriodo !== undefined && metaPeriodo !== null) {
+        const valor = lastCheckIn.valor ?? 0;
+
+        // Se meta do período é 0 e valor é 0, atingiu 100%
+        if (metaPeriodo === 0 && valor === 0) return 100;
+
+        // Se meta do período é 0 mas valor > 0, calcular baseado na meta final
+        if (metaPeriodo === 0) {
+          if (metaFinal === 0) return 100;
+          return Math.min(Math.max(Math.round((valor / metaFinal) * 100), 0), 100);
+        }
+
+        // Calcular progresso em relação à meta do período
+        if (kr.is_inverse) {
+          if (valor <= metaPeriodo) return 100;
+          return Math.min(Math.max(Math.round((metaPeriodo / valor) * 100), 0), 100);
+        }
+        return Math.min(Math.max(Math.round((valor / metaPeriodo) * 100), 0), 100);
+      }
+    }
+  }
+
+  // Fallback: cálculo baseado na meta final
+  if (metaFinal === 0) return consolidatedValue === 0 ? 100 : 0;
+
+  if (kr.is_inverse) {
+    if (consolidatedValue <= metaFinal) return 100;
+    return Math.min(Math.max(Math.round((metaFinal / consolidatedValue) * 100), 0), 100);
+  }
+
+  return Math.min(Math.max(Math.round((consolidatedValue / metaFinal) * 100), 0), 100);
+}

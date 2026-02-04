@@ -1257,16 +1257,51 @@ export default function KeyResultDetail() {
   // Calculate progress
   const progress = useMemo(() => {
     if (!kr) return 0;
-    const meta = kr.meta || 0;
-    if (meta === 0) return 0;
+    const metaFinal = kr.meta || 0;
+    const type = kr.consolidation_type || 'last_value';
 
-    if (kr.is_inverse) {
-      if (consolidatedValue <= meta) return 100;
-      return Math.min(Math.max(Math.round((meta / consolidatedValue) * 100), 0), 100);
+    // Para "último valor" com metas mensais, usar a meta do período atual
+    if (type === 'last_value' && kr.monthly_targets && checkIns.length > 0) {
+      const sorted = [...checkIns].sort((a, b) => {
+        if (a.ano !== b.ano) return b.ano - a.ano;
+        return b.mes - a.mes;
+      });
+      const lastCheckIn = sorted[0];
+      const periodKey = lastCheckIn.mes?.toString() || lastCheckIn.mes;
+      const metaPeriodo = kr.monthly_targets[periodKey];
+
+      // Se existe meta definida para o período
+      if (metaPeriodo !== undefined && metaPeriodo !== null) {
+        const valor = lastCheckIn.valor || 0;
+
+        // Se meta do período é 0 e valor é 0, atingiu 100%
+        if (metaPeriodo === 0 && valor === 0) return 100;
+
+        // Se meta do período é 0 mas valor > 0, calcular baseado na meta final
+        if (metaPeriodo === 0) {
+          if (metaFinal === 0) return 100;
+          return Math.min(Math.max(Math.round((valor / metaFinal) * 100), 0), 100);
+        }
+
+        // Calcular progresso em relação à meta do período
+        if (kr.is_inverse) {
+          if (valor <= metaPeriodo) return 100;
+          return Math.min(Math.max(Math.round((metaPeriodo / valor) * 100), 0), 100);
+        }
+        return Math.min(Math.max(Math.round((valor / metaPeriodo) * 100), 0), 100);
+      }
     }
 
-    return Math.min(Math.max(Math.round((consolidatedValue / meta) * 100), 0), 100);
-  }, [kr, consolidatedValue]);
+    // Fallback: cálculo baseado na meta final
+    if (metaFinal === 0) return consolidatedValue === 0 ? 100 : 0;
+
+    if (kr.is_inverse) {
+      if (consolidatedValue <= metaFinal) return 100;
+      return Math.min(Math.max(Math.round((metaFinal / consolidatedValue) * 100), 0), 100);
+    }
+
+    return Math.min(Math.max(Math.round((consolidatedValue / metaFinal) * 100), 0), 100);
+  }, [kr, consolidatedValue, checkIns]);
 
   const trend = useMemo(() => {
     if (progress > 60) return 'up';

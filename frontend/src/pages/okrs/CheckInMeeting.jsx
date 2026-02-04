@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
+import { calculateKRProgress } from '../../utils/indicator-utils';
 import './CheckInMeeting.css';
 
 const monthNames = [
@@ -85,35 +86,6 @@ const icons = {
   )
 };
 
-// Calculate KR progress
-function calculateKRProgress(kr, checkIns = []) {
-  if (!kr) return 0;
-  const meta = kr.meta || 0;
-  if (meta === 0) return 0;
-
-  let consolidatedValue = kr.atual || 0;
-
-  if (checkIns && checkIns.length > 0) {
-    const sortedCheckIns = [...checkIns].sort((a, b) =>
-      (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes)
-    );
-
-    if (kr.consolidation_type === 'sum') {
-      consolidatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0);
-    } else if (kr.consolidation_type === 'average') {
-      consolidatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0) / checkIns.length;
-    } else {
-      consolidatedValue = sortedCheckIns[0]?.valor || kr.atual || 0;
-    }
-  }
-
-  if (kr.is_inverse) {
-    if (consolidatedValue <= meta) return 100;
-    return Math.min(Math.max(Math.round((meta / consolidatedValue) * 100), 0), 100);
-  }
-
-  return Math.min(Math.max(Math.round((consolidatedValue / meta) * 100), 0), 100);
-}
 
 // Progress Ring Component
 function ProgressRing({ progress, size = 52, strokeWidth = 4, className = '' }) {
