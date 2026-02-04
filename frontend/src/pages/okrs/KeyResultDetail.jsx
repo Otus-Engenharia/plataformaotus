@@ -1330,6 +1330,7 @@ export default function KeyResultDetail() {
 
   const formatValue = (value) => {
     if (!kr) return value;
+    if (value === null || value === undefined) return '-';
     if (kr.tipo_metrica === 'percentage') return `${value}%`;
     if (kr.tipo_metrica === 'currency') return `R$ ${value.toLocaleString('pt-BR')}`;
     if (kr.tipo_metrica === 'boolean') return value >= 1 ? 'Sim' : 'Não';
