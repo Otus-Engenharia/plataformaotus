@@ -339,16 +339,22 @@ function CurvaSView() {
           custoDireto: 0,
           custoIndireto: 0,
           horas: 0,
-          receitaMes: 0
+          receitaMes: 0,
+          receitaLiquidaMes: 0,
+          margem55Mes: 0,
+          margemOperacionalMes: 0
         };
       }
-      
+
       // Soma valores mensais (agrega todos os projetos para cada mês)
       grouped[monthKey].custoTotal += Math.abs(parseValue(item.custo_total_mes));
       grouped[monthKey].custoDireto += Math.abs(parseValue(item.custo_direto_mes));
       grouped[monthKey].custoIndireto += Math.abs(parseValue(item.custo_indireto_mes));
       grouped[monthKey].horas += Math.abs(parseValue(item.horas_mes));
       grouped[monthKey].receitaMes += Math.abs(parseValue(item.receita_mes));
+      grouped[monthKey].receitaLiquidaMes += Math.abs(parseValue(item.receita_liquida_mes));
+      grouped[monthKey].margem55Mes += Math.abs(parseValue(item.margem_55_mes));
+      grouped[monthKey].margemOperacionalMes += parseValue(item.margem_operacional_mes); // Pode ser negativa
     });
 
     // Encontra o primeiro e último mês nos dados filtrados
@@ -390,7 +396,10 @@ function CurvaSView() {
           custoDireto: 0,
           custoIndireto: 0,
           horas: 0,
-          receitaMes: 0
+          receitaMes: 0,
+          receitaLiquidaMes: 0,
+          margem55Mes: 0,
+          margemOperacionalMes: 0
         });
       }
       
@@ -403,21 +412,29 @@ function CurvaSView() {
     }
 
     // Calcula os valores acumulados corretamente (somando mês a mês de forma crescente)
-    // Garante que os valores sempre aumentem ou permaneçam constantes, nunca diminuam
     let custoAcumulado = 0;
     let receitaAcumulado = 0;
-    
+    let receitaLiquidaAcumulado = 0;
+    let margem55Acumulado = 0;
+
     return completeMonths.map(month => {
-      // Acumula os valores mensais (sempre crescente)
+      // Acumula os valores mensais
       custoAcumulado += month.custoTotal;
       receitaAcumulado += month.receitaMes;
-      
-      // Garante valores não-negativos e sempre crescentes
+      receitaLiquidaAcumulado += month.receitaLiquidaMes;
+      margem55Acumulado += month.margem55Mes;
+
+      // Margem operacional = margem 55% - custo (pode ser negativa = prejuízo)
+      const margemOperacionalAcumulado = margem55Acumulado - custoAcumulado;
+
       return {
         ...month,
         custoTotalAcumulado: Math.max(0, custoAcumulado),
         receitaBrutaAcumulado: Math.max(0, receitaAcumulado),
-        valorMargemAcumulado: Math.max(0, receitaAcumulado - custoAcumulado)
+        receitaLiquidaAcumulado: Math.max(0, receitaLiquidaAcumulado),
+        margem55Acumulado: Math.max(0, margem55Acumulado),
+        margemOperacionalAcumulado: margemOperacionalAcumulado, // Pode ser negativa
+        valorMargemAcumulado: receitaAcumulado - custoAcumulado // Legado
       };
     });
   }, [filteredData]);
@@ -459,33 +476,37 @@ function CurvaSView() {
     if (dataByMonth.length === 0) {
       return {
         receitaBruta: 0,
+        margem55: 0,
         custoTotal: 0,
-        valorMargem: 0,
+        margemOperacional: 0,
         margemPercentual: 0,
         horasTotal: 0
       };
     }
 
-    // Usa valores acumulados do último mês (já calculados pelo BigQuery)
+    // Usa valores acumulados do último mês
     const lastMonth = dataByMonth[dataByMonth.length - 1];
     const receitaBruta = lastMonth?.receitaBrutaAcumulado || 0;
+    const margem55 = lastMonth?.margem55Acumulado || 0;
     const custoTotal = lastMonth?.custoTotalAcumulado || 0;
-    const valorMargem = lastMonth?.valorMargemAcumulado || 0;
-    const margemPercentual = receitaBruta > 0 
-      ? ((receitaBruta - custoTotal) / receitaBruta) * 100 
+    const margemOperacional = lastMonth?.margemOperacionalAcumulado || 0;
+    // Margem percentual = (margem 55% - custo) / margem 55%
+    const margemPercentual = margem55 > 0
+      ? ((margem55 - custoTotal) / margem55) * 100
       : 0;
     const horasTotal = dataByMonth.reduce((sum, month) => sum + (month.horas || 0), 0);
 
     return {
       receitaBruta,
+      margem55,
       custoTotal,
-      valorMargem,
+      margemOperacional,
       margemPercentual,
       horasTotal
     };
   }, [dataByMonth]);
 
-  // Prepara dados para o gráfico principal da Curva S
+  // Prepara dados para o gráfico principal da Curva S (3 curvas)
   const curvaSChartData = useMemo(() => {
     if (dataByMonth.length === 0) return null;
 
@@ -501,21 +522,25 @@ function CurvaSView() {
       }
     });
 
-    // Usa valores acumulados que vêm do BigQuery (já calculados)
-    const custoAcumuladoData = dataByMonth.map(m => 
+    // Usa valores acumulados calculados
+    const custoAcumuladoData = dataByMonth.map(m =>
       Math.abs(m.custoTotalAcumulado || 0)
     );
 
-    const receitaAcumuladoData = dataByMonth.map(m => 
+    const receitaBrutaAcumuladoData = dataByMonth.map(m =>
       Math.abs(m.receitaBrutaAcumulado || 0)
+    );
+
+    const margem55AcumuladoData = dataByMonth.map(m =>
+      Math.abs(m.margem55Acumulado || 0)
     );
 
     return {
       labels,
       datasets: [
         {
-          label: 'Receita Bruta Acumulado (R$)',
-          data: receitaAcumuladoData,
+          label: 'Receita Bruta Acum.',
+          data: receitaBrutaAcumuladoData,
           borderColor: '#4CAF50',
           backgroundColor: 'rgba(76, 175, 80, 0.1)',
           tension: 0.4,
@@ -523,7 +548,16 @@ function CurvaSView() {
           borderWidth: 3,
         },
         {
-          label: 'Custo total Acm.',
+          label: 'Margem 55% Acum.',
+          data: margem55AcumuladoData,
+          borderColor: '#2196F3',
+          backgroundColor: 'rgba(33, 150, 243, 0.1)',
+          tension: 0.4,
+          fill: false,
+          borderWidth: 3,
+        },
+        {
+          label: 'Custo Total Acum.',
           data: custoAcumuladoData,
           borderColor: '#F44336',
           backgroundColor: 'rgba(244, 67, 54, 0.1)',
@@ -815,28 +849,32 @@ function CurvaSView() {
       {/* KPIs */}
       <div className="kpis-grid">
         <div className="kpi-card">
-          <h3>Margem</h3>
-          <p className="kpi-value">{kpis.margemPercentual.toFixed(2)}%</p>
+          <h3>Margem %</h3>
+          <p className={`kpi-value ${kpis.margemPercentual < 0 ? 'negative' : ''}`}>{kpis.margemPercentual.toFixed(2)}%</p>
         </div>
         <div className="kpi-card">
           <h3>Total de Horas</h3>
           <p className="kpi-value">{kpis.horasTotal.toFixed(0)}h</p>
         </div>
         <div className="kpi-card">
-          <h3>Status</h3>
-          <p className="kpi-value status-kpi-single">{statusLabel}</p>
-        </div>
-        <div className="kpi-card">
-          <h3>Custo</h3>
+          <h3>Custo Total</h3>
           <p className="kpi-value">{formatCurrency(kpis.custoTotal)}</p>
         </div>
         <div className="kpi-card">
-          <h3>Receita Bruta (atual)</h3>
+          <h3>Receita Bruta</h3>
           <p className="kpi-value">{formatCurrency(kpis.receitaBruta)}</p>
         </div>
         <div className="kpi-card">
-          <h3>Margem Total</h3>
-          <p className="kpi-value">{formatCurrency(kpis.valorMargem)}</p>
+          <h3>Margem 55%</h3>
+          <p className="kpi-value">{formatCurrency(kpis.margem55)}</p>
+        </div>
+        <div className="kpi-card">
+          <h3>Margem Operacional</h3>
+          <p className={`kpi-value ${kpis.margemOperacional < 0 ? 'negative' : ''}`}>{formatCurrency(kpis.margemOperacional)}</p>
+        </div>
+        <div className="kpi-card">
+          <h3>Status</h3>
+          <p className="kpi-value status-kpi-single">{statusLabel}</p>
         </div>
       </div>
 
@@ -855,7 +893,7 @@ function CurvaSView() {
       {/* Gráfico principal - Curva S */}
       {curvaSChartData && (
         <div className="chart-card chart-primary">
-          <h3>Curva S - Receita Bruta Acumulado vs Custo Total Acumulado</h3>
+          <h3>Curva S - Receita Bruta vs Margem 55% vs Custo</h3>
           <div
             className="chart-wrapper-scroll"
             ref={(el) => (chartScrollRefs.current[0] = el)}
@@ -1179,43 +1217,48 @@ function CurvaSView() {
       {/* Tabela de custos por mês */}
       {dataByMonth.length > 0 && (
         <div className="colaboradores-section">
-          <h3>Tabela de Custos por Mês</h3>
+          <h3>Tabela de Custos e Receitas por Mês</h3>
           <div className="colaboradores-table-wrapper">
             <table className="colaboradores-table">
               <thead>
                 <tr>
                   <th>Mês</th>
-                  <th>Custo total</th>
-                  <th>Custo direto</th>
-                  <th>Custo indireto</th>
-                  <th>Receita</th>
+                  <th>Custo Total</th>
+                  <th>Receita Bruta</th>
+                  <th>Margem 55%</th>
+                  <th>Margem Oper.</th>
                   <th>Horas</th>
                 </tr>
               </thead>
               <tbody>
-                {dataByMonth.map((month, index) => (
-                  <tr key={index}>
-                    <td>{formatMonthLabel(month.mes)}</td>
-                    <td className="text-right">{formatCurrency(Math.abs(month.custoTotal || 0))}</td>
-                    <td className="text-right">{formatCurrency(Math.abs(month.custoDireto || 0))}</td>
-                    <td className="text-right">{formatCurrency(Math.abs(month.custoIndireto || 0))}</td>
-                    <td className="text-right">{formatCurrency(Math.abs(month.receitaMes || 0))}</td>
-                    <td className="text-right">{Math.round(month.horas || 0)}h</td>
-                  </tr>
-                ))}
+                {dataByMonth.map((month, index) => {
+                  const margemOperacional = (month.margem55Mes || 0) - (month.custoTotal || 0);
+                  return (
+                    <tr key={index}>
+                      <td>{formatMonthLabel(month.mes)}</td>
+                      <td className="text-right">{formatCurrency(Math.abs(month.custoTotal || 0))}</td>
+                      <td className="text-right">{formatCurrency(Math.abs(month.receitaMes || 0))}</td>
+                      <td className="text-right">{formatCurrency(Math.abs(month.margem55Mes || 0))}</td>
+                      <td className={`text-right ${margemOperacional < 0 ? 'negative' : ''}`}>
+                        {formatCurrency(margemOperacional)}
+                      </td>
+                      <td className="text-right">{Math.round(month.horas || 0)}h</td>
+                    </tr>
+                  );
+                })}
                 <tr className="total-row">
                   <td><strong>Total</strong></td>
                   <td className="text-right">
                     <strong>{formatCurrency(Math.abs(dataByMonth.reduce((sum, m) => sum + (m.custoTotal || 0), 0)))}</strong>
                   </td>
                   <td className="text-right">
-                    <strong>{formatCurrency(Math.abs(dataByMonth.reduce((sum, m) => sum + (m.custoDireto || 0), 0)))}</strong>
-                  </td>
-                  <td className="text-right">
-                    <strong>{formatCurrency(Math.abs(dataByMonth.reduce((sum, m) => sum + (m.custoIndireto || 0), 0)))}</strong>
-                  </td>
-                  <td className="text-right">
                     <strong>{formatCurrency(Math.abs(dataByMonth.reduce((sum, m) => sum + (m.receitaMes || 0), 0)))}</strong>
+                  </td>
+                  <td className="text-right">
+                    <strong>{formatCurrency(Math.abs(dataByMonth.reduce((sum, m) => sum + (m.margem55Mes || 0), 0)))}</strong>
+                  </td>
+                  <td className={`text-right ${kpis.margemOperacional < 0 ? 'negative' : ''}`}>
+                    <strong>{formatCurrency(kpis.margemOperacional)}</strong>
                   </td>
                   <td className="text-right">
                     <strong>{Math.round(dataByMonth.reduce((sum, m) => sum + (m.horas || 0), 0))}h</strong>

@@ -347,7 +347,7 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
       GROUP BY c.project_code, c.projeto, c.mes
     ),
     receitas_mensais AS (
-      SELECT 
+      SELECT
         CAST(e.codigo_projeto AS STRING) AS project_code,
         DATE_TRUNC(
           COALESCE(
@@ -372,10 +372,33 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
   query += `
       GROUP BY project_code, mes
     ),
+    receitas_liquidas_mensais AS (
+      SELECT
+        project_code,
+        mes,
+        SUM(COALESCE(receita_bruta, 0)) AS receita_bruta_mes,
+        SUM(COALESCE(receita_liquida, 0)) AS receita_liquida_mes,
+        SUM(COALESCE(margem_55, 0)) AS margem_55_mes
+      FROM \`${projectId}.financeiro.receita_liquida_projeto_mes\`
+      WHERE project_code IS NOT NULL
+        AND mes IS NOT NULL
+  `;
+
+  // Filtro por projeto específico se fornecido
+  if (projectCode) {
+    const escapedCode = projectCode.replace(/'/g, "''");
+    query += ` AND project_code = '${escapedCode}'`;
+  }
+
+  query += `
+      GROUP BY project_code, mes
+    ),
     todos_meses AS (
       SELECT DISTINCT project_code, mes FROM custos_mensais
       UNION DISTINCT
       SELECT DISTINCT project_code, mes FROM receitas_mensais
+      UNION DISTINCT
+      SELECT DISTINCT project_code, mes FROM receitas_liquidas_mensais
     ),
     meses_combinados AS (
       SELECT 
@@ -395,7 +418,7 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
         ON CAST(p.project_code_norm AS STRING) = t.project_code
     ),
     dados_combinados AS (
-      SELECT 
+      SELECT
         m.project_code_norm,
         m.project_name,
         m.valor_contrato_total,
@@ -412,19 +435,28 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
         COALESCE(c.custo_indireto_mes, 0) AS custo_indireto_mes,
         COALESCE(c.horas_mes, 0) AS horas_mes,
         COALESCE(r.receita_mes, 0) AS receita_mes,
-        -- Calcula margem (55% do valor do contrato)
+        -- Receita líquida da nova tabela (receita bruta - imposto)
+        COALESCE(rl.receita_liquida_mes, 0) AS receita_liquida_mes,
+        -- Margem 55% = Receita Líquida × 0.55 (valor disponível para custos)
+        COALESCE(rl.margem_55_mes, 0) AS margem_55_mes,
+        -- Margem Operacional = Margem 55% - Custo (lucro/prejuízo)
+        COALESCE(rl.margem_55_mes, 0) - COALESCE(c.custo_total_mes, 0) AS margem_operacional_mes,
+        -- Calcula margem (55% do valor do contrato) - legado
         (COALESCE(m.valor_total_contrato_mais_aditivos, m.valor_contrato_total, 0) * 0.55) AS valor_margem_total,
         -- Receita bruta total do contrato (para referência)
         COALESCE(m.valor_total_contrato_mais_aditivos, m.valor_contrato_total, 0) AS receita_bruta_total
       FROM meses_combinados m
-      LEFT JOIN custos_mensais c 
+      LEFT JOIN custos_mensais c
         ON CAST(m.project_code_norm AS STRING) = CAST(c.project_code AS STRING)
         AND m.mes = c.mes
       LEFT JOIN receitas_mensais r
         ON CAST(m.project_code_norm AS STRING) = r.project_code
         AND m.mes = r.mes
+      LEFT JOIN receitas_liquidas_mensais rl
+        ON CAST(m.project_code_norm AS STRING) = rl.project_code
+        AND m.mes = rl.mes
     )
-    SELECT 
+    SELECT
       project_code_norm AS project_code,
       project_name,
       mes,
@@ -433,6 +465,9 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
       custo_indireto_mes,
       horas_mes,
       receita_mes,
+      receita_liquida_mes,
+      margem_55_mes,
+      margem_operacional_mes,
       valor_margem_total,
       receita_bruta_total,
       status,
@@ -443,24 +478,46 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
       data_termino_contrato,
       -- Calcula valores acumulados (para a Curva S)
       SUM(custo_total_mes) OVER (
-        PARTITION BY project_code_norm 
-        ORDER BY mes 
+        PARTITION BY project_code_norm
+        ORDER BY mes
         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
       ) AS custo_total_acumulado,
       -- Receita bruta acumulada (soma das receitas reais mensais)
       SUM(receita_mes) OVER (
-        PARTITION BY project_code_norm 
-        ORDER BY mes 
+        PARTITION BY project_code_norm
+        ORDER BY mes
         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
       ) AS receita_bruta_acumulado,
-      -- Margem acumulada (receita acumulada - custo acumulado)
-      SUM(receita_mes) OVER (
-        PARTITION BY project_code_norm 
-        ORDER BY mes 
+      -- Receita líquida acumulada (receita com desconto de imposto)
+      SUM(receita_liquida_mes) OVER (
+        PARTITION BY project_code_norm
+        ORDER BY mes
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+      ) AS receita_liquida_acumulado,
+      -- Margem 55% acumulada (receita líquida × 0.55 - valor disponível para custos)
+      SUM(margem_55_mes) OVER (
+        PARTITION BY project_code_norm
+        ORDER BY mes
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+      ) AS margem_55_acumulado,
+      -- Margem Operacional acumulada = Margem 55% - Custo (lucro/prejuízo)
+      SUM(margem_55_mes) OVER (
+        PARTITION BY project_code_norm
+        ORDER BY mes
         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
       ) - SUM(custo_total_mes) OVER (
-        PARTITION BY project_code_norm 
-        ORDER BY mes 
+        PARTITION BY project_code_norm
+        ORDER BY mes
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+      ) AS margem_operacional_acumulado,
+      -- Margem acumulada legado (receita bruta acumulada - custo acumulado)
+      SUM(receita_mes) OVER (
+        PARTITION BY project_code_norm
+        ORDER BY mes
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+      ) - SUM(custo_total_mes) OVER (
+        PARTITION BY project_code_norm
+        ORDER BY mes
         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
       ) AS valor_margem_acumulado
     FROM dados_combinados
