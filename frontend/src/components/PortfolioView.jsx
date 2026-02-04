@@ -22,6 +22,7 @@ import {
   isPausedStatus
 } from '../utils/portfolio-utils';
 import '../styles/PortfolioView.css';
+import StatusDropdown, { getStatusColor } from './StatusDropdown';
 
 // Colunas editaveis (apenas na vista 'info')
 const EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
@@ -62,8 +63,6 @@ function PortfolioView() {
   const [showPausedProjects, setShowPausedProjects] = useState(true);
   const [showContractInfoColumns, setShowContractInfoColumns] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'project_order', direction: 'asc' });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Fecha dropdowns ao clicar fora
   useEffect(() => {
@@ -251,20 +250,18 @@ function PortfolioView() {
         );
       }
 
-      // Dropdown para status (valores unicos existentes)
+      // Dropdown moderno para status com badges coloridos
       if (col.key === 'status') {
         return (
-          <select
-            className="inline-select"
-            defaultValue={value || ''}
-            autoFocus
-            onChange={(e) => updatePortfolioField(projectCode, col.key, e.target.value, value)}
-            onBlur={() => setEditingCell(null)}
-            onKeyDown={(e) => e.key === 'Escape' && setEditingCell(null)}
-          >
-            <option value="">Selecionar...</option>
-            {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <StatusDropdown
+            value={value}
+            onChange={(newValue) => {
+              updatePortfolioField(projectCode, col.key, newValue, value);
+              setEditingCell(null);
+            }}
+            inline
+            defaultOpen
+          />
         );
       }
 
@@ -292,6 +289,41 @@ function PortfolioView() {
     }
 
     // Celula clicavel (modo visualizacao)
+    // Status sempre mostra como badge colorido clicável
+    if (col.key === 'status') {
+      const statusColor = getStatusColor(value);
+      return (
+        <span
+          className="editable-cell status-cell"
+          onClick={() => setEditingCell({ projectCode, field: col.key })}
+          title="Clique para editar"
+        >
+          <span
+            className="status-badge-inline"
+            style={{
+              backgroundColor: `${statusColor}15`,
+              color: statusColor,
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontSize: '10px',
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: statusColor
+            }} />
+            {value || '-'}
+          </span>
+        </span>
+      );
+    }
+
     return (
       <span
         className="editable-cell"
@@ -430,18 +462,6 @@ function PortfolioView() {
     return filtered;
   }, [data, searchTerm, statusFilter, timeFilter, liderFilter, clientFilter, differenceFilter, sortConfig, showFinalizedProjects, showPausedProjects]);
 
-  // Paginacao
-  const paginatedData = useMemo(() => {
-    if (!filteredData || filteredData.length === 0) return [];
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredData, currentPage, itemsPerPage]);
-
-  const totalPages = useMemo(() => {
-    if (!filteredData || filteredData.length === 0) return 1;
-    return Math.ceil(filteredData.length / itemsPerPage);
-  }, [filteredData, itemsPerPage]);
-
   // Handlers
   const handleSort = (columnKey) => {
     setSortConfig(prev => ({
@@ -460,7 +480,6 @@ function PortfolioView() {
     setShowFinalizedProjects(false);
     setShowPausedProjects(true);
     setSortConfig({ key: 'project_order', direction: 'asc' });
-    setCurrentPage(1);
   };
 
   const handleStatusToggle = (status) => {
@@ -471,7 +490,6 @@ function PortfolioView() {
         return [...prev, status];
       }
     });
-    setCurrentPage(1);
   };
 
   const handleTimeToggle = (time) => {
@@ -482,7 +500,6 @@ function PortfolioView() {
         return [...prev, time];
       }
     });
-    setCurrentPage(1);
   };
 
   const handleLiderToggle = (lider) => {
@@ -493,7 +510,6 @@ function PortfolioView() {
         return [...prev, lider];
       }
     });
-    setCurrentPage(1);
   };
 
   const handleSelectAllLider = () => {
@@ -502,7 +518,6 @@ function PortfolioView() {
     } else {
       setLiderFilter([...uniqueLiders]);
     }
-    setCurrentPage(1);
   };
 
   const handleSelectAllStatus = () => {
@@ -511,7 +526,6 @@ function PortfolioView() {
     } else {
       setStatusFilter([...uniqueStatuses]);
     }
-    setCurrentPage(1);
   };
 
   const handleSelectAllTime = () => {
@@ -520,7 +534,6 @@ function PortfolioView() {
     } else {
       setTimeFilter([...uniqueTimes]);
     }
-    setCurrentPage(1);
   };
 
   const handleClientToggle = (client) => {
@@ -531,7 +544,6 @@ function PortfolioView() {
         return [...prev, client];
       }
     });
-    setCurrentPage(1);
   };
 
   const handleSelectAllClient = () => {
@@ -540,7 +552,6 @@ function PortfolioView() {
     } else {
       setClientFilter([...uniqueClients]);
     }
-    setCurrentPage(1);
   };
 
   const differenceOptions = [
@@ -557,7 +568,6 @@ function PortfolioView() {
         return [...prev, status];
       }
     });
-    setCurrentPage(1);
   };
 
   const handleSelectAllDifference = () => {
@@ -566,7 +576,6 @@ function PortfolioView() {
     } else {
       setDifferenceFilter(differenceOptions.map(opt => opt.value));
     }
-    setCurrentPage(1);
   };
 
   // Loading state
@@ -762,8 +771,7 @@ function PortfolioView() {
               className={`view-button ${activeView === view.id ? 'active' : ''}`}
               onClick={() => {
                 setActiveView(view.id);
-                setCurrentPage(1);
-              }}
+                          }}
             >
               {view.name}
             </button>
@@ -792,8 +800,7 @@ function PortfolioView() {
                   checked={showFinalizedProjects}
                   onChange={(e) => {
                     setShowFinalizedProjects(e.target.checked);
-                    setCurrentPage(1);
-                  }}
+                                  }}
                 />
                 <span className="toggle-slider"></span>
                 <span className="toggle-label">Mostrar Projetos Finalizados</span>
@@ -808,8 +815,7 @@ function PortfolioView() {
                   checked={showPausedProjects}
                   onChange={(e) => {
                     setShowPausedProjects(e.target.checked);
-                    setCurrentPage(1);
-                  }}
+                                  }}
                 />
                 <span className="toggle-slider"></span>
                 <span className="toggle-label">Mostrar Projetos Pausados</span>
@@ -824,8 +830,7 @@ function PortfolioView() {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
+                              }}
                 className="search-input"
               />
             </div>
@@ -1025,8 +1030,7 @@ function PortfolioView() {
                   setClientFilter([]);
                   setTimeFilter([]);
                   setLiderFilter([]);
-                  setCurrentPage(1);
-                }}
+                              }}
               >
                 Limpar filtros
               </button>
@@ -1036,7 +1040,7 @@ function PortfolioView() {
 
         {/* Info dos resultados */}
         <div className="results-info">
-          <span>Mostrando {paginatedData.length} de {filteredData.length} registros ({data.length} total)</span>
+          <span>Mostrando {filteredData.length} registros ({data.length} total)</span>
         </div>
 
         {/* Tabela */}
@@ -1077,7 +1081,7 @@ function PortfolioView() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedData.map((row, rowIdx) => (
+                {filteredData.map((row, rowIdx) => (
                   <tr key={rowIdx}>
                     {columns.map((col, colIdx) => {
                       const value = row[col.key];
@@ -1117,80 +1121,6 @@ function PortfolioView() {
           </div>
         </div>
 
-        {/* Paginacao */}
-        {totalPages > 1 && (
-          <div className="pagination">
-            <div className="pagination-info">
-              <span>Pagina {currentPage} de {totalPages}</span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="items-per-page-select"
-              >
-                <option value={10}>10 por pagina</option>
-                <option value={20}>20 por pagina</option>
-                <option value={50}>50 por pagina</option>
-                <option value={100}>100 por pagina</option>
-              </select>
-            </div>
-            <div className="pagination-controls">
-              <button
-                className="pagination-button"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
-                Primeira
-              </button>
-              <button
-                className="pagination-button"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-              >
-                Anterior
-              </button>
-              <div className="page-numbers">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  return (
-                    <button
-                      key={pageNum}
-                      className={`pagination-button ${currentPage === pageNum ? 'active' : ''}`}
-                      onClick={() => setCurrentPage(pageNum)}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                className="pagination-button"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-              >
-                Proxima
-              </button>
-              <button
-                className="pagination-button"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                Ultima
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

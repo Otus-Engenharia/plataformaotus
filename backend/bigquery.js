@@ -1286,6 +1286,85 @@ export async function queryCronograma(smartsheetId) {
   }
 }
 
+/**
+ * Busca próximas tarefas de TODOS os projetos do portfólio
+ * Usado pela área de Apoio de Projetos para visualizar cronograma consolidado
+ *
+ * @param {string|null} leaderName - Nome do líder para filtrar (null = todos os projetos)
+ * @param {Object} options - Opções de filtro
+ * @param {number} options.weeksAhead - Quantas semanas à frente buscar (padrão: 2)
+ * @returns {Promise<Array>} - Lista de tarefas com dados do projeto
+ */
+export async function queryProximasTarefasAll(leaderName = null, options = {}) {
+  const { weeksAhead = 2 } = options;
+
+  // Valida se projectId está configurado
+  if (!projectId || projectId === 'seu-project-id') {
+    const errorMsg = `BIGQUERY_PROJECT_ID não está configurado. Valor atual: "${projectId}"`;
+    console.error(`❌ ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  // Valida se o BigQuery client está inicializado
+  if (!bigquery) {
+    const errorMsg = 'Cliente BigQuery não foi inicializado corretamente';
+    console.error(`❌ ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  // Dataset e tabela do SmartSheet
+  const smartsheetProjectId = 'dadosindicadores';
+  const smartsheetDataset = 'smartsheet';
+  const smartsheetTable = 'smartsheet_data_projetos';
+
+  console.log(`📅 [queryProximasTarefasAll] Buscando próximas tarefas de todos os projetos`);
+  console.log(`   Semanas à frente: ${weeksAhead}`);
+  console.log(`   Filtro de líder: ${leaderName || 'Nenhum (todos)'}`);
+
+  let query = `
+    SELECT
+      s.ID_Projeto,
+      s.NomeDaPlanilha AS projeto_nome,
+      s.NomeDaTarefa,
+      s.DataDeInicio,
+      s.DataDeTermino,
+      s.Disciplina,
+      s.Status,
+      s.KPI,
+      s.Level,
+      s.rowId,
+      s.CaminhoCriticoMarco,
+      p.lider,
+      p.nome_time
+    FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\` s
+    INNER JOIN \`${projectId}.${datasetId}.${tablePortfolio}\` p
+      ON CAST(s.ID_Projeto AS STRING) = CAST(p.smartsheet_id AS STRING)
+    WHERE
+      s.DataDeInicio IS NOT NULL
+      AND s.DataDeInicio >= CURRENT_DATE()
+      AND s.DataDeInicio <= DATE_ADD(CURRENT_DATE(), INTERVAL ${weeksAhead} WEEK)
+  `;
+
+  if (leaderName) {
+    const escapedName = String(leaderName).replace(/'/g, "''");
+    query += ` AND LOWER(p.lider) = LOWER('${escapedName}')`;
+  }
+
+  query += ` ORDER BY s.DataDeInicio ASC, s.NomeDaPlanilha, s.Disciplina`;
+
+  try {
+    console.log('📅 Executando query de próximas tarefas...');
+    const rows = await executeQuery(query);
+    console.log(`✅ Query retornou ${rows.length} tarefas`);
+    return rows;
+  } catch (error) {
+    console.error('❌ Erro ao buscar próximas tarefas:');
+    console.error(`   Mensagem: ${error.message}`);
+    console.error(`   Stack: ${error.stack}`);
+    throw new Error(`Erro ao buscar próximas tarefas: ${error.message}`);
+  }
+}
+
 const CS_PROJECT = process.env.BIGQUERY_PROJECT_ID || 'dadosindicadores';
 const CS_DATASET = 'CS';
 const PORT_DATASET = 'portifolio';

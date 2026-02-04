@@ -634,7 +634,7 @@
 .table-scroll-container {
   overflow: auto;
   flex: 1;
-  max-height: calc(100vh - 600px);
+  max-height: calc(100vh - 280px);
   min-height: 400px;
 }
 

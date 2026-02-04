@@ -18,7 +18,7 @@ import session from 'express-session';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, queryProximasTarefasAll, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
@@ -66,6 +66,7 @@ import {
   // Portfolio - Edicao
   fetchProjectsFromSupabase, updateProjectField, fetchPortfolioEditOptions
 } from './supabase.js';
+import { sendStatusChangeNotification, getWebhookUrls } from './discord.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -564,6 +565,19 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
       newValue: value
     });
 
+    // Notificação Discord para mudança de status
+    if (field === 'status' && oldValue !== value) {
+      sendStatusChangeNotification({
+        projectCode,
+        projectName: result?.comercial_name || projectCode,
+        oldStatus: oldValue,
+        newStatus: value,
+        userName: req.user.name,
+        userPicture: req.user.picture,
+        webhookUrls: getWebhookUrls(oldValue, value)
+      }).catch(err => console.error('❌ Discord notification failed:', err));
+    }
+
     console.log(`✅ Portfolio atualizado: ${projectCode}.${field} = ${value}`);
 
     res.json({
@@ -871,6 +885,50 @@ app.put('/api/projetos/cronograma/cobrancas', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Erro ao salvar cobrança:', err);
     res.status(500).json({ success: false, error: err.message || 'Erro ao salvar cobrança' });
+  }
+});
+
+// =============================================
+// ROTAS APOIO DE PROJETOS
+// =============================================
+
+/**
+ * Rota: GET /api/apoio-projetos/proximas-tarefas
+ * Retorna próximas tarefas de TODOS os projetos do portfólio
+ * Usado pela equipe de Apoio de Projetos para visualizar cronograma consolidado
+ *
+ * Query params:
+ * - weeksAhead: número de semanas à frente (padrão: 2)
+ */
+app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) => {
+  try {
+    const weeksAhead = parseInt(req.query.weeksAhead) || 2;
+
+    // Líderes veem apenas seus projetos; privilegiados veem todos
+    let leaderName = null;
+    if (!isPrivileged(req.user.email)) {
+      leaderName = getLeaderNameFromEmail(req.user.email);
+      if (!leaderName) {
+        // Usuário não é privilegiado e não tem mapeamento de líder
+        return res.json({ success: true, count: 0, data: [] });
+      }
+    }
+
+    console.log(`📋 [/api/apoio-projetos/proximas-tarefas] User: ${req.user.email}, weeksAhead: ${weeksAhead}, leaderName: ${leaderName || 'ALL'}`);
+
+    const data = await queryProximasTarefasAll(leaderName, { weeksAhead });
+
+    res.json({
+      success: true,
+      count: data.length,
+      data: data
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar próximas tarefas:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao carregar próximas tarefas'
+    });
   }
 });
 
