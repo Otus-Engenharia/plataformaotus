@@ -2639,7 +2639,7 @@ app.post('/api/okrs/key-results/:id/comments', requireAuth, async (req, res) => 
       .from('okr_comments')
       .insert({
         key_result_id: parseInt(krId),
-        author_id: req.user?.email,
+        author_email: req.user?.email,
         content: content
       })
       .select()
