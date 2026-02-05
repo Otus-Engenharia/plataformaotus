@@ -93,8 +93,8 @@ function TeamMemberCard({ person, index }) {
   );
 }
 
-export default function TeamView() {
-  const { user, isPrivileged } = useAuth();
+export default function TeamView({ showAll = false }) {
+  const { user, isPrivileged, isDev } = useAuth();
 
   const [team, setTeam] = useState([]);
   const [sector, setSector] = useState(null);
@@ -110,13 +110,15 @@ export default function TeamView() {
 
   useEffect(() => {
     fetchTeam();
-  }, [ciclo, ano, selectedSectorId]);
+  }, [ciclo, ano, selectedSectorId, showAll]);
 
   const fetchTeam = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ ciclo, ano: ano.toString() });
-      if (selectedSectorId) {
+      if (showAll) {
+        params.append('all', 'true');
+      } else if (selectedSectorId) {
         params.append('sector_id', selectedSectorId);
       }
 
@@ -131,7 +133,7 @@ export default function TeamView() {
       setSector(data.data?.setor || data.sector || null);
       setAvailableSectors(data.data?.availableSectors || []);
 
-      if (!selectedSectorId && data.data?.availableSectors?.length > 0 && !data.sector) {
+      if (!showAll && !selectedSectorId && data.data?.availableSectors?.length > 0 && !data.sector) {
         setSelectedSectorId(data.data.availableSectors[0].id);
       }
     } catch (err) {
@@ -195,7 +197,7 @@ export default function TeamView() {
       {/* Header */}
       <header className="team-header">
         <div className="team-header__left">
-          <h1 className="team-header__title">Minha Equipe</h1>
+          <h1 className="team-header__title">{showAll ? 'Todos Indicadores' : 'Minha Equipe'}</h1>
           <p className="team-header__subtitle">
             {sector?.name || 'Todos os setores'} • {team.length} {team.length === 1 ? 'pessoa' : 'pessoas'}
           </p>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getCurrentCycle, getCurrentYear } from '../../utils/indicator-utils';
 import './AdminPages.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -21,13 +22,16 @@ const CONSOLIDATION_TYPES = [
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export default function AdminCargos() {
-  const { isPrivileged } = useAuth();
+  const { isPrivileged, user } = useAuth();
   const [positions, setPositions] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSector, setFilterSector] = useState('');
+  const [showAllSectors, setShowAllSectors] = useState(false);
+  const [userSectorId, setUserSectorId] = useState(null);
   const [expandedPositions, setExpandedPositions] = useState({});
+  const [syncing, setSyncing] = useState({});
 
   // Modal states
   const [showPositionForm, setShowPositionForm] = useState(false);
@@ -56,9 +60,10 @@ export default function AdminCargos() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [posRes, secRes] = await Promise.all([
+      const [posRes, secRes, userRes] = await Promise.all([
         fetch(`${API_URL}/api/ind/positions`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/ind/sectors`, { credentials: 'include' })
+        fetch(`${API_URL}/api/ind/sectors`, { credentials: 'include' }),
+        fetch(`${API_URL}/api/user/me`, { credentials: 'include' })
       ]);
 
       if (posRes.ok) {
@@ -86,6 +91,14 @@ export default function AdminCargos() {
       if (secRes.ok) {
         const secData = await secRes.json();
         setSectors(secData.data || []);
+      }
+      // Buscar setor do usuario e definir como filtro padrao
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        if (userData.data?.setor_id) {
+          setUserSectorId(userData.data.setor_id);
+          setFilterSector(userData.data.setor_id);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -145,6 +158,47 @@ export default function AdminCargos() {
     } catch (err) {
       alert(err.message);
     }
+  };
+
+  // Sincronizar indicadores do cargo com usuarios
+  const handleSyncIndicators = async (position) => {
+    if (!confirm(`Sincronizar indicadores do cargo "${position.name}" com os usuarios?\n\nIsso criara os indicadores faltantes, sem alterar os ja existentes.`)) return;
+
+    setSyncing(prev => ({ ...prev, [position.id]: true }));
+    try {
+      const ciclo = getCurrentCycle();
+      const ano = getCurrentYear();
+
+      const res = await fetch(`${API_URL}/api/ind/positions/${position.id}/sync-indicators`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ciclo, ano })
+      });
+
+      if (!res.ok) throw new Error('Erro ao sincronizar');
+
+      const data = await res.json();
+      if (data.success) {
+        alert(`Sincronizacao concluida!\n\n${data.data.created} indicadores criados\n${data.data.skipped} ja existentes\n${data.data.usersProcessed} usuarios processados`);
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSyncing(prev => ({ ...prev, [position.id]: false }));
+    }
+  };
+
+  // Toggle mostrar todos os setores
+  const handleToggleAllSectors = () => {
+    if (showAllSectors) {
+      // Voltar para o setor do usuario
+      setFilterSector(userSectorId || '');
+    } else {
+      // Mostrar todos
+      setFilterSector('');
+    }
+    setShowAllSectors(!showAllSectors);
   };
 
   // Indicator CRUD
@@ -314,16 +368,23 @@ export default function AdminCargos() {
           </div>
         </div>
         <div className="admin-filter-container">
-          <select
-            value={filterSector}
-            onChange={(e) => setFilterSector(e.target.value)}
-            className="filter-select"
+          {userSectorId && (
+            <span className="current-sector-badge">
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+              </svg>
+              {sectors.find(s => s.id === userSectorId)?.name || 'Meu Setor'}
+            </span>
+          )}
+          <button
+            className={`btn-toggle ${showAllSectors ? 'active' : ''}`}
+            onClick={handleToggleAllSectors}
           >
-            <option value="">Todos os setores</option>
-            {sectors.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+            </svg>
+            {showAllSectors ? 'Mostrar meu setor' : 'Mostrar todos os setores'}
+          </button>
         </div>
       </div>
 
@@ -398,12 +459,38 @@ export default function AdminCargos() {
                     <div className="indicators-section">
                       <div className="indicators-header">
                         <h4>Indicadores Padrão</h4>
-                        <button
-                          className="btn-small btn-outline"
-                          onClick={() => openNewIndicatorForm(position.id)}
-                        >
-                          + Adicionar
-                        </button>
+                        <div className="indicators-header-actions">
+                          <button
+                            className="btn-small btn-outline"
+                            onClick={() => openNewIndicatorForm(position.id)}
+                          >
+                            + Adicionar
+                          </button>
+                          {position.indicators?.length > 0 && (
+                            <button
+                              className="btn-small btn-primary"
+                              onClick={() => handleSyncIndicators(position)}
+                              disabled={syncing[position.id]}
+                              title="Sincroniza indicadores faltantes com usuarios deste cargo"
+                            >
+                              {syncing[position.id] ? (
+                                <>
+                                  <svg className="spin" viewBox="0 0 24 24" width="14" height="14">
+                                    <path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+                                  </svg>
+                                  Sincronizando...
+                                </>
+                              ) : (
+                                <>
+                                  <svg viewBox="0 0 24 24" width="14" height="14">
+                                    <path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+                                  </svg>
+                                  Sincronizar
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {position.indicators && position.indicators.length > 0 ? (

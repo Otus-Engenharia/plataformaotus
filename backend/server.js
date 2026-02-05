@@ -33,12 +33,12 @@ import {
   // Novo sistema de indicadores
   fetchSectors, getSectorById, createSector, updateSector, deleteSector,
   fetchPositions, getPositionById, createPosition, updatePosition, deletePosition,
-  fetchPositionIndicators, createPositionIndicator, updatePositionIndicator, deletePositionIndicator,
+  fetchPositionIndicators, createPositionIndicator, updatePositionIndicator, deletePositionIndicator, syncPositionIndicators,
   fetchIndicadoresIndividuais, getIndicadorById, createIndicadorFromTemplate, updateIndicadorIndividual,
   fetchCheckIns, getCheckInById, createCheckIn, updateCheckIn, deleteCheckIn,
   fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan,
   fetchPeopleWithScores, getPersonById, fetchTeam,
-  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, getUserSectorByEmail, getUserByEmail,
+  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, getUserSectorByEmail, getUserByEmail, createUser,
   fetchSectorsOverview, fetchHistoryComparison,
   // Views & Access Control
   fetchViews, createView, deleteView,
@@ -377,6 +377,31 @@ app.get('/api/auth/user', requireAuth, (req, res) => {
       canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
     }
   });
+});
+
+/**
+ * Rota: GET /api/user/me
+ * Retorna dados completos do usuario logado incluindo setor
+ */
+app.get('/api/user/me', requireAuth, async (req, res) => {
+  try {
+    const userData = await getUserByEmail(req.user.email);
+    res.json({
+      success: true,
+      data: {
+        email: req.user.email,
+        name: req.user.name,
+        role: req.user.role,
+        setor_id: userData?.setor?.id || null,
+        setor_name: userData?.setor?.name || null,
+        cargo_id: userData?.cargo?.id || null,
+        cargo_name: userData?.cargo?.name || null,
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dados do usuario:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 /**
@@ -3209,6 +3234,46 @@ app.delete('/api/ind/positions/:posId/indicators/:indId', requireAuth, async (re
   }
 });
 
+/**
+ * Rota: POST /api/ind/positions/:id/sync-indicators
+ * Sincroniza indicadores do cargo com usuarios que possuem esse cargo
+ * Cria apenas indicadores faltantes, sem sobrescrever existentes
+ * Body: { ciclo, ano, leader_id (opcional) }
+ */
+app.post('/api/ind/positions/:id/sync-indicators', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { ciclo, ano, leader_id } = req.body;
+
+    if (!ciclo || !ano) {
+      return res.status(400).json({ success: false, error: 'Ciclo e ano sao obrigatorios' });
+    }
+
+    const result = await syncPositionIndicators(
+      req.params.id,
+      ciclo,
+      parseInt(ano, 10),
+      leader_id || null
+    );
+
+    await logAction(
+      req,
+      'sync',
+      'position_indicators',
+      req.params.id,
+      `Sincronizacao: ${result.created} criados, ${result.skipped} ignorados`
+    );
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Erro ao sincronizar indicadores:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // --- INDICADORES INDIVIDUAIS ---
 
 /**
@@ -3549,23 +3614,41 @@ app.get('/api/ind/people/:id', requireAuth, async (req, res) => {
  * Rota: GET /api/ind/team
  * Retorna equipe do setor do usuário logado
  * - Líderes veem apenas seus liderados diretos (filtro por leader_id)
- * - Admins/Diretores veem todos do setor selecionado
- * Query: ciclo, ano, sector_id (admin only)
+ * - Admins/Diretores/Devs veem todos do setor selecionado
+ * Query: ciclo, ano, sector_id (privileged only), all (dev only - retorna todos setores)
  */
 app.get('/api/ind/team', requireAuth, async (req, res) => {
   try {
     const userEmail = req.user.email;
     const realEmail = getRealEmailForIndicadores(userEmail);
     const userRole = getUserRole(userEmail);
-    const isAdminOrDirector = userRole === 'admin' || userRole === 'director';
+    const isFullAccess = userRole === 'admin' || userRole === 'director' || userRole === 'dev';
+    const showAll = req.query.all === 'true' && userRole === 'dev';
+
+    // Se dev solicitou todos os indicadores
+    if (showAll) {
+      const filters = {
+        ciclo: req.query.ciclo || null,
+        ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
+      };
+      const pessoas = await fetchPeopleWithScores(filters);
+      const { data: sectors } = await getSupabaseClient()
+        .from('ind_setores')
+        .select('id, name')
+        .order('name');
+      return res.json({
+        success: true,
+        data: { pessoas, setor: { name: 'Todos os Setores' }, availableSectors: sectors || [] },
+      });
+    }
 
     // Busca informações do usuário atual (para obter ID se for líder)
     const currentUser = await getUserByEmail(realEmail);
     let targetSector = null;
     let leaderId = null;
 
-    // Admin/Director pode visualizar qualquer setor passando sector_id
-    if (req.query.sector_id && isAdminOrDirector) {
+    // Admin/Director/Dev pode visualizar qualquer setor passando sector_id
+    if (req.query.sector_id && isFullAccess) {
       const { data: sectorData } = await getSupabaseClient()
         .from('ind_setores')
         .select('id, name')
@@ -3583,8 +3666,8 @@ app.get('/api/ind/team', requireAuth, async (req, res) => {
     }
 
     if (!targetSector) {
-      // Para admins sem setor, retorna lista de setores disponíveis
-      if (isAdminOrDirector) {
+      // Para admins/directors/devs sem setor, retorna lista de setores disponíveis
+      if (isFullAccess) {
         const { data: sectors } = await getSupabaseClient()
           .from('ind_setores')
           .select('id, name')
@@ -3611,9 +3694,9 @@ app.get('/api/ind/team', requireAuth, async (req, res) => {
 
     const pessoas = await fetchPeopleWithScores(filters);
 
-    // Para admins, também retorna lista de setores disponíveis
+    // Para admins/directors/devs, também retorna lista de setores disponíveis
     let availableSectors = [];
-    if (isAdminOrDirector) {
+    if (isFullAccess) {
       const { data: sectors } = await getSupabaseClient()
         .from('ind_setores')
         .select('id, name')
@@ -3771,6 +3854,49 @@ app.put('/api/ind/admin/users/:id/leader', requireAuth, async (req, res) => {
     res.json({ success: true, data: user });
   } catch (error) {
     console.error('❌ Erro ao atualizar líder do usuário:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/ind/admin/users
+ * Cria um novo usuario
+ */
+app.post('/api/ind/admin/users', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { name, email, role, setor_id, position_id, phone } = req.body;
+
+    // Validacoes
+    if (!name?.trim()) {
+      return res.status(400).json({ success: false, error: 'Nome e obrigatorio' });
+    }
+    if (!email?.trim()) {
+      return res.status(400).json({ success: false, error: 'Email e obrigatorio' });
+    }
+    if (!email.endsWith('@otusengenharia.com')) {
+      return res.status(400).json({ success: false, error: 'Email deve ser @otusengenharia.com' });
+    }
+
+    const user = await createUser({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      role: role || 'user',
+      setor_id: setor_id || null,
+      position_id: position_id || null,
+      phone: phone || null,
+    });
+
+    await logAction(req, 'create', 'user', user.id, `Usuario ${name} criado`);
+    res.status(201).json({ success: true, data: user });
+  } catch (error) {
+    console.error('❌ Erro ao criar usuario:', error);
+    if (error.message.includes('ja cadastrado')) {
+      return res.status(409).json({ success: false, error: error.message });
+    }
     res.status(500).json({ success: false, error: error.message });
   }
 });

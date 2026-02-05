@@ -969,6 +969,85 @@
   margin: 0;
 }
 
+.indicators-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.indicators-header-actions .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.indicators-header-actions .btn-primary svg {
+  width: 14px;
+  height: 14px;
+}
+
+.indicators-header-actions .btn-primary svg.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Filtro de setores */
+.admin-filter-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.current-sector-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background: rgba(255, 221, 0, 0.15);
+  border: 1px solid rgba(255, 221, 0, 0.3);
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.current-sector-badge svg {
+  opacity: 0.7;
+}
+
+.btn-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid rgba(26, 26, 26, 0.15);
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #525252;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-toggle:hover {
+  background: rgba(26, 26, 26, 0.05);
+  border-color: rgba(26, 26, 26, 0.25);
+}
+
+.btn-toggle.active {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: white;
+}
+
+.btn-toggle svg {
+  opacity: 0.7;
+}
+
+.btn-toggle.active svg {
+  opacity: 1;
+}
+
 .indicators-list {
   display: flex;
   flex-direction: column;

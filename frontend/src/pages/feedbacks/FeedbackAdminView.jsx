@@ -170,16 +170,20 @@ function getInitials(name) {
   return name.substring(0, 2).toUpperCase();
 }
 
+// Categorias de tipos para filtrar
+const BUG_TYPES = ['bug', 'erro', 'outro'];
+const SUGGESTION_TYPES = ['feedback_processo', 'feedback_plataforma'];
+
 // === COMPONENTE PRINCIPAL ===
-export default function FeedbackAdminView() {
+export default function FeedbackAdminView({ category = 'all' }) {
   const { user, hasFullAccess } = useAuth();
   const canEdit = hasFullAccess; // dev, director, ou admin podem editar
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Vista: 'list' ou 'kanban'
-  const [viewMode, setViewMode] = useState('list');
+  // Vista: 'kanban' como padrao
+  const [viewMode, setViewMode] = useState('kanban');
 
   // Filters
   const [filterStatus, setFilterStatus] = useState('');
@@ -371,6 +375,10 @@ export default function FeedbackAdminView() {
   // === FILTERS ===
   const filteredFeedbacks = useMemo(() => {
     return feedbacks.filter((feedback) => {
+      // Filtro por categoria (bugs vs sugestoes)
+      if (category === 'bugs' && !BUG_TYPES.includes(feedback.type)) return false;
+      if (category === 'sugestoes' && !SUGGESTION_TYPES.includes(feedback.type)) return false;
+
       if (filterStatus) {
         // Se filtrar por "em_progresso", incluir status legados também
         if (filterStatus === 'em_progresso') {
@@ -397,17 +405,30 @@ export default function FeedbackAdminView() {
       }
       return true;
     });
-  }, [feedbacks, filterStatus, filterTipo, searchTerm, usersMap]);
+  }, [feedbacks, filterStatus, filterTipo, searchTerm, usersMap, category]);
 
-  // === STATS ===
+  // === STATS === (baseado nos feedbacks filtrados por categoria)
+  const categoryFilteredFeedbacks = useMemo(() => {
+    if (category === 'bugs') return feedbacks.filter(f => BUG_TYPES.includes(f.type));
+    if (category === 'sugestoes') return feedbacks.filter(f => SUGGESTION_TYPES.includes(f.type));
+    return feedbacks;
+  }, [feedbacks, category]);
+
   const stats = useMemo(() => ({
-    total: feedbacks.length,
-    pendentes: feedbacks.filter((f) => f.status === 'pendente').length,
-    emProgresso: feedbacks.filter((f) =>
+    total: categoryFilteredFeedbacks.length,
+    pendentes: categoryFilteredFeedbacks.filter((f) => f.status === 'pendente').length,
+    emProgresso: categoryFilteredFeedbacks.filter((f) =>
       ['em_analise', 'em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'].includes(f.status)
     ).length,
-    finalizados: feedbacks.filter((f) => f.status === 'finalizado').length,
-  }), [feedbacks]);
+    finalizados: categoryFilteredFeedbacks.filter((f) => f.status === 'finalizado').length,
+  }), [categoryFilteredFeedbacks]);
+
+  // Tipos disponíveis baseado na categoria
+  const availableTypes = useMemo(() => {
+    if (category === 'bugs') return BUG_TYPES;
+    if (category === 'sugestoes') return SUGGESTION_TYPES;
+    return Object.keys(TIPO_CONFIG);
+  }, [category]);
 
   const hasActiveFilters = filterStatus || filterTipo || searchTerm;
 
@@ -455,10 +476,12 @@ export default function FeedbackAdminView() {
       {/* Header */}
       <div className="feedback-admin__header">
         <div className="feedback-admin__title-section">
-          <h2>Gerenciar Feedbacks</h2>
+          <h2>{category === 'bugs' ? 'Bug Reports' : 'Gerenciar Feedbacks'}</h2>
           <p>
             {canEdit
-              ? 'Analise e responda os feedbacks da plataforma'
+              ? category === 'bugs'
+                ? 'Analise e responda bugs e erros reportados'
+                : 'Analise e responda as sugestoes da plataforma'
               : 'Visualize os feedbacks da plataforma (somente leitura)'}
           </p>
         </div>
@@ -552,8 +575,10 @@ export default function FeedbackAdminView() {
               onChange={(e) => setFilterTipo(e.target.value)}
             >
               <option value="">Todos</option>
-              {Object.entries(TIPO_CONFIG).map(([value, config]) => (
-                <option key={value} value={value}>{config.icon} {config.label}</option>
+              {availableTypes.map((value) => (
+                <option key={value} value={value}>
+                  {TIPO_CONFIG[value]?.icon} {TIPO_CONFIG[value]?.label}
+                </option>
               ))}
             </select>
           </div>

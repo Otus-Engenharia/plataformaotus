@@ -592,6 +592,16 @@ function Sidebar({ collapsed, onToggle, area }) {
             <span className="nav-icon">{icons.users}</span>
             <span className="nav-text">Usuários</span>
           </Link>
+          {isDev && (
+            <Link
+              to="/ind/admin/todos-indicadores"
+              className={`nav-link nav-link-modern ${location.pathname === '/ind/admin/todos-indicadores' ? 'nav-link-active' : ''}`}
+              title={linkTitle('Todos Indicadores')}
+            >
+              <span className="nav-icon">{icons.team}</span>
+              <span className="nav-text">Todos Indicadores</span>
+            </Link>
+          )}
         </>
       )}
     </>
@@ -1122,7 +1132,7 @@ function AppContent() {
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? (
                     <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <FeedbackAdminView />
+                      <FeedbackAdminView category="sugestoes" />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
@@ -1176,7 +1186,7 @@ function AppContent() {
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? (
                     <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <FeedbackAdminView />
+                      <FeedbackAdminView category="bugs" />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
@@ -1278,6 +1288,18 @@ function AppContent() {
                   {isPrivileged ? (
                     <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                       <AdminUsuarios />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/admin/todos-indicadores"
+              element={
+                <ProtectedRoute>
+                  {isDev ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <TeamView showAll />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>

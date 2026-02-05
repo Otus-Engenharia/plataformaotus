@@ -1903,6 +1903,130 @@ export async function createIndicadorFromTemplate(templateId, personEmail, ciclo
 }
 
 /**
+ * Sincroniza indicadores de um cargo com os usuarios que possuem esse cargo
+ * Cria apenas os indicadores faltantes, sem sobrescrever existentes
+ * @param {string} positionId - ID do cargo
+ * @param {string} ciclo - Ciclo (q1, q2, q3, q4, anual)
+ * @param {number} ano - Ano
+ * @param {string} [leaderId] - ID do lider (opcional - para filtrar apenas liderados)
+ * @returns {Promise<Object>} - Resultado com criados e ignorados
+ */
+export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = null) {
+  const supabase = getSupabaseClient();
+
+  // 1. Busca todos os templates do cargo
+  const { data: templates, error: templatesError } = await supabase
+    .from(POSITION_INDICATORS_TABLE)
+    .select('*')
+    .eq('position_id', positionId);
+
+  if (templatesError) {
+    throw new Error(`Erro ao buscar templates: ${templatesError.message}`);
+  }
+
+  if (!templates || templates.length === 0) {
+    return { created: 0, skipped: 0, message: 'Nenhum template encontrado para este cargo' };
+  }
+
+  // 2. Busca usuarios com esse cargo (opcionalmente filtrado por lider)
+  let query = supabase
+    .from(USERS_OTUS_TABLE)
+    .select('id, email, name')
+    .eq('position_id', positionId)
+    .eq('is_active', true);
+
+  if (leaderId) {
+    query = query.eq('leader_id', leaderId);
+  }
+
+  const { data: users, error: usersError } = await query;
+
+  if (usersError) {
+    throw new Error(`Erro ao buscar usuarios: ${usersError.message}`);
+  }
+
+  if (!users || users.length === 0) {
+    return { created: 0, skipped: 0, message: 'Nenhum usuario encontrado com este cargo' };
+  }
+
+  // 3. Para cada usuario, verifica quais indicadores faltam e cria
+  let created = 0;
+  let skipped = 0;
+  const details = [];
+
+  for (const user of users) {
+    // Busca indicadores existentes do usuario para este ciclo/ano
+    const { data: existingIndicators } = await supabase
+      .from(INDICADORES_TABLE)
+      .select('template_id')
+      .eq('person_email', user.email)
+      .eq('ciclo', ciclo)
+      .eq('ano', ano);
+
+    const existingTemplateIds = new Set((existingIndicators || []).map(i => i.template_id));
+
+    // Cria indicadores faltantes
+    for (const template of templates) {
+      if (existingTemplateIds.has(template.id)) {
+        skipped++;
+        continue;
+      }
+
+      // Busca info do cargo para o setor
+      const { data: position } = await supabase
+        .from('positions')
+        .select('sector_id')
+        .eq('id', positionId)
+        .single();
+
+      // Cria o indicador
+      const { error: createError } = await supabase
+        .from(INDICADORES_TABLE)
+        .insert({
+          nome: template.title,
+          descricao: template.description,
+          valor: template.default_initial || 0,
+          meta: template.default_target,
+          unidade: template.metric_type === 'percentage' ? '%' :
+                   template.metric_type === 'currency' ? 'R$' :
+                   template.metric_type === 'boolean' ? 'sim/não' : 'un',
+          categoria: 'pessoas',
+          periodo: ciclo === 'anual' ? 'anual' : 'trimestral',
+          ciclo,
+          ano,
+          person_email: user.email,
+          cargo_id: positionId,
+          setor_id: position?.sector_id || null,
+          template_id: template.id,
+          peso: template.default_weight || 1,
+          threshold_80: template.default_threshold_80,
+          threshold_120: template.default_threshold_120,
+          is_inverse: template.is_inverse || false,
+          consolidation_type: template.consolidation_type || 'last_value',
+          metric_type: template.metric_type || 'number',
+          monthly_targets: template.monthly_targets || {},
+        });
+
+      if (createError) {
+        console.error(`Erro ao criar indicador para ${user.email}:`, createError);
+      } else {
+        created++;
+        details.push({ user: user.name, indicator: template.title });
+      }
+    }
+  }
+
+  return {
+    created,
+    skipped,
+    usersProcessed: users.length,
+    templatesCount: templates.length,
+    details,
+    message: `${created} indicadores criados, ${skipped} ja existentes`
+  };
+}
+
+/**
  * Atualiza um indicador individual
  * @param {string} indicadorId - ID do indicador
  * @param {Object} updateData - Dados atualizados
@@ -2545,6 +2669,53 @@ export async function updateUserLeader(userId, leaderId) {
 
   if (error) {
     throw new Error(`Erro ao atualizar líder do usuário: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Cria um novo usuario
+ * @param {Object} userData - Dados do usuario
+ * @param {string} userData.name - Nome (obrigatorio)
+ * @param {string} userData.email - Email (obrigatorio)
+ * @param {string} [userData.role] - Role (user, leader, admin)
+ * @param {string} [userData.setor_id] - ID do setor
+ * @param {string} [userData.position_id] - ID do cargo
+ * @param {string} [userData.phone] - Telefone
+ * @returns {Promise<Object>}
+ */
+export async function createUser(userData) {
+  const supabase = getSupabaseClient();
+
+  // Verificar email unico
+  const { data: existing } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .select('id')
+    .eq('email', userData.email.toLowerCase())
+    .maybeSingle();
+
+  if (existing) {
+    throw new Error('Email ja cadastrado no sistema');
+  }
+
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .insert({
+      name: userData.name,
+      email: userData.email.toLowerCase().trim(),
+      role: userData.role || 'user',
+      setor_id: userData.setor_id || null,
+      position_id: userData.position_id || null,
+      phone: userData.phone || null,
+      status: 'ativo',
+      is_active: true,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar usuario: ${error.message}`);
   }
 
   return data;

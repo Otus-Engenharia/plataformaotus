@@ -147,6 +147,14 @@ function OperacaoView() {
   const [editingUserName, setEditingUserName] = useState('');
   const [tempViews, setTempViews] = useState([]);
 
+  // === MODAL DE CRIACAO DE USUARIO ===
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '', email: '', sector_id: '', position_id: '', role: 'user', phone: ''
+  });
+  const [createErrors, setCreateErrors] = useState({});
+  const [isCreating, setIsCreating] = useState(false);
+
   // === FETCH FUNCTIONS ===
   const fetchViews = async () => {
     try {
@@ -367,6 +375,57 @@ function OperacaoView() {
     setTempViews([]);
   };
 
+  // === FUNCOES DE CRIACAO DE USUARIO ===
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    const errors = {};
+    if (!createForm.name.trim()) errors.name = 'Nome obrigatorio';
+    if (!createForm.email.trim()) errors.email = 'Email obrigatorio';
+    else if (!createForm.email.endsWith('@otusengenharia.com'))
+      errors.email = 'Email deve ser @otusengenharia.com';
+
+    if (Object.keys(errors).length) {
+      setCreateErrors(errors);
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      await axios.post(
+        `${API_URL}/api/ind/admin/users`,
+        {
+          name: createForm.name.trim(),
+          email: createForm.email.toLowerCase().trim(),
+          role: createForm.role,
+          setor_id: createForm.sector_id || null,
+          position_id: createForm.position_id || null,
+          phone: createForm.phone || null,
+        },
+        { withCredentials: true }
+      );
+      setShowCreateModal(false);
+      setCreateForm({ name: '', email: '', sector_id: '', position_id: '', role: 'user', phone: '' });
+      setCreateErrors({});
+      await fetchAccessData();
+      await fetchAllUsers();
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message;
+      if (errorMsg.includes('ja cadastrado')) {
+        setCreateErrors({ email: 'Email ja cadastrado' });
+      } else {
+        alert('Erro ao criar colaborador: ' + errorMsg);
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false);
+    setCreateForm({ name: '', email: '', sector_id: '', position_id: '', role: 'user', phone: '' });
+    setCreateErrors({});
+  };
+
   // Clear filters
   const clearFilters = () => {
     setSearchTerm('');
@@ -473,10 +532,18 @@ function OperacaoView() {
       {/* Header */}
       <div className="operacao-header">
         <h2>Gerenciamento de Acessos</h2>
-        <button onClick={refreshAll} className="btn-refresh">
-          <Icons.Refresh />
-          Atualizar
-        </button>
+        <div className="header-actions">
+          {hasFullAccess && (
+            <button onClick={() => setShowCreateModal(true)} className="btn-primary">
+              <Icons.Plus />
+              Adicionar Colaborador
+            </button>
+          )}
+          <button onClick={refreshAll} className="btn-refresh">
+            <Icons.Refresh />
+            Atualizar
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -908,6 +975,136 @@ function OperacaoView() {
                 </button>
                 <button type="submit" className="btn-save" disabled={isSubmitting}>
                   {isSubmitting ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Criar Novo Usuario */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={handleCloseCreateModal}>
+          <div className="modal-content user-create-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Adicionar Colaborador</h3>
+              <p className="modal-subtitle">Preencha os dados do novo colaborador</p>
+            </div>
+
+            <form onSubmit={handleCreateSubmit} className="modal-body">
+              {/* Nome */}
+              <div className="form-field">
+                <label className="form-label required">Nome</label>
+                <input
+                  type="text"
+                  className={`form-input ${createErrors.name ? 'error' : ''}`}
+                  placeholder="Nome completo"
+                  value={createForm.name}
+                  onChange={e => setCreateForm({...createForm, name: e.target.value})}
+                />
+                {createErrors.name && (
+                  <span className="form-error">{createErrors.name}</span>
+                )}
+              </div>
+
+              {/* Email */}
+              <div className="form-field">
+                <label className="form-label required">Email</label>
+                <input
+                  type="email"
+                  className={`form-input ${createErrors.email ? 'error' : ''}`}
+                  placeholder="email@otusengenharia.com"
+                  value={createForm.email}
+                  onChange={e => setCreateForm({...createForm, email: e.target.value})}
+                />
+                {createErrors.email && (
+                  <span className="form-error">{createErrors.email}</span>
+                )}
+              </div>
+
+              {/* Setor e Cargo */}
+              <div className="form-row">
+                <div className="form-field">
+                  <label className="form-label">Setor</label>
+                  <select
+                    className="form-select"
+                    value={createForm.sector_id}
+                    onChange={e => setCreateForm({...createForm, sector_id: e.target.value})}
+                  >
+                    <option value="">Selecione...</option>
+                    {sectors.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">Cargo</label>
+                  <select
+                    className="form-select"
+                    value={createForm.position_id}
+                    onChange={e => setCreateForm({...createForm, position_id: e.target.value})}
+                  >
+                    <option value="">Selecione...</option>
+                    {positions.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Papel de Acesso */}
+              <div className="form-field">
+                <label className="form-label">Nivel de Acesso</label>
+                <div className="role-selector">
+                  {[
+                    { value: 'user', label: 'Usuario', desc: 'Acesso basico' },
+                    { value: 'leader', label: 'Lider', desc: 'Gerencia equipe' },
+                    { value: 'admin', label: 'Admin', desc: 'Acesso total' },
+                  ].map(opt => (
+                    <label
+                      key={opt.value}
+                      className={`role-option ${createForm.role === opt.value ? 'selected' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="create-role"
+                        value={opt.value}
+                        checked={createForm.role === opt.value}
+                        onChange={e => setCreateForm({...createForm, role: e.target.value})}
+                      />
+                      <span className={`role-indicator role-${opt.value}`}></span>
+                      <div>
+                        <span className="role-label">{opt.label}</span>
+                        <span className="role-desc">{opt.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Telefone */}
+              <div className="form-field">
+                <label className="form-label">Telefone</label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  placeholder="(00) 00000-0000"
+                  value={createForm.phone}
+                  onChange={e => setCreateForm({...createForm, phone: e.target.value})}
+                />
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={handleCloseCreateModal}
+                  disabled={isCreating}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-save" disabled={isCreating}>
+                  {isCreating ? 'Criando...' : 'Criar Colaborador'}
                 </button>
               </div>
             </form>
