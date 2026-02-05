@@ -71,7 +71,7 @@ const getCurrentQuarter = () => {
 };
 
 // Check-in Dialog
-function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter, objective }) {
+function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter, objective, initialMonth = null }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -83,10 +83,23 @@ function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter, o
   const currentMonth = new Date().getMonth() + 1;
   const currentQ = getCurrentQuarter();
 
-  // Para OKRs anuais: usar quarter atual, senão usar mês atual
-  const defaultMonth = useQuarters
+  // Encontrar primeiro mês sem check-in preenchido
+  const getFirstMonthWithoutCheckIn = () => {
+    for (const month of quarterMonths) {
+      const hasCheckIn = checkIns.some(c => c.mes === month && c.ano === currentYear);
+      if (!hasCheckIn) {
+        return month;
+      }
+    }
+    // Se todos têm check-in, usar mês atual ou primeiro do trimestre
+    return quarterMonths.includes(currentMonth) ? currentMonth : quarterMonths[0];
+  };
+
+  // Para OKRs anuais: usar quarter atual, senão usar primeiro mês sem preenchimento
+  // Se initialMonth foi passado, usar ele
+  const defaultMonth = initialMonth || (useQuarters
     ? quarterToMonth[currentQ]
-    : (quarterMonths.includes(currentMonth) ? currentMonth : quarterMonths[0]);
+    : getFirstMonthWithoutCheckIn());
 
   const [formData, setFormData] = useState({
     mes: defaultMonth,
@@ -94,6 +107,19 @@ function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter, o
     valor: '',
     notas: ''
   });
+
+  // Resetar quando dialog abre - usar initialMonth se especificado
+  useEffect(() => {
+    if (open) {
+      const targetMonth = initialMonth || defaultMonth;
+      setFormData(prev => ({
+        ...prev,
+        mes: targetMonth,
+        valor: '',
+        notas: ''
+      }));
+    }
+  }, [open, defaultMonth, initialMonth]);
 
   const monthlyTargets = kr?.monthly_targets || {};
   const currentTarget = useQuarters
@@ -326,6 +352,118 @@ function EditableValue({ value, onSave, placeholder = '—', type = 'number', ca
         <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
       </svg>
     </span>
+  );
+}
+
+// Editable Notes Component para edição inline de observações
+function EditableNotes({ value, onSave, placeholder = 'Adicionar observação...', canEdit }) {
+  const [editing, setEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(value || '');
+  const [saving, setSaving] = useState(false);
+  const textareaRef = React.useRef(null);
+
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.select();
+    }
+  }, [editing]);
+
+  useEffect(() => {
+    setTempValue(value || '');
+  }, [value]);
+
+  const handleSave = async () => {
+    if (saving) return;
+
+    const newValue = tempValue.trim() || null;
+    const oldValue = value?.trim() || null;
+
+    // Se não mudou, apenas fechar
+    if (newValue === oldValue) {
+      setEditing(false);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSave(newValue);
+      setEditing(false);
+    } catch (err) {
+      console.error('Error saving notes:', err);
+      setTempValue(value || '');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setTempValue(value || '');
+      setEditing(false);
+    }
+    // Enter sem shift para salvar, com shift para quebra de linha
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
+  // Se não pode editar e não tem valor, não mostrar nada
+  if (!canEdit && !value) {
+    return null;
+  }
+
+  // Modo edição
+  if (editing) {
+    return (
+      <div className="okr-monthly-item__notes okr-monthly-item__notes--editing">
+        <textarea
+          ref={textareaRef}
+          value={tempValue}
+          onChange={e => setTempValue(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="okr-notes-textarea"
+          disabled={saving}
+          placeholder={placeholder}
+          rows={3}
+        />
+        <small className="okr-notes-hint">Enter para salvar · Esc para cancelar</small>
+      </div>
+    );
+  }
+
+  // Modo visualização (com valor)
+  if (value) {
+    return (
+      <div
+        className={`okr-monthly-item__notes ${canEdit ? 'okr-monthly-item__notes--editable' : ''}`}
+        onClick={() => canEdit && setEditing(true)}
+        title={canEdit ? 'Clique para editar' : undefined}
+      >
+        <strong>Observação:</strong> {value}
+        {canEdit && (
+          <svg className="okr-edit-icon" viewBox="0 0 24 24" width="12" height="12">
+            <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+          </svg>
+        )}
+      </div>
+    );
+  }
+
+  // Modo visualização (sem valor, usuário privilegiado - mostrar placeholder)
+  return (
+    <div
+      className="okr-monthly-item__notes okr-monthly-item__notes--placeholder"
+      onClick={() => setEditing(true)}
+      title="Clique para adicionar observação"
+    >
+      <svg viewBox="0 0 24 24" width="14" height="14">
+        <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+      </svg>
+      {placeholder}
+    </div>
   );
 }
 
@@ -1155,6 +1293,7 @@ export default function KeyResultDetail() {
 
   // Dialogs
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [checkInInitialMonth, setCheckInInitialMonth] = useState(null);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [showEditRecoveryDialog, setShowEditRecoveryDialog] = useState(false);
@@ -1230,13 +1369,10 @@ export default function KeyResultDetail() {
     fetchData();
   }, [fetchData]);
 
-  // Calculate consolidated value
-  const consolidatedValue = useMemo(() => {
-    if (!kr) return 0;
+  // Calculate automatic value based on consolidation type (for suggestion/reference)
+  const calculatedValue = useMemo(() => {
+    if (!kr || checkIns.length === 0) return null;
     const type = kr.consolidation_type || 'last_value';
-
-    if (type === 'manual') return kr.atual || 0;
-    if (checkIns.length === 0) return kr.atual || 0;
 
     if (type === 'sum') {
       return checkIns.reduce((sum, c) => sum + (c.valor || 0), 0);
@@ -1246,62 +1382,38 @@ export default function KeyResultDetail() {
       return Math.round((sum / checkIns.length) * 100) / 100;
     }
 
-    // last_value
+    // last_value - retorna o último valor de check-in
     const sorted = [...checkIns].sort((a, b) => {
       if (a.ano !== b.ano) return b.ano - a.ano;
       return b.mes - a.mes;
     });
-    return sorted[0]?.valor || kr.atual || 0;
+    return sorted[0]?.valor ?? null;
   }, [kr, checkIns]);
 
-  // Calculate progress
+  // Consolidated value (manual) - this is what determines the progress/farol
+  const consolidatedValue = useMemo(() => {
+    if (!kr) return 0;
+    return kr.atual ?? 0;
+  }, [kr]);
+
+  // Calculate progress: Realizado Acumulado / Planejado Acumulado
   const progress = useMemo(() => {
     if (!kr) return 0;
-    const metaFinal = kr.meta || 0;
-    const type = kr.consolidation_type || 'last_value';
+    const planejado = kr.planejado_acumulado || 0;
+    const realizado = kr.atual || 0;
 
-    // Para "último valor" com metas mensais, usar a meta do período atual
-    if (type === 'last_value' && kr.monthly_targets && checkIns.length > 0) {
-      const sorted = [...checkIns].sort((a, b) => {
-        if (a.ano !== b.ano) return b.ano - a.ano;
-        return b.mes - a.mes;
-      });
-      const lastCheckIn = sorted[0];
-      const periodKey = lastCheckIn.mes?.toString() || lastCheckIn.mes;
-      const metaPeriodo = kr.monthly_targets[periodKey];
+    // Se planejado é 0, retorna 100 se realizado também é 0
+    if (planejado === 0) return realizado === 0 ? 100 : 0;
 
-      // Se existe meta definida para o período
-      if (metaPeriodo !== undefined && metaPeriodo !== null) {
-        const valor = lastCheckIn.valor || 0;
-
-        // Se meta do período é 0 e valor é 0, atingiu 100%
-        if (metaPeriodo === 0 && valor === 0) return 100;
-
-        // Se meta do período é 0 mas valor > 0, calcular baseado na meta final
-        if (metaPeriodo === 0) {
-          if (metaFinal === 0) return 100;
-          return Math.min(Math.max(Math.round((valor / metaFinal) * 100), 0), 100);
-        }
-
-        // Calcular progresso em relação à meta do período
-        if (kr.is_inverse) {
-          if (valor <= metaPeriodo) return 100;
-          return Math.min(Math.max(Math.round((metaPeriodo / valor) * 100), 0), 100);
-        }
-        return Math.min(Math.max(Math.round((valor / metaPeriodo) * 100), 0), 100);
-      }
-    }
-
-    // Fallback: cálculo baseado na meta final
-    if (metaFinal === 0) return consolidatedValue === 0 ? 100 : 0;
-
+    // Para indicadores inversos (quanto menor, melhor)
     if (kr.is_inverse) {
-      if (consolidatedValue <= metaFinal) return 100;
-      return Math.min(Math.max(Math.round((metaFinal / consolidatedValue) * 100), 0), 100);
+      if (realizado <= planejado) return 100;
+      return Math.min(Math.max(Math.round((planejado / realizado) * 100), 0), 100);
     }
 
-    return Math.min(Math.max(Math.round((consolidatedValue / metaFinal) * 100), 0), 100);
-  }, [kr, consolidatedValue, checkIns]);
+    // Cálculo padrão: realizado / planejado
+    return Math.min(Math.max(Math.round((realizado / planejado) * 100), 0), 100);
+  }, [kr]);
 
   const trend = useMemo(() => {
     if (progress > 60) return 'up';
@@ -1363,6 +1475,24 @@ export default function KeyResultDetail() {
 
   const monthsBehind = monthlyComparison.filter(m => m.needsRecoveryPlan);
 
+  // Meses passados que não têm check-in de "Realizado" preenchido
+  const monthsNotFilled = useMemo(() => {
+    const currentMonth = new Date().getMonth() + 1; // 1-12
+    const currentYear = new Date().getFullYear();
+    const krYear = parseInt(objective?.quarter?.split('-')[1]) || currentYear;
+
+    return periodComparison.filter(m => {
+      // Só considera meses passados (não o mês atual)
+      const isPastMonth = (krYear < currentYear) ||
+                          (krYear === currentYear && m.month < currentMonth);
+
+      // Não tem check-in preenchido (valor nulo ou inexistente)
+      const notFilled = !m.checkIn || m.checkIn.valor === null || m.checkIn.valor === undefined;
+
+      return isPastMonth && notFilled;
+    });
+  }, [periodComparison, objective]);
+
   const formatValue = (value) => {
     if (!kr) return value;
     if (value === null || value === undefined) return '-';
@@ -1376,6 +1506,12 @@ export default function KeyResultDetail() {
     if (progress >= 100) return 'success';
     if (progress >= 70) return 'warning';
     return 'danger';
+  };
+
+  // Abre o dialog de check-in, opcionalmente com um mês específico
+  const openCheckInDialog = (month = null) => {
+    setCheckInInitialMonth(month);
+    setShowCheckInDialog(true);
   };
 
   const handleDeleteKR = async () => {
@@ -1478,6 +1614,84 @@ export default function KeyResultDetail() {
       throw err;
     }
   };
+
+  // Handler para atualizar observações inline
+  const handleUpdateNotes = async (checkIn, newNotes) => {
+    if (!checkIn?.id) return;
+
+    try {
+      const response = await axios.put(`/api/okrs/check-ins/${checkIn.id}`, {
+        notas: newNotes || null
+      }, { withCredentials: true });
+      if (!response.data.success) throw new Error(response.data.error);
+      fetchData();
+    } catch (err) {
+      console.error('Error updating notes:', err);
+      alert('Erro ao atualizar observação: ' + (err.response?.data?.error || err.message));
+      throw err;
+    }
+  };
+
+  // Handler para atualizar valor manual (acumulado) do KR
+  const handleUpdateManualValue = async (newValue) => {
+    if (!kr?.id) return;
+
+    try {
+      const response = await axios.put(`/api/okrs/key-results/${kr.id}`, {
+        atual: newValue ?? 0
+      }, { withCredentials: true });
+      if (!response.data.success) throw new Error(response.data.error);
+      fetchData();
+    } catch (err) {
+      console.error('Error updating manual value:', err);
+      alert('Erro ao atualizar valor: ' + (err.response?.data?.error || err.message));
+      throw err;
+    }
+  };
+
+  // Handler para atualizar planejado acumulado
+  const handleUpdatePlanejado = async (newValue) => {
+    if (!kr?.id) return;
+
+    try {
+      const response = await axios.put(`/api/okrs/key-results/${kr.id}`, {
+        planejado_acumulado: newValue ?? 0
+      }, { withCredentials: true });
+      if (!response.data.success) throw new Error(response.data.error);
+      fetchData();
+    } catch (err) {
+      console.error('Error updating planejado:', err);
+      alert('Erro ao atualizar planejado: ' + (err.response?.data?.error || err.message));
+      throw err;
+    }
+  };
+
+  // Calcular sugestão de planejado baseado nas metas mensais
+  const suggestedPlanejado = useMemo(() => {
+    if (!kr?.monthly_targets) return null;
+    const targets = kr.monthly_targets;
+    const currentMonth = new Date().getMonth() + 1;
+    const type = kr.consolidation_type || 'last_value';
+
+    // Pegar metas até o mês atual
+    const relevantMonths = Object.keys(targets)
+      .map(Number)
+      .filter(m => m <= currentMonth)
+      .sort((a, b) => a - b);
+
+    if (relevantMonths.length === 0) return null;
+
+    if (type === 'sum') {
+      return relevantMonths.reduce((sum, m) => sum + (targets[m] || 0), 0);
+    }
+    if (type === 'average') {
+      const sum = relevantMonths.reduce((acc, m) => acc + (targets[m] || 0), 0);
+      return Math.round((sum / relevantMonths.length) * 100) / 100;
+    }
+    // last_value - retorna a meta do último mês
+    const lastMonth = relevantMonths[relevantMonths.length - 1];
+    return targets[lastMonth] ?? null;
+  }, [kr]);
 
   const status = kr?.status || 'on_track';
   const statusInfo = statusConfig[status] || statusConfig.on_track;
@@ -1604,57 +1818,150 @@ export default function KeyResultDetail() {
       {/* Progress Card */}
       <section className="okr-section">
         <div className="okr-kr-progress-card">
-          <div className="okr-kr-progress-card__circle-container">
-            <div className={`okr-kr-progress-card__circle okr-kr-progress-card__circle--${getProgressColor()}`}>
-              <span className="okr-kr-progress-card__percent">{progress}%</span>
+          {/* Left: Circle + Meta */}
+          <div className="okr-kr-progress-card__left">
+            <div className="okr-kr-progress-card__circle-container">
+              <div className={`okr-kr-progress-card__circle okr-kr-progress-card__circle--${getProgressColor()}`}>
+                <span className="okr-kr-progress-card__percent">{progress}%</span>
+              </div>
+              {trend !== 'stable' && (
+                <span className={`okr-kr-progress-card__trend okr-kr-progress-card__trend--${trend}`}>
+                  <svg viewBox="0 0 24 24" width="14" height="14">
+                    {trend === 'up' ? (
+                      <path fill="currentColor" d="M7 14l5-5 5 5z"/>
+                    ) : (
+                      <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+                    )}
+                  </svg>
+                </span>
+              )}
             </div>
-            {trend !== 'stable' && (
-              <span className={`okr-kr-progress-card__trend okr-kr-progress-card__trend--${trend}`}>
-                <svg viewBox="0 0 24 24" width="16" height="16">
-                  {trend === 'up' ? (
-                    <path fill="currentColor" d="M7 14l5-5 5 5z"/>
-                  ) : (
-                    <path fill="currentColor" d="M7 10l5 5 5-5z"/>
-                  )}
-                </svg>
-              </span>
-            )}
-          </div>
-
-          <div className="okr-kr-progress-card__values">
-            <div className="okr-kr-progress-card__value-item">
-              <span className="okr-kr-progress-card__value-label">Inicial</span>
-              <span className="okr-kr-progress-card__value-num">{formatValue(kr.valor_inicial || 0)}</span>
-            </div>
-            <div className="okr-kr-progress-card__value-item okr-kr-progress-card__value-item--main">
-              <span className="okr-kr-progress-card__value-label">
-                Consolidado
-                <small>({consolidationTypeLabels[kr.consolidation_type || 'last_value']})</small>
-              </span>
-              <span className="okr-kr-progress-card__value-num okr-kr-progress-card__value-num--primary">
-                {formatValue(consolidatedValue)}
-              </span>
-            </div>
-            <div className="okr-kr-progress-card__value-item">
-              <span className="okr-kr-progress-card__value-label">Meta</span>
-              <span className="okr-kr-progress-card__value-num">{formatValue(kr.meta || 0)}</span>
-            </div>
-            <div className="okr-kr-progress-card__value-item">
-              <span className="okr-kr-progress-card__value-label">Check-ins</span>
-              <span className="okr-kr-progress-card__value-num">{checkIns.length}</span>
+            <div className="okr-kr-progress-card__meta">
+              <span className="okr-kr-progress-card__meta-label">META</span>
+              <span className="okr-kr-progress-card__meta-value">{formatValue(kr.meta)}</span>
             </div>
           </div>
 
+          {/* Center: Input Cards */}
+          <div className="okr-kr-progress-card__inputs">
+            {/* Planejado Acumulado */}
+            <div className="okr-kr-progress-card__input-card">
+              <div className="okr-kr-progress-card__input-header">
+                <span className="okr-kr-progress-card__input-label">PLANEJADO</span>
+                {isPrivileged && (
+                  <span className="okr-kr-progress-card__input-edit-hint">
+                    <svg viewBox="0 0 24 24" width="10" height="10">
+                      <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                    editar
+                  </span>
+                )}
+              </div>
+              <div className="okr-kr-progress-card__input-field">
+                <EditableValue
+                  value={kr.planejado_acumulado ?? 0}
+                  onSave={handleUpdatePlanejado}
+                  canEdit={isPrivileged}
+                  formatFn={formatValue}
+                />
+              </div>
+              {suggestedPlanejado !== null && (
+                <div className="okr-kr-progress-card__input-suggestion">
+                  <span className="okr-kr-progress-card__input-suggestion-icon">💡</span>
+                  <span>Sugestão: <strong>{formatValue(suggestedPlanejado)}</strong></span>
+                  <span className="okr-kr-progress-card__input-suggestion-type">
+                    ({consolidationTypeLabels[kr.consolidation_type || 'last_value']})
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Realizado Acumulado */}
+            <div className="okr-kr-progress-card__input-card">
+              <div className="okr-kr-progress-card__input-header">
+                <span className="okr-kr-progress-card__input-label">REALIZADO</span>
+                {isPrivileged && (
+                  <span className="okr-kr-progress-card__input-edit-hint">
+                    <svg viewBox="0 0 24 24" width="10" height="10">
+                      <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                    editar
+                  </span>
+                )}
+              </div>
+              <div className="okr-kr-progress-card__input-field">
+                <EditableValue
+                  value={consolidatedValue}
+                  onSave={handleUpdateManualValue}
+                  canEdit={isPrivileged}
+                  formatFn={formatValue}
+                />
+              </div>
+              {calculatedValue !== null && (
+                <div className="okr-kr-progress-card__input-suggestion">
+                  <span className="okr-kr-progress-card__input-suggestion-icon">💡</span>
+                  <span>Sugestão: <strong>{formatValue(calculatedValue)}</strong></span>
+                  <span className="okr-kr-progress-card__input-suggestion-type">
+                    ({consolidationTypeLabels[kr.consolidation_type || 'last_value']})
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Owner */}
           {kr.responsavel && (
-            <div className="okr-kr-progress-card__owner">
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            <div className="okr-kr-progress-card__right">
+              <div className="okr-kr-progress-card__owner">
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+                <span>{kr.responsavel}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Help text footer inside card */}
+          {isPrivileged && (
+            <div className="okr-kr-progress-card__footer">
+              <svg viewBox="0 0 24 24" width="12" height="12">
+                <path fill="currentColor" d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
               </svg>
-              <span>{kr.responsavel}</span>
+              <span>Preencha <strong>Planejado</strong> e <strong>Realizado</strong> manualmente</span>
             </div>
           )}
         </div>
       </section>
+
+      {/* Alert for unfilled past periods */}
+      {monthsNotFilled.length > 0 && isPrivileged && (
+        <section className="okr-section">
+          <div className="okr-alert okr-alert--warning">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+              <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+            <div className="okr-alert__content">
+              <h3 className="okr-alert__title">
+                {useQuarters ? 'Trimestres' : 'Meses'} Pendentes de Preenchimento
+              </h3>
+              <p className="okr-alert__text">
+                Os seguintes {useQuarters ? 'trimestres' : 'meses'} passados ainda não têm o valor Realizado preenchido:
+              </p>
+              <div className="okr-alert__buttons">
+                {monthsNotFilled.map(m => (
+                  <button
+                    key={m.key}
+                    className="okr-btn okr-btn--warning-outline okr-btn--sm"
+                    onClick={() => openCheckInDialog(m.month)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Alert for periods behind */}
       {monthsBehind.length > 0 && isPrivileged && (
@@ -1707,7 +2014,7 @@ export default function KeyResultDetail() {
                 )}
               </h2>
               {isPrivileged && (
-                <button className="okr-btn okr-btn--primary okr-btn--sm" onClick={() => setShowCheckInDialog(true)}>
+                <button className="okr-btn okr-btn--primary okr-btn--sm" onClick={() => openCheckInDialog()}>
                   <svg viewBox="0 0 24 24" width="14" height="14">
                     <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                   </svg>
@@ -1778,10 +2085,13 @@ export default function KeyResultDetail() {
                         </div>
                       )}
 
-                      {checkIn?.notas && (
-                        <div className="okr-monthly-item__notes">
-                          <strong>Observação:</strong> {checkIn.notas}
-                        </div>
+                      {(checkIn?.notas || (checkIn && isPrivileged)) && (
+                        <EditableNotes
+                          value={checkIn?.notas}
+                          canEdit={isPrivileged}
+                          onSave={(newNotes) => handleUpdateNotes(checkIn, newNotes)}
+                          placeholder="Adicionar observação..."
+                        />
                       )}
 
                       {needsRecoveryPlan && isPrivileged && (
@@ -1914,12 +2224,16 @@ export default function KeyResultDetail() {
       {/* Dialogs */}
       <CheckInDialog
         open={showCheckInDialog}
-        onClose={() => setShowCheckInDialog(false)}
+        onClose={() => {
+          setShowCheckInDialog(false);
+          setCheckInInitialMonth(null);
+        }}
         onSuccess={fetchData}
         kr={kr}
         checkIns={checkIns}
         quarter={objective?.quarter}
         objective={objective}
+        initialMonth={checkInInitialMonth}
       />
 
       <CommentDialog

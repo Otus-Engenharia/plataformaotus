@@ -1859,6 +1859,16 @@
   background: rgba(239, 68, 68, 0.1);
 }
 
+.okr-btn--warning-outline {
+  background: transparent;
+  border: 1px solid var(--color-warning, #f59e0b);
+  color: var(--color-warning, #d97706);
+}
+
+.okr-btn--warning-outline:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
 /* ==========================================================================
    Checkbox
    ========================================================================== */
@@ -1933,130 +1943,388 @@
 }
 
 /* ==========================================================================
-   KR Progress Card
+   KR Progress Card - Premium Refined Design
    ========================================================================== */
 .okr-kr-progress-card {
   display: flex;
-  align-items: center;
-  gap: 2rem;
-  padding: 1.5rem;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
   background: var(--color-bg-elevated, #ffffff);
-  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.06));
+  border-radius: 20px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 16px rgba(0, 0, 0, 0.04);
   animation: okrFadeInUp 0.5s ease-out backwards;
+  overflow: hidden;
 }
 
+/* Left Section - Progress Circle + Meta */
+.okr-kr-progress-card__left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.75rem 2rem;
+  background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+  border-right: 1px solid rgba(0, 0, 0, 0.04);
+  min-width: 160px;
+}
+
+/* Progress Circle */
 .okr-kr-progress-card__circle-container {
   position: relative;
   flex-shrink: 0;
 }
 
 .okr-kr-progress-card__circle {
-  width: 96px;
-  height: 96px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  background: #fff;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.okr-kr-progress-card__circle--success {
-  background: rgba(34, 197, 94, 0.1);
+.okr-kr-progress-card__circle::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  border: 3px solid transparent;
 }
 
-.okr-kr-progress-card__circle--warning {
-  background: rgba(245, 158, 11, 0.1);
+.okr-kr-progress-card__circle--success::before {
+  border-color: rgba(34, 197, 94, 0.25);
+  border-top-color: #22c55e;
+  border-right-color: #22c55e;
 }
 
-.okr-kr-progress-card__circle--danger {
-  background: rgba(239, 68, 68, 0.1);
+.okr-kr-progress-card__circle--warning::before {
+  border-color: rgba(245, 158, 11, 0.25);
+  border-top-color: #f59e0b;
+}
+
+.okr-kr-progress-card__circle--danger::before {
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 .okr-kr-progress-card__percent {
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.5px;
   color: var(--color-text-primary, #1a1a1a);
 }
 
 .okr-kr-progress-card__circle--success .okr-kr-progress-card__percent {
-  color: var(--color-success, #22c55e);
+  color: #16a34a;
 }
 
 .okr-kr-progress-card__circle--warning .okr-kr-progress-card__percent {
-  color: var(--color-warning, #f59e0b);
+  color: #d97706;
 }
 
 .okr-kr-progress-card__circle--danger .okr-kr-progress-card__percent {
-  color: var(--color-danger, #ef4444);
+  color: #dc2626;
 }
 
 .okr-kr-progress-card__trend {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 24px;
-  height: 24px;
+  bottom: -2px;
+  right: -2px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-bg-elevated, #ffffff);
+  background: #fff;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
-.okr-kr-progress-card__trend--up { color: var(--color-success, #22c55e); }
-.okr-kr-progress-card__trend--down { color: var(--color-danger, #ef4444); }
+.okr-kr-progress-card__trend--up { color: #16a34a; }
+.okr-kr-progress-card__trend--down { color: #dc2626; }
 
-.okr-kr-progress-card__values {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  flex: 1;
-  text-align: center;
+/* Meta Badge */
+.okr-kr-progress-card__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
 }
 
-.okr-kr-progress-card__value-item {
-  padding: 0.5rem;
-}
-
-.okr-kr-progress-card__value-item--main {
-  border-left: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
-  border-right: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
-}
-
-.okr-kr-progress-card__value-label {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--color-text-muted, #999999);
-  margin-bottom: 0.25rem;
-}
-
-.okr-kr-progress-card__value-label small {
-  display: block;
-  font-size: 0.625rem;
-  opacity: 0.7;
-}
-
-.okr-kr-progress-card__value-num {
-  font-size: 1.125rem;
+.okr-kr-progress-card__meta-label {
+  font-size: 0.5625rem;
   font-weight: 600;
-  color: var(--color-text-primary, #1a1a1a);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-muted, #888);
 }
 
-.okr-kr-progress-card__value-num--primary {
-  font-size: 1.25rem;
-  color: var(--color-accent-dark, #e6bb00);
+.okr-kr-progress-card__meta-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-accent-dark, #b8960a);
+  background: linear-gradient(135deg, rgba(255, 208, 0, 0.15) 0%, rgba(255, 208, 0, 0.05) 100%);
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 208, 0, 0.25);
+}
+
+/* Center Section - Input Cards */
+.okr-kr-progress-card__inputs {
+  display: flex;
+  gap: 1px;
+  flex: 1;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.okr-kr-progress-card__input-card {
+  flex: 1;
+  background: #fff;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.2s ease;
+}
+
+.okr-kr-progress-card__input-card:hover {
+  background: rgba(255, 208, 0, 0.02);
+}
+
+.okr-kr-progress-card__input-card:focus-within {
+  background: rgba(255, 208, 0, 0.04);
+}
+
+/* Input Header */
+.okr-kr-progress-card__input-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.okr-kr-progress-card__input-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  color: var(--color-text-muted, #777);
+}
+
+.okr-kr-progress-card__input-edit-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.5625rem;
+  color: var(--color-text-muted, #aaa);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.okr-kr-progress-card__input-card:hover .okr-kr-progress-card__input-edit-hint {
+  opacity: 1;
+}
+
+/* Input Field */
+.okr-kr-progress-card__input-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+}
+
+.okr-kr-progress-card__input-field .okr-editable-value,
+.okr-kr-progress-card__input-field .okr-value-display {
+  font-size: 1.875rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--color-text-primary, #1a1a1a);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0.25rem 0.75rem;
+  border-radius: 8px;
+  border: 2px dashed transparent;
+}
+
+.okr-kr-progress-card__input-card:hover .okr-kr-progress-card__input-field .okr-editable-value,
+.okr-kr-progress-card__input-card:hover .okr-kr-progress-card__input-field .okr-value-display {
+  border-color: rgba(255, 208, 0, 0.4);
+  background: rgba(255, 208, 0, 0.04);
+}
+
+.okr-kr-progress-card__input-field .okr-editable-value:hover {
+  color: var(--color-accent-dark, #b8960a);
+}
+
+.okr-kr-progress-card__input-field .okr-edit-icon {
+  opacity: 0;
+  margin-left: 0.375rem;
+  transition: opacity 0.2s;
+}
+
+.okr-kr-progress-card__input-card:hover .okr-kr-progress-card__input-field .okr-edit-icon {
+  opacity: 0.5;
+}
+
+.okr-kr-progress-card__input-field .okr-inline-input {
+  font-size: 1.875rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  text-align: center;
+  width: 100%;
+  max-width: 120px;
+  border: none;
+  border-bottom: 2px solid var(--color-accent, #FFD000);
+  background: transparent;
+  outline: none;
+  padding: 0.25rem;
+}
+
+/* Suggestion Below Input */
+.okr-kr-progress-card__input-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding-top: 0.625rem;
+  margin-top: auto;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999);
+}
+
+.okr-kr-progress-card__input-suggestion-icon {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.okr-kr-progress-card__input-suggestion strong {
+  color: var(--color-text-secondary, #666);
+  font-weight: 600;
+}
+
+.okr-kr-progress-card__input-suggestion-type {
+  opacity: 0.6;
+  font-size: 0.625rem;
+}
+
+/* Right Section - Owner */
+.okr-kr-progress-card__right {
+  display: flex;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  background: #fafafa;
+  border-left: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .okr-kr-progress-card__owner {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  background: #fff;
+  border-radius: 24px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #555);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+
+.okr-kr-progress-card__owner svg {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* Footer inside card - help text */
+.okr-kr-progress-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
   padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  color: var(--color-text-muted, #999999);
+  background: rgba(0, 0, 0, 0.015);
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #aaa);
+  flex-basis: 100%;
+  width: 100%;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.okr-kr-progress-card__footer svg {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.okr-kr-progress-card__footer strong {
+  color: var(--color-text-secondary, #777);
+  font-weight: 600;
+}
+
+/* Help text outside card */
+.okr-help-text {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.875rem 1.25rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(59, 130, 246, 0.02) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.1);
+  border-radius: 12px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #555);
+  line-height: 1.5;
+  margin-top: 1rem;
+}
+
+.okr-help-text svg {
+  flex-shrink: 0;
+  color: #3b82f6;
+  opacity: 0.8;
+}
+
+.okr-help-text strong {
+  color: var(--color-accent-dark, #b8960a);
+  font-weight: 600;
+}
+
+/* Responsive Progress Card */
+@media (max-width: 900px) {
+  .okr-kr-progress-card {
+    flex-direction: column;
+  }
+
+  .okr-kr-progress-card__left {
+    flex-direction: row;
+    gap: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    min-width: auto;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .okr-kr-progress-card__inputs {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .okr-kr-progress-card__right {
+    border-left: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    justify-content: center;
+    width: 100%;
+  }
 }
 
 /* ==========================================================================
@@ -2080,25 +2348,7 @@
   }
 }
 
-@media (max-width: 768px) {
-  .okr-kr-progress-card {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .okr-kr-progress-card__values {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .okr-kr-progress-card__value-item--main {
-    border-left: none;
-    border-right: none;
-    grid-column: span 2;
-    border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
-    border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
-    padding: 1rem 0;
-  }
-}
+/* Old responsive styles removed - see new responsive in progress card section */
 
 /* ==========================================================================
    Card Component
@@ -2273,6 +2523,91 @@
 
 .okr-monthly-item__notes strong {
   color: var(--color-accent-dark, #e6bb00);
+}
+
+.okr-monthly-item__notes--editable {
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.okr-monthly-item__notes--editable:hover {
+  background: rgba(255, 208, 0, 0.1);
+  border-color: rgba(255, 208, 0, 0.4);
+}
+
+.okr-monthly-item__notes--editable .okr-edit-icon {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.okr-monthly-item__notes--editable:hover .okr-edit-icon {
+  opacity: 1;
+}
+
+.okr-monthly-item__notes--placeholder {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: var(--color-text-tertiary, #999);
+  margin-top: 0.5rem;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.okr-monthly-item__notes--placeholder:hover {
+  background: rgba(255, 208, 0, 0.05);
+  border-color: rgba(255, 208, 0, 0.3);
+  color: var(--color-text-secondary, #666);
+}
+
+.okr-monthly-item__notes--placeholder svg {
+  opacity: 0.5;
+}
+
+.okr-monthly-item__notes--editing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.okr-notes-textarea {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  border: 1px solid rgba(255, 208, 0, 0.4);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-primary, #333);
+  resize: vertical;
+  min-height: 60px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.okr-notes-textarea:focus {
+  border-color: var(--color-accent, #FFD000);
+  box-shadow: 0 0 0 3px rgba(255, 208, 0, 0.15);
+}
+
+.okr-notes-textarea::placeholder {
+  color: var(--color-text-tertiary, #999);
+}
+
+.okr-notes-hint {
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary, #999);
+  text-align: right;
 }
 
 /* ==========================================================================
@@ -2463,6 +2798,20 @@
 .okr-alert--danger > svg {
   color: var(--color-danger, #ef4444);
   flex-shrink: 0;
+}
+
+.okr-alert--warning {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.okr-alert--warning > svg {
+  color: var(--color-warning, #f59e0b);
+  flex-shrink: 0;
+}
+
+.okr-alert--warning .okr-alert__title {
+  color: var(--color-warning, #d97706);
 }
 
 .okr-alert__content {

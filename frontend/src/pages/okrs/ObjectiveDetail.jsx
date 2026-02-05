@@ -11,26 +11,10 @@ function Portal({ children }) {
   return createPortal(children, document.body);
 }
 
-// Get consolidated value
-function getConsolidatedValue(kr, checkIns = []) {
+// Get consolidated value (manual - kr.atual)
+function getConsolidatedValue(kr) {
   if (!kr) return 0;
-  let consolidatedValue = kr.atual || 0;
-
-  if (checkIns && checkIns.length > 0) {
-    const sortedCheckIns = [...checkIns].sort((a, b) =>
-      (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes)
-    );
-
-    if (kr.consolidation_type === 'sum') {
-      consolidatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0);
-    } else if (kr.consolidation_type === 'average') {
-      consolidatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0) / checkIns.length;
-    } else {
-      consolidatedValue = sortedCheckIns[0]?.valor || kr.atual || 0;
-    }
-  }
-
-  return consolidatedValue;
+  return kr.atual ?? 0;
 }
 
 // Status configuration
@@ -43,8 +27,8 @@ const statusConfig = {
 
 // Key Result Card Component
 function KeyResultCard({ kr, checkIns = [], index }) {
-  const progress = useMemo(() => calculateKRProgress(kr, checkIns), [kr, checkIns]);
-  const consolidatedValue = useMemo(() => getConsolidatedValue(kr, checkIns), [kr, checkIns]);
+  const progress = useMemo(() => calculateKRProgress(kr), [kr]);
+  const consolidatedValue = useMemo(() => getConsolidatedValue(kr), [kr]);
 
   const getProgressColor = () => {
     if (progress >= 100) return 'success';
