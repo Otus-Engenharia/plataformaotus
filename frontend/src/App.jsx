@@ -772,17 +772,17 @@ function Sidebar({ collapsed, onToggle, area }) {
   );
 }
 
-function TopBar() {
+function TopBar({ title }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isHomeRoute = location.pathname === '/home' || location.pathname === '/';
-  
+
   return (
     <header className="topbar">
       <div className="topbar-brand">
         {!isHomeRoute && (
-          <button 
-            onClick={() => navigate('/home')} 
+          <button
+            onClick={() => navigate('/home')}
             className="topbar-home-button"
             title="Voltar ao início"
           >
@@ -793,7 +793,7 @@ function TopBar() {
           </button>
         )}
         <img src="/otus_branca.png" alt="Otus Engenharia" className="nav-logo" />
-        <h1 className="topbar-title">Indicadores do Setor de Projeto</h1>
+        <h1 className="topbar-title">{title || 'Plataforma Otus'}</h1>
       </div>
       <div className="topbar-mission">Elevando o padrão de se construir</div>
     </header>
@@ -883,6 +883,19 @@ function AppContent() {
   const currentArea = getCurrentArea();
   const showSidebar = !isHomeRoute && currentArea !== null;
   const showTopBar = !isHomeRoute;
+
+  // Mapeamento de áreas para títulos do TopBar
+  const areaTitles = {
+    lideres: 'Líderes de Projeto',
+    cs: 'Customer Success',
+    apoio: 'Apoio de Projetos',
+    projetos: 'Projetos',
+    configuracoes: 'Configurações',
+    indicadores: 'Indicadores do Setor de Projetos',
+    okrs: 'OKRs',
+    workspace: 'Gestão de Tarefas',
+  };
+  const currentTitle = currentArea ? areaTitles[currentArea] : 'Plataforma Otus';
   // Não mostrar Oráculo na Home, OKRs, Indicadores legados e área /ind
   const isOKRsOrIndicadoresRoute = location.pathname.startsWith('/okrs') || location.pathname.startsWith('/ind');
   const showOracle = !isHomeRoute && !isOKRsOrIndicadoresRoute;
@@ -918,7 +931,7 @@ function AppContent() {
   // Demais páginas: com TopBar, Sidebar (se aplicável), e Oráculo
   return (
     <div className="app app-shell">
-      {showTopBar && <TopBar />}
+      {showTopBar && <TopBar title={currentTitle} />}
       <div className="app-body">
         {showSidebar && (
           <Sidebar
