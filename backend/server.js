@@ -2658,7 +2658,7 @@ app.post('/api/okrs/key-results/:id/comments', requireAuth, async (req, res) => 
   try {
     const krId = req.params.id;
     const { content } = req.body;
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseServiceClient();
 
     const { data, error } = await supabase
       .from('okr_comments')

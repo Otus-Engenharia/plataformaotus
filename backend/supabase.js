@@ -1828,6 +1828,20 @@ export async function getIndicadorById(indicadorId) {
     throw new Error(`Erro ao buscar indicador: ${error.message}`);
   }
 
+  // Busca dados da pessoa (pelo person_email)
+  let pessoa = null;
+  if (data.person_email) {
+    const { data: user, error: userError } = await supabase
+      .from(USERS_OTUS_TABLE)
+      .select('id, name, email, avatar_url')
+      .eq('email', data.person_email)
+      .single();
+
+    if (!userError && user) {
+      pessoa = user;
+    }
+  }
+
   // Busca check-ins do indicador
   const checkIns = await fetchCheckIns(indicadorId);
   // Busca planos de recuperação
@@ -1835,6 +1849,7 @@ export async function getIndicadorById(indicadorId) {
 
   return {
     ...data,
+    pessoa,
     check_ins: checkIns,
     recovery_plans: recoveryPlans,
   };
@@ -2333,6 +2348,7 @@ export async function fetchPeopleWithScores(filters = {}) {
       id,
       name,
       email,
+      avatar_url,
       setor:setor_id(id, name),
       cargo:position_id(id, name, is_leadership)
     `)
@@ -2398,6 +2414,7 @@ export async function getPersonById(personId, filters = {}) {
       name,
       email,
       phone,
+      avatar_url,
       setor:setor_id(id, name),
       cargo:position_id(id, name, is_leadership),
       leader:leader_id(id, name)
@@ -2522,6 +2539,7 @@ export async function fetchUsersWithRoles() {
       status,
       is_active,
       leader_id,
+      avatar_url,
       setor:setor_id(id, name),
       cargo:position_id(id, name, is_leadership),
       team:team_id(id, team_number, team_name)
@@ -2669,6 +2687,28 @@ export async function updateUserLeader(userId, leaderId) {
 
   if (error) {
     throw new Error(`Erro ao atualizar líder do usuário: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza avatar (foto de perfil) de um usuário
+ * @param {string} userId - ID do usuário
+ * @param {string} avatarUrl - URL do avatar (Google profile photo)
+ * @returns {Promise<Object>}
+ */
+export async function updateUserAvatar(userId, avatarUrl) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .update({ avatar_url: avatarUrl })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar avatar do usuário: ${error.message}`);
   }
 
   return data;

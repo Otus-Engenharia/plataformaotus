@@ -69,7 +69,11 @@ function PersonCard({ person, index }) {
       style={{ animationDelay: `${50 + index * 30}ms` }}
     >
       <div className="person-row__avatar">
-        {getInitials(person.name)}
+        {person.avatar_url ? (
+          <img src={person.avatar_url} alt="" className="avatar-img" />
+        ) : (
+          getInitials(person.name)
+        )}
       </div>
 
       <div className="person-row__info">

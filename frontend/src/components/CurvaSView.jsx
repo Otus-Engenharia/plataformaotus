@@ -722,10 +722,6 @@ function CurvaSView() {
     return true;
   };
 
-  const shouldShowLineLabel = (context) => {
-    const dataLength = context.dataset?.data?.length || 0;
-    return context.dataIndex === dataLength - 1;
-  };
 
   if (loading) {
     return (
@@ -910,7 +906,7 @@ function CurvaSView() {
                   maintainAspectRatio: false,
                   plugins: {
                     legend: {
-                      position: 'top',
+                      position: 'right',
                     },
                     tooltip: {
                       callbacks: {
@@ -923,11 +919,7 @@ function CurvaSView() {
                       }
                     },
                     datalabels: {
-                      display: shouldShowLineLabel,
-                      formatter: function(value) {
-                        const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
-                        return formatCurrencyCompact(numValue);
-                      }
+                      display: false
                     }
                   },
                   scales: {
@@ -935,16 +927,15 @@ function CurvaSView() {
                       ticks: {
                         maxRotation: 45,
                         minRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 12
+                        autoSkip: false
                       }
                     },
                     y: {
                       beginAtZero: true,
                       ticks: {
                         callback: function(value) {
-                          const numValue = typeof value === 'number' 
-                            ? value 
+                          const numValue = typeof value === 'number'
+                            ? value
                             : parseFloat(value) || 0;
                           return formatCurrency(numValue);
                         }
@@ -980,13 +971,13 @@ function CurvaSView() {
                     plugins: {
                     legend: {
                       display: true,
-                      position: 'top'
+                      position: 'right'
                     },
                       tooltip: {
                         callbacks: {
                           label: function(context) {
-                            const value = typeof context.parsed.y === 'number' 
-                              ? context.parsed.y 
+                            const value = typeof context.parsed.y === 'number'
+                              ? context.parsed.y
                               : parseFloat(context.parsed.y) || 0;
                             return formatCurrency(value);
                           }
@@ -1005,16 +996,15 @@ function CurvaSView() {
                         ticks: {
                           maxRotation: 45,
                           minRotation: 45,
-                          autoSkip: true,
-                          maxTicksLimit: 12
+                          autoSkip: false
                         }
                       },
                       y: {
                         beginAtZero: true,
                         ticks: {
                           callback: function(value) {
-                            const numValue = typeof value === 'number' 
-                              ? value 
+                            const numValue = typeof value === 'number'
+                              ? value
                               : parseFloat(value) || 0;
                             return formatCurrency(numValue);
                           }
@@ -1048,13 +1038,13 @@ function CurvaSView() {
                     plugins: {
                     legend: {
                       display: true,
-                      position: 'top'
+                      position: 'right'
                     },
                       tooltip: {
                         callbacks: {
                           label: function(context) {
-                            const value = typeof context.parsed.y === 'number' 
-                              ? context.parsed.y 
+                            const value = typeof context.parsed.y === 'number'
+                              ? context.parsed.y
                               : parseFloat(context.parsed.y) || 0;
                             return formatCurrency(value);
                           }
@@ -1073,16 +1063,15 @@ function CurvaSView() {
                         ticks: {
                           maxRotation: 45,
                           minRotation: 45,
-                          autoSkip: true,
-                          maxTicksLimit: 12
+                          autoSkip: false
                         }
                       },
                       y: {
                         beginAtZero: true,
                         ticks: {
                           callback: function(value) {
-                            const numValue = typeof value === 'number' 
-                              ? value 
+                            const numValue = typeof value === 'number'
+                              ? value
                               : parseFloat(value) || 0;
                             return formatCurrency(numValue);
                           }
@@ -1116,13 +1105,13 @@ function CurvaSView() {
                     plugins: {
                     legend: {
                       display: true,
-                      position: 'top'
+                      position: 'right'
                     },
                       tooltip: {
                         callbacks: {
                           label: function(context) {
-                            const value = typeof context.parsed.y === 'number' 
-                              ? context.parsed.y 
+                            const value = typeof context.parsed.y === 'number'
+                              ? context.parsed.y
                               : parseFloat(context.parsed.y) || 0;
                             return `${Math.round(value)}h`;
                           }
@@ -1141,8 +1130,7 @@ function CurvaSView() {
                         ticks: {
                           maxRotation: 45,
                           minRotation: 45,
-                          autoSkip: true,
-                          maxTicksLimit: 12
+                          autoSkip: false
                         }
                       },
                       y: {

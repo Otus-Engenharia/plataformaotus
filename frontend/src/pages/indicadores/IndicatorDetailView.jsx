@@ -385,7 +385,11 @@ export default function IndicatorDetailView() {
           {indicador.pessoa && (
             <>
               <div className="owner-avatar">
-                {indicador.pessoa.name?.charAt(0) || 'U'}
+                {indicador.pessoa.avatar_url ? (
+                  <img src={indicador.pessoa.avatar_url} alt="" className="avatar-img" />
+                ) : (
+                  indicador.pessoa.name?.charAt(0) || 'U'
+                )}
               </div>
               <span className="owner-name">{indicador.pessoa.name}</span>
               <span className="owner-separator">·</span>

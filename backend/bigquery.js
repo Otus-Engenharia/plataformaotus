@@ -522,6 +522,7 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
       ) AS valor_margem_acumulado
     FROM dados_combinados
     WHERE mes IS NOT NULL
+      AND mes <= CURRENT_DATE()
     ORDER BY project_code_norm, mes ASC
   `;
 

@@ -19,7 +19,11 @@ export default function PersonCard({ person, compact = false }) {
     return (
       <Link to={`/ind/pessoa/${person.id}`} className="person-card person-card-compact">
         <div className="person-avatar person-avatar-sm">
-          {initials}
+          {person.avatar_url ? (
+            <img src={person.avatar_url} alt="" className="avatar-img" />
+          ) : (
+            initials
+          )}
         </div>
         <div className="person-info">
           <span className="person-name">{person.name}</span>
@@ -35,7 +39,11 @@ export default function PersonCard({ person, compact = false }) {
       <Link to={`/ind/pessoa/${person.id}`} className="person-card-link">
         <div className="person-card-header">
           <div className="person-avatar">
-            {initials}
+            {person.avatar_url ? (
+              <img src={person.avatar_url} alt="" className="avatar-img" />
+            ) : (
+              initials
+            )}
           </div>
           <div className="person-info">
             <h3 className="person-name">{person.name}</h3>

@@ -11,7 +11,7 @@ dotenv.config();
 
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { getSupabaseClient } from './supabase.js';
+import { getSupabaseClient, updateUserAvatar } from './supabase.js';
 // Mantém auth-config.js como fallback para compatibilidade
 import { hasAccess as hasAccessLegacy, getUserRole as getUserRoleLegacy, isPrivileged as isPrivilegedLegacy, getLeaderNameFromEmail } from './auth-config.js';
 
@@ -99,12 +99,20 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
             return done(new Error('Acesso restrito. A plataforma está disponível apenas para líderes e admins.'), null);
           }
 
+          // Atualiza avatar do Google no banco (não bloqueia o login se falhar)
+          const pictureUrl = profile.photos?.[0]?.value || null;
+          if (pictureUrl) {
+            updateUserAvatar(dbUser.id, pictureUrl).catch(err => {
+              console.warn('Não foi possível atualizar avatar:', err.message);
+            });
+          }
+
           // Retorna informações do usuário do banco
           const user = {
             id: dbUser.id,
             email: email,
             name: dbUser.name || profile.displayName || profile.name?.givenName || 'Usuário',
-            picture: profile.photos?.[0]?.value || null,
+            picture: pictureUrl,
             role: dbUser.role,
             team_id: dbUser.team_id,
           };

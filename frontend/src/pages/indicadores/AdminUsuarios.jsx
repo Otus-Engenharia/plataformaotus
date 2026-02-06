@@ -510,7 +510,11 @@ export default function AdminUsuarios() {
                       <td className="col-user">
                         <div className="user-cell-v3">
                           <div className={`avatar-v3 ${getAvatarClass(user.role)} ${!isActive ? 'avatar-disabled' : ''}`}>
-                            {getInitials(user.name)}
+                            {user.avatar_url ? (
+                              <img src={user.avatar_url} alt="" className="avatar-img" />
+                            ) : (
+                              getInitials(user.name)
+                            )}
                           </div>
                           <div className="user-meta-v3">
                             <span className="user-name-v3">
@@ -577,7 +581,11 @@ export default function AdminUsuarios() {
 
             <div className="modal-user-header">
               <div className={`avatar-v2 avatar-lg ${getAvatarClass(editingUser.role)}`}>
-                {getInitials(editingUser.name)}
+                {editingUser.avatar_url ? (
+                  <img src={editingUser.avatar_url} alt="" className="avatar-img" />
+                ) : (
+                  getInitials(editingUser.name)
+                )}
               </div>
               <div className="modal-user-info">
                 <h2>{editingUser.name}</h2>
