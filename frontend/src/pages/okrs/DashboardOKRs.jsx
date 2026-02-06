@@ -2,20 +2,23 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
-import { calculateKRProgress } from '../../utils/indicator-utils';
+import { calculateKRProgress, calculateKRProgressVsMeta } from '../../utils/indicator-utils';
 import './DashboardOKRs.css';
 
 // Score Ring Component (matching indicadores style)
 function ScoreRing({ score, size = 72, strokeWidth = 6 }) {
+  const isNotMeasured = score === null;
+  const displayScore = isNotMeasured ? 0 : score;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const progress = Math.min(score, 100) / 100;
+  const progress = Math.min(displayScore, 100) / 100;
   const offset = circumference - (progress * circumference);
 
   const getColor = () => {
-    if (score >= 100) return 'var(--color-success)';
-    if (score >= 70) return 'var(--color-warning)';
-    return 'var(--color-danger)';
+    if (isNotMeasured) return '#9ca3af'; // muted
+    if (score >= 100) return '#22c55e';  // success
+    if (score >= 70) return '#f59e0b';   // warning
+    return '#ef4444';                     // danger
   };
 
   return (
@@ -28,19 +31,21 @@ function ScoreRing({ score, size = 72, strokeWidth = 6 }) {
           r={radius}
           strokeWidth={strokeWidth}
         />
-        <circle
-          className="okr-score-ring-progress"
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          style={{ stroke: getColor() }}
-        />
+        {!isNotMeasured && (
+          <circle
+            className="okr-score-ring-progress"
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            style={{ stroke: getColor() }}
+          />
+        )}
       </svg>
       <span className="okr-score-ring-value" style={{ color: getColor() }}>
-        {score.toFixed(0)}%
+        {isNotMeasured ? '-' : `${displayScore.toFixed(0)}%`}
       </span>
     </div>
   );
@@ -66,27 +71,138 @@ function MetricCard({ title, value, subtitle, icon, variant = 'default', delay =
   );
 }
 
+/**
+ * Calcula o progresso de um OKR (média ponderada dos KRs pelo peso_kr)
+ * @param {Object} objective - Objetivo com key_results
+ * @param {Array} checkIns - Check-ins de todos os KRs
+ * @returns {number} Progresso de 0 a 100
+ */
+function calculateOKRProgressWeighted(objective, checkIns = []) {
+  const krs = objective.key_results || [];
+  if (krs.length === 0) return null; // Sem KRs = não medido
+
+  let totalKrWeight = 0;
+  let weightedSum = 0;
+
+  krs.forEach(kr => {
+    const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
+    const progress = calculateKRProgress(kr, krCheckIns);
+
+    // Ignorar KRs não medidos (progress === null)
+    if (progress !== null) {
+      const peso = kr.peso || 1;
+      weightedSum += progress * peso;
+      totalKrWeight += peso;
+    }
+  });
+
+  // Se todos os KRs são não medidos, retorna null
+  return totalKrWeight > 0 ? Math.round(weightedSum / totalKrWeight) : null;
+}
+
+/**
+ * Calcula o progresso de um setor (soma dos progressos × peso absoluto)
+ * Peso representa % de contribuição para o total (soma ideal = 100%)
+ * @param {Array} objectives - Objetivos do setor
+ * @param {Array} checkIns - Check-ins de todos os KRs
+ * @returns {number} Progresso de 0 a 100
+ */
+function calculateSectorProgressWeighted(objectives, checkIns = []) {
+  if (objectives.length === 0) return null; // Sem objetivos = não medido
+
+  let weightedSum = 0;
+  let hasMeasured = false;
+
+  objectives.forEach(obj => {
+    const okrProgress = calculateOKRProgressWeighted(obj, checkIns);
+    // Ignorar OKRs não medidos (progress === null)
+    if (okrProgress !== null) {
+      const peso = obj.peso || 1; // peso em %
+      weightedSum += (okrProgress / 100) * peso; // contribuição absoluta
+      hasMeasured = true;
+    }
+  });
+
+  // Se todos os OKRs são não medidos, retorna null
+  return hasMeasured ? Math.round(weightedSum) : null;
+}
+
+/**
+ * Calcula o progresso de um setor vs meta final (soma dos progressos × peso absoluto)
+ * Peso representa % de contribuição para o total (soma ideal = 100%)
+ * @param {Array} objectives - Objetivos do setor
+ * @returns {number|null} Progresso percentual ou null se não medido
+ */
+function calculateSectorProgressVsMeta(objectives) {
+  if (objectives.length === 0) return null;
+
+  let weightedSum = 0;
+  let hasMeasured = false;
+
+  objectives.forEach(obj => {
+    const okrProgressVsMeta = calculateOKRProgressVsMeta(obj);
+    // Ignorar OKRs não medidos
+    if (okrProgressVsMeta !== null) {
+      const peso = obj.peso || 1; // peso em %
+      weightedSum += (okrProgressVsMeta / 100) * peso; // contribuição absoluta
+      hasMeasured = true;
+    }
+  });
+
+  return hasMeasured ? Math.round(weightedSum) : null;
+}
+
+/**
+ * Calcula o progresso de um OKR vs meta final (média ponderada dos KRs)
+ * @param {Object} objective - Objetivo com key_results
+ * @returns {number|null} Progresso percentual ou null se não medido
+ */
+function calculateOKRProgressVsMeta(objective) {
+  const krs = objective.key_results || [];
+  if (krs.length === 0) return null;
+
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  krs.forEach(kr => {
+    const progressVsMeta = calculateKRProgressVsMeta(kr);
+    if (progressVsMeta !== null) {
+      const peso = kr.peso || 1;
+      weightedSum += progressVsMeta * peso;
+      totalWeight += peso;
+    }
+  });
+
+  return totalWeight > 0 ? Math.round(weightedSum / totalWeight) : null;
+}
+
+/**
+ * Retorna a cor baseada no valor de progresso
+ */
+function getStatusColor(value) {
+  if (value === null) return 'muted';
+  if (value >= 100) return 'success';
+  if (value >= 70) return 'warning';
+  return 'danger';
+}
+
 // Sector Card Component
 function SectorCard({ sector, objectives, checkIns, index }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
 
-  // Calculate sector progress
+  // Calculate sector progress using hierarchical weighted average
+  // Setor = média ponderada dos OKRs (peso_okr), onde OKR = média ponderada dos KRs (peso_kr)
+  const sectorProgress = calculateSectorProgressWeighted(objectives, checkIns);
+  const sectorProgressVsMeta = calculateSectorProgressVsMeta(objectives);
+
   const sectorKRs = objectives.flatMap(obj => obj.key_results || []);
-  const totalWeight = sectorKRs.reduce((sum, kr) => sum + (kr.peso || 1), 0);
-
-  const sectorProgress = totalWeight > 0
-    ? sectorKRs.reduce((acc, kr) => {
-        const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
-        const progress = calculateKRProgress(kr, krCheckIns);
-        return acc + progress * (kr.peso || 1);
-      }, 0) / totalWeight
-    : 0;
-
   const completedKRs = sectorKRs.filter(kr => kr.status === 'completed').length;
-  const delayedKRs = sectorKRs.filter(kr => kr.status === 'delayed').length;
+  // Conta KRs atrasados (delayed) e em risco (at_risk)
+  const delayedKRs = sectorKRs.filter(kr => kr.status === 'delayed' || kr.status === 'at_risk').length;
 
   const getStatusColor = () => {
+    if (sectorProgress === null) return 'muted';
     if (sectorProgress >= 100) return 'success';
     if (sectorProgress >= 70) return 'warning';
     return 'danger';
@@ -112,7 +228,16 @@ function SectorCard({ sector, objectives, checkIns, index }) {
           </div>
         </div>
         <div className="okr-sector-card__progress">
-          <ScoreRing score={sectorProgress} size={56} strokeWidth={5} />
+          <div className="okr-sector-card__progress-dual">
+            <div className="okr-sector-card__progress-item">
+              <span className="okr-sector-card__progress-label">Ritmo</span>
+              <ScoreRing score={sectorProgress} size={48} strokeWidth={4} />
+            </div>
+            <div className="okr-sector-card__progress-item">
+              <span className="okr-sector-card__progress-label">Progresso</span>
+              <ScoreRing score={sectorProgressVsMeta} size={48} strokeWidth={4} />
+            </div>
+          </div>
           <span className={`okr-sector-card__chevron ${expanded ? 'expanded' : ''}`}>
             <svg viewBox="0 0 24 24" width="20" height="20">
               <path fill="currentColor" d="M7 10l5 5 5-5z"/>
@@ -141,23 +266,53 @@ function SectorCard({ sector, objectives, checkIns, index }) {
           </div>
 
           <div className="okr-sector-card__objectives">
-            {objectives.map(obj => (
-              <Link
-                key={obj.id}
-                to={`/okrs/objetivo/${obj.id}`}
-                className="okr-objective-mini"
-              >
-                <div className="okr-objective-mini__info">
-                  <span className="okr-objective-mini__cycle">
-                    {obj.cycle === 'annual' ? 'Anual' : obj.cycle?.toUpperCase()}
-                  </span>
-                  <span className="okr-objective-mini__title">{obj.titulo}</span>
-                </div>
-                <span className="okr-objective-mini__krs">
-                  {(obj.key_results || []).length} KR{(obj.key_results || []).length !== 1 ? 's' : ''}
-                </span>
-              </Link>
-            ))}
+            {objectives.map(obj => {
+              const objProgress = calculateOKRProgressWeighted(obj, checkIns);
+              const objProgressVsMeta = calculateOKRProgressVsMeta(obj);
+              const responsavel = obj.responsavel_user?.name || obj.responsavel;
+              const avatarUrl = obj.responsavel_user?.avatar_url;
+
+              return (
+                <Link
+                  key={obj.id}
+                  to={`/okrs/objetivo/${obj.id}`}
+                  className="okr-objective-mini"
+                >
+                  <div className="okr-objective-mini__header">
+                    <span className="okr-objective-mini__cycle">
+                      {obj.quarter?.includes('Anual') ? 'Anual' : obj.quarter?.split('-')[0]?.toUpperCase() || 'Q1'}
+                    </span>
+                    <span className="okr-objective-mini__title">{obj.titulo}</span>
+                  </div>
+                  <div className="okr-objective-mini__metrics">
+                    <span className="okr-objective-mini__metric">
+                      <span className="okr-objective-mini__metric-label">Ritmo</span>
+                      <span className={`okr-objective-mini__metric-value okr-objective-mini__metric-value--${getStatusColor(objProgress)}`}>
+                        {objProgress === null ? '-' : `${objProgress}%`}
+                      </span>
+                    </span>
+                    <span className="okr-objective-mini__metric">
+                      <span className="okr-objective-mini__metric-label">Progresso</span>
+                      <span className={`okr-objective-mini__metric-value okr-objective-mini__metric-value--${getStatusColor(objProgressVsMeta)}`}>
+                        {objProgressVsMeta === null ? '-' : `${objProgressVsMeta}%`}
+                      </span>
+                    </span>
+                    <span className="okr-objective-mini__metric">
+                      <span className="okr-objective-mini__metric-label">Peso</span>
+                      <span className="okr-objective-mini__metric-value">{obj.peso || 1}%</span>
+                    </span>
+                    {responsavel && (
+                      <div className="okr-objective-mini__avatar" title={responsavel}>
+                        {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{responsavel.charAt(0).toUpperCase()}</span>}
+                      </div>
+                    )}
+                    <span className="okr-objective-mini__krs">
+                      {(obj.key_results || []).length} KR{(obj.key_results || []).length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
           <button
@@ -274,19 +429,18 @@ export default function DashboardOKRs() {
   const totalKRs = objectives.reduce((acc, obj) => acc + (obj.key_results?.length || 0), 0);
   const completedKRs = objectives.reduce((acc, obj) =>
     acc + (obj.key_results?.filter(kr => kr.status === 'completed').length || 0), 0);
-  const delayedKRs = objectives.reduce((acc, obj) =>
-    acc + (obj.key_results?.filter(kr => kr.status === 'delayed').length || 0), 0);
-
-  // Calculate overall progress
-  const allKRs = objectives.flatMap(obj => obj.key_results || []);
-  const totalWeight = allKRs.reduce((sum, kr) => sum + (kr.peso || 1), 0);
-  const overallProgress = totalWeight > 0
-    ? allKRs.reduce((acc, kr) => {
-        const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
-        const progress = calculateKRProgress(kr, krCheckIns);
-        return acc + progress * (kr.peso || 1);
-      }, 0) / totalWeight
-    : 0;
+  // Conta KRs atrasados (status delayed/at_risk OU ritmo < 70%)
+  const delayedKRs = objectives.reduce((acc, obj) => {
+    const krs = obj.key_results || [];
+    return acc + krs.filter(kr => {
+      // Prioriza status explícito
+      if (kr.status === 'delayed' || kr.status === 'at_risk') return true;
+      // Senão, verifica ritmo
+      const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
+      const progress = calculateKRProgress(kr, krCheckIns);
+      return progress !== null && progress < 70;
+    }).length;
+  }, 0);
 
   // Get objectives by sector
   const getObjectivesBySector = (sectorId) =>
@@ -301,6 +455,51 @@ export default function DashboardOKRs() {
 
   // Company objectives (no sector)
   const companyObjectives = objectives.filter(obj => !obj.setor_id);
+
+  // Calculate overall progress as average of all sectors with OKRs
+  // Progresso Geral = média simples do progresso de todos os setores (que têm OKRs medidos)
+  const sectorsWithOKRs = sectors.filter(sector =>
+    getObjectivesBySector(sector.id).length > 0
+  );
+
+  const overallProgress = (() => {
+    if (sectorsWithOKRs.length === 0) return null;
+
+    let totalProgress = 0;
+    let measuredSectors = 0;
+
+    sectorsWithOKRs.forEach(sector => {
+      const sectorObjectives = getObjectivesBySector(sector.id);
+      const sectorCheckIns = getCheckInsBySector(sector.id);
+      const sectorProgress = calculateSectorProgressWeighted(sectorObjectives, sectorCheckIns);
+      // Ignorar setores não medidos
+      if (sectorProgress !== null) {
+        totalProgress += sectorProgress;
+        measuredSectors++;
+      }
+    });
+
+    return measuredSectors > 0 ? totalProgress / measuredSectors : null;
+  })();
+
+  // Progresso vs Meta Final = média simples do progresso vs meta de todos os setores
+  const overallProgressVsMeta = (() => {
+    if (sectorsWithOKRs.length === 0) return null;
+
+    let totalProgress = 0;
+    let measuredSectors = 0;
+
+    sectorsWithOKRs.forEach(sector => {
+      const sectorObjectives = getObjectivesBySector(sector.id);
+      const sectorProgressVsMeta = calculateSectorProgressVsMeta(sectorObjectives);
+      if (sectorProgressVsMeta !== null) {
+        totalProgress += sectorProgressVsMeta;
+        measuredSectors++;
+      }
+    });
+
+    return measuredSectors > 0 ? totalProgress / measuredSectors : null;
+  })();
 
   if (loading) {
     return (
@@ -395,24 +594,39 @@ export default function DashboardOKRs() {
 
       {/* Metrics Grid */}
       <section className="okr-metrics-grid">
-        <div className="okr-metric-card okr-metric-card--featured" style={{ animationDelay: '0ms' }}>
+        {/* Card RITMO */}
+        <div className="okr-metric-card okr-metric-card--featured okr-metric-card--ritmo" style={{ animationDelay: '0ms' }}>
+          <div className="okr-metric-card__glow okr-metric-card__glow--featured" />
+          <div className="okr-metric-card__content">
+            <div className="okr-metric-card__header">
+              <span className="okr-metric-card__title">Ritmo Geral</span>
+              <span className="okr-metric-card__subtitle-inline">vs planejado</span>
+            </div>
+            <div className="okr-metric-card--featured__body">
+              <ScoreRing score={overallProgress} size={64} strokeWidth={6} />
+              <div className="okr-metric-card--featured__info">
+                <span className="okr-metric-card--featured__percent">
+                  {overallProgress === null ? '-' : `${overallProgress.toFixed(0)}%`}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card PROGRESSO */}
+        <div className="okr-metric-card okr-metric-card--featured okr-metric-card--progresso" style={{ animationDelay: '25ms' }}>
           <div className="okr-metric-card__glow okr-metric-card__glow--featured" />
           <div className="okr-metric-card__content">
             <div className="okr-metric-card__header">
               <span className="okr-metric-card__title">Progresso Geral</span>
-              <svg viewBox="0 0 24 24" width="20" height="20" className="okr-metric-card__trend-icon">
-                {overallProgress >= 70 ? (
-                  <path fill="currentColor" d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
-                ) : (
-                  <path fill="currentColor" d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/>
-                )}
-              </svg>
+              <span className="okr-metric-card__subtitle-inline">vs meta final</span>
             </div>
             <div className="okr-metric-card--featured__body">
-              <ScoreRing score={overallProgress} size={80} strokeWidth={7} />
+              <ScoreRing score={overallProgressVsMeta} size={64} strokeWidth={6} />
               <div className="okr-metric-card--featured__info">
-                <span className="okr-metric-card--featured__percent">{overallProgress.toFixed(0)}%</span>
-                <span className="okr-metric-card__subtitle">{objectives.length} objetivos</span>
+                <span className="okr-metric-card--featured__percent">
+                  {overallProgressVsMeta === null ? '-' : `${overallProgressVsMeta.toFixed(0)}%`}
+                </span>
               </div>
             </div>
           </div>
@@ -512,16 +726,16 @@ export default function DashboardOKRs() {
           </h2>
         </div>
 
-        {sectors.length === 0 ? (
+        {sectorsWithOKRs.length === 0 ? (
           <div className="okr-empty-state">
             <div className="okr-empty-state__icon">
               <svg viewBox="0 0 24 24" width="64" height="64">
                 <path fill="currentColor" d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/>
               </svg>
             </div>
-            <h3 className="okr-empty-state__title">Nenhum setor cadastrado</h3>
+            <h3 className="okr-empty-state__title">Nenhum OKR cadastrado</h3>
             <p className="okr-empty-state__description">
-              Cadastre setores para organizar os OKRs por área.
+              Cadastre OKRs nos setores para visualizar o progresso.
             </p>
             {isPrivileged && (
               <Link to="/ind/admin/setores" className="okr-btn okr-btn--primary">
@@ -531,7 +745,7 @@ export default function DashboardOKRs() {
           </div>
         ) : (
           <div className="okr-sectors-grid">
-            {sectors.map((sector, index) => (
+            {sectorsWithOKRs.map((sector, index) => (
               <SectorCard
                 key={sector.id}
                 sector={sector}

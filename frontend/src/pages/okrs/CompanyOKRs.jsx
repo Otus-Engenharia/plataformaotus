@@ -9,7 +9,7 @@ import './DashboardOKRs.css';
 function ObjectiveCard({ objective, checkIns = [], index }) {
   const { progress, statusCounts } = useMemo(() => {
     const krs = objective.key_results || [];
-    if (krs.length === 0) return { progress: 0, statusCounts: { completed: 0, delayed: 0, at_risk: 0 } };
+    if (krs.length === 0) return { progress: null, statusCounts: { completed: 0, delayed: 0, at_risk: 0 } };
 
     let weightedProgress = 0;
     let totalWeight = 0;
@@ -19,8 +19,11 @@ function ObjectiveCard({ objective, checkIns = [], index }) {
       const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
       const krProgress = calculateKRProgress(kr, krCheckIns);
 
-      weightedProgress += krProgress * (kr.peso || 1);
-      totalWeight += (kr.peso || 1);
+      // Ignorar KRs não medidos (progress === null)
+      if (krProgress !== null) {
+        weightedProgress += krProgress * (kr.peso || 1);
+        totalWeight += (kr.peso || 1);
+      }
 
       if (kr.status === 'completed') counts.completed++;
       else if (kr.status === 'delayed') counts.delayed++;
@@ -28,12 +31,13 @@ function ObjectiveCard({ objective, checkIns = [], index }) {
     });
 
     return {
-      progress: totalWeight > 0 ? Math.round(weightedProgress / totalWeight) : 0,
+      progress: totalWeight > 0 ? Math.round(weightedProgress / totalWeight) : null,
       statusCounts: counts
     };
   }, [objective.key_results, checkIns]);
 
   const getProgressColor = () => {
+    if (progress === null) return 'muted';
     if (progress >= 100) return 'success';
     if (progress >= 70) return 'warning';
     return 'danger';
@@ -73,13 +77,13 @@ function ObjectiveCard({ objective, checkIns = [], index }) {
         <div className="okr-objective-card__progress-header">
           <span className="okr-objective-card__progress-label">Progresso</span>
           <span className={`okr-objective-card__progress-value okr-objective-card__progress-value--${getProgressColor()}`}>
-            {progress}%
+            {progress === null ? '-' : `${progress}%`}
           </span>
         </div>
         <div className="okr-objective-card__progress">
           <div
             className={`okr-objective-card__progress-bar okr-objective-card__progress-bar--${getProgressColor()}`}
-            style={{ '--progress': `${progress}%` }}
+            style={{ '--progress': progress === null ? '0%' : `${progress}%` }}
           />
         </div>
       </div>
@@ -133,7 +137,8 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, sectors = [] }) {
     nivel: 'empresa',
     quarter: `Anual-${new Date().getFullYear()}`,
     setor_id: null,
-    responsavel: ''
+    responsavel: '',
+    peso: 1
   });
 
   const handleSubmit = async (e) => {
@@ -147,6 +152,8 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, sectors = [] }) {
         nivel: formData.nivel,
         quarter: formData.quarter,
         responsavel: formData.responsavel.trim() || user?.name || 'Não definido',
+        peso: formData.peso || 1,
+        setor_id: formData.setor_id,
       }, { withCredentials: true });
 
       if (!response.data.success) throw new Error(response.data.error);
@@ -159,7 +166,8 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, sectors = [] }) {
         nivel: 'empresa',
         quarter: `Anual-${new Date().getFullYear()}`,
         setor_id: null,
-        responsavel: ''
+        responsavel: '',
+        peso: 1
       });
     } catch (err) {
       console.error('Error creating objective:', err);
@@ -260,15 +268,32 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, sectors = [] }) {
               </div>
             )}
 
-            <div className="okr-form-group">
-              <label className="okr-form-label">Responsável</label>
-              <input
-                type="text"
-                className="okr-form-input"
-                value={formData.responsavel}
-                onChange={e => setFormData({ ...formData, responsavel: e.target.value })}
-                placeholder="Nome do responsável"
-              />
+            <div className="okr-form-row">
+              <div className="okr-form-group">
+                <label className="okr-form-label">Responsável</label>
+                <input
+                  type="text"
+                  className="okr-form-input"
+                  value={formData.responsavel}
+                  onChange={e => setFormData({ ...formData, responsavel: e.target.value })}
+                  placeholder="Nome do responsável"
+                />
+              </div>
+
+              <div className="okr-form-group">
+                <label className="okr-form-label">Peso do Objetivo</label>
+                <input
+                  type="number"
+                  className="okr-form-input"
+                  value={formData.peso}
+                  onChange={e => setFormData({ ...formData, peso: parseFloat(e.target.value) || 1 })}
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  placeholder="1"
+                />
+                <span className="okr-form-hint">Peso para cálculo do progresso do setor</span>
+              </div>
             </div>
           </div>
 

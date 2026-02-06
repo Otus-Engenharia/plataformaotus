@@ -89,10 +89,12 @@ const icons = {
 
 // Progress Ring Component
 function ProgressRing({ progress, size = 52, strokeWidth = 4, className = '' }) {
+  const isNotMeasured = progress === null;
+  const displayProgress = isNotMeasured ? 0 : progress;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (progress / 100) * circumference;
-  const color = progress >= 100 ? 'success' : progress >= 70 ? 'warning' : 'danger';
+  const offset = circumference - (displayProgress / 100) * circumference;
+  const color = isNotMeasured ? 'muted' : displayProgress >= 100 ? 'success' : displayProgress >= 70 ? 'warning' : 'danger';
 
   return (
     <div className={`chk-kr-item__progress-ring ${className}`} style={{ width: size, height: size }}>
@@ -112,7 +114,7 @@ function ProgressRing({ progress, size = 52, strokeWidth = 4, className = '' }) 
           strokeDashoffset={offset}
         />
       </svg>
-      <span className="chk-kr-item__progress-value">{progress}%</span>
+      <span className="chk-kr-item__progress-value">{isNotMeasured ? '-' : `${progress}%`}</span>
     </div>
   );
 }
@@ -412,8 +414,11 @@ export default function CheckInMeeting() {
         };
       }
 
-      grouped[sectorId].weightedProgress += kr.progress * (kr.peso || 1);
-      grouped[sectorId].totalWeight += (kr.peso || 1);
+      // Ignorar KRs não medidos (progress === null) no cálculo de agregação
+      if (kr.progress !== null) {
+        grouped[sectorId].weightedProgress += kr.progress * (kr.peso || 1);
+        grouped[sectorId].totalWeight += (kr.peso || 1);
+      }
       grouped[sectorId].krsCount++;
       if (kr.monthsBehind.length > 0) grouped[sectorId].delayedCount++;
     });

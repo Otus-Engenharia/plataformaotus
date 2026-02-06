@@ -453,7 +453,7 @@ export default function HistoryOKRs() {
           const krsWithProgress = objKRs.map(kr => {
             const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
             return calculateKRProgress(kr, krCheckIns);
-          });
+          }).filter(p => p !== null); // Ignorar KRs não medidos
 
           const avgProgress = krsWithProgress.length > 0
             ? krsWithProgress.reduce((a, b) => a + b, 0) / krsWithProgress.length
@@ -519,7 +519,7 @@ export default function HistoryOKRs() {
           const krsProgress = objKRs.map(kr => {
             const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
             return calculateKRProgress(kr, krCheckIns);
-          });
+          }).filter(p => p !== null); // Ignorar KRs não medidos
           return krsProgress.length > 0 ? krsProgress.reduce((a, b) => a + b, 0) / krsProgress.length : 0;
         });
         return Math.round(progresses.reduce((a, b) => a + b, 0) / progresses.length);

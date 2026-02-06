@@ -1258,13 +1258,18 @@ export async function queryIssues(construflowId) {
 
 /**
  * Busca dados de cronograma (smartsheet_data_projetos) para um projeto específico
- * 
+ *
+ * Suporta duas formas de identificação:
+ * 1. smartsheetId numérico (formato antigo)
+ * 2. projectName com match normalizado (formato novo após mudança BigQuery)
+ *
  * @param {string} smartsheetId - ID do projeto no SmartSheet (corresponde ao smartsheet_id do portfólio)
+ * @param {string} projectName - Nome do projeto no portfólio (opcional, usado para match normalizado)
  * @returns {Promise<Array>} - Dados do cronograma
  */
-export async function queryCronograma(smartsheetId) {
-  if (!smartsheetId) {
-    throw new Error('smartsheetId é obrigatório');
+export async function queryCronograma(smartsheetId, projectName = null) {
+  if (!smartsheetId && !projectName) {
+    throw new Error('smartsheetId ou projectName é obrigatório');
   }
 
   // Valida se projectId está configurado
@@ -1273,7 +1278,7 @@ export async function queryCronograma(smartsheetId) {
     console.error(`❌ ${errorMsg}`);
     throw new Error(errorMsg);
   }
-  
+
   // Valida se o BigQuery client está inicializado
   if (!bigquery) {
     const errorMsg = 'Cliente BigQuery não foi inicializado corretamente';
@@ -1282,23 +1287,18 @@ export async function queryCronograma(smartsheetId) {
   }
 
   // Dataset e tabela do SmartSheet
-  // O caminho completo é: dadosindicadores.smartsheet.smartsheet_data_projetos
-  // No BigQuery, isso significa: projectId = dadosindicadores, dataset = smartsheet, table = smartsheet_data_projetos
   const smartsheetProjectId = 'dadosindicadores';
   const smartsheetDataset = 'smartsheet';
   const smartsheetTable = 'smartsheet_data_projetos';
-  
-  // Escapa o smartsheetId para evitar SQL injection
-  const escapedId = String(smartsheetId).replace(/'/g, "''");
-  
+
   console.log(`📅 [queryCronograma] Iniciando busca de cronograma`);
   console.log(`   Projeto BigQuery: ${smartsheetProjectId}`);
   console.log(`   Dataset: ${smartsheetDataset}`);
   console.log(`   Tabela: ${smartsheetTable}`);
-  console.log(`   SmartSheet ID: ${smartsheetId} (escaped: ${escapedId})`);
-  
-  const query = `
-    SELECT 
+  console.log(`   SmartSheet ID: ${smartsheetId}`);
+  console.log(`   Project Name: ${projectName}`);
+
+  const selectFields = `
       ID_Projeto,
       NomeDaPlanilha,
       NomeDaTarefa,
@@ -1320,16 +1320,70 @@ export async function queryCronograma(smartsheetId) {
       VarianciaBaselineOtus,
       ObservacaoOtus,
       LiberaPagamento,
-      MedicaoPagamento
-    FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
-    WHERE ID_Projeto = '${escapedId}'
-    ORDER BY DataDeTermino ASC, NomeDaTarefa ASC
-  `;
+      MedicaoPagamento`;
 
   try {
-    console.log('📅 Executando query de cronograma...');
-    const rows = await executeQuery(query);
-    console.log(`✅ Query de cronograma retornou ${rows.length} linhas`);
+    let rows = [];
+
+    // Estratégia 1: Tentar pelo smartsheetId numérico (formato antigo)
+    if (smartsheetId) {
+      const escapedId = String(smartsheetId).replace(/'/g, "''");
+      console.log('📅 Estratégia 1: Buscando por smartsheetId numérico...');
+
+      const queryById = `
+        SELECT ${selectFields}
+        FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
+        WHERE ID_Projeto = '${escapedId}'
+        ORDER BY DataDeTermino ASC, NomeDaTarefa ASC
+      `;
+
+      rows = await executeQuery(queryById);
+      console.log(`   Resultado: ${rows.length} linhas`);
+    }
+
+    // Estratégia 2: Se não encontrou e tem projectName, tentar match normalizado
+    if (rows.length === 0 && projectName) {
+      console.log('📅 Estratégia 2: Buscando por match normalizado do nome...');
+
+      // Normaliza o projectName removendo caracteres especiais
+      // Ex: ABC_RUA289 -> abcrua289
+      const escapedProjectName = String(projectName).replace(/'/g, "''");
+
+      // Query com match normalizado:
+      // - Remove "Pjt - ", "(Backup...)", espaços, hífens do NomeDaPlanilha
+      // - Remove underscores do projectName
+      // - Compara se um contém o outro
+      // - Exclui backups, cópias e obsoletos
+      const queryByName = `
+        WITH normalized AS (
+          SELECT
+            *,
+            LOWER(REGEXP_REPLACE(
+              REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+              r'[^a-zA-Z0-9]', ''
+            )) AS nome_normalizado
+          FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
+          WHERE NomeDaPlanilha NOT LIKE '%(Backup%'
+            AND NomeDaPlanilha NOT LIKE '%Cópia%'
+            AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+            AND NomeDaPlanilha NOT LIKE '%obsoleto%'
+            AND NomeDaPlanilha NOT LIKE '%Copy%'
+        )
+        SELECT ${selectFields}
+        FROM normalized
+        WHERE nome_normalizado LIKE CONCAT('%', LOWER(REGEXP_REPLACE('${escapedProjectName}', r'[^a-zA-Z0-9]', '')), '%')
+        ORDER BY DataDeTermino ASC, NomeDaTarefa ASC
+      `;
+
+      rows = await executeQuery(queryByName);
+      console.log(`   Resultado: ${rows.length} linhas`);
+
+      if (rows.length > 0) {
+        console.log(`   ✅ Match encontrado via nome normalizado: ${rows[0].NomeDaPlanilha}`);
+      }
+    }
+
+    console.log(`✅ Query de cronograma retornou ${rows.length} linhas no total`);
     return rows;
   } catch (error) {
     console.error('❌ Erro ao buscar cronograma:');
@@ -1379,7 +1433,32 @@ export async function queryProximasTarefasAll(leaderName = null, options = {}) {
   console.log(`   Semanas à frente: ${weeksAhead}`);
   console.log(`   Filtro de líder: ${leaderName || 'Nenhum (todos)'}`);
 
+  // Query com match normalizado para suportar o novo formato de ID_Projeto
+  // O JOIN é feito comparando o nome normalizado da planilha com o nome do projeto
   let query = `
+    WITH smartsheet_normalized AS (
+      SELECT
+        *,
+        -- Normaliza: remove prefixos como (Backup...), caracteres especiais, e converte para minúsculo
+        LOWER(REGEXP_REPLACE(
+          REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+          r'[^a-zA-Z0-9]', ''
+        )) AS nome_normalizado
+      FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
+      WHERE NomeDaPlanilha NOT LIKE '%(Backup%'
+        AND NomeDaPlanilha NOT LIKE '%Cópia%'
+        AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+        AND NomeDaPlanilha NOT LIKE '%obsoleto%'
+        AND NomeDaPlanilha NOT LIKE '%Copy%'
+    ),
+    portfolio_normalized AS (
+      SELECT
+        *,
+        -- Normaliza: remove caracteres especiais e converte para minúsculo
+        LOWER(REGEXP_REPLACE(project_name, r'[^a-zA-Z0-9]', '')) AS nome_normalizado
+      FROM \`${projectId}.${datasetId}.${tablePortfolio}\`
+      WHERE project_name IS NOT NULL
+    )
     SELECT
       s.ID_Projeto,
       s.NomeDaPlanilha AS projeto_nome,
@@ -1393,10 +1472,11 @@ export async function queryProximasTarefasAll(leaderName = null, options = {}) {
       s.rowId,
       s.CaminhoCriticoMarco,
       p.lider,
-      p.nome_time
-    FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\` s
-    INNER JOIN \`${projectId}.${datasetId}.${tablePortfolio}\` p
-      ON CAST(s.ID_Projeto AS STRING) = CAST(p.smartsheet_id AS STRING)
+      p.nome_time,
+      p.project_name
+    FROM smartsheet_normalized s
+    INNER JOIN portfolio_normalized p
+      ON s.nome_normalizado LIKE CONCAT('%', p.nome_normalizado, '%')
     WHERE
       s.DataDeInicio IS NOT NULL
       AND s.DataDeInicio >= CURRENT_DATE()

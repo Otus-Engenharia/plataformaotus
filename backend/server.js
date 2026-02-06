@@ -26,7 +26,7 @@ import {
   fetchCobrancasFeitas, upsertCobranca, fetchTimesList, fetchUsuarioToTime,
   fetchUserViews, updateUserViews, getUserViews, createLog, fetchLogs, countLogsByAction, countViewUsage,
   fetchOKRs, fetchOKRById, createOKR, updateOKR, deleteOKR, createKeyResult, updateKeyResult,
-  fetchOKRCheckIns, createOKRCheckIn, updateOKRCheckIn, deleteOKRCheckIn,
+  fetchOKRCheckIns, createOKRCheckIn, updateOKRCheckIn, deleteOKRCheckIn, recalculateKRConsolidatedValue,
   fetchOKRInitiatives, createOKRInitiative, updateOKRInitiative, deleteOKRInitiative,
   fetchInitiativeComments, fetchCommentsForInitiatives, createInitiativeComment, deleteInitiativeComment,
   fetchIndicadores, createIndicador, updateIndicador, deleteIndicador,
@@ -365,18 +365,42 @@ app.post('/api/auth/dev-login', (req, res) => {
  * Rota: GET /api/auth/user
  * Retorna informações do usuário logado
  */
-app.get('/api/auth/user', requireAuth, (req, res) => {
-  res.json({
-    success: true,
-    user: {
-      id: req.user.id, // Incluído para debug
-      email: req.user.email,
-      name: req.user.name,
-      picture: req.user.picture,
-      role: req.user.role,
-      canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
-    }
-  });
+app.get('/api/auth/user', requireAuth, async (req, res) => {
+  try {
+    // Busca dados do usuário na tabela users_otus para obter setor_id e userId interno
+    const userOtus = await getUserOtusByEmail(req.user.email);
+
+    res.json({
+      success: true,
+      user: {
+        id: req.user.id, // ID do Google/OAuth
+        email: req.user.email,
+        name: req.user.name,
+        picture: req.user.picture,
+        role: req.user.role,
+        canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
+        // Dados do users_otus para controle de acesso por setor/responsável
+        userId: userOtus?.id || null, // ID interno na tabela users_otus
+        setor_id: userOtus?.setor_id || null,
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dados do usuário:', error);
+    // Retorna dados básicos mesmo com erro
+    res.json({
+      success: true,
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        picture: req.user.picture,
+        role: req.user.role,
+        canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
+        userId: null,
+        setor_id: null,
+      }
+    });
+  }
 });
 
 /**
@@ -743,20 +767,22 @@ app.get('/api/curva-s/colaboradores', requireAuth, async (req, res) => {
 app.get('/api/projetos/cronograma', requireAuth, async (req, res) => {
   try {
     const smartsheetId = req.query.smartsheetId;
-    
+    const projectName = req.query.projectName; // Novo parâmetro para match normalizado
+
     console.log(`📅 [API] Recebida requisição para buscar cronograma`);
     console.log(`   Query params:`, req.query);
     console.log(`   SmartSheet ID recebido: ${smartsheetId}`);
+    console.log(`   Project Name recebido: ${projectName}`);
     console.log(`   Usuário: ${req.user?.email || 'N/A'}`);
-    
-    if (!smartsheetId) {
-      console.warn(`⚠️ SmartSheet ID não fornecido`);
+
+    if (!smartsheetId && !projectName) {
+      console.warn(`⚠️ SmartSheet ID e Project Name não fornecidos`);
       return res.status(400).json({
         success: false,
-        error: 'smartsheetId é obrigatório'
+        error: 'smartsheetId ou projectName é obrigatório'
       });
     }
-    
+
     // Se o usuário for líder, valida se o projeto pertence a ele
     let leaderName = null;
     if (!isPrivileged(req.user.email)) {
@@ -771,9 +797,9 @@ app.get('/api/projetos/cronograma', requireAuth, async (req, res) => {
       }
       // TODO: Validar se o projeto pertence ao líder
     }
-    
-    console.log(`📅 Chamando queryCronograma(${smartsheetId})...`);
-    const data = await queryCronograma(smartsheetId);
+
+    console.log(`📅 Chamando queryCronograma(${smartsheetId}, ${projectName})...`);
+    const data = await queryCronograma(smartsheetId, projectName);
     console.log(`✅ queryCronograma retornou ${data.length} resultados`);
     
     res.json({
@@ -2220,6 +2246,11 @@ app.post('/api/okrs/check-ins', requireAuth, async (req, res) => {
 
     const checkIn = await createOKRCheckIn(checkInData);
 
+    // Recalcular valor consolidado se auto_calculate=true
+    if (checkIn.key_result_id) {
+      await recalculateKRConsolidatedValue(checkIn.key_result_id);
+    }
+
     await logAction(req, 'create', 'okr_check_in', checkIn.id, `Check-in OKR criado`);
 
     res.json({
@@ -2243,6 +2274,11 @@ app.put('/api/okrs/check-ins/:id', requireAuth, async (req, res) => {
   try {
     const checkInId = req.params.id;
     const checkIn = await updateOKRCheckIn(checkInId, req.body);
+
+    // Recalcular valor consolidado se auto_calculate=true
+    if (checkIn.key_result_id) {
+      await recalculateKRConsolidatedValue(checkIn.key_result_id);
+    }
 
     await logAction(req, 'update', 'okr_check_in', checkInId, `Check-in OKR atualizado`);
 
@@ -2285,6 +2321,58 @@ app.delete('/api/okrs/check-ins/:id', requireAuth, async (req, res) => {
 });
 
 /**
+ * Rota: GET /api/okrs/usuarios-responsaveis
+ * Lista usuários disponíveis para serem responsáveis por KRs
+ * Query params:
+ *   - setor_id: filtra por setor
+ *   - only_leadership: 'true' para mostrar apenas cargos de liderança (default: false)
+ */
+app.get('/api/okrs/usuarios-responsaveis', requireAuth, async (req, res) => {
+  try {
+    const { setor_id, only_leadership } = req.query;
+    const onlyLeadership = only_leadership === 'true';
+
+    const supabase = getSupabaseServiceClient();
+    let query = supabase
+      .from('users_otus')
+      .select(`
+        id,
+        name,
+        avatar_url,
+        setor_id,
+        cargo:position_id(id, name, is_leadership)
+      `)
+      .eq('is_active', true)
+      .order('name', { ascending: true });
+
+    // Filtra por setor se especificado
+    if (setor_id) {
+      query = query.eq('setor_id', setor_id);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Filtra para mostrar só lideranças se solicitado
+    let filteredData = data || [];
+    if (onlyLeadership) {
+      filteredData = filteredData.filter(u => u.cargo?.is_leadership);
+    }
+
+    res.json({
+      success: true,
+      data: filteredData,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar usuários responsáveis:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar usuários',
+    });
+  }
+});
+
+/**
  * Rota: PUT /api/okrs/key-results/:id
  * Atualiza um Key Result
  */
@@ -2292,6 +2380,11 @@ app.put('/api/okrs/key-results/:id', requireAuth, async (req, res) => {
   try {
     const krId = req.params.id;
     const kr = await updateKeyResult(krId, req.body);
+
+    // Recalcular valor consolidado se auto_calculate=true ou se mudou consolidation_type
+    if (kr.auto_calculate) {
+      await recalculateKRConsolidatedValue(krId);
+    }
 
     await logAction(req, 'update', 'key_result', krId, `KR atualizado`);
 
@@ -2511,6 +2604,418 @@ app.delete('/api/okrs/initiative-comments/:id', requireAuth, async (req, res) =>
 });
 
 // ============================================
+// ACTION PLANS (Planos de Ação das Iniciativas)
+// ============================================
+
+/**
+ * Rota: GET /api/okrs/initiatives/:id/action-plans
+ * Lista planos de ação de uma iniciativa
+ */
+app.get('/api/okrs/initiatives/:id/action-plans', requireAuth, async (req, res) => {
+  try {
+    const initiativeId = req.params.id;
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('initiative_action_plans')
+      .select(`
+        *,
+        responsible:responsible_id(id, name, avatar_url)
+      `)
+      .eq('initiative_id', initiativeId)
+      .order('due_date', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar planos de ação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar planos de ação',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/action-plans
+ * Lista planos de ação de múltiplas iniciativas
+ * Query params: initiativeIds (comma-separated)
+ */
+app.get('/api/okrs/action-plans', requireAuth, async (req, res) => {
+  try {
+    const initiativeIds = req.query.initiativeIds
+      ? req.query.initiativeIds.split(',')
+      : [];
+
+    if (initiativeIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('initiative_action_plans')
+      .select(`
+        *,
+        responsible:responsible_id(id, name, avatar_url)
+      `)
+      .in('initiative_id', initiativeIds)
+      .order('due_date', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar planos de ação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar planos de ação',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/okrs/initiatives/:id/action-plans
+ * Cria um plano de ação
+ */
+app.post('/api/okrs/initiatives/:id/action-plans', requireAuth, async (req, res) => {
+  try {
+    const initiativeId = req.params.id;
+    const { title, description, responsible_id, due_date, status } = req.body;
+
+    if (!title || !due_date) {
+      return res.status(400).json({
+        success: false,
+        error: 'Título e data são obrigatórios',
+      });
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('initiative_action_plans')
+      .insert({
+        initiative_id: initiativeId,
+        title,
+        description: description || null,
+        responsible_id: responsible_id || null,
+        due_date,
+        status: status || 'pending',
+      })
+      .select(`
+        *,
+        responsible:responsible_id(id, name, avatar_url)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    await logAction(req, 'create', 'action_plan', data.id, `Plano de ação criado: ${title}`);
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar plano de ação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar plano de ação',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/okrs/action-plans/:id
+ * Atualiza um plano de ação
+ */
+app.put('/api/okrs/action-plans/:id', requireAuth, async (req, res) => {
+  try {
+    const planId = req.params.id;
+    const { title, description, responsible_id, due_date, status } = req.body;
+
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('initiative_action_plans')
+      .update({
+        title,
+        description,
+        responsible_id: responsible_id || null,
+        due_date,
+        status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', planId)
+      .select(`
+        *,
+        responsible:responsible_id(id, name, avatar_url)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    await logAction(req, 'update', 'action_plan', planId, `Plano de ação atualizado`);
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar plano de ação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar plano de ação',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/okrs/action-plans/:id
+ * Deleta um plano de ação
+ */
+app.delete('/api/okrs/action-plans/:id', requireAuth, async (req, res) => {
+  try {
+    const planId = req.params.id;
+    const supabase = getSupabaseServiceClient();
+
+    const { error } = await supabase
+      .from('initiative_action_plans')
+      .delete()
+      .eq('id', planId);
+
+    if (error) throw error;
+
+    await logAction(req, 'delete', 'action_plan', planId, `Plano de ação deletado`);
+
+    res.json({
+      success: true,
+      message: 'Plano de ação deletado com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao deletar plano de ação:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao deletar plano de ação',
+    });
+  }
+});
+
+// ============================================
+// DEFINITION OF DONE (DoD) - Critérios de Conclusão
+// ============================================
+
+/**
+ * Rota: GET /api/okrs/initiatives/:id/dod
+ * Lista itens de DoD de uma iniciativa
+ */
+app.get('/api/okrs/initiatives/:id/dod', requireAuth, async (req, res) => {
+  try {
+    const initiativeId = req.params.id;
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('initiative_dod_items')
+      .select('*')
+      .eq('initiative_id', initiativeId)
+      .order('position', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar DoD:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar itens de DoD',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/dod
+ * Lista itens de DoD de múltiplas iniciativas
+ * Query params: initiativeIds (comma-separated)
+ */
+app.get('/api/okrs/dod', requireAuth, async (req, res) => {
+  try {
+    const initiativeIds = req.query.initiativeIds
+      ? req.query.initiativeIds.split(',')
+      : [];
+
+    if (initiativeIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('initiative_dod_items')
+      .select('*')
+      .in('initiative_id', initiativeIds)
+      .order('position', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar DoD:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar itens de DoD',
+    });
+  }
+});
+
+/**
+ * Rota: POST /api/okrs/initiatives/:id/dod
+ * Cria um item de DoD
+ */
+app.post('/api/okrs/initiatives/:id/dod', requireAuth, async (req, res) => {
+  try {
+    const initiativeId = req.params.id;
+    const { title, position } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        error: 'Título é obrigatório',
+      });
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    // Se não passou position, pega o próximo
+    let finalPosition = position;
+    if (finalPosition === undefined) {
+      const { data: existing } = await supabase
+        .from('initiative_dod_items')
+        .select('position')
+        .eq('initiative_id', initiativeId)
+        .order('position', { ascending: false })
+        .limit(1);
+
+      finalPosition = existing && existing.length > 0 ? existing[0].position + 1 : 0;
+    }
+
+    const { data, error } = await supabase
+      .from('initiative_dod_items')
+      .insert({
+        initiative_id: initiativeId,
+        title,
+        completed: false,
+        position: finalPosition,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logAction(req, 'create', 'dod_item', data.id, `Item DoD criado: ${title}`);
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar item DoD:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar item de DoD',
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/okrs/dod/:id
+ * Atualiza um item de DoD
+ */
+app.put('/api/okrs/dod/:id', requireAuth, async (req, res) => {
+  try {
+    const dodId = req.params.id;
+    const { title, completed, position } = req.body;
+
+    const supabase = getSupabaseServiceClient();
+
+    const updateData = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (title !== undefined) updateData.title = title;
+    if (completed !== undefined) updateData.completed = completed;
+    if (position !== undefined) updateData.position = position;
+
+    const { data, error } = await supabase
+      .from('initiative_dod_items')
+      .update(updateData)
+      .eq('id', dodId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logAction(req, 'update', 'dod_item', dodId, `Item DoD atualizado`);
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar item DoD:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar item de DoD',
+    });
+  }
+});
+
+/**
+ * Rota: DELETE /api/okrs/dod/:id
+ * Deleta um item de DoD
+ */
+app.delete('/api/okrs/dod/:id', requireAuth, async (req, res) => {
+  try {
+    const dodId = req.params.id;
+    const supabase = getSupabaseServiceClient();
+
+    const { error } = await supabase
+      .from('initiative_dod_items')
+      .delete()
+      .eq('id', dodId);
+
+    if (error) throw error;
+
+    await logAction(req, 'delete', 'dod_item', dodId, `Item DoD deletado`);
+
+    res.json({
+      success: true,
+      message: 'Item de DoD deletado com sucesso',
+    });
+  } catch (error) {
+    console.error('❌ Erro ao deletar item DoD:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao deletar item de DoD',
+    });
+  }
+});
+
+// ============================================
 // ROTAS COM PARÂMETRO :id (devem vir DEPOIS das rotas específicas)
 // ============================================
 
@@ -2521,14 +3026,16 @@ app.delete('/api/okrs/initiative-comments/:id', requireAuth, async (req, res) =>
 app.put('/api/okrs/:id', requireAuth, async (req, res) => {
   try {
     const okrId = req.params.id;
-    const { titulo, nivel, responsavel, quarter, keyResults } = req.body;
+    const { titulo, nivel, responsavel, responsavel_id, quarter, keyResults, peso } = req.body;
 
     const okr = await updateOKR(okrId, {
       titulo,
       nivel,
       responsavel,
+      responsavel_id,
       quarter,
       keyResults,
+      peso,
     });
 
     await logAction(req, 'update', 'okr', okrId, `OKR atualizado: ${titulo || okrId}`);
@@ -2589,6 +3096,50 @@ app.get('/api/okrs/:id', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Erro ao buscar OKR',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/sector-weight-sum
+ * Retorna a soma dos pesos dos OKRs de um setor para um quarter
+ */
+app.get('/api/okrs/sector-weight-sum', requireAuth, async (req, res) => {
+  try {
+    const { setor_id, quarter } = req.query;
+
+    if (!setor_id || !quarter) {
+      return res.status(400).json({
+        success: false,
+        error: 'setor_id e quarter são obrigatórios',
+      });
+    }
+
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from('okrs')
+      .select('peso')
+      .eq('setor_id', setor_id)
+      .eq('quarter', quarter);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const totalWeight = (data || []).reduce((sum, okr) => sum + (okr.peso || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        totalWeight,
+        remaining: 100 - totalWeight,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Erro ao calcular soma de pesos:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao calcular soma de pesos',
     });
   }
 });
@@ -2657,22 +3208,40 @@ app.delete('/api/okrs/key-results/:id', requireAuth, async (req, res) => {
 app.post('/api/okrs/key-results/:id/comments', requireAuth, async (req, res) => {
   try {
     const krId = req.params.id;
-    const { content } = req.body;
+    const { content, categoria = 'Comentário', parent_id = null } = req.body;
     const supabase = getSupabaseServiceClient();
+
+    // Validar categoria
+    const categoriasValidas = ['Dúvida', 'Sugestão', 'Comentário'];
+    if (!categoriasValidas.includes(categoria)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Categoria inválida. Use: Dúvida, Sugestão ou Comentário',
+      });
+    }
+
+    const insertData = {
+      key_result_id: parseInt(krId),
+      author_email: req.user?.email,
+      content: content,
+      categoria: categoria
+    };
+
+    // Adicionar parent_id se for uma resposta (UUID, não precisa parseInt)
+    if (parent_id) {
+      insertData.parent_id = parent_id;
+    }
 
     const { data, error } = await supabase
       .from('okr_comments')
-      .insert({
-        key_result_id: parseInt(krId),
-        author_email: req.user?.email,
-        content: content
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) throw error;
 
-    await logAction(req, 'create', 'okr_comment', data.id, 'Comentário criado');
+    const actionDesc = parent_id ? 'Resposta criada' : `Comentário criado (${categoria})`;
+    await logAction(req, 'create', 'okr_comment', data.id, actionDesc);
 
     res.json({
       success: true,
@@ -2700,13 +3269,62 @@ app.get('/api/okrs/key-results/:id/comments', requireAuth, async (req, res) => {
       .from('okr_comments')
       .select('*')
       .eq('key_result_id', parseInt(krId))
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true }); // Ordem cronológica para hierarquia
 
     if (error) throw error;
 
+    // Busca nomes dos autores
+    const emails = [...new Set((data || []).map(c => c.author_email).filter(Boolean))];
+    let authorsMap = new Map();
+
+    if (emails.length > 0) {
+      const { data: users } = await supabase
+        .from('users_otus')
+        .select('email, name')
+        .in('email', emails);
+
+      if (users) {
+        users.forEach(u => authorsMap.set(u.email, u.name));
+      }
+    }
+
+    // Enriquece comentários com nome do autor
+    const enrichedData = (data || []).map(comment => ({
+      ...comment,
+      author_name: authorsMap.get(comment.author_email) || comment.author_email,
+      replies: [] // Placeholder para respostas
+    }));
+
+    // Organiza em estrutura hierárquica (comentários pai com respostas aninhadas)
+    const commentsMap = new Map();
+    const rootComments = [];
+
+    // Primeiro pass: indexar todos os comentários
+    enrichedData.forEach(comment => {
+      commentsMap.set(comment.id, comment);
+    });
+
+    // Segundo pass: organizar hierarquia
+    enrichedData.forEach(comment => {
+      if (comment.parent_id && commentsMap.has(comment.parent_id)) {
+        // É uma resposta - adiciona ao pai
+        const parent = commentsMap.get(comment.parent_id);
+        parent.replies.push(comment);
+      } else {
+        // É um comentário raiz
+        rootComments.push(comment);
+      }
+    });
+
+    // Ordena: comentários raiz por data (mais recentes primeiro), respostas por data (cronológica)
+    rootComments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    rootComments.forEach(comment => {
+      comment.replies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    });
+
     res.json({
       success: true,
-      data: data || [],
+      data: rootComments,
     });
   } catch (error) {
     console.error('❌ Erro ao buscar comentários:', error);

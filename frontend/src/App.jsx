@@ -198,10 +198,28 @@ function Sidebar({ collapsed, onToggle, area }) {
   // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
     if (area === 'okrs') {
-      axios.get('/api/ind/sectors', { withCredentials: true })
-        .then(res => {
-          if (res.data.success) {
-            setSectors(res.data.data || []);
+      // Carregar setores e OKRs para filtrar apenas setores com OKRs
+      Promise.all([
+        axios.get('/api/ind/sectors', { withCredentials: true }),
+        axios.get('/api/okrs', { withCredentials: true })
+      ])
+        .then(([sectorsRes, okrsRes]) => {
+          if (sectorsRes.data.success && okrsRes.data.success) {
+            const allSectors = sectorsRes.data.data || [];
+            const allOkrs = okrsRes.data.data || [];
+
+            // Filtrar apenas setores que têm OKRs
+            const sectorIdsWithOkrs = new Set(
+              allOkrs
+                .filter(okr => okr.setor_id)
+                .map(okr => okr.setor_id)
+            );
+
+            const sectorsWithOkrs = allSectors.filter(
+              sector => sectorIdsWithOkrs.has(sector.id)
+            );
+
+            setSectors(sectorsWithOkrs);
           }
         })
         .catch(err => console.error('Error loading sectors:', err));

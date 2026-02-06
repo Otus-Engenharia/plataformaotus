@@ -357,8 +357,9 @@ export function calculateKRProgress(kr, checkIns = []) {
   const planejado = kr.planejado_acumulado || 0;
   const realizado = kr.atual || 0;
 
-  // Se planejado é 0, retorna 100 se realizado também é 0
-  if (planejado === 0) return realizado === 0 ? 100 : 0;
+  // Se planejado é 0 e realizado também é 0, retorna null (não medido)
+  // KRs não medidos são ignorados na agregação do objetivo
+  if (planejado === 0) return realizado === 0 ? null : 0;
 
   // Para indicadores inversos (quanto menor, melhor)
   if (kr.is_inverse) {
@@ -368,4 +369,28 @@ export function calculateKRProgress(kr, checkIns = []) {
 
   // Cálculo padrão: realizado / planejado
   return Math.min(Math.max(Math.round((realizado / planejado) * 100), 0), 100);
+}
+
+/**
+ * Calcula o progresso de um Key Result em relação à meta final
+ * @param {Object} kr - Key Result com meta, atual, is_inverse
+ * @returns {number|null} Progresso percentual ou null se não medido
+ */
+export function calculateKRProgressVsMeta(kr) {
+  if (!kr) return null;
+
+  const meta = kr.meta || 0;
+  const realizado = kr.atual || 0;
+
+  // Se meta é 0 e realizado também é 0, retorna null (não medido)
+  if (meta === 0) return realizado === 0 ? null : 0;
+
+  // Para indicadores inversos (quanto menor, melhor)
+  if (kr.is_inverse) {
+    if (realizado <= meta) return 100;
+    return Math.max(Math.round((meta / realizado) * 100), 0);
+  }
+
+  // Permite valores > 100% para mostrar superação da meta
+  return Math.round((realizado / meta) * 100);
 }

@@ -70,7 +70,10 @@ function CronogramaView({ selectedProjectId, portfolio = [] }) {
     setError(null);
 
     axios.get(`${API_URL}/api/projetos/cronograma`, {
-      params: { smartsheetId: selectedProject.smartsheet_id },
+      params: {
+        smartsheetId: selectedProject.smartsheet_id,
+        projectName: selectedProject.project_name || selectedProject.project_code_norm
+      },
       withCredentials: true
     })
       .then(response => {

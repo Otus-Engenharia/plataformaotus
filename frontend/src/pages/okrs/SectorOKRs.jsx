@@ -2,24 +2,38 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
-import { calculateKRProgress } from '../../utils/indicator-utils';
+import { calculateKRProgress, calculateKRProgressVsMeta } from '../../utils/indicator-utils';
 import './DashboardOKRs.css';
 
 // Objective Card Component
-function ObjectiveCard({ objective, checkIns = [], index }) {
-  const { progress, statusCounts } = useMemo(() => {
+function ObjectiveCard({ objective, checkIns = [], index, editingWeight, setEditingWeight, tempWeight, setTempWeight, onSaveWeight, isPrivileged }) {
+  const { progress, progressVsMeta, statusCounts } = useMemo(() => {
     const krs = objective.key_results || [];
-    if (krs.length === 0) return { progress: 0, statusCounts: { completed: 0, delayed: 0, at_risk: 0 } };
+    if (krs.length === 0) return { progress: null, progressVsMeta: null, statusCounts: { completed: 0, delayed: 0, at_risk: 0 } };
 
     let weightedProgress = 0;
-    let totalWeight = 0;
+    let weightedProgressVsMeta = 0;
+    let measuredW = 0;
+    let measuredWMeta = 0;
     const counts = { completed: 0, delayed: 0, at_risk: 0 };
 
     krs.forEach((kr) => {
       const krCheckIns = checkIns.filter(c => c.key_result_id === kr.id);
       const krProgress = calculateKRProgress(kr, krCheckIns);
-      weightedProgress += krProgress * (kr.peso || 1);
-      totalWeight += (kr.peso || 1);
+      const krProgressVsMeta = calculateKRProgressVsMeta(kr);
+      const peso = kr.peso || 1;
+
+      // Ritmo: progresso vs planejado acumulado
+      if (krProgress !== null) {
+        weightedProgress += krProgress * peso;
+        measuredW += peso;
+      }
+
+      // Progresso: vs meta final
+      if (krProgressVsMeta !== null) {
+        weightedProgressVsMeta += krProgressVsMeta * peso;
+        measuredWMeta += peso;
+      }
 
       if (kr.status === 'completed') counts.completed++;
       else if (kr.status === 'delayed') counts.delayed++;
@@ -27,14 +41,16 @@ function ObjectiveCard({ objective, checkIns = [], index }) {
     });
 
     return {
-      progress: totalWeight > 0 ? Math.round(weightedProgress / totalWeight) : 0,
+      progress: measuredW > 0 ? Math.round(weightedProgress / measuredW) : null,
+      progressVsMeta: measuredWMeta > 0 ? Math.round(weightedProgressVsMeta / measuredWMeta) : null,
       statusCounts: counts
     };
   }, [objective.key_results, checkIns]);
 
-  const getProgressColor = () => {
-    if (progress >= 100) return 'success';
-    if (progress >= 70) return 'warning';
+  const getProgressColor = (value) => {
+    if (value === null) return 'muted';
+    if (value >= 100) return 'success';
+    if (value >= 70) return 'warning';
     return 'danger';
   };
 
@@ -42,10 +58,34 @@ function ObjectiveCard({ objective, checkIns = [], index }) {
     ? 'Anual'
     : objective.quarter || 'Q1';
 
+  const responsavelName = objective.responsavel_user?.name || objective.responsavel || null;
+  const responsavelAvatar = objective.responsavel_user?.avatar_url || null;
+
+  const handleWeightClick = (e) => {
+    if (!isPrivileged) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingWeight(objective.id);
+    setTempWeight(objective.peso || 1);
+  };
+
+  const handleWeightKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onSaveWeight(objective.id, tempWeight);
+    } else if (e.key === 'Escape') {
+      setEditingWeight(null);
+    }
+  };
+
+  const handleWeightBlur = () => {
+    onSaveWeight(objective.id, tempWeight);
+  };
+
   return (
     <Link
       to={`/okrs/objetivo/${objective.id}`}
-      className={`okr-objective-card okr-objective-card--${getProgressColor()}`}
+      className={`okr-objective-card okr-objective-card--${getProgressColor(progressVsMeta)}`}
       style={{ animationDelay: `${100 + index * 50}ms` }}
     >
       <div className="okr-objective-card__header">
@@ -55,11 +95,22 @@ function ObjectiveCard({ objective, checkIns = [], index }) {
             <span className="okr-objective-card__level">{objective.nivel}</span>
           )}
         </div>
-        <span className="okr-objective-card__chevron">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-          </svg>
-        </span>
+        <div className="okr-objective-card__meta">
+          {responsavelName && (
+            <div className="okr-objective-card__avatar" title={responsavelName}>
+              {responsavelAvatar ? (
+                <img src={responsavelAvatar} alt="" />
+              ) : (
+                <span>{responsavelName.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+          )}
+          <span className="okr-objective-card__chevron">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+            </svg>
+          </span>
+        </div>
       </div>
 
       <h3 className="okr-objective-card__title">{objective.titulo}</h3>
@@ -67,18 +118,59 @@ function ObjectiveCard({ objective, checkIns = [], index }) {
         <p className="okr-objective-card__description">{objective.descricao}</p>
       )}
 
-      <div className="okr-objective-card__progress-section">
-        <div className="okr-objective-card__progress-header">
-          <span className="okr-objective-card__progress-label">Progresso</span>
-          <span className={`okr-objective-card__progress-value okr-objective-card__progress-value--${getProgressColor()}`}>
-            {progress}%
+      {/* Métricas: Ritmo, Progresso, Peso */}
+      <div className="okr-objective-card__metrics">
+        <div className="okr-objective-card__metric">
+          <span className="okr-objective-card__metric-label">Ritmo</span>
+          <span className={`okr-objective-card__metric-value okr-objective-card__metric-value--${getProgressColor(progress)}`}>
+            {progress === null ? '—' : `${progress}%`}
           </span>
+          <div className="okr-objective-card__metric-bar">
+            <div
+              className={`okr-objective-card__metric-bar-fill okr-objective-card__metric-bar-fill--${getProgressColor(progress)}`}
+              style={{ width: `${Math.min(progress || 0, 100)}%` }}
+            />
+          </div>
         </div>
-        <div className="okr-objective-card__progress">
-          <div
-            className={`okr-objective-card__progress-bar okr-objective-card__progress-bar--${getProgressColor()}`}
-            style={{ '--progress': `${progress}%` }}
-          />
+
+        <div className="okr-objective-card__metric">
+          <span className="okr-objective-card__metric-label">Progresso</span>
+          <span className={`okr-objective-card__metric-value okr-objective-card__metric-value--${getProgressColor(progressVsMeta)}`}>
+            {progressVsMeta === null ? '—' : `${progressVsMeta}%`}
+          </span>
+          <div className="okr-objective-card__metric-bar">
+            <div
+              className={`okr-objective-card__metric-bar-fill okr-objective-card__metric-bar-fill--${getProgressColor(progressVsMeta)}`}
+              style={{ width: `${Math.min(progressVsMeta || 0, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="okr-objective-card__metric">
+          <span className="okr-objective-card__metric-label">Peso</span>
+          {editingWeight === objective.id ? (
+            <input
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              value={tempWeight}
+              onChange={(e) => setTempWeight(parseInt(e.target.value) || 1)}
+              onBlur={handleWeightBlur}
+              onKeyDown={handleWeightKeyDown}
+              onClick={(e) => e.preventDefault()}
+              autoFocus
+              className="okr-weight-input"
+            />
+          ) : (
+            <span
+              className={`okr-objective-card__metric-value okr-weight-display ${isPrivileged ? 'okr-weight-display--editable' : ''}`}
+              onClick={handleWeightClick}
+              title={isPrivileged ? 'Clique para editar' : ''}
+            >
+              {objective.peso || 1}%
+            </span>
+          )}
         </div>
       </div>
 
@@ -133,7 +225,8 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, defaultSectorId, sect
     nivel: 'time',
     quarter: currentQuarter,
     setor_id: defaultSectorId || null,
-    responsavel: ''
+    responsavel: '',
+    peso: 1
   });
 
   useEffect(() => {
@@ -153,6 +246,8 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, defaultSectorId, sect
         nivel: formData.nivel,
         quarter: formData.quarter,
         responsavel: formData.responsavel.trim() || user?.name || 'Não definido',
+        peso: formData.peso || 1,
+        setor_id: formData.setor_id,
       }, { withCredentials: true });
 
       if (!response.data.success) throw new Error(response.data.error);
@@ -165,7 +260,8 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, defaultSectorId, sect
         nivel: 'time',
         quarter: currentQuarter,
         setor_id: defaultSectorId || null,
-        responsavel: ''
+        responsavel: '',
+        peso: 1
       });
     } catch (err) {
       console.error('Error creating objective:', err);
@@ -248,15 +344,32 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, defaultSectorId, sect
               </div>
             </div>
 
-            <div className="okr-form-group">
-              <label className="okr-form-label">Responsável</label>
-              <input
-                type="text"
-                className="okr-form-input"
-                value={formData.responsavel}
-                onChange={e => setFormData({ ...formData, responsavel: e.target.value })}
-                placeholder="Nome do responsável"
-              />
+            <div className="okr-form-row">
+              <div className="okr-form-group">
+                <label className="okr-form-label">Responsável</label>
+                <input
+                  type="text"
+                  className="okr-form-input"
+                  value={formData.responsavel}
+                  onChange={e => setFormData({ ...formData, responsavel: e.target.value })}
+                  placeholder="Nome do responsável"
+                />
+              </div>
+
+              <div className="okr-form-group">
+                <label className="okr-form-label">Peso do Objetivo</label>
+                <input
+                  type="number"
+                  className="okr-form-input"
+                  value={formData.peso}
+                  onChange={e => setFormData({ ...formData, peso: parseFloat(e.target.value) || 1 })}
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  placeholder="1"
+                />
+                <span className="okr-form-hint">Peso para cálculo do progresso do setor</span>
+              </div>
             </div>
           </div>
 
@@ -285,9 +398,13 @@ export default function SectorOKRs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [weightSum, setWeightSum] = useState({ totalWeight: 0, remaining: 100 });
+  const [editingWeight, setEditingWeight] = useState(null);
+  const [tempWeight, setTempWeight] = useState(1);
 
   const currentYear = new Date().getFullYear();
   const currentQuarter = `Q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
+  const currentQuarterValue = `${currentQuarter}-${currentYear}`;
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -350,6 +467,43 @@ export default function SectorOKRs() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Fetch weight sum when sector or objectives change
+  useEffect(() => {
+    if (id && currentQuarterValue) {
+      axios.get(`/api/okrs/sector-weight-sum?setor_id=${id}&quarter=${currentQuarterValue}`, { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            setWeightSum(res.data.data);
+          }
+        })
+        .catch(err => console.error('Erro ao buscar soma de pesos:', err));
+    }
+  }, [id, currentQuarterValue, objectives]);
+
+  // Função para salvar peso do OKR
+  const handleSaveWeight = async (okrId, newWeight) => {
+    setEditingWeight(null);
+    const weight = parseInt(newWeight) || 1;
+
+    // Atualização otimista
+    setObjectives(prev => prev.map(obj =>
+      obj.id === okrId ? { ...obj, peso: weight } : obj
+    ));
+
+    try {
+      await axios.put(`/api/okrs/${okrId}`, { peso: weight }, { withCredentials: true });
+      // Refetch weight sum
+      const res = await axios.get(`/api/okrs/sector-weight-sum?setor_id=${id}&quarter=${currentQuarterValue}`, { withCredentials: true });
+      if (res.data.success) {
+        setWeightSum(res.data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar peso:', err);
+      // Reverter em caso de erro
+      fetchData();
+    }
+  };
 
   if (loading) {
     return (
@@ -418,6 +572,18 @@ export default function SectorOKRs() {
               {currentQuarter} {currentYear} • OKRs do setor
             </p>
           </div>
+          {objectives.length > 0 && (
+            <div className={`okr-weight-indicator ${weightSum.totalWeight === 100 ? 'okr-weight-indicator--valid' : 'okr-weight-indicator--warning'}`}>
+              <span>Soma dos pesos: {weightSum.totalWeight}%</span>
+              {weightSum.totalWeight !== 100 && (
+                <span className="okr-weight-indicator__warning">
+                  {weightSum.totalWeight < 100
+                    ? `(faltam ${weightSum.remaining}%)`
+                    : `(excede em ${Math.abs(weightSum.remaining)}%)`}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="okr-header__actions">
@@ -470,6 +636,12 @@ export default function SectorOKRs() {
                   (objective.key_results || []).some(kr => kr.id === c.key_result_id)
                 )}
                 index={index}
+                editingWeight={editingWeight}
+                setEditingWeight={setEditingWeight}
+                tempWeight={tempWeight}
+                setTempWeight={setTempWeight}
+                onSaveWeight={handleSaveWeight}
+                isPrivileged={isPrivileged}
               />
             ))}
           </div>

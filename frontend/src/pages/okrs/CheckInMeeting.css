@@ -775,6 +775,10 @@
   stroke: var(--chk-red);
 }
 
+.chk-kr-item__progress-fill--muted {
+  stroke: var(--chk-gray, #9ca3af);
+}
+
 .chk-kr-item__progress-value {
   position: absolute;
   inset: 0;

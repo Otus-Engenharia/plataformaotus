@@ -789,7 +789,10 @@ export async function fetchOKRs(quarter = null, level = null) {
   const supabase = getSupabaseClient();
   let query = supabase
     .from(OKRS_TABLE)
-    .select('*')
+    .select(`
+      *,
+      responsavel_user:responsavel_id(id, name, avatar_url)
+    `)
     .order('created_at', { ascending: false });
 
   if (quarter) {
@@ -831,7 +834,10 @@ export async function fetchKeyResults(okrId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(KEY_RESULTS_TABLE)
-    .select('*')
+    .select(`
+      *,
+      responsavel_user:responsavel_id(id, name, avatar_url)
+    `)
     .eq('okr_id', okrId)
     .order('created_at', { ascending: true });
 
@@ -871,8 +877,11 @@ export async function createOKR(okrData) {
       titulo: okrData.titulo,
       nivel: okrData.nivel,
       responsavel: okrData.responsavel,
+      responsavel_id: okrData.responsavel_id || null,
       quarter: okrData.quarter,
       created_by: okrData.created_by,
+      peso: okrData.peso || 1,
+      setor_id: okrData.setor_id || null,
     }])
     .select()
     .single();
@@ -913,15 +922,22 @@ export async function createOKR(okrData) {
  */
 export async function updateOKR(okrId, okrData) {
   const supabase = getSupabaseClient();
+
+  // Build update object only with provided fields
+  const updateData = {
+    updated_at: new Date().toISOString(),
+  };
+  if (okrData.titulo !== undefined) updateData.titulo = okrData.titulo;
+  if (okrData.nivel !== undefined) updateData.nivel = okrData.nivel;
+  if (okrData.responsavel !== undefined) updateData.responsavel = okrData.responsavel;
+  if (okrData.responsavel_id !== undefined) updateData.responsavel_id = okrData.responsavel_id;
+  if (okrData.quarter !== undefined) updateData.quarter = okrData.quarter;
+  if (okrData.peso !== undefined) updateData.peso = okrData.peso;
+  if (okrData.setor_id !== undefined) updateData.setor_id = okrData.setor_id;
+
   const { data, error } = await supabase
     .from(OKRS_TABLE)
-    .update({
-      titulo: okrData.titulo,
-      nivel: okrData.nivel,
-      responsavel: okrData.responsavel,
-      quarter: okrData.quarter,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('id', okrId)
     .select()
     .single();
@@ -1017,6 +1033,116 @@ export async function updateKeyResult(krId, krData) {
   }
 
   return data;
+}
+
+/**
+ * Recalcula o valor consolidado de um Key Result baseado nos check-ins
+ * e o planejado acumulado baseado nas metas mensais
+ * Só executa se auto_calculate=true
+ * @param {string} krId - ID do Key Result
+ * @returns {Promise<Object|null>}
+ */
+export async function recalculateKRConsolidatedValue(krId) {
+  const supabase = getSupabaseClient();
+
+  // 1. Buscar KR para saber consolidation_type, auto_calculate e monthly_targets
+  const { data: kr, error: krError } = await supabase
+    .from(KEY_RESULTS_TABLE)
+    .select('id, consolidation_type, auto_calculate, monthly_targets')
+    .eq('id', krId)
+    .single();
+
+  if (krError || !kr) {
+    console.log(`[recalculateKR] KR não encontrado: ${krId}`);
+    return null;
+  }
+
+  // Só recalcula se auto_calculate estiver ativo
+  if (!kr.auto_calculate) {
+    console.log(`[recalculateKR] auto_calculate=false para KR ${krId}, ignorando`);
+    return null;
+  }
+
+  const type = kr.consolidation_type || 'last_value';
+  const currentMonth = new Date().getMonth() + 1; // 1-12
+
+  // 2. Calcular planejado acumulado das metas mensais
+  let planejadoAcumulado = null;
+  if (kr.monthly_targets && Object.keys(kr.monthly_targets).length > 0) {
+    const targets = kr.monthly_targets;
+    const relevantMonths = Object.keys(targets)
+      .map(Number)
+      .filter(m => m <= currentMonth)
+      .sort((a, b) => a - b);
+
+    if (relevantMonths.length > 0) {
+      if (type === 'sum') {
+        planejadoAcumulado = relevantMonths.reduce((sum, m) => sum + (targets[m] || 0), 0);
+      } else if (type === 'average') {
+        const sum = relevantMonths.reduce((acc, m) => acc + (targets[m] || 0), 0);
+        planejadoAcumulado = Math.round((sum / relevantMonths.length) * 100) / 100;
+      } else { // last_value (default)
+        const lastMonth = relevantMonths[relevantMonths.length - 1];
+        planejadoAcumulado = targets[lastMonth] ?? null;
+      }
+    }
+  }
+
+  // 3. Buscar todos check-ins do KR com valor não nulo
+  const { data: checkIns, error: checkInsError } = await supabase
+    .from('okr_check_ins')
+    .select('mes, ano, valor')
+    .eq('key_result_id', krId)
+    .not('valor', 'is', null);
+
+  if (checkInsError) {
+    console.error(`[recalculateKR] Erro ao buscar check-ins: ${checkInsError.message}`);
+    return null;
+  }
+
+  // 4. Calcular realizado baseado em consolidation_type
+  let calculatedValue = 0;
+  if (checkIns && checkIns.length > 0) {
+    if (type === 'sum') {
+      calculatedValue = checkIns.reduce((sum, c) => sum + (c.valor || 0), 0);
+    } else if (type === 'average') {
+      const sum = checkIns.reduce((acc, c) => acc + (c.valor || 0), 0);
+      calculatedValue = Math.round((sum / checkIns.length) * 100) / 100;
+    } else { // last_value (default)
+      const sorted = [...checkIns].sort((a, b) => {
+        if (a.ano !== b.ano) return b.ano - a.ano;
+        return b.mes - a.mes;
+      });
+      calculatedValue = sorted[0]?.valor ?? 0;
+    }
+  }
+
+  console.log(`[recalculateKR] KR ${krId}: tipo=${type}, realizado=${calculatedValue}, planejado=${planejadoAcumulado}`);
+
+  // 5. Atualizar KR com valores calculados
+  const updateData = {
+    atual: calculatedValue,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Só atualiza planejado_acumulado se foi calculado (há metas mensais)
+  if (planejadoAcumulado !== null) {
+    updateData.planejado_acumulado = planejadoAcumulado;
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from(KEY_RESULTS_TABLE)
+    .update(updateData)
+    .eq('id', krId)
+    .select()
+    .single();
+
+  if (updateError) {
+    console.error(`[recalculateKR] Erro ao atualizar KR: ${updateError.message}`);
+    return null;
+  }
+
+  return updated;
 }
 
 // ============================================
@@ -1123,7 +1249,11 @@ export async function fetchOKRById(okrId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(OKRS_TABLE)
-    .select('*, key_results(*)')
+    .select(`
+      *,
+      responsavel_user:responsavel_id(id, name, avatar_url),
+      key_results(*, responsavel_user:responsavel_id(id, name, avatar_url))
+    `)
     .eq('id', okrId)
     .single();
 
@@ -1150,7 +1280,10 @@ export async function fetchOKRInitiatives(objectiveId) {
 
   const { data, error } = await supabase
     .from(OKR_INITIATIVES_TABLE)
-    .select('*')
+    .select(`
+      *,
+      responsible_user:responsible_id(id, name, avatar_url)
+    `)
     .eq('objective_id', objectiveId)
     .order('created_at', { ascending: true });
 

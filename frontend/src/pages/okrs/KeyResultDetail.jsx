@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
+import { calculateKRProgressVsMeta } from '../../utils/indicator-utils';
 import './DashboardOKRs.css';
 
 // Portal component to render modals outside the component tree
@@ -468,10 +469,17 @@ function EditableNotes({ value, onSave, placeholder = 'Adicionar observação...
 }
 
 // Comment Dialog
-function CommentDialog({ open, onClose, onSuccess, krId }) {
+function CommentDialog({ open, onClose, onSuccess, krId, replyTo = null }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [content, setContent] = useState('');
+  const [categoria, setCategoria] = useState('Comentário');
+
+  const categorias = [
+    { value: 'Comentário', label: 'Comentário', color: '#6b7280' },
+    { value: 'Sugestão', label: 'Sugestão', color: '#059669' },
+    { value: 'Dúvida', label: 'Dúvida', color: '#d97706' }
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -479,15 +487,23 @@ function CommentDialog({ open, onClose, onSuccess, krId }) {
 
     setLoading(true);
     try {
-      const response = await axios.post(`/api/okrs/key-results/${krId}/comments`, {
-        content: content.trim()
-      }, { withCredentials: true });
+      const payload = {
+        content: content.trim(),
+        categoria: replyTo ? 'Comentário' : categoria // Respostas não têm categoria
+      };
+
+      if (replyTo) {
+        payload.parent_id = replyTo.id;
+      }
+
+      const response = await axios.post(`/api/okrs/key-results/${krId}/comments`, payload, { withCredentials: true });
 
       if (!response.data.success) throw new Error(response.data.error);
 
       onSuccess?.();
       onClose();
       setContent('');
+      setCategoria('Comentário');
     } catch (err) {
       console.error('Error saving comment:', err);
       alert('Erro ao salvar comentário: ' + (err.response?.data?.error || err.message));
@@ -498,12 +514,15 @@ function CommentDialog({ open, onClose, onSuccess, krId }) {
 
   if (!open) return null;
 
+  const isReply = !!replyTo;
+  const title = isReply ? `Responder a ${replyTo.author_name}` : 'Adicionar Comentário';
+
   return (
     <Portal>
       <div className="okr-modal-overlay" onClick={onClose}>
         <div className="okr-modal" onClick={e => e.stopPropagation()}>
           <div className="okr-modal__header">
-            <h2 className="okr-modal__title">Adicionar Comentário</h2>
+            <h2 className="okr-modal__title">{title}</h2>
             <button className="okr-modal__close" onClick={onClose}>
               <svg viewBox="0 0 24 24" width="20" height="20">
                 <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -512,15 +531,58 @@ function CommentDialog({ open, onClose, onSuccess, krId }) {
           </div>
           <form onSubmit={handleSubmit}>
             <div className="okr-modal__body">
+              {isReply && (
+                <div className="okr-reply-context" style={{
+                  padding: '12px',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  borderLeft: '3px solid #d1d5db'
+                }}>
+                  <small style={{ color: '#6b7280' }}>Respondendo a:</small>
+                  <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#374151' }}>
+                    "{replyTo.content.length > 100 ? replyTo.content.substring(0, 100) + '...' : replyTo.content}"
+                  </p>
+                </div>
+              )}
+
+              {!isReply && (
+                <div className="okr-form-group" style={{ marginBottom: '16px' }}>
+                  <label className="okr-form-label">Tipo</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {categorias.map(cat => (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        onClick={() => setCategoria(cat.value)}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '20px',
+                          border: categoria === cat.value ? `2px solid ${cat.color}` : '1px solid #e5e7eb',
+                          backgroundColor: categoria === cat.value ? `${cat.color}15` : 'white',
+                          color: categoria === cat.value ? cat.color : '#6b7280',
+                          fontWeight: categoria === cat.value ? '600' : '400',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="okr-form-group">
-                <label className="okr-form-label">Comentário</label>
+                <label className="okr-form-label">{isReply ? 'Sua resposta' : 'Comentário'}</label>
                 <textarea
                   className="okr-form-textarea"
                   value={content}
                   onChange={e => setContent(e.target.value)}
-                  placeholder="Seu feedback sobre este Key Result..."
+                  placeholder={isReply ? 'Escreva sua resposta...' : 'Seu feedback sobre este Key Result...'}
                   rows={4}
                   required
+                  autoFocus
                 />
               </div>
             </div>
@@ -529,7 +591,7 @@ function CommentDialog({ open, onClose, onSuccess, krId }) {
                 Cancelar
               </button>
               <button type="submit" className="okr-btn okr-btn--primary" disabled={loading}>
-                {loading ? 'Enviando...' : 'Enviar'}
+                {loading ? 'Enviando...' : (isReply ? 'Responder' : 'Enviar')}
               </button>
             </div>
           </form>
@@ -803,9 +865,11 @@ function EditRecoveryPlanDialog({ open, onClose, onSuccess, plan }) {
 }
 
 // Edit KR Dialog
-function EditKeyResultDialog({ open, onClose, onSuccess, kr, quarter }) {
+function EditKeyResultDialog({ open, onClose, onSuccess, kr, quarter, setorId }) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+  const [usuarios, setUsuarios] = useState([]);
+  const [onlyLeadership, setOnlyLeadership] = useState(false);
 
   const quarterMonths = getQuarterMonths(quarter);
 
@@ -816,10 +880,24 @@ function EditKeyResultDialog({ open, onClose, onSuccess, kr, quarter }) {
     peso: '',
     tipo_metrica: 'number',
     consolidation_type: 'last_value',
+    auto_calculate: false,
     is_inverse: false,
-    responsavel: '',
+    responsavel_id: '',
     monthly_targets: {}
   });
+
+  // Busca lista de usuários ao abrir o dialog ou mudar filtros
+  useEffect(() => {
+    if (open) {
+      const params = new URLSearchParams();
+      if (setorId) params.append('setor_id', setorId);
+      if (onlyLeadership) params.append('only_leadership', 'true');
+
+      axios.get(`/api/okrs/usuarios-responsaveis?${params.toString()}`, { withCredentials: true })
+        .then(res => setUsuarios(res.data.data || []))
+        .catch(err => console.error('Erro ao buscar usuários:', err));
+    }
+  }, [open, setorId, onlyLeadership]);
 
   useEffect(() => {
     if (kr && open) {
@@ -830,8 +908,9 @@ function EditKeyResultDialog({ open, onClose, onSuccess, kr, quarter }) {
         peso: kr.peso?.toString() || '',
         tipo_metrica: kr.tipo_metrica || 'number',
         consolidation_type: kr.consolidation_type || 'last_value',
+        auto_calculate: kr.auto_calculate || false,
         is_inverse: kr.is_inverse || false,
-        responsavel: kr.responsavel || '',
+        responsavel_id: kr.responsavel_id || '',
         monthly_targets: kr.monthly_targets || {}
       });
       setActiveTab('general');
@@ -883,8 +962,9 @@ function EditKeyResultDialog({ open, onClose, onSuccess, kr, quarter }) {
         peso: parseInt(formData.peso) || 0,
         tipo_metrica: formData.tipo_metrica,
         consolidation_type: formData.consolidation_type,
+        auto_calculate: formData.auto_calculate,
         is_inverse: formData.is_inverse,
-        responsavel: formData.responsavel.trim() || null,
+        responsavel_id: formData.responsavel_id || null,
         monthly_targets: Object.keys(cleanedTargets).length > 0 ? cleanedTargets : null
       }, { withCredentials: true });
 
@@ -1014,17 +1094,44 @@ function EditKeyResultDialog({ open, onClose, onSuccess, kr, quarter }) {
                       <option value="average">Média</option>
                       <option value="manual">Manual</option>
                     </select>
+                    <div className="okr-form-toggle-row" style={{ marginTop: '0.5rem' }}>
+                      <label className="okr-toggle">
+                        <input
+                          type="checkbox"
+                          checked={formData.auto_calculate}
+                          onChange={e => setFormData({ ...formData, auto_calculate: e.target.checked })}
+                          disabled={formData.consolidation_type === 'manual'}
+                        />
+                        <span className="okr-toggle__slider" />
+                      </label>
+                      <span className="okr-form-toggle-label">Cálculo automático</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="okr-form-group">
                   <label className="okr-form-label">Responsável</label>
-                  <input
-                    type="text"
-                    className="okr-form-input"
-                    value={formData.responsavel}
-                    onChange={e => setFormData({ ...formData, responsavel: e.target.value })}
-                  />
+                  <select
+                    className="okr-form-select"
+                    value={formData.responsavel_id}
+                    onChange={e => setFormData({ ...formData, responsavel_id: e.target.value })}
+                  >
+                    <option value="">Selecione um responsável</option>
+                    {usuarios.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                  <div className="okr-form-toggle-row">
+                    <label className="okr-toggle">
+                      <input
+                        type="checkbox"
+                        checked={onlyLeadership}
+                        onChange={e => setOnlyLeadership(e.target.checked)}
+                      />
+                      <span className="okr-toggle__slider" />
+                    </label>
+                    <span className="okr-form-toggle-label">Somente lideranças</span>
+                  </div>
                 </div>
 
                 <div className="okr-form-group okr-form-group--checkbox">
@@ -1281,7 +1388,7 @@ function RecoveryPlanCard({ plan, canEdit, onRefresh, onEdit }) {
 export default function KeyResultDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isPrivileged } = useAuth();
+  const { isPrivileged, isDev, isDirector, user } = useAuth();
 
   const [kr, setKr] = useState(null);
   const [objective, setObjective] = useState(null);
@@ -1295,6 +1402,7 @@ export default function KeyResultDetail() {
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [checkInInitialMonth, setCheckInInitialMonth] = useState(null);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
+  const [replyToComment, setReplyToComment] = useState(null); // Para responder comentários
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [showEditRecoveryDialog, setShowEditRecoveryDialog] = useState(false);
   const [editingRecoveryPlan, setEditingRecoveryPlan] = useState(null);
@@ -1422,6 +1530,9 @@ export default function KeyResultDetail() {
     // Cálculo padrão: realizado / planejado
     return Math.min(Math.max(Math.round((realizado / planejado) * 100), 0), 100);
   }, [kr]);
+
+  // Calculate progress vs meta (final target)
+  const progressVsMeta = useMemo(() => calculateKRProgressVsMeta(kr), [kr]);
 
   const trend = useMemo(() => {
     if (progress > 60) return 'up';
@@ -1701,6 +1812,28 @@ export default function KeyResultDetail() {
     return targets[lastMonth] ?? null;
   }, [kr]);
 
+  // Verificar se o usuário pode editar observações dos check-ins
+  // Pode editar se: é dev/diretor OU é o responsável pelo KR OU é do mesmo setor
+  const canEditNotes = useMemo(() => {
+    // Dev ou Diretor podem sempre editar
+    if (isDev || isDirector) return true;
+
+    // Se não tem info do usuário, não pode editar
+    if (!user?.userId && !user?.setor_id) return false;
+
+    // Responsável pelo KR pode editar
+    if (kr?.responsavel_id && user?.userId && kr.responsavel_id === user.userId) {
+      return true;
+    }
+
+    // Usuário do mesmo setor pode editar
+    if (objective?.setor_id && user?.setor_id && objective.setor_id === user.setor_id) {
+      return true;
+    }
+
+    return false;
+  }, [isDev, isDirector, user, kr, objective]);
+
   const status = kr?.status || 'on_track';
   const statusInfo = statusConfig[status] || statusConfig.on_track;
 
@@ -1823,30 +1956,88 @@ export default function KeyResultDetail() {
         )}
       </header>
 
-      {/* Progress Card */}
+      {/* Progress Card - Design V3 Minimal */}
       <section className="okr-section">
-        <div className="okr-kr-progress-card">
-          {/* Left: Circle + Meta */}
-          <div className="okr-kr-progress-card__left">
-            <div className="okr-kr-progress-card__circle-container">
-              <div className={`okr-kr-progress-card__circle okr-kr-progress-card__circle--${getProgressColor()}`}>
-                <span className="okr-kr-progress-card__percent">{progress}%</span>
+        <div className="okr-progress-v3">
+          {/* Header com responsável */}
+          <div className="okr-progress-v3__header">
+            {kr.responsavel_user && (
+              <div className="okr-progress-v3__owner">
+                {kr.responsavel_user.avatar_url ? (
+                  <img
+                    src={kr.responsavel_user.avatar_url}
+                    alt={kr.responsavel_user.name}
+                    className="okr-progress-v3__avatar"
+                  />
+                ) : (
+                  <div className="okr-progress-v3__avatar-placeholder">
+                    {kr.responsavel_user.name?.charAt(0) || '?'}
+                  </div>
+                )}
+                <div className="okr-progress-v3__owner-info">
+                  <span className="okr-progress-v3__owner-label">Responsável</span>
+                  <span className="okr-progress-v3__owner-name">{kr.responsavel_user.name}</span>
+                </div>
               </div>
-              {trend !== 'stable' && (
-                <span className={`okr-kr-progress-card__trend okr-kr-progress-card__trend--${trend}`}>
-                  <svg viewBox="0 0 24 24" width="14" height="14">
-                    {trend === 'up' ? (
-                      <path fill="currentColor" d="M7 14l5-5 5 5z"/>
-                    ) : (
-                      <path fill="currentColor" d="M7 10l5 5 5-5z"/>
-                    )}
-                  </svg>
-                </span>
-              )}
+            )}
+            <div className="okr-progress-v3__meta-final">
+              <span className="okr-progress-v3__meta-label">Meta Final</span>
+              <span className="okr-progress-v3__meta-value">{formatValue(kr.meta)}</span>
             </div>
-            <div className="okr-kr-progress-card__meta">
-              <span className="okr-kr-progress-card__meta-label">META</span>
-              <span className="okr-kr-progress-card__meta-value">{formatValue(kr.meta)}</span>
+          </div>
+
+          {/* Indicadores principais */}
+          <div className="okr-progress-v3__metrics">
+            {/* Card Ritmo */}
+            <div className={`okr-progress-v3__card okr-progress-v3__card--${getProgressColor()}`}>
+              <div className="okr-progress-v3__card-header">
+                <span className="okr-progress-v3__card-icon">⚡</span>
+                <span className="okr-progress-v3__card-title">Ritmo</span>
+              </div>
+              <div className="okr-progress-v3__card-value">
+                <span className={`okr-progress-v3__percent okr-progress-v3__percent--${getProgressColor()}`}>
+                  {progress}%
+                </span>
+              </div>
+              <div className="okr-progress-v3__card-bar">
+                <div
+                  className={`okr-progress-v3__card-bar-fill okr-progress-v3__card-bar-fill--${getProgressColor()}`}
+                  style={{ width: `${Math.min(progress, 100)}%` }}
+                />
+              </div>
+              <div className="okr-progress-v3__card-detail">
+                <span className="okr-progress-v3__formula">{formatValue(kr.atual || 0)} / {formatValue(kr.planejado_acumulado || 0)}</span>
+                <span className="okr-progress-v3__explanation">Executado ÷ Planejado</span>
+              </div>
+            </div>
+
+            {/* Card Progresso */}
+            <div className={`okr-progress-v3__card okr-progress-v3__card--${
+              progressVsMeta === null ? 'muted' : progressVsMeta >= 100 ? 'success' : progressVsMeta >= 70 ? 'warning' : 'danger'
+            }`}>
+              <div className="okr-progress-v3__card-header">
+                <span className="okr-progress-v3__card-icon">🎯</span>
+                <span className="okr-progress-v3__card-title">Progresso</span>
+              </div>
+              <div className="okr-progress-v3__card-value">
+                <span className={`okr-progress-v3__percent okr-progress-v3__percent--${
+                  progressVsMeta === null ? 'muted' : progressVsMeta >= 100 ? 'success' : progressVsMeta >= 70 ? 'warning' : 'danger'
+                }`}>
+                  {progressVsMeta === null ? '—' : `${progressVsMeta}%`}
+                </span>
+              </div>
+              <div className="okr-progress-v3__card-bar">
+                <div
+                  className={`okr-progress-v3__card-bar-fill okr-progress-v3__card-bar-fill--${
+                    progressVsMeta === null ? 'muted' : progressVsMeta >= 100 ? 'success' : progressVsMeta >= 70 ? 'warning' : 'danger'
+                  }`}
+                  style={{ width: `${Math.min(progressVsMeta || 0, 100)}%` }}
+                />
+              </div>
+              <div className="okr-progress-v3__card-detail">
+                <span className="okr-progress-v3__formula">{formatValue(kr.atual || 0)} / {formatValue(kr.meta || 0)}</span>
+                <span className="okr-progress-v3__explanation">Executado ÷ Meta Final</span>
+              </div>
             </div>
           </div>
 
@@ -1856,7 +2047,14 @@ export default function KeyResultDetail() {
             <div className="okr-kr-progress-card__input-card">
               <div className="okr-kr-progress-card__input-header">
                 <span className="okr-kr-progress-card__input-label">PLANEJADO</span>
-                {isPrivileged && (
+                {kr.auto_calculate && kr.monthly_targets && Object.keys(kr.monthly_targets).length > 0 ? (
+                  <span className="okr-kr-progress-card__auto-badge">
+                    <svg viewBox="0 0 24 24" width="10" height="10">
+                      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    automático
+                  </span>
+                ) : isPrivileged && (
                   <span className="okr-kr-progress-card__input-edit-hint">
                     <svg viewBox="0 0 24 24" width="10" height="10">
                       <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
@@ -1866,14 +2064,24 @@ export default function KeyResultDetail() {
                 )}
               </div>
               <div className="okr-kr-progress-card__input-field">
-                <EditableValue
-                  value={kr.planejado_acumulado ?? 0}
-                  onSave={handleUpdatePlanejado}
-                  canEdit={isPrivileged}
-                  formatFn={formatValue}
-                />
+                {kr.auto_calculate && kr.monthly_targets && Object.keys(kr.monthly_targets).length > 0 ? (
+                  <span className="okr-kr-progress-card__auto-value">
+                    {formatValue(kr.planejado_acumulado ?? suggestedPlanejado ?? 0)}
+                  </span>
+                ) : (
+                  <EditableValue
+                    value={kr.planejado_acumulado ?? 0}
+                    onSave={handleUpdatePlanejado}
+                    canEdit={isPrivileged}
+                    formatFn={formatValue}
+                  />
+                )}
               </div>
-              {suggestedPlanejado !== null && (
+              {kr.auto_calculate && kr.monthly_targets && Object.keys(kr.monthly_targets).length > 0 ? (
+                <div className="okr-kr-progress-card__auto-info">
+                  <span>{consolidationTypeLabels[kr.consolidation_type || 'last_value']}</span>
+                </div>
+              ) : suggestedPlanejado !== null && (
                 <div className="okr-kr-progress-card__input-suggestion">
                   <span className="okr-kr-progress-card__input-suggestion-icon">💡</span>
                   <span>Sugestão: <strong>{formatValue(suggestedPlanejado)}</strong></span>
@@ -1888,7 +2096,14 @@ export default function KeyResultDetail() {
             <div className="okr-kr-progress-card__input-card">
               <div className="okr-kr-progress-card__input-header">
                 <span className="okr-kr-progress-card__input-label">REALIZADO</span>
-                {isPrivileged && (
+                {kr.auto_calculate ? (
+                  <span className="okr-kr-progress-card__auto-badge">
+                    <svg viewBox="0 0 24 24" width="10" height="10">
+                      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    automático
+                  </span>
+                ) : isPrivileged && (
                   <span className="okr-kr-progress-card__input-edit-hint">
                     <svg viewBox="0 0 24 24" width="10" height="10">
                       <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
@@ -1898,14 +2113,24 @@ export default function KeyResultDetail() {
                 )}
               </div>
               <div className="okr-kr-progress-card__input-field">
-                <EditableValue
-                  value={consolidatedValue}
-                  onSave={handleUpdateManualValue}
-                  canEdit={isPrivileged}
-                  formatFn={formatValue}
-                />
+                {kr.auto_calculate ? (
+                  <span className="okr-kr-progress-card__auto-value">
+                    {formatValue(consolidatedValue)}
+                  </span>
+                ) : (
+                  <EditableValue
+                    value={consolidatedValue}
+                    onSave={handleUpdateManualValue}
+                    canEdit={isPrivileged}
+                    formatFn={formatValue}
+                  />
+                )}
               </div>
-              {calculatedValue !== null && (
+              {kr.auto_calculate ? (
+                <div className="okr-kr-progress-card__auto-info">
+                  <span>{consolidationTypeLabels[kr.consolidation_type || 'last_value']}</span>
+                </div>
+              ) : calculatedValue !== null && (
                 <div className="okr-kr-progress-card__input-suggestion">
                   <span className="okr-kr-progress-card__input-suggestion-icon">💡</span>
                   <span>Sugestão: <strong>{formatValue(calculatedValue)}</strong></span>
@@ -1917,25 +2142,21 @@ export default function KeyResultDetail() {
             </div>
           </div>
 
-          {/* Right: Owner */}
-          {kr.responsavel && (
-            <div className="okr-kr-progress-card__right">
-              <div className="okr-kr-progress-card__owner">
-                <svg viewBox="0 0 24 24" width="14" height="14">
-                  <path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-                <span>{kr.responsavel}</span>
-              </div>
-            </div>
-          )}
-
           {/* Help text footer inside card */}
           {isPrivileged && (
             <div className="okr-kr-progress-card__footer">
               <svg viewBox="0 0 24 24" width="12" height="12">
                 <path fill="currentColor" d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
               </svg>
-              <span>Preencha <strong>Planejado</strong> e <strong>Realizado</strong> manualmente</span>
+              {kr.auto_calculate ? (
+                kr.monthly_targets && Object.keys(kr.monthly_targets).length > 0 ? (
+                  <span><strong>Planejado</strong> e <strong>Realizado</strong> são calculados automaticamente das metas mensais e check-ins.</span>
+                ) : (
+                  <span>Preencha <strong>Planejado</strong> manualmente. <strong>Realizado</strong> é calculado automaticamente dos check-ins.</span>
+                )
+              ) : (
+                <span>Preencha <strong>Planejado</strong> e <strong>Realizado</strong> manualmente</span>
+              )}
             </div>
           )}
         </div>
@@ -2093,10 +2314,10 @@ export default function KeyResultDetail() {
                         </div>
                       )}
 
-                      {(checkIn?.notas || (checkIn && isPrivileged)) && (
+                      {(checkIn?.notas || (checkIn && canEditNotes)) && (
                         <EditableNotes
                           value={checkIn?.notas}
-                          canEdit={isPrivileged}
+                          canEdit={canEditNotes}
                           onSave={(newNotes) => handleUpdateNotes(checkIn, newNotes)}
                           placeholder="Adicionar observação..."
                         />
@@ -2158,17 +2379,86 @@ export default function KeyResultDetail() {
               <div className="okr-card__body">
                 {comments.length > 0 ? (
                   <div className="okr-comments-list">
-                    {comments.map(comment => (
-                      <div key={comment.id} className="okr-comment">
-                        <div className="okr-comment__header">
-                          <span className="okr-comment__author">{comment.author_id}</span>
-                          <span className="okr-comment__date">
-                            {new Date(comment.created_at).toLocaleDateString('pt-BR')}
-                          </span>
+                    {comments.map(comment => {
+                      const categoriaColors = {
+                        'Dúvida': { bg: '#fef3c7', text: '#d97706', border: '#fbbf24' },
+                        'Sugestão': { bg: '#d1fae5', text: '#059669', border: '#34d399' },
+                        'Comentário': { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db' }
+                      };
+                      const catStyle = categoriaColors[comment.categoria] || categoriaColors['Comentário'];
+
+                      return (
+                        <div key={comment.id} className="okr-comment" style={{ marginBottom: '16px' }}>
+                          <div className="okr-comment__header" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span className="okr-comment__author">{comment.author_name}</span>
+                            {comment.categoria && (
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                backgroundColor: catStyle.bg,
+                                color: catStyle.text,
+                                border: `1px solid ${catStyle.border}`
+                              }}>
+                                {comment.categoria}
+                              </span>
+                            )}
+                            <span className="okr-comment__date">
+                              {new Date(comment.created_at).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                          <p className="okr-comment__content">{comment.content}</p>
+
+                          {/* Botão responder */}
+                          <button
+                            onClick={() => {
+                              setReplyToComment(comment);
+                              setShowCommentDialog(true);
+                            }}
+                            style={{
+                              marginTop: '8px',
+                              padding: '4px 12px',
+                              fontSize: '12px',
+                              color: '#6b7280',
+                              backgroundColor: 'transparent',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '16px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" width="12" height="12">
+                              <path fill="currentColor" d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/>
+                            </svg>
+                            Responder
+                          </button>
+
+                          {/* Respostas aninhadas */}
+                          {comment.replies && comment.replies.length > 0 && (
+                            <div style={{
+                              marginTop: '12px',
+                              paddingLeft: '20px',
+                              borderLeft: '2px solid #e5e7eb'
+                            }}>
+                              {comment.replies.map(reply => (
+                                <div key={reply.id} className="okr-comment okr-comment--reply" style={{ marginBottom: '12px' }}>
+                                  <div className="okr-comment__header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span className="okr-comment__author" style={{ fontSize: '13px' }}>{reply.author_name}</span>
+                                    <span className="okr-comment__date" style={{ fontSize: '11px' }}>
+                                      {new Date(reply.created_at).toLocaleDateString('pt-BR')}
+                                    </span>
+                                  </div>
+                                  <p className="okr-comment__content" style={{ fontSize: '13px', marginTop: '4px' }}>{reply.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <p className="okr-comment__content">{comment.content}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="okr-empty-state okr-empty-state--compact">
@@ -2246,9 +2536,13 @@ export default function KeyResultDetail() {
 
       <CommentDialog
         open={showCommentDialog}
-        onClose={() => setShowCommentDialog(false)}
+        onClose={() => {
+          setShowCommentDialog(false);
+          setReplyToComment(null);
+        }}
         onSuccess={fetchData}
         krId={id}
+        replyTo={replyToComment}
       />
 
       <RecoveryPlanDialog
@@ -2268,6 +2562,7 @@ export default function KeyResultDetail() {
           onSuccess={fetchData}
           kr={kr}
           quarter={objective?.quarter}
+          setorId={objective?.setor_id}
         />
       )}
 
