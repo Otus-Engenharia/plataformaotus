@@ -123,9 +123,22 @@
    ========================================================================== */
 .okr-metrics-grid {
   display: grid;
-  grid-template-columns: 1.25fr repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr repeat(3, 0.85fr);
   gap: 1rem;
   margin-bottom: 2rem;
+}
+
+/* Cards featured menores para RITMO e PROGRESSO */
+.okr-metric-card--featured.okr-metric-card--ritmo,
+.okr-metric-card--featured.okr-metric-card--progresso {
+  padding: 1rem;
+}
+
+.okr-metric-card__subtitle-inline {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999999);
+  font-weight: 400;
+  margin-left: auto;
 }
 
 /* Metric Card Base */
@@ -298,7 +311,6 @@
   fill: none;
   stroke-linecap: round;
   transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
-  filter: drop-shadow(0 0 6px currentColor);
 }
 
 .okr-score-ring-value {
@@ -395,6 +407,7 @@
 .okr-sector-card--success::before { background: var(--color-success, #22c55e); }
 .okr-sector-card--warning::before { background: var(--color-warning, #f59e0b); }
 .okr-sector-card--danger::before { background: var(--color-danger, #ef4444); }
+.okr-sector-card--muted::before { background: var(--color-muted, #9ca3af); }
 
 .okr-sector-card__header {
   display: flex;
@@ -439,6 +452,40 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.okr-sector-card__progress-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.okr-sector-card__meta-progress {
+  font-size: 0.625rem;
+  color: var(--color-text-secondary, #666);
+  margin-top: 0.25rem;
+}
+
+/* Dual progress rings */
+.okr-sector-card__progress-dual {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.okr-sector-card__progress-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.okr-sector-card__progress-label {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #999999);
 }
 
 .okr-sector-card__chevron {
@@ -495,8 +542,8 @@
 
 .okr-objective-mini {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.75rem;
   background: rgba(0, 0, 0, 0.02);
   border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
@@ -511,6 +558,12 @@
   border-color: rgba(0, 0, 0, 0.15);
 }
 
+.okr-objective-mini__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .okr-objective-mini__info {
   display: flex;
   flex-direction: column;
@@ -523,6 +576,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-accent-dark, #e6bb00);
+  flex-shrink: 0;
 }
 
 .okr-objective-mini__title {
@@ -534,6 +588,60 @@
 .okr-objective-mini__krs {
   font-size: 0.75rem;
   color: var(--color-text-muted, #999999);
+  margin-left: auto;
+}
+
+/* OKR mini metrics */
+.okr-objective-mini__metrics {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.75rem;
+  padding-left: 0.25rem;
+}
+
+.okr-objective-mini__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.okr-objective-mini__metric-label {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted, #999999);
+}
+
+.okr-objective-mini__metric-value {
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.okr-objective-mini__metric-value--success { color: var(--color-success, #22c55e); }
+.okr-objective-mini__metric-value--warning { color: var(--color-warning, #f59e0b); }
+.okr-objective-mini__metric-value--danger { color: var(--color-danger, #ef4444); }
+.okr-objective-mini__metric-value--muted { color: var(--color-text-muted, #9ca3af); }
+
+.okr-objective-mini__avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--color-bg-tertiary, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.okr-objective-mini__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .okr-sector-card__view-btn {
@@ -809,15 +917,24 @@
    ========================================================================== */
 @media (max-width: 1024px) {
   .okr-metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .okr-metric-card--featured {
-    grid-column: span 2;
+    grid-column: span 1;
   }
 
   .okr-sectors-grid {
     grid-template-columns: 1fr;
+  }
+
+  .okr-sector-card__progress-dual {
+    gap: 0.5rem;
+  }
+
+  .okr-objective-mini__metrics {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }
 
@@ -860,6 +977,18 @@
 
   .okr-company-objectives {
     grid-template-columns: 1fr;
+  }
+
+  .okr-sector-card__progress-dual {
+    gap: 0.375rem;
+  }
+
+  .okr-objective-mini__metrics {
+    gap: 0.375rem;
+  }
+
+  .okr-objective-mini__metric-label {
+    font-size: 0.5rem;
   }
 }
 
@@ -956,6 +1085,7 @@
 .okr-objective-card--success::before { background: var(--color-success, #22c55e); }
 .okr-objective-card--warning::before { background: var(--color-warning, #f59e0b); }
 .okr-objective-card--danger::before { background: var(--color-danger, #ef4444); }
+.okr-objective-card--muted::before { background: var(--color-muted, #9ca3af); }
 
 .okr-objective-card__header {
   display: flex;
@@ -1094,6 +1224,122 @@
 .okr-objective-card__stat--success { color: var(--color-success, #22c55e); }
 .okr-objective-card__stat--warning { color: var(--color-warning, #f59e0b); }
 .okr-objective-card__stat--danger { color: var(--color-danger, #ef4444); }
+
+/* Card meta (avatar + chevron) */
+.okr-objective-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.okr-objective-card__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4f46e5;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.okr-objective-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Métricas do card (Ritmo, Progresso, Peso) */
+.okr-objective-card__metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.06));
+}
+
+.okr-objective-card__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.okr-objective-card__metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.okr-objective-card__metric-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary, #1f2937);
+}
+
+.okr-objective-card__metric-value--success { color: var(--color-success, #22c55e); }
+.okr-objective-card__metric-value--warning { color: var(--color-warning, #f59e0b); }
+.okr-objective-card__metric-value--danger { color: var(--color-danger, #ef4444); }
+.okr-objective-card__metric-value--muted { color: var(--color-text-muted, #9ca3af); }
+
+.okr-objective-card__metric-bar {
+  height: 4px;
+  background: var(--color-bg-tertiary, #f3f4f6);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.okr-objective-card__metric-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.okr-objective-card__metric-bar-fill--success { background: var(--color-success, #22c55e); }
+.okr-objective-card__metric-bar-fill--warning { background: var(--color-warning, #f59e0b); }
+.okr-objective-card__metric-bar-fill--danger { background: var(--color-danger, #ef4444); }
+.okr-objective-card__metric-bar-fill--muted { background: var(--color-text-muted, #9ca3af); }
+
+/* Input de peso inline */
+.okr-weight-input {
+  width: 60px;
+  padding: 4px 8px;
+  border: 2px solid var(--color-primary, #2563eb);
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  background: var(--color-bg-elevated, #fff);
+  color: var(--color-text-primary, #1f2937);
+  outline: none;
+}
+
+.okr-weight-input:focus {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.okr-weight-display {
+  display: inline-block;
+}
+
+.okr-weight-display--editable {
+  cursor: pointer;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+}
+
+.okr-weight-display--editable:hover {
+  background: var(--color-bg-tertiary, #f3f4f6);
+}
 
 /* ==========================================================================
    Modal
@@ -1408,6 +1654,7 @@
 .okr-kr-card--success { border-left: 4px solid var(--color-success, #22c55e); }
 .okr-kr-card--warning { border-left: 4px solid var(--color-warning, #f59e0b); }
 .okr-kr-card--danger { border-left: 4px solid var(--color-danger, #ef4444); }
+.okr-kr-card--muted { border-left: 4px solid var(--color-muted, #9ca3af); }
 
 .okr-kr-card__content {
   display: flex;
@@ -1439,6 +1686,10 @@
   background: rgba(239, 68, 68, 0.1);
 }
 
+.okr-kr-card__progress-circle--muted {
+  background: rgba(156, 163, 175, 0.1);
+}
+
 .okr-kr-card__progress-value {
   font-size: 0.875rem;
   font-weight: 700;
@@ -1455,6 +1706,10 @@
 
 .okr-kr-card__progress-circle--danger .okr-kr-card__progress-value {
   color: var(--color-danger, #ef4444);
+}
+
+.okr-kr-card__progress-circle--muted .okr-kr-card__progress-value {
+  color: var(--color-muted, #9ca3af);
 }
 
 .okr-kr-card__trend {
@@ -1510,6 +1765,11 @@
   color: var(--color-danger, #ef4444);
 }
 
+.okr-kr-card__status--muted {
+  background: rgba(156, 163, 175, 0.1);
+  color: var(--color-muted, #9ca3af);
+}
+
 .okr-kr-card__weight {
   font-size: 0.6875rem;
   font-weight: 500;
@@ -1547,6 +1807,751 @@
   color: var(--color-accent-dark, #e6bb00);
 }
 
+/* Dual Metrics Section */
+.okr-kr-card__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.okr-kr-card__metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.okr-kr-card__metric-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.okr-kr-card__metric-value {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #333;
+  font-variant-numeric: tabular-nums;
+}
+
+.okr-kr-card__metric-value--success { color: #16a34a; }
+.okr-kr-card__metric-value--warning { color: #d97706; }
+.okr-kr-card__metric-value--danger { color: #dc2626; }
+.okr-kr-card__metric-value--muted { color: #9ca3af; }
+
+/* ========================================
+   KR CARD V2 - BOLD DUAL METRICS
+   ======================================== */
+.okr-kr-card-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1.25rem;
+  padding-right: 3rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  animation: okrFadeInUp 0.4s ease-out backwards;
+  position: relative;
+}
+
+.okr-kr-card-v2:hover {
+  border-color: #ffd000;
+  box-shadow: 0 4px 20px rgba(255, 208, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Header */
+.okr-kr-card-v2__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.okr-kr-card-v2__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.okr-kr-card-v2__badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.okr-kr-card-v2__badge--success {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.okr-kr-card-v2__badge--warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.okr-kr-card-v2__badge--danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.okr-kr-card-v2__badge--muted {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.okr-kr-card-v2__badge--outline {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+}
+
+.okr-kr-card-v2__badge--inverse {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Owner */
+.okr-kr-card-v2__owner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.okr-kr-card-v2__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.okr-kr-card-v2__avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.okr-kr-card-v2__owner-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #666;
+}
+
+/* Title */
+.okr-kr-card-v2__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.4;
+  color: #1a1a1a;
+}
+
+/* Owner Row - igual ao KeyResultDetail */
+.okr-kr-card-v2__owner-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  margin-top: 0.5rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.okr-kr-card-v2__owner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.okr-kr-card-v2__owner-label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+}
+
+.okr-kr-card-v2:hover .okr-kr-card-v2__title {
+  color: #b8960a;
+}
+
+/* Dual Metrics Grid */
+.okr-kr-card-v2__metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.okr-kr-card-v2__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.875rem;
+  background: #fafafa;
+  border-radius: 10px;
+  border-left: 3px solid #e5e5e5;
+}
+
+.okr-kr-card-v2__metric--success {
+  border-left-color: #22c55e;
+  background: linear-gradient(to right, rgba(34, 197, 94, 0.05), #fafafa);
+}
+
+.okr-kr-card-v2__metric--warning {
+  border-left-color: #f59e0b;
+  background: linear-gradient(to right, rgba(245, 158, 11, 0.05), #fafafa);
+}
+
+.okr-kr-card-v2__metric--danger {
+  border-left-color: #ef4444;
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.05), #fafafa);
+}
+
+.okr-kr-card-v2__metric--muted {
+  border-left-color: #d1d5db;
+}
+
+.okr-kr-card-v2__metric-header {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.okr-kr-card-v2__metric-icon {
+  font-size: 0.875rem;
+}
+
+.okr-kr-card-v2__metric-label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+}
+
+.okr-kr-card-v2__metric-percent {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.okr-kr-card-v2__metric-percent--success { color: #16a34a; }
+.okr-kr-card-v2__metric-percent--warning { color: #d97706; }
+.okr-kr-card-v2__metric-percent--danger { color: #dc2626; }
+.okr-kr-card-v2__metric-percent--muted { color: #9ca3af; }
+
+.okr-kr-card-v2__metric-formula {
+  font-size: 0.6875rem;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+}
+
+.okr-kr-card-v2__metric-bar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.okr-kr-card-v2__metric-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+.okr-kr-card-v2__metric-bar-fill--success { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.okr-kr-card-v2__metric-bar-fill--warning { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.okr-kr-card-v2__metric-bar-fill--danger { background: linear-gradient(90deg, #ef4444, #f87171); }
+.okr-kr-card-v2__metric-bar-fill--muted { background: #d1d5db; }
+
+/* Chevron */
+.okr-kr-card-v2__chevron {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ccc;
+  transition: all 0.2s ease;
+}
+
+.okr-kr-card-v2:hover .okr-kr-card-v2__chevron {
+  color: #ffd000;
+  transform: translateY(-50%) translateX(4px);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .okr-kr-card-v2__metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .okr-kr-card-v2__header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .okr-kr-card-v2__metric-percent {
+    font-size: 1.5rem;
+  }
+
+  .okr-kr-card-v2__header-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .okr-kr-card-v2__weight-block {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+}
+
+/* Header Row - Responsável à esquerda, Peso à direita (estilo OKR) */
+.okr-kr-card-v2__header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+/* Owner Block - estilo similar ao OKR */
+.okr-kr-card-v2__owner-block {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.okr-kr-card-v2__owner-block--empty {
+  min-height: 40px;
+}
+
+/* Weight Block - à direita do header */
+.okr-kr-card-v2__weight-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.okr-kr-card-v2__weight-block:hover {
+  background: #fef9c3;
+}
+
+.okr-kr-card-v2__weight-number {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.okr-kr-card-v2__weight-label-text {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #888;
+}
+
+.okr-kr-card-v2__weight-unit {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #666;
+}
+
+/* Footer com status badges */
+.okr-kr-card-v2__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.okr-kr-card-v2__status-badges {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+/* Edição de peso inline */
+.okr-kr-card-v2__weight-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.okr-kr-card-v2__weight-input {
+  width: 50px;
+  padding: 0.25rem 0.375rem;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: right;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #1a1a1a;
+  outline: none;
+}
+
+.okr-kr-card-v2__weight-input:focus {
+  border-color: #ffd000;
+  box-shadow: 0 0 0 3px rgba(255, 208, 0, 0.2);
+}
+
+.okr-kr-card-v2__weight-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.okr-kr-card-v2__weight-btn--save {
+  background: #22c55e;
+  color: white;
+}
+
+.okr-kr-card-v2__weight-btn--save:hover {
+  background: #16a34a;
+}
+
+.okr-kr-card-v2__weight-btn--cancel {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.okr-kr-card-v2__weight-btn--cancel:hover {
+  background: #d1d5db;
+}
+
+.okr-kr-card-v2__weight-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   OBJECTIVE PROGRESS CARD V2
+   ======================================== */
+.okr-obj-progress {
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 6px 24px rgba(0, 0, 0, 0.06);
+  animation: okrFadeInUp 0.4s ease-out backwards;
+}
+
+/* Header */
+.okr-obj-progress__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(to right, #fafafa, #fff);
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.okr-obj-progress__owner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.okr-obj-progress__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.okr-obj-progress__avatar-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.125rem;
+  text-transform: uppercase;
+}
+
+.okr-obj-progress__owner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.okr-obj-progress__owner-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.okr-obj-progress__owner-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Stats */
+.okr-obj-progress__stats {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.okr-obj-progress__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.okr-obj-progress__stat-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+
+.okr-obj-progress__stat-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+}
+
+/* Metrics Grid */
+.okr-obj-progress__metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #f0f0f0;
+}
+
+.okr-obj-progress__card {
+  background: #fff;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.okr-obj-progress__card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #e5e5e5;
+}
+
+.okr-obj-progress__card--success::before {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.okr-obj-progress__card--warning::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.okr-obj-progress__card--danger::before {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.okr-obj-progress__card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.okr-obj-progress__card-icon {
+  font-size: 1rem;
+}
+
+.okr-obj-progress__card-title {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #666;
+}
+
+.okr-obj-progress__card-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.okr-obj-progress__card-value--success { color: #16a34a; }
+.okr-obj-progress__card-value--warning { color: #d97706; }
+.okr-obj-progress__card-value--danger { color: #dc2626; }
+
+.okr-obj-progress__card-bar {
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.okr-obj-progress__card-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-obj-progress__card-bar-fill--success {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.okr-obj-progress__card-bar-fill--warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.okr-obj-progress__card-bar-fill--danger {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.okr-obj-progress__card-desc {
+  font-size: 0.6875rem;
+  color: #888;
+  font-style: italic;
+}
+
+/* Footer */
+.okr-obj-progress__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+}
+
+.okr-obj-progress__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.okr-obj-progress__badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+}
+
+.okr-obj-progress__badge--success {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.okr-obj-progress__badge--warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.okr-obj-progress__badge--danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.okr-obj-progress__badge--info {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.okr-obj-progress__weight-info {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.okr-obj-progress__weight-info strong {
+  color: #1a1a1a;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .okr-obj-progress__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .okr-obj-progress__stats {
+    align-self: flex-end;
+  }
+
+  .okr-obj-progress__metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .okr-obj-progress__card-value {
+    font-size: 2rem;
+  }
+
+  .okr-obj-progress__footer {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+}
+
+/* ========================================
+   LEGACY KR CARD STYLES
+   ======================================== */
 .okr-kr-card__values {
   display: flex;
   align-items: baseline;
@@ -1567,6 +2572,30 @@
 .okr-kr-card__target {
   color: var(--color-text-muted, #999999);
 }
+
+.okr-kr-card__meta-label {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #999999);
+  font-style: italic;
+}
+
+/* Meta progress no KeyResultCard */
+.okr-kr-card__meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.okr-kr-card__meta-progress {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.okr-kr-card__meta-progress--success { color: #22c55e; }
+.okr-kr-card__meta-progress--warning { color: #f59e0b; }
+.okr-kr-card__meta-progress--danger { color: #ef4444; }
+.okr-kr-card__meta-progress--muted { color: #9ca3af; }
 
 .okr-kr-card__progress-bar-container {
   height: 4px;
@@ -1595,6 +2624,10 @@
   background: linear-gradient(90deg, var(--color-danger, #ef4444), #f87171);
 }
 
+.okr-kr-card__progress-bar--muted {
+  background: linear-gradient(90deg, var(--color-muted, #9ca3af), #d1d5db);
+}
+
 .okr-kr-card__footer {
   display: flex;
   align-items: center;
@@ -1609,6 +2642,14 @@
   gap: 0.375rem;
   font-size: 0.75rem;
   color: var(--color-text-muted, #999999);
+}
+
+.okr-kr-card__owner-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .okr-kr-card__chevron {
@@ -1933,6 +2974,66 @@
 }
 
 /* ==========================================================================
+   Toggle Switch
+   ========================================================================== */
+.okr-form-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.okr-form-toggle-label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.okr-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.okr-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.okr-toggle__slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.2s;
+  border-radius: 20px;
+}
+
+.okr-toggle__slider::before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.okr-toggle input:checked + .okr-toggle__slider {
+  background-color: var(--color-accent, #ffd000);
+}
+
+.okr-toggle input:checked + .okr-toggle__slider::before {
+  transform: translateX(16px);
+}
+
+/* ==========================================================================
    Form Hint
    ========================================================================== */
 .okr-form-hint {
@@ -1959,6 +3060,530 @@
     0 4px 16px rgba(0, 0, 0, 0.04);
   animation: okrFadeInUp 0.5s ease-out backwards;
   overflow: hidden;
+}
+
+/* ========================================
+   PROGRESS CARD V3 - MINIMAL BOLD DESIGN
+   ======================================== */
+.okr-progress-v3 {
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 6px 24px rgba(0, 0, 0, 0.06);
+  animation: okrFadeInUp 0.5s ease-out backwards;
+}
+
+/* Header */
+.okr-progress-v3__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #f0f0f0;
+  background: linear-gradient(to right, #fafafa, #fff);
+}
+
+.okr-progress-v3__owner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.okr-progress-v3__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.okr-progress-v3__avatar-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.125rem;
+  text-transform: uppercase;
+}
+
+.okr-progress-v3__owner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.okr-progress-v3__owner-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.okr-progress-v3__owner-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.okr-progress-v3__meta-final {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.okr-progress-v3__meta-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.okr-progress-v3__meta-value {
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Metrics Grid */
+.okr-progress-v3__metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #f0f0f0;
+}
+
+/* Individual Card */
+.okr-progress-v3__card {
+  background: #fff;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.okr-progress-v3__card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #e5e5e5;
+}
+
+.okr-progress-v3__card--success::before {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.okr-progress-v3__card--warning::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.okr-progress-v3__card--danger::before {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.okr-progress-v3__card--muted::before {
+  background: #d1d5db;
+}
+
+.okr-progress-v3__card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.okr-progress-v3__card-icon {
+  font-size: 1rem;
+}
+
+.okr-progress-v3__card-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #666;
+}
+
+.okr-progress-v3__card-value {
+  display: flex;
+  align-items: baseline;
+}
+
+.okr-progress-v3__percent {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.okr-progress-v3__percent--success {
+  color: #16a34a;
+}
+
+.okr-progress-v3__percent--warning {
+  color: #d97706;
+}
+
+.okr-progress-v3__percent--danger {
+  color: #dc2626;
+}
+
+.okr-progress-v3__percent--muted {
+  color: #9ca3af;
+}
+
+/* Progress Bar */
+.okr-progress-v3__card-bar {
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.okr-progress-v3__card-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-progress-v3__card-bar-fill--success {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.okr-progress-v3__card-bar-fill--warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.okr-progress-v3__card-bar-fill--danger {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.okr-progress-v3__card-bar-fill--muted {
+  background: #d1d5db;
+}
+
+/* Detail */
+.okr-progress-v3__card-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e5e5e5;
+}
+
+.okr-progress-v3__formula {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #333;
+  font-variant-numeric: tabular-nums;
+}
+
+.okr-progress-v3__explanation {
+  font-size: 0.6875rem;
+  color: #888;
+  font-style: italic;
+}
+
+/* Inputs dentro do V3 */
+.okr-progress-v3 .okr-kr-progress-card__inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #f0f0f0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.okr-progress-v3 .okr-kr-progress-card__input-card {
+  background: #fff;
+  padding: 1.25rem 1.5rem;
+}
+
+.okr-progress-v3 .okr-kr-progress-card__footer {
+  background: #fafafa;
+  padding: 0.875rem 1.5rem;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.okr-progress-v3 .okr-kr-progress-card__footer svg {
+  flex-shrink: 0;
+  color: #999;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .okr-progress-v3__metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .okr-progress-v3__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .okr-progress-v3__meta-final {
+    align-items: flex-start;
+  }
+
+  .okr-progress-v3__percent {
+    font-size: 2.5rem;
+  }
+
+  .okr-progress-v3 .okr-kr-progress-card__inputs {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================
+   REDESIGNED PROGRESS CARD (LEGACY)
+   ======================================== */
+.okr-kr-progress-card--redesigned {
+  flex-direction: column;
+}
+
+/* Top Bar: Owner + Meta */
+.okr-kr-progress-card__topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #fafbfc 0%, #f4f5f7 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.okr-kr-progress-card__owner-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.okr-kr-progress-card__owner-avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.okr-kr-progress-card__owner-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.okr-kr-progress-card__owner-name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-kr-progress-card__meta-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+}
+
+.okr-kr-progress-card__meta-badge-label {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  color: var(--color-text-muted, #888);
+}
+
+.okr-kr-progress-card__meta-badge-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-accent-dark, #b8960a);
+  background: linear-gradient(135deg, rgba(255, 208, 0, 0.12) 0%, rgba(255, 208, 0, 0.04) 100%);
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 208, 0, 0.2);
+}
+
+/* Dual Indicators Section */
+.okr-kr-progress-card__dual-indicators {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  padding: 1.5rem 0;
+  background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
+}
+
+.okr-kr-progress-card__indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0 2.5rem;
+  flex: 1;
+  max-width: 220px;
+}
+
+.okr-kr-progress-card__indicator-divider {
+  width: 1px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.08) 20%, rgba(0,0,0,0.08) 80%, transparent 100%);
+  align-self: stretch;
+}
+
+/* Indicator Ring */
+.okr-kr-progress-card__indicator-ring {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.okr-kr-progress-card__indicator-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.okr-kr-progress-card__indicator-bg {
+  fill: none;
+  stroke: #f0f0f0;
+  stroke-width: 8;
+}
+
+.okr-kr-progress-card__indicator-progress {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-kr-progress-card__indicator-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.okr-kr-progress-card__indicator-percent {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #1a1a1a);
+  line-height: 1;
+}
+
+/* Indicator Info */
+.okr-kr-progress-card__indicator-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.okr-kr-progress-card__indicator-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-primary, #333);
+}
+
+.okr-kr-progress-card__indicator-formula {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #555);
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+}
+
+.okr-kr-progress-card__indicator-desc {
+  font-size: 0.625rem;
+  color: var(--color-text-muted, #888);
+  font-style: italic;
+}
+
+/* Ring color states */
+.okr-kr-progress-card__indicator-ring--success .okr-kr-progress-card__indicator-percent {
+  color: #16a34a;
+}
+.okr-kr-progress-card__indicator-ring--warning .okr-kr-progress-card__indicator-percent {
+  color: #d97706;
+}
+.okr-kr-progress-card__indicator-ring--danger .okr-kr-progress-card__indicator-percent {
+  color: #dc2626;
+}
+.okr-kr-progress-card__indicator-ring--muted .okr-kr-progress-card__indicator-percent {
+  color: #9ca3af;
+}
+
+/* Inputs section for redesigned card */
+.okr-kr-progress-card--redesigned .okr-kr-progress-card__inputs {
+  width: 100%;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive for redesigned card */
+@media (max-width: 640px) {
+  .okr-kr-progress-card__dual-indicators {
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.25rem 1rem;
+  }
+
+  .okr-kr-progress-card__indicator {
+    padding: 0;
+    max-width: none;
+  }
+
+  .okr-kr-progress-card__indicator-divider {
+    width: 80%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.08) 20%, rgba(0,0,0,0.08) 80%, transparent 100%);
+  }
+
+  .okr-kr-progress-card__topbar {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .okr-kr-progress-card__meta-badge {
+    align-items: flex-start;
+  }
+
+  .okr-kr-progress-card--redesigned .okr-kr-progress-card__inputs {
+    flex-direction: column;
+  }
 }
 
 /* Left Section - Progress Circle + Meta */
@@ -2079,6 +3704,47 @@
   border: 1px solid rgba(255, 208, 0, 0.25);
 }
 
+/* Progresso vs Meta */
+.okr-kr-progress-card__vs-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.okr-kr-progress-card__vs-meta-label {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-muted, #888);
+}
+
+.okr-kr-progress-card__vs-meta-value {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+}
+
+.okr-kr-progress-card__vs-meta-value--success {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.okr-kr-progress-card__vs-meta-value--warning {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.okr-kr-progress-card__vs-meta-value--danger {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
 /* Center Section - Input Cards */
 .okr-kr-progress-card__inputs {
   display: flex;
@@ -2132,6 +3798,39 @@
 
 .okr-kr-progress-card__input-card:hover .okr-kr-progress-card__input-edit-hint {
   opacity: 1;
+}
+
+/* Badge de Cálculo Automático */
+.okr-kr-progress-card__auto-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: 4px;
+  letter-spacing: 0.25px;
+}
+
+.okr-kr-progress-card__auto-badge svg {
+  flex-shrink: 0;
+}
+
+.okr-kr-progress-card__auto-value {
+  font-size: 1.875rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-kr-progress-card__auto-info {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  margin-top: 0.25rem;
+  text-align: center;
 }
 
 /* Input Field */
@@ -2243,6 +3942,14 @@
 
 .okr-kr-progress-card__owner svg {
   opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.okr-kr-progress-card__owner-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
   flex-shrink: 0;
 }
 
@@ -4196,6 +5903,11 @@
   color: var(--color-text-primary, #1a1a1a);
 }
 
+.okr-initiative-card__expand-divider {
+  opacity: 0.3;
+  margin: 0 0.125rem;
+}
+
 .okr-initiative-card__comments {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -4260,6 +5972,179 @@
 .okr-btn--sm {
   padding: 0.5rem 1rem;
   font-size: 0.8125rem;
+}
+
+/* ==========================================================================
+   Initiative 2-Column Layout (Action Plans + Comments)
+   ========================================================================== */
+
+.okr-initiative-card__content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+@media (max-width: 768px) {
+  .okr-initiative-card__content {
+    grid-template-columns: 1fr;
+  }
+}
+
+.okr-initiative-card__plans,
+.okr-initiative-card__comments-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.okr-initiative-card__section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.okr-initiative-card__section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #6b7280);
+  margin: 0;
+}
+
+.okr-initiative-card__section-title svg {
+  opacity: 0.7;
+}
+
+/* Action Plans List */
+.okr-action-plans-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.okr-action-plan-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--color-bg-secondary, #f9fafb);
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  transition: all 0.2s ease;
+}
+
+.okr-action-plan-item:hover {
+  border-color: var(--color-border-hover, #d1d5db);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.okr-action-plan-item--completed {
+  background: rgba(16, 185, 129, 0.05);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.okr-action-plan-item--in_progress {
+  border-left: 3px solid var(--color-warning, #f59e0b);
+}
+
+.okr-action-plan-item__checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary, #9ca3af);
+  cursor: pointer;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.okr-action-plan-item__checkbox:hover {
+  color: var(--color-success, #10b981);
+}
+
+.okr-action-plan-item--completed .okr-action-plan-item__checkbox {
+  color: var(--color-success, #10b981);
+}
+
+.okr-action-plan-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.okr-action-plan-item__title {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+  margin-bottom: 0.25rem;
+}
+
+.okr-action-plan-item__title--completed {
+  text-decoration: line-through;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.okr-action-plan-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.okr-action-plan-item__date {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.okr-action-plan-item__responsible {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.okr-action-plan-item__avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.okr-action-plan-item__actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.okr-action-plan-item:hover .okr-action-plan-item__actions {
+  opacity: 1;
+}
+
+.okr-plans-empty {
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  text-align: center;
+  padding: 1.5rem;
+  margin: 0;
+  background: var(--color-bg-secondary, #f9fafb);
+  border-radius: 8px;
+  border: 1px dashed var(--color-border, #e5e7eb);
 }
 
 /* ==========================================================================
@@ -4338,4 +6223,1296 @@
 
 .okr-monthly-item__value-num--danger .okr-editable-value {
   color: var(--color-danger, #ef4444);
+}
+
+/* ==========================================================================
+   Initiative Card - Enhanced with DoD Progress Ring
+   ========================================================================== */
+
+.okr-initiative-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.okr-initiative-card__header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+/* DoD Progress Ring */
+.okr-initiative-card__dod-ring {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.okr-initiative-card__dod-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.okr-initiative-card__dod-ring--start {
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.okr-initiative-card__dod-ring--progress {
+  color: var(--color-warning, #f59e0b);
+}
+
+.okr-initiative-card__dod-ring--complete {
+  color: var(--color-success, #10b981);
+}
+
+.okr-initiative-card__dod-progress {
+  transition: stroke-dasharray 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.okr-initiative-card__dod-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stats in expand button */
+.okr-initiative-card__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.okr-initiative-card__stat svg {
+  opacity: 0.6;
+}
+
+.okr-initiative-card__chevron {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+/* 3-Column Layout for expanded content */
+.okr-initiative-card__content--3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .okr-initiative-card__content--3col {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .okr-initiative-card__comments-column {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .okr-initiative-card__content--3col {
+    grid-template-columns: 1fr;
+  }
+
+  .okr-initiative-card__comments-column {
+    grid-column: span 1;
+  }
+}
+
+/* ==========================================================================
+   Definition of Done (DoD) Section
+   ========================================================================== */
+
+.okr-initiative-card__dod {
+  display: flex;
+  flex-direction: column;
+}
+
+.okr-dod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.okr-dod-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  background: var(--color-bg-secondary, #f9fafb);
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  transition: all 0.15s ease;
+}
+
+.okr-dod-item:hover {
+  border-color: var(--color-border-hover, #d1d5db);
+}
+
+.okr-dod-item--completed {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.okr-dod-item__checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary, #9ca3af);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.okr-dod-item__checkbox:hover {
+  color: var(--color-success, #10b981);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.okr-dod-item--completed .okr-dod-item__checkbox {
+  color: var(--color-success, #10b981);
+}
+
+.okr-dod-item__title {
+  flex: 1;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary, #1a1a1a);
+  line-height: 1.4;
+}
+
+.okr-dod-item__title--completed {
+  text-decoration: line-through;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.okr-dod-item__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary, #9ca3af);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  border-radius: 4px;
+  padding: 0;
+}
+
+.okr-dod-item:hover .okr-dod-item__delete {
+  opacity: 1;
+}
+
+.okr-dod-item__delete:hover {
+  color: var(--color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.okr-dod-empty {
+  font-size: 0.8125rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  text-align: center;
+  padding: 1.25rem;
+  margin: 0;
+  background: var(--color-bg-secondary, #f9fafb);
+  border-radius: 6px;
+  border: 1px dashed var(--color-border, #e5e7eb);
+}
+
+.okr-add-dod {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.okr-add-dod .okr-form-input {
+  flex: 1;
+}
+
+.okr-form-input--sm {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.okr-btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary, #6b7280);
+  padding: 0.375rem;
+}
+
+.okr-btn--ghost:hover:not(:disabled) {
+  background: var(--color-bg-secondary, #f3f4f6);
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.okr-btn--ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Initiative Card - Visual Refinements
+   ========================================================================== */
+
+/* Better shadow and border for expanded state */
+.okr-initiative-card--expanded {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-color: var(--color-border-hover, #d1d5db);
+}
+
+/* Section titles with better styling */
+.okr-initiative-card__section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary, #6b7280);
+  margin: 0;
+}
+
+.okr-initiative-card__section-title svg {
+  opacity: 0.6;
+}
+
+/* Smooth expand animation */
+.okr-initiative-card__content {
+  animation: okrSlideDown 0.25s ease-out;
+}
+
+@keyframes okrSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Initiative Cards V2 - Industrial-Refined Design (Always Open)
+   Distinctive zone-based layout with status band and progress bar
+   ========================================================================== */
+
+/* --- Card Container --- */
+.initiative-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.02);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  animation: initiativeCardEnter 0.4s ease-out both;
+}
+
+.initiative-card:hover {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 8px 20px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(255, 221, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+@keyframes initiativeCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Zone A: Status Band --- */
+.initiative-card__status-band {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.initiative-card__status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.initiative-card__status-label {
+  flex-shrink: 0;
+}
+
+.initiative-card__status-id {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+/* Status-specific styling */
+.initiative-card--pending .initiative-card__status-band {
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 100%);
+  color: #6b7280;
+}
+
+.initiative-card--pending .initiative-card__status-indicator {
+  background: #9ca3af;
+}
+
+.initiative-card--in_progress .initiative-card__status-band {
+  background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  position: relative;
+  overflow: hidden;
+}
+
+.initiative-card--in_progress .initiative-card__status-indicator {
+  background: #f59e0b;
+  animation: statusPulse 1.5s ease-in-out infinite;
+}
+
+/* Animated sweep for in_progress */
+.initiative-card--in_progress .initiative-card__status-band::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 208, 0, 0.25), transparent);
+  animation: statusSweep 3s ease-in-out infinite;
+}
+
+@keyframes statusSweep {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+.initiative-card--completed .initiative-card__status-band {
+  background: linear-gradient(90deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+}
+
+.initiative-card--completed .initiative-card__status-indicator {
+  background: #10b981;
+}
+
+.initiative-card--cancelled .initiative-card__status-band {
+  background: repeating-linear-gradient(
+    45deg,
+    #fee2e2,
+    #fee2e2 8px,
+    #fecaca 8px,
+    #fecaca 16px
+  );
+  color: #991b1b;
+}
+
+.initiative-card--cancelled .initiative-card__status-indicator {
+  background: #ef4444;
+}
+
+/* Action buttons in status band */
+.initiative-card__actions {
+  display: flex;
+  gap: 0.375rem;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.initiative-card:hover .initiative-card__actions {
+  opacity: 1;
+}
+
+.initiative-card__action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.initiative-card__action-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: scale(1.05);
+}
+
+.initiative-card__action-btn--danger:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* --- Progress Bar --- */
+.initiative-card__progress-bar {
+  height: 4px;
+  background: #e5e7eb;
+  position: relative;
+  overflow: hidden;
+}
+
+.initiative-card__progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #ffdd00 0%, #fbbf24 100%);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.initiative-card--completed .initiative-card__progress-fill {
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+}
+
+/* Shimmer on hover */
+.initiative-card:hover .initiative-card__progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+  animation: progressShimmer 1.2s ease-out;
+}
+
+@keyframes progressShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* --- Zone B: Title Block --- */
+.initiative-card__title-block {
+  padding: 1rem 1.25rem 0.875rem;
+}
+
+.initiative-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 0.375rem 0;
+  line-height: 1.35;
+}
+
+.initiative-card__description {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0 0 0.625rem 0;
+  line-height: 1.5;
+}
+
+.initiative-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.initiative-card__responsible {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.initiative-card__responsible svg {
+  opacity: 0.6;
+}
+
+.initiative-card__progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4b5563;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.1875rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* --- Zone C: Content with Tabs --- */
+.initiative-card__content {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.initiative-card__primary {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.initiative-card__secondary {
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Sections --- */
+.initiative-card__section {
+  display: flex;
+  flex-direction: column;
+}
+
+.initiative-card__section + .initiative-card__section {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.initiative-card__section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.initiative-card__section-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffdd00;
+  border-radius: 4px;
+  color: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.initiative-card__section-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.initiative-card__section-title {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4b5563;
+  margin: 0;
+}
+
+.initiative-card__section-count {
+  margin-left: auto;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #6b7280;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+}
+
+.initiative-card__section-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.initiative-card__section-add:hover {
+  background: rgba(255, 221, 0, 0.2);
+  color: #1a1a1a;
+}
+
+/* --- DoD Items --- */
+.initiative-card__dod-list {
+  padding: 0.5rem 0;
+}
+
+.initiative-card__dod-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  transition: background 0.15s ease;
+}
+
+.initiative-card__dod-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.initiative-card__dod-item--completed {
+  opacity: 0.6;
+}
+
+.initiative-card__dod-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.initiative-card__dod-checkbox:hover {
+  border-color: #ffdd00;
+  transform: scale(1.05);
+}
+
+.initiative-card__dod-checkbox:active {
+  transform: scale(0.95);
+}
+
+.initiative-card__dod-item--completed .initiative-card__dod-checkbox {
+  background: #10b981;
+  border-color: #10b981;
+}
+
+.initiative-card__dod-checkbox svg {
+  color: white;
+  width: 12px;
+  height: 12px;
+}
+
+.initiative-card__dod-text {
+  font-size: 0.8125rem;
+  color: #374151;
+  flex: 1;
+  min-width: 0;
+}
+
+.initiative-card__dod-text--completed {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.initiative-card__dod-delete {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.initiative-card__dod-item:hover .initiative-card__dod-delete {
+  opacity: 1;
+}
+
+.initiative-card__dod-delete:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.initiative-card__dod-empty,
+.initiative-card__plans-empty {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 1rem 0.875rem;
+  margin: 0;
+}
+
+.initiative-card__add-dod {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem 0.75rem;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.initiative-card__add-dod input {
+  flex: 1;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background: #fafafa;
+  transition: all 0.15s ease;
+}
+
+.initiative-card__add-dod input:focus {
+  outline: none;
+  border-color: #ffdd00;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.15);
+}
+
+.initiative-card__add-dod input::placeholder {
+  color: #9ca3af;
+}
+
+.initiative-card__add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  background: #ffdd00;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.initiative-card__add-btn:hover:not(:disabled) {
+  background: #d3af00;
+  transform: scale(1.05);
+}
+
+.initiative-card__add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- Action Plans --- */
+.initiative-card__plans-list {
+  padding: 0.5rem 0;
+}
+
+.initiative-card__plan-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  transition: background 0.15s ease;
+}
+
+.initiative-card__plan-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.initiative-card__plan-item--completed {
+  opacity: 0.6;
+}
+
+.initiative-card__plan-item--in_progress {
+  border-left: 3px solid #f59e0b;
+  margin-left: 3px;
+  padding-left: calc(0.875rem - 3px);
+}
+
+.initiative-card__plan-checkbox {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  margin-top: 1px;
+}
+
+.initiative-card__plan-checkbox:hover {
+  color: #10b981;
+  transform: scale(1.1);
+}
+
+.initiative-card__plan-item--completed .initiative-card__plan-checkbox {
+  color: #10b981;
+}
+
+.initiative-card__plan-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.initiative-card__plan-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.initiative-card__plan-title--completed {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.initiative-card__plan-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.initiative-card__plan-date {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  color: #9ca3af;
+}
+
+.initiative-card__plan-responsible {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  color: #6b7280;
+}
+
+.initiative-card__plan-avatar {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.initiative-card__plan-actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.initiative-card__plan-item:hover .initiative-card__plan-actions {
+  opacity: 1;
+}
+
+.initiative-card__plan-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.initiative-card__plan-action-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.initiative-card__plan-action-btn--danger:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* --- Comments --- */
+.initiative-card__comments-scroll {
+  flex: 1;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.initiative-card__comments-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.initiative-card__comments-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.initiative-card__comments-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+.initiative-card__comments-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.initiative-card__comment {
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.initiative-card__comment:last-child {
+  border-bottom: none;
+}
+
+.initiative-card__comment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.initiative-card__comment-author {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.initiative-card__comment-date {
+  font-size: 0.6875rem;
+  color: #9ca3af;
+}
+
+.initiative-card__comment-delete {
+  margin-left: auto;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.initiative-card__comment:hover .initiative-card__comment-delete {
+  opacity: 1;
+}
+
+.initiative-card__comment-delete:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.initiative-card__comment-content {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.initiative-card__comments-empty {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 1.5rem 0.875rem;
+  margin: 0;
+}
+
+.initiative-card__add-comment {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.625rem 0.875rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fafafa;
+}
+
+.initiative-card__add-comment input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  transition: all 0.15s ease;
+}
+
+.initiative-card__add-comment input:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.15);
+}
+
+.initiative-card__add-comment input::placeholder {
+  color: #9ca3af;
+}
+
+.initiative-card__send-btn {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: #ffdd00;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.initiative-card__send-btn:hover:not(:disabled) {
+  background: #d3af00;
+}
+
+.initiative-card__send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- Avatar in Status Band --- */
+.initiative-card__avatar-wrapper {
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.initiative-card__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.initiative-card__avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* --- Tab System --- */
+.initiative-card__tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+}
+
+.initiative-card__dod-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.initiative-card__dod-percent {
+  font-size: 18px;
+  font-weight: 700;
+  color: #d97706;
+}
+
+.initiative-card__dod-percent--complete {
+  color: #059669;
+}
+
+.initiative-card__dod-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.initiative-card__tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.initiative-card__tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.initiative-card__tab:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.initiative-card__tab--active {
+  background: #ffdd00;
+  color: #1a1a1a;
+}
+
+.initiative-card__tab--active:hover {
+  background: #d3af00;
+  color: #1a1a1a;
+}
+
+.initiative-card__tab-content {
+  padding: 0;
+}
+
+.initiative-card__actions-comments {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.initiative-card__actions-comments > .initiative-card__section:first-child {
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* --- OKR Weight Indicator --- */
+.okr-weight-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.okr-weight-indicator--valid {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.okr-weight-indicator--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.okr-weight-indicator__warning {
+  font-weight: 600;
+}
+
+/* --- OKR Form Toggle --- */
+.okr-form-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.okr-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.okr-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.okr-toggle__slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 20px;
+}
+
+.okr-toggle__slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.okr-toggle input:checked + .okr-toggle__slider {
+  background-color: #ffdd00;
+}
+
+.okr-toggle input:checked + .okr-toggle__slider:before {
+  transform: translateX(16px);
+}
+
+.okr-form-toggle-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .initiative-card__content {
+    grid-template-columns: 1fr;
+  }
+
+  .initiative-card__primary {
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .initiative-card__status-band {
+    padding: 0.375rem 0.875rem;
+    font-size: 0.625rem;
+  }
+
+  .initiative-card__title-block {
+    padding: 0.875rem 1rem 0.75rem;
+  }
+
+  .initiative-card__title {
+    font-size: 0.9375rem;
+  }
+
+  .initiative-card__description {
+    font-size: 0.8125rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .initiative-card__comments-scroll {
+    max-height: 150px;
+  }
 }
