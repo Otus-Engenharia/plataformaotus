@@ -21,7 +21,7 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'https://app.otusengenharia.com/api/auth/google/callback';
 
 /**
- * Busca usuário na tabela users_otus pelo email
+ * Busca usuário na tabela users_otus pelo email (com dados do setor)
  * @param {string} email - Email do usuário
  * @returns {Promise<Object|null>} - Dados do usuário ou null
  */
@@ -30,7 +30,10 @@ async function getUserFromDatabase(email) {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('users_otus')
-      .select('id, name, email, role, status, team_id')
+      .select(`
+        id, name, email, role, status, team_id, setor_id,
+        setor:setor_id(id, name, has_platform_access)
+      `)
       .eq('email', email.toLowerCase())
       .single();
 
@@ -66,6 +69,36 @@ function isPrivilegedFromDB(user) {
 }
 
 /**
+ * Verifica se usuário tem acesso à plataforma baseado no setor
+ * - Admins, directors e leaders sempre têm acesso
+ * - Usuários comuns precisam que o setor tenha has_platform_access = true
+ * @param {Object} user - Dados do usuário (com setor)
+ * @returns {{ hasAccess: boolean, reason?: string }}
+ */
+function checkSectorAccess(user) {
+  if (!user) return { hasAccess: false, reason: 'Usuário não encontrado' };
+
+  // Admins, directors e leaders sempre têm acesso
+  if (['dev', 'director', 'admin', 'leader'].includes(user.role)) {
+    return { hasAccess: true };
+  }
+
+  // Usuários comuns precisam que o setor tenha acesso liberado
+  if (!user.setor) {
+    return { hasAccess: false, reason: 'Usuário não está vinculado a um setor' };
+  }
+
+  if (!user.setor.has_platform_access) {
+    return {
+      hasAccess: false,
+      reason: `O setor ${user.setor.name} ainda não tem acesso à plataforma. Em breve será liberado!`
+    };
+  }
+
+  return { hasAccess: true };
+}
+
+/**
  * Configura a estratégia Google OAuth do Passport
  * Só configura se as credenciais estiverem disponíveis
  */
@@ -94,9 +127,10 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
             return done(new Error('Usuário desativado. Entre em contato com o administrador.'), null);
           }
 
-          // Verifica se é privilegiado (admin ou leader)
-          if (!isPrivilegedFromDB(dbUser)) {
-            return done(new Error('Acesso restrito. A plataforma está disponível apenas para líderes e admins.'), null);
+          // Verifica acesso baseado no setor (líderes/admins sempre passam)
+          const sectorAccess = checkSectorAccess(dbUser);
+          if (!sectorAccess.hasAccess) {
+            return done(new Error(sectorAccess.reason), null);
           }
 
           // Atualiza avatar do Google no banco (não bloqueia o login se falhar)

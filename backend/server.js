@@ -3054,6 +3054,31 @@ app.put('/api/ind/sectors/:id', requireAuth, async (req, res) => {
 });
 
 /**
+ * Rota: PUT /api/ind/sectors/:id/platform-access
+ * Toggle acesso à plataforma para um setor (apenas admin/director)
+ */
+app.put('/api/ind/sectors/:id/platform-access', requireAuth, async (req, res) => {
+  try {
+    // Apenas admin ou director podem alterar
+    if (!['admin', 'director', 'dev'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, error: 'Apenas administradores podem alterar acesso de setores' });
+    }
+
+    const { has_platform_access } = req.body;
+    if (typeof has_platform_access !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'Campo has_platform_access é obrigatório (boolean)' });
+    }
+
+    const sector = await updateSector(req.params.id, { has_platform_access });
+    await logAction(req, 'update', 'sector', req.params.id, `Acesso à plataforma: ${has_platform_access ? 'liberado' : 'bloqueado'}`);
+    res.json({ success: true, data: sector });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar acesso do setor:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * Rota: DELETE /api/ind/sectors/:id
  * Deleta um setor (admin)
  */

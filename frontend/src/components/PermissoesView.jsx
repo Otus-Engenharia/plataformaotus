@@ -283,6 +283,24 @@ function PermissoesView() {
     return map;
   }, [overrides]);
 
+  // Toggle acesso à plataforma para um setor
+  const toggleSectorPlatformAccess = async (sectorId, currentAccess) => {
+    try {
+      setSaving(true);
+      await axios.put(
+        `${API_URL}/api/ind/sectors/${sectorId}/platform-access`,
+        { has_platform_access: !currentAccess },
+        { withCredentials: true }
+      );
+      await fetchData();
+    } catch (err) {
+      console.error('Erro ao alterar acesso do setor:', err);
+      alert('Erro ao alterar acesso à plataforma');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Toggle acesso de setor para módulo
   const toggleSectorAccess = async (moduleId, sectorId) => {
     try {
@@ -363,6 +381,13 @@ function PermissoesView() {
       {/* Section Tabs */}
       <div className="permissoes-tabs">
         <button
+          className={`tab-btn ${activeSection === 'platform' ? 'active' : ''}`}
+          onClick={() => setActiveSection('platform')}
+        >
+          <Icons.Check />
+          Acesso à Plataforma
+        </button>
+        <button
           className={`tab-btn ${activeSection === 'matrix' ? 'active' : ''}`}
           onClick={() => setActiveSection('matrix')}
         >
@@ -394,6 +419,45 @@ function PermissoesView() {
 
       {/* Section Content */}
       <div className="permissoes-content">
+        {/* === ACESSO À PLATAFORMA === */}
+        {activeSection === 'platform' && (
+          <div className="platform-access-section">
+            <div className="platform-access-header">
+              <h3>Controle de Acesso por Setor</h3>
+              <p>Libere ou bloqueie o acesso à plataforma para cada setor. Líderes e admins sempre têm acesso.</p>
+            </div>
+            <div className="platform-access-grid">
+              {sectors.map(sector => (
+                <div
+                  key={sector.id}
+                  className={`platform-access-card ${sector.has_platform_access ? 'enabled' : 'disabled'}`}
+                >
+                  <div className="platform-access-card-info">
+                    <span className="platform-access-card-name">{sector.name}</span>
+                    <span className={`platform-access-status ${sector.has_platform_access ? 'enabled' : 'disabled'}`}>
+                      {sector.has_platform_access ? 'Liberado' : 'Bloqueado'}
+                    </span>
+                  </div>
+                  <button
+                    className={`platform-access-toggle ${sector.has_platform_access ? 'enabled' : ''}`}
+                    onClick={() => toggleSectorPlatformAccess(sector.id, sector.has_platform_access)}
+                    disabled={saving}
+                    title={sector.has_platform_access ? 'Clique para bloquear' : 'Clique para liberar'}
+                  >
+                    <span className="toggle-track">
+                      <span className="toggle-thumb"></span>
+                    </span>
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="platform-access-help">
+              <p><strong>Nota:</strong> Quando um setor está bloqueado, apenas líderes, admins e diretores desse setor conseguem acessar a plataforma.</p>
+              <p>Usuários comuns verão uma mensagem informando que o setor ainda não foi liberado.</p>
+            </div>
+          </div>
+        )}
+
         {/* === MATRIZ DE ACESSO === */}
         {activeSection === 'matrix' && matrixData?.matrix && (
           <div className="matrix-section">
