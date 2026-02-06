@@ -2688,6 +2688,36 @@ app.post('/api/okrs/key-results/:id/comments', requireAuth, async (req, res) => 
 });
 
 /**
+ * Rota: GET /api/okrs/key-results/:id/comments
+ * Busca comentários de um Key Result
+ */
+app.get('/api/okrs/key-results/:id/comments', requireAuth, async (req, res) => {
+  try {
+    const krId = req.params.id;
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('okr_comments')
+      .select('*')
+      .eq('key_result_id', parseInt(krId))
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar comentários:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar comentários',
+    });
+  }
+});
+
+/**
  * Rota: GET /api/okrs/key-results/:id/recovery-plans
  * Busca planos de recuperação de um Key Result
  */

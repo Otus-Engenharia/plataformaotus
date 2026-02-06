@@ -1355,8 +1355,16 @@ export default function KeyResultDetail() {
         setRecoveryPlans([]);
       }
 
-      // Comments - empty for now
-      setComments([]);
+      // Fetch comments for this KR
+      try {
+        const commentsResponse = await axios.get(`/api/okrs/key-results/${id}/comments`, {
+          withCredentials: true
+        });
+        setComments(commentsResponse.data.data || []);
+      } catch (err) {
+        console.error('Error fetching comments:', err);
+        setComments([]);
+      }
     } catch (err) {
       console.error('Error fetching KR:', err);
       setError(err.response?.data?.error || err.message);
