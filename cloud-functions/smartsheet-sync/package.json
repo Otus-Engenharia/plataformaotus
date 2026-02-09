@@ -1,0 +1,20 @@
+{
+  "name": "smartsheet-bigquery-sync",
+  "version": "2.0.0",
+  "description": "Sincroniza dados do SmartSheet para BigQuery - Otus Engenharia",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test-local.js",
+    "deploy": "gcloud functions deploy smartsheet-sync --gen2 --runtime=nodejs20 --region=southamerica-east1 --source=. --entry-point=syncSmartsheetToBigQuery --trigger-http --allow-unauthenticated --timeout=540s --memory=512MB --set-env-vars-from-file=.env.yaml"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "^7.3.0",
+    "smartsheet": "^4.7.0"
+  },
+  "keywords": ["smartsheet", "bigquery", "sync", "otus"]
+}

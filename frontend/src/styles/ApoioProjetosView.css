@@ -220,6 +220,46 @@
   color: #999;
 }
 
+/* View toggle (Tabela / Gantt) */
+.apoio-view-toggle {
+  display: inline-flex;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-left: auto;
+}
+
+.apoio-view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  transition: all 0.15s;
+}
+
+.apoio-view-toggle-btn:first-child {
+  border-right: 1px solid #e6e6e6;
+}
+
+.apoio-view-toggle-btn:hover {
+  background: #f9fafb;
+  color: #374151;
+}
+
+.apoio-view-toggle-btn--active {
+  background: #1a1a1a;
+  color: #ffcc00;
+}
+
+.apoio-view-toggle-btn--active:hover {
+  background: #333;
+  color: #ffcc00;
+}
+
 /* Multi-select dropdown */
 .apoio-multi-select-wrapper {
   position: relative;
@@ -322,10 +362,28 @@
 /* Tabela */
 .apoio-table-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 70vh;
   border-radius: 8px;
   border: 1px solid #e6e6e6;
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.apoio-table-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.apoio-table-wrapper::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+.apoio-table-wrapper::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+.apoio-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 .apoio-table {
@@ -337,6 +395,9 @@
 .apoio-table thead {
   background: #fafafa;
   border-bottom: 2px solid #e6e6e6;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .apoio-table th {
@@ -348,6 +409,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
+  background: #fafafa;
 }
 
 .apoio-table td {
@@ -551,4 +613,22 @@
     min-width: 80px;
     font-size: 0.8125rem;
   }
+}
+
+/* Gantt container */
+.apoio-gantt-container {
+  margin-top: 1rem;
+}
+
+/* Demandas container */
+.apoio-demandas-container {
+  margin-top: 1rem;
+}
+
+/* Loading fallback */
+.apoio-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
 }

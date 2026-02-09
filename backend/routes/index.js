@@ -5,6 +5,7 @@
  */
 
 import { createRoutes as createFeedbackRoutes } from './feedbacks.js';
+import { createRoutes as createDemandaRoutes } from './demandas.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -19,5 +20,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, logAction }) {
   const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/feedbacks', feedbackRoutes);
 
-  console.log('✅ Rotas DDD configuradas: /api/feedbacks');
+  // Rotas de Demandas (DDD)
+  const demandaRoutes = createDemandaRoutes(requireAuth, isPrivileged, logAction);
+  app.use('/api/demandas', demandaRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas');
 }

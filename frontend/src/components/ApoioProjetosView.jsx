@@ -5,10 +5,13 @@
  * Inclui cronograma consolidado de próximas tarefas de todos os projetos.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import '../styles/ApoioProjetosView.css';
+
+const GanttTimeline = lazy(() => import('./apoio/GanttTimeline'));
+const DemandasKanbanView = lazy(() => import('../pages/apoio/DemandasKanbanView'));
 
 // Icons
 const Icons = {
@@ -41,8 +44,11 @@ function ApoioProjetosView() {
   // Estado: Filtros
   const [weeksFilter, setWeeksFilter] = useState(2);
   const [projetoFilter, setProjetoFilter] = useState([]);
-  const [disciplinaFilter, setDisciplinaFilter] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [disciplinaFilter, setDisciplinaFilter] = useState(['Coordenação']);
+  const [searchTerm, setSearchTerm] = useState('Veri');
+
+  // Estado: View mode do cronograma (tabela ou gantt)
+  const [cronogramaViewMode, setCronogramaViewMode] = useState('table');
 
   // Estado: Dropdowns abertos
   const [projetoDropdownOpen, setProjetoDropdownOpen] = useState(false);
@@ -248,18 +254,11 @@ function ApoioProjetosView() {
         if (!disciplinaFilter.includes(disciplina)) return false;
       }
 
-      // Filtro por busca
+      // Filtro por busca (apenas no nome da tarefa)
       if (searchTerm.trim()) {
         const search = searchTerm.toLowerCase();
         const tarefa = String(item.NomeDaTarefa || '').toLowerCase();
-        const projeto = String(item.projeto_nome || '').toLowerCase();
-        const disciplina = String(item.Disciplina || '').toLowerCase();
-
-        if (
-          !tarefa.includes(search) &&
-          !projeto.includes(search) &&
-          !disciplina.includes(search)
-        ) {
+        if (!tarefa.includes(search)) {
           return false;
         }
       }
@@ -382,7 +381,29 @@ function ApoioProjetosView() {
             Cronograma de Tarefas
             <span className="apoio-tab-badge">{tarefas.length}</span>
           </button>
-          {/* Futuras abas podem ser adicionadas aqui */}
+          <button
+            className={`apoio-tab ${activeTab === 'gantt' ? 'apoio-tab-active' : ''}`}
+            onClick={() => setActiveTab('gantt')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="4" y1="6" x2="16" y2="6" />
+              <line x1="8" y1="12" x2="20" y2="12" />
+              <line x1="6" y1="18" x2="14" y2="18" />
+            </svg>
+            Gantt Modelagem
+          </button>
+          <button
+            className={`apoio-tab ${activeTab === 'demandas' ? 'apoio-tab-active' : ''}`}
+            onClick={() => setActiveTab('demandas')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="18" x2="12" y2="12" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
+            Demandas
+          </button>
         </div>
       </div>
 
@@ -503,10 +524,37 @@ function ApoioProjetosView() {
             <input
               type="text"
               className="apoio-search-input"
-              placeholder="Buscar tarefa, projeto ou disciplina..."
+              placeholder="Buscar no nome da tarefa..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+
+            {/* Toggle Tabela / Gantt */}
+            <div className="apoio-view-toggle">
+              <button
+                className={`apoio-view-toggle-btn ${cronogramaViewMode === 'table' ? 'apoio-view-toggle-btn--active' : ''}`}
+                onClick={() => setCronogramaViewMode('table')}
+                title="Vista em tabela"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="15" x2="21" y2="15" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                </svg>
+              </button>
+              <button
+                className={`apoio-view-toggle-btn ${cronogramaViewMode === 'gantt' ? 'apoio-view-toggle-btn--active' : ''}`}
+                onClick={() => setCronogramaViewMode('gantt')}
+                title="Vista Gantt"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="4" y1="6" x2="16" y2="6" />
+                  <line x1="8" y1="12" x2="20" y2="12" />
+                  <line x1="6" y1="18" x2="14" y2="18" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Loading */}
@@ -537,8 +585,8 @@ function ApoioProjetosView() {
             </div>
           )}
 
-          {/* Tabela */}
-          {!loading && !error && tarefasFiltradas.length > 0 && (
+          {/* Conteúdo: Tabela ou Gantt */}
+          {!loading && !error && tarefasFiltradas.length > 0 && cronogramaViewMode === 'table' && (
             <div className="apoio-table-wrapper">
               <table className="apoio-table apoio-table-grouped">
                 <thead>
@@ -593,7 +641,33 @@ function ApoioProjetosView() {
               </table>
             </div>
           )}
+
+          {!loading && !error && tarefasFiltradas.length > 0 && cronogramaViewMode === 'gantt' && (
+            <div className="apoio-gantt-container">
+              <Suspense fallback={<div className="apoio-loading"><div className="apoio-spinner"></div></div>}>
+                <GanttTimeline tarefas={tarefasFiltradas} weeksAhead={weeksFilter} skipInternalFilter />
+              </Suspense>
+            </div>
+          )}
         </>
+      )}
+
+      {/* Tab Content: Gantt Modelagem */}
+      {activeTab === 'gantt' && (
+        <div className="apoio-gantt-container">
+          <Suspense fallback={<div className="apoio-loading"><div className="spinner"></div></div>}>
+            <GanttTimeline tarefas={tarefas} weeksAhead={weeksFilter} />
+          </Suspense>
+        </div>
+      )}
+
+      {/* Tab Content: Demandas */}
+      {activeTab === 'demandas' && (
+        <div className="apoio-demandas-container">
+          <Suspense fallback={<div className="apoio-loading"><div className="spinner"></div></div>}>
+            <DemandasKanbanView />
+          </Suspense>
+        </div>
       )}
     </div>
   );

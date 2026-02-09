@@ -27,18 +27,25 @@ const location = process.env.BIGQUERY_LOCATION || 'southamerica-east1';
 /**
  * Função genérica para executar queries no BigQuery
  * @param {string} query - Query SQL a ser executada
+ * @param {Object} [params] - Parâmetros nomeados para a query (ex: { mes: '2025-01-01' })
  * @returns {Promise<Array>} - Array com os resultados
  */
-async function executeQuery(query) {
+async function executeQuery(query, params) {
   try {
     // Log apenas um resumo da query (primeiras 200 caracteres) para não poluir o console
     const queryPreview = query.length > 200 ? query.substring(0, 200) + '...' : query;
     console.log('🔍 Executando query:', queryPreview);
-    
-    const [job] = await bigquery.createQueryJob({
+
+    const jobConfig = {
       query: query,
       location: location, // Localização do dataset (southamerica-east1)
-    });
+    };
+
+    if (params) {
+      jobConfig.params = params;
+    }
+
+    const [job] = await bigquery.createQueryJob(jobConfig);
 
     console.log(`📊 Job ${job.id} iniciado.`);
 
@@ -581,8 +588,206 @@ export async function queryCurvaSColaboradores(projectCode, leaderName = null) {
 }
 
 /**
+ * Busca custos por usuário, projeto e mês para breakdown por cargo
+ * Retorna dados granulares que serão enriquecidos com cargo no endpoint
+ *
+ * @param {string|null} leaderName - Nome do líder para filtrar projetos (opcional)
+ * @param {string|null} projectCode - Código do projeto específico (opcional)
+ * @returns {Promise<Array>} - Dados por usuário/projeto/mês
+ */
+export async function queryCustosPorUsuarioProjeto(leaderName = null, projectCode = null) {
+  const costDataset = 'financeiro';
+  const costTable = 'custo_usuario_projeto_mes';
+
+  let portfolioFilter = '';
+  if (leaderName) {
+    const hasLider = await hasPortfolioColumn('lider');
+    if (!hasLider) {
+      console.warn('⚠️ Coluna "lider" não encontrada na tabela do portfólio. Retornando vazio por segurança.');
+      return [];
+    }
+    const escapedName = leaderName.replace(/'/g, "''");
+    portfolioFilter = `AND LOWER(p.lider) = LOWER('${escapedName}')`;
+  }
+
+  let projectFilter = '';
+  if (projectCode) {
+    const escapedCode = projectCode.replace(/'/g, "''");
+    projectFilter = `AND c.project_code = '${escapedCode}'`;
+  }
+
+  const query = `
+    WITH portfolio_projects AS (
+      SELECT CAST(project_code_norm AS STRING) AS project_code_norm
+      FROM \`${projectId}.${datasetId}.${tablePortfolio}\`
+      WHERE project_code_norm IS NOT NULL
+      ${portfolioFilter}
+    )
+    SELECT
+      c.usuario,
+      c.project_code,
+      c.mes,
+      SUM(COALESCE(c.custo_direto_usuario_projeto_mes, 0)) AS custo_direto,
+      SUM(COALESCE(c.custo_indireto_usuario_projeto_mes, 0)) AS custo_indireto,
+      SUM(COALESCE(c.custo_total_usuario_projeto_mes, 0)) AS custo_total,
+      SUM(COALESCE(c.horas_usuario_projeto_mes, 0)) AS horas,
+      MAX(COALESCE(c.horas_totais_mes_usuario, 0)) AS horas_totais_mes
+    FROM \`${projectId}.${costDataset}.${costTable}\` c
+    INNER JOIN portfolio_projects pp
+      ON CAST(c.project_code AS STRING) = pp.project_code_norm
+    WHERE c.project_code IS NOT NULL
+      AND c.mes IS NOT NULL
+      AND c.mes <= CURRENT_DATE()
+      ${projectFilter}
+    GROUP BY c.usuario, c.project_code, c.mes
+    ORDER BY c.usuario, c.project_code, c.mes ASC
+  `;
+
+  return await executeQuery(query);
+}
+
+/**
+ * Reconciliação mensal: compara totais da fonte financeira vs custos distribuídos
+ * @returns {Promise<Array>} - Resumo mês a mês com fonte, distribuído e diferença
+ */
+export async function queryReconciliacaoMensal() {
+  const query = `
+    WITH fonte_direto AS (
+      SELECT
+        M__s AS mes,
+        ABS(SUM(Valor)) AS total_direto_fonte
+      FROM \`${projectId}.financeiro_custos_operacao.custos_operacao_diretos\`
+      GROUP BY mes
+    ),
+    fonte_indireto AS (
+      SELECT
+        M__s AS mes,
+        ABS(SUM(Valor)) AS total_indireto_fonte
+      FROM \`${projectId}.financeiro_custos_operacao.custos_operacao_indiretos\`
+      GROUP BY mes
+    ),
+    distribuido AS (
+      SELECT
+        mes,
+        SUM(custo_direto_usuario_projeto_mes) AS total_direto_dist,
+        SUM(custo_indireto_usuario_projeto_mes) AS total_indireto_dist,
+        SUM(custo_total_usuario_projeto_mes) AS total_dist
+      FROM \`${projectId}.financeiro.custo_usuario_projeto_mes\`
+      GROUP BY mes
+    )
+    SELECT
+      COALESCE(fd.mes, fi.mes, d.mes) AS mes,
+      COALESCE(fd.total_direto_fonte, 0) AS total_direto_fonte,
+      COALESCE(fi.total_indireto_fonte, 0) AS total_indireto_fonte,
+      COALESCE(fd.total_direto_fonte, 0) + COALESCE(fi.total_indireto_fonte, 0) AS total_fonte,
+      COALESCE(d.total_direto_dist, 0) AS total_direto_dist,
+      COALESCE(d.total_indireto_dist, 0) AS total_indireto_dist,
+      COALESCE(d.total_dist, 0) AS total_dist,
+      (COALESCE(fd.total_direto_fonte, 0) + COALESCE(fi.total_indireto_fonte, 0))
+        - COALESCE(d.total_dist, 0) AS diferenca
+    FROM fonte_direto fd
+    FULL OUTER JOIN fonte_indireto fi ON fd.mes = fi.mes
+    FULL OUTER JOIN distribuido d ON COALESCE(fd.mes, fi.mes) = d.mes
+    ORDER BY COALESCE(fd.mes, fi.mes, d.mes) DESC
+  `;
+
+  return await executeQuery(query);
+}
+
+/**
+ * Reconciliação por usuário: para um mês, compara custo-fonte vs distribuído por pessoa
+ * @param {string} mes - Mês no formato YYYY-MM-DD
+ * @returns {Promise<Array>} - Detalhamento por usuário com status
+ */
+export async function queryReconciliacaoUsuarios(mes) {
+  const query = `
+    WITH fonte_usuario AS (
+      SELECT
+        d.Nome_do_fornecedor_cliente AS usuario_fonte,
+        COALESCE(alias.nome_correto, d.Nome_do_fornecedor_cliente) AS usuario,
+        ABS(SUM(d.Valor)) AS salario_fonte
+      FROM \`${projectId}.financeiro_custos_operacao.custos_operacao_diretos\` d
+      LEFT JOIN \`${projectId}.financeiro_custos_operacao.usuario_alias\` alias
+        ON LOWER(TRIM(d.Nome_do_fornecedor_cliente)) = LOWER(TRIM(alias.nome_planilha))
+      WHERE d.M__s = @mes
+      GROUP BY usuario_fonte, usuario
+    ),
+    indireto_usuario AS (
+      SELECT
+        COALESCE(alias.nome_correto, c.usuario) AS usuario,
+        c.custo_indireto_usuario_mes AS indireto_fonte,
+        c.custo_total_usuario_mes AS total_fonte_usuario
+      FROM \`${projectId}.financeiro_custos_operacao.custo_indireto_usuario_mes\` c
+      LEFT JOIN \`${projectId}.financeiro_custos_operacao.usuario_alias\` alias
+        ON LOWER(TRIM(c.usuario)) = LOWER(TRIM(alias.nome_planilha))
+      WHERE c.mes = @mes
+    ),
+    dist_usuario AS (
+      SELECT
+        usuario,
+        SUM(custo_direto_usuario_projeto_mes) AS direto_dist,
+        SUM(custo_indireto_usuario_projeto_mes) AS indireto_dist,
+        SUM(custo_total_usuario_projeto_mes) AS total_dist,
+        COUNT(DISTINCT project_code) AS qtd_projetos
+      FROM \`${projectId}.financeiro.custo_usuario_projeto_mes\`
+      WHERE mes = @mes
+      GROUP BY usuario
+    )
+    SELECT
+      COALESCE(f.usuario, du.usuario) AS usuario,
+      f.salario_fonte,
+      iu.indireto_fonte,
+      iu.total_fonte_usuario,
+      du.direto_dist,
+      du.indireto_dist,
+      du.total_dist,
+      du.qtd_projetos,
+      COALESCE(iu.total_fonte_usuario, f.salario_fonte, 0) - COALESCE(du.total_dist, 0) AS diferenca,
+      CASE
+        WHEN du.usuario IS NULL THEN 'nao_alocado'
+        WHEN f.usuario IS NULL THEN 'sem_fonte'
+        ELSE 'ok'
+      END AS status
+    FROM fonte_usuario f
+    FULL OUTER JOIN dist_usuario du
+      ON LOWER(TRIM(f.usuario)) = LOWER(TRIM(du.usuario))
+    LEFT JOIN indireto_usuario iu
+      ON LOWER(TRIM(COALESCE(f.usuario, du.usuario))) = LOWER(TRIM(iu.usuario))
+    ORDER BY ABS(COALESCE(iu.total_fonte_usuario, f.salario_fonte, 0) - COALESCE(du.total_dist, 0)) DESC
+  `;
+
+  return await executeQuery(query, { mes });
+}
+
+/**
+ * Reconciliação por projeto: para um usuário num mês, mostra distribuição por projeto
+ * @param {string} mes - Mês no formato YYYY-MM-DD
+ * @param {string} usuario - Nome do usuário
+ * @returns {Promise<Array>} - Projetos com horas, peso e custos
+ */
+export async function queryReconciliacaoProjetos(mes, usuario) {
+  const query = `
+    SELECT
+      project_code,
+      projeto,
+      horas_usuario_projeto_mes AS horas,
+      horas_totais_mes_usuario AS horas_totais,
+      peso_projeto_no_mes AS peso,
+      custo_direto_usuario_projeto_mes AS custo_direto,
+      custo_indireto_usuario_projeto_mes AS custo_indireto,
+      custo_total_usuario_projeto_mes AS custo_total
+    FROM \`${projectId}.financeiro.custo_usuario_projeto_mes\`
+    WHERE mes = @mes
+      AND LOWER(TRIM(usuario)) = LOWER(TRIM(@usuario))
+    ORDER BY custo_total_usuario_projeto_mes DESC
+  `;
+
+  return await executeQuery(query, { mes, usuario });
+}
+
+/**
  * Busca apontamentos (issues) de um projeto específico
- * 
+ *
  * @param {string} construflowId - ID do projeto no Construflow (corresponde ao construflow_id do portfólio)
  * @returns {Promise<Array>} - Dados dos apontamentos
  */

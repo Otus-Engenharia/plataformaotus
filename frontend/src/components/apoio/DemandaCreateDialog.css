@@ -1,0 +1,272 @@
+/* DemandaCreateDialog styles */
+
+.dm-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.dm-dialog {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.dm-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  z-index: 1;
+}
+
+.dm-dialog__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dm-dialog__header-icon {
+  width: 20px;
+  height: 20px;
+  color: #ffcc00;
+}
+
+.dm-dialog__title-row h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #18181b;
+}
+
+.dm-dialog__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #71717a;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.dm-dialog__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.dm-dialog__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dm-dialog__form {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dm-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dm-dialog__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.dm-dialog__required {
+  color: #ef4444;
+}
+
+/* Radio grid for categoria */
+.dm-dialog__radio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.dm-dialog__radio-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.75rem 0.5rem;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dm-dialog__radio-btn:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  background: #fafafa;
+}
+
+.dm-dialog__radio-btn--active {
+  border-color: #ffcc00;
+  background: #fffef5;
+  box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.15);
+}
+
+.dm-dialog__radio-icon {
+  font-size: 1.25rem;
+}
+
+.dm-dialog__radio-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+}
+
+/* Inputs */
+.dm-dialog__input,
+.dm-dialog__select,
+.dm-dialog__textarea {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #18181b;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.dm-dialog__input:focus,
+.dm-dialog__select:focus,
+.dm-dialog__textarea:focus {
+  outline: none;
+  border-color: #ffcc00;
+  box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.15);
+}
+
+.dm-dialog__input--mt {
+  margin-top: 0.5rem;
+}
+
+.dm-dialog__textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Toggle switch */
+.dm-dialog__toggle-row {
+  display: flex;
+  align-items: center;
+}
+
+.dm-dialog__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.dm-dialog__toggle input {
+  display: none;
+}
+
+.dm-dialog__toggle-slider {
+  width: 36px;
+  height: 20px;
+  background: #d1d5db;
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.dm-dialog__toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.dm-dialog__toggle input:checked + .dm-dialog__toggle-slider {
+  background: #ffcc00;
+}
+
+.dm-dialog__toggle input:checked + .dm-dialog__toggle-slider::after {
+  transform: translateX(16px);
+}
+
+.dm-dialog__toggle-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #525252;
+}
+
+/* Actions */
+.dm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dm-dialog__btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.dm-dialog__btn--secondary {
+  background: #f5f5f5;
+  color: #525252;
+}
+
+.dm-dialog__btn--secondary:hover {
+  background: #e5e5e5;
+}
+
+.dm-dialog__btn--primary {
+  background: #ffcc00;
+  color: #18181b;
+}
+
+.dm-dialog__btn--primary:hover:not(:disabled) {
+  background: #f5c800;
+  box-shadow: 0 2px 8px rgba(255, 204, 0, 0.3);
+}
+
+.dm-dialog__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .dm-dialog__radio-grid {
+    grid-template-columns: 1fr;
+  }
+}

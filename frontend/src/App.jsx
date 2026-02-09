@@ -28,7 +28,11 @@ import IndicadoresView from './components/IndicadoresView';
 import CurvaSView from './components/CurvaSView';
 import BaselinesView from './components/BaselinesView';
 import CSAreaView from './components/CSAreaView';
-import ApoioProjetosView from './components/ApoioProjetosView';
+import AuditoriaCustosView from './components/AuditoriaCustosView';
+// Lazy load das páginas de Apoio de Projetos
+const ApoioCronogramaView = lazy(() => import('./pages/apoio/ApoioCronogramaView'));
+const ApoioGanttView = lazy(() => import('./pages/apoio/ApoioGanttView'));
+const DemandasKanbanView = lazy(() => import('./pages/apoio/DemandasKanbanView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -176,6 +180,24 @@ const icons = {
   bugs: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1M12 20c-3.3 0-6-2.7-6-6v-3a6 6 0 0112 0v3c0 3.3-2.7 6-6 6zM12 20v2M3 13h3M18 13h3M6.53 17.47l-2.12 2.12M17.47 17.47l2.12 2.12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  gantt: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 6h12M8 12h12M6 18h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+    </svg>
+  ),
+  demandas: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" />
+      <path d="M14 2v6h6M12 18v-6M9 15h6" fill="none" stroke="currentColor" strokeWidth="1" />
+    </svg>
+  ),
+  auditoria: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 2a7 7 0 0 0-7 7c0 3.87 3.13 7 7 7h.07A7 7 0 0 0 9 2Zm0 12c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5Z" />
+      <path d="M17.01 14.99l3.5 3.5a1.5 1.5 0 0 1-2.12 2.12l-3.5-3.5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M7 9h4M9 7v4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   ),
 };
@@ -376,6 +398,14 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.feedbacks}</span>
         <span className="nav-text">Feedbacks</span>
       </Link>
+      <Link
+        to="/demandas-apoio"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/demandas-apoio') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Demandas Apoio')}
+      >
+        <span className="nav-icon">{icons.demandas}</span>
+        <span className="nav-text">Demandas Apoio</span>
+      </Link>
     </>
   );
 
@@ -441,16 +471,32 @@ function Sidebar({ collapsed, onToggle, area }) {
     </>
   );
 
-  // Links para área de APOIO DE PROJETOS (placeholder - expandir depois)
+  // Links para área de APOIO DE PROJETOS
   const apoioLinks = (
     <>
       <Link
-        to="/apoio-projetos"
-        className={`nav-link nav-link-modern nav-link-active`}
-        title={linkTitle('Apoio de Projetos')}
+        to="/apoio-projetos/cronograma"
+        className={`nav-link nav-link-modern ${location.pathname === '/apoio-projetos/cronograma' || location.pathname === '/apoio-projetos' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Cronograma')}
       >
-        <span className="nav-icon">{icons.projetos}</span>
-        <span className="nav-text">Dashboard Apoio</span>
+        <span className="nav-icon">{icons.indicadoresLideranca}</span>
+        <span className="nav-text">Cronograma</span>
+      </Link>
+      <Link
+        to="/apoio-projetos/gantt"
+        className={`nav-link nav-link-modern ${location.pathname === '/apoio-projetos/gantt' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Gantt Modelagem')}
+      >
+        <span className="nav-icon">{icons.gantt}</span>
+        <span className="nav-text">Gantt Modelagem</span>
+      </Link>
+      <Link
+        to="/apoio-projetos/demandas"
+        className={`nav-link nav-link-modern ${location.pathname === '/apoio-projetos/demandas' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Demandas')}
+      >
+        <span className="nav-icon">{icons.demandas}</span>
+        <span className="nav-text">Demandas</span>
       </Link>
     </>
   );
@@ -543,6 +589,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.feedbacks}</span>
         <span className="nav-text">Gerenciar Feedbacks</span>
+      </Link>
+      <Link
+        to="/auditoria-custos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/auditoria-custos') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Auditoria Custos')}
+      >
+        <span className="nav-icon">{icons.auditoria}</span>
+        <span className="nav-text">Auditoria Custos</span>
       </Link>
     </>
   );
@@ -830,15 +884,17 @@ function TopBar({ title }) {
 
 function AppContent() {
   const location = useLocation();
-  const { isPrivileged, isAuthenticated, loading, isAdmin, isDirector, isLeader, isDev, hasFullAccess, canAccessView } = useAuth();
+  const { isPrivileged, isAuthenticated, loading, isAdmin, isDirector, isLeader, isDev, hasFullAccess, canAccessView, canAccessArea } = useAuth();
   const { isOpen: isOracleOpen } = useOracle();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const isLoginRoute = location.pathname === '/login';
 
-  // Devs, admin e diretor podem acessar Projetos e Configurações
-  // Líderes são redirecionados para /ind
-  const canAccessProjetosArea = isDev || isAdmin || isDirector;
-  const canAccessConfiguracoesArea = isDev || isAdmin || isDirector;
+  // Permissões baseadas nos módulos configurados em Permissões > Matriz por Setor
+  const canAccessProjetosArea = canAccessArea('projetos');
+  const canAccessLideresArea = canAccessArea('lideres');
+  const canAccessConfiguracoesArea = canAccessArea('configuracoes');
+  const canAccessCSArea = canAccessArea('cs');
+  const canAccessApoioArea = canAccessArea('apoio');
 
   // 1. Verificando auth: só loading minimalista, sem revelar estrutura do app
   if (loading) {
@@ -890,10 +946,11 @@ function AppContent() {
         path.startsWith('/estudo-de-custos') ||
         path.startsWith('/contatos') ||
         path.startsWith('/formulario-passagem') ||
-        path.startsWith('/feedbacks')) {
+        path.startsWith('/feedbacks') ||
+        path.startsWith('/demandas-apoio')) {
       return 'projetos';
     }
-    if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks')) {
+    if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos')) {
       return 'configuracoes';
     }
     if (path.startsWith('/ind')) {
@@ -980,7 +1037,7 @@ function AppContent() {
               path="/lideres-projeto"
               element={
                 <ProtectedRoute>
-                  {canAccessProjetosArea ? (
+                  {canAccessLideresArea ? (
                     <PortfolioProvider>
                       <Outlet />
                     </PortfolioProvider>
@@ -1004,15 +1061,22 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-            {/* Área Apoio de Projetos */}
+            {/* Área Apoio de Projetos - rotas aninhadas */}
             <Route
               path="/apoio-projetos"
               element={
                 <ProtectedRoute>
-                  <ApoioProjetosView />
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <Outlet />
+                  </Suspense>
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<Navigate to="cronograma" replace />} />
+              <Route path="cronograma" element={<ApoioCronogramaView />} />
+              <Route path="gantt" element={<ApoioGanttView />} />
+              <Route path="demandas" element={<DemandasKanbanView />} />
+            </Route>
             <Route
               path="/horas"
               element={
@@ -1145,6 +1209,18 @@ function AppContent() {
               }
             />
             <Route
+              path="/demandas-apoio"
+              element={
+                <ProtectedRoute>
+                  {canAccessProjetosArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <DemandasKanbanView />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/gerenciar-feedbacks"
               element={
                 <ProtectedRoute>
@@ -1207,6 +1283,14 @@ function AppContent() {
                       <FeedbackAdminView category="bugs" />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/auditoria-custos"
+              element={
+                <ProtectedRoute>
+                  {canAccessConfiguracoesArea ? <AuditoriaCustosView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />

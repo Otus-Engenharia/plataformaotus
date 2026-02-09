@@ -19,6 +19,7 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
   const [devMode, setDevMode] = useState({ enabled: false, availableUsers: [] });
   const [effectiveViews, setEffectiveViews] = useState([]);
+  const [accessibleAreas, setAccessibleAreas] = useState([]);
 
   /**
    * Verifica se o dev mode está habilitado
@@ -49,6 +50,21 @@ export function AuthProvider({ children }) {
   };
 
   /**
+   * Busca as áreas acessíveis baseado nos módulos configurados em Permissões
+   */
+  const fetchAccessibleAreas = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/user/accessible-areas`);
+      if (response.data.success) {
+        setAccessibleAreas(response.data.areas || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar áreas acessíveis:', err);
+      setAccessibleAreas([]);
+    }
+  };
+
+  /**
    * Verifica se o usuário está autenticado
    */
   const checkAuth = async () => {
@@ -58,15 +74,17 @@ export function AuthProvider({ children }) {
       if (response.data.success) {
         setUser(response.data.user);
         setError(null);
-        // Buscar vistas efetivas após autenticação bem-sucedida
-        await fetchEffectiveViews();
+        // Buscar vistas efetivas e áreas acessíveis após autenticação
+        await Promise.all([fetchEffectiveViews(), fetchAccessibleAreas()]);
       } else {
         setUser(null);
         setEffectiveViews([]);
+        setAccessibleAreas([]);
       }
     } catch (err) {
       setUser(null);
       setEffectiveViews([]);
+      setAccessibleAreas([]);
       if (err.response?.status !== 401) {
         // 401 é esperado quando não está autenticado
         setError('Erro ao verificar autenticação');
@@ -84,8 +102,8 @@ export function AuthProvider({ children }) {
       const response = await axios.post(`${API_URL}/api/auth/dev-login`, { role });
       if (response.data.success) {
         setUser(response.data.user);
-        // Buscar vistas efetivas após dev login
-        await fetchEffectiveViews();
+        // Buscar vistas efetivas e áreas acessíveis após dev login
+        await Promise.all([fetchEffectiveViews(), fetchAccessibleAreas()]);
         return true;
       }
       return false;
@@ -163,6 +181,15 @@ export function AuthProvider({ children }) {
   }, [user, effectiveViews]);
 
   /**
+   * Verifica se o usuário pode acessar uma área do sistema
+   * Baseado nos módulos configurados em Permissões (Matriz por Setor)
+   */
+  const canAccessArea = useCallback((area) => {
+    if (user?.role === 'dev') return true;
+    return accessibleAreas.includes(area);
+  }, [user, accessibleAreas]);
+
+  /**
    * Verifica se o usuário pode acessar Formulário de Passagem
    * (Diretores, Admin e Vendas)
    * A informação vem do backend
@@ -193,6 +220,8 @@ export function AuthProvider({ children }) {
     effectiveViews,
     canAccessView,
     fetchEffectiveViews,
+    accessibleAreas,
+    canAccessArea,
     logout,
     checkAuth,
     devMode,

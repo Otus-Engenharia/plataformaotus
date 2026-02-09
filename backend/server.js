@@ -18,7 +18,7 @@ import session from 'express-session';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
@@ -760,6 +760,180 @@ app.get('/api/curva-s/colaboradores', requireAuth, async (req, res) => {
 });
 
 /**
+ * Rota: GET /api/curva-s/custos-por-cargo
+ * Retorna custos e horas por usuário enriquecidos com cargo (position) do Supabase
+ * Usado para gráficos empilhados por cargo e tabela cargo→pessoa
+ */
+app.get('/api/curva-s/custos-por-cargo', requireAuth, async (req, res) => {
+  try {
+    // Leader filtering (mesma lógica de /api/curva-s)
+    let leaderName = null;
+    if (!isPrivileged(req.user.email)) {
+      leaderName = getLeaderNameFromEmail(req.user.email);
+      if (!leaderName) {
+        return res.json({ success: true, count: 0, data: [] });
+      }
+    }
+
+    const projectCode = req.query.projectCode || null;
+
+    // 1. Busca dados per-user per-project per-month do BigQuery
+    const custosPorUsuario = await queryCustosPorUsuarioProjeto(leaderName, projectCode);
+
+    // 2. Busca todos os usuarios (ativos e inativos) com cargo do Supabase
+    const supabase = getSupabaseClient();
+    const { data: usersWithPositions, error: usersError } = await supabase
+      .from('users_otus')
+      .select('name, cargo:position_id(id, name)');
+
+    if (usersError) {
+      console.warn('⚠️ Erro ao buscar cargos dos usuários:', usersError.message);
+    }
+
+    // 3. Monta mapa nome normalizado -> cargo
+    const cargoMap = new Map();
+    if (usersWithPositions) {
+      usersWithPositions.forEach(user => {
+        const normalizedName = (user.name || '').toLowerCase().trim();
+        const cargoName = user.cargo?.name || 'Sem cargo';
+        if (normalizedName) {
+          cargoMap.set(normalizedName, cargoName);
+        }
+      });
+    }
+
+    // 4. Enriquece dados do BigQuery com cargo
+    const enrichedData = custosPorUsuario.map(row => ({
+      usuario: row.usuario,
+      cargo: cargoMap.get((row.usuario || '').toLowerCase().trim()) || 'Sem cargo',
+      project_code: row.project_code,
+      mes: row.mes,
+      custo_direto: parseFloat(row.custo_direto) || 0,
+      custo_indireto: parseFloat(row.custo_indireto) || 0,
+      custo_total: parseFloat(row.custo_total) || 0,
+      horas: parseFloat(row.horas) || 0,
+      horas_totais_mes: parseFloat(row.horas_totais_mes) || 0,
+    }));
+
+    res.json({
+      success: true,
+      count: enrichedData.length,
+      data: enrichedData
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar custos por cargo:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: 'Verifique BigQuery e Supabase'
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/curva-s/reconciliacao-custos
+ * Reconciliação: compara totais da fonte financeira vs custos distribuídos, mês a mês
+ * Apenas para usuários privilegiados (admin/director)
+ */
+app.get('/api/curva-s/reconciliacao-custos', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso restrito a administradores' });
+    }
+
+    const rows = await queryReconciliacaoMensal();
+
+    const parseMes = (m) => m?.value ? String(m.value) : String(m || '');
+    const parseNum = (v) => parseFloat(v) || 0;
+
+    res.json({
+      success: true,
+      data: rows.map(r => ({
+        mes: parseMes(r.mes),
+        total_direto_fonte: parseNum(r.total_direto_fonte),
+        total_indireto_fonte: parseNum(r.total_indireto_fonte),
+        total_fonte: parseNum(r.total_fonte),
+        total_direto_dist: parseNum(r.total_direto_dist),
+        total_indireto_dist: parseNum(r.total_indireto_dist),
+        total_dist: parseNum(r.total_dist),
+        diferenca: parseNum(r.diferenca),
+      })),
+    });
+  } catch (error) {
+    console.error('❌ Erro na reconciliação mensal:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/curva-s/reconciliacao-custos/:mes
+ * Drill-down: para um mês, compara custo-fonte vs distribuído por usuário
+ */
+app.get('/api/curva-s/reconciliacao-custos/:mes', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso restrito a administradores' });
+    }
+
+    const rows = await queryReconciliacaoUsuarios(req.params.mes);
+
+    const parseNum = (v) => parseFloat(v) || 0;
+
+    res.json({
+      success: true,
+      data: rows.map(r => ({
+        usuario: r.usuario || '',
+        salario_fonte: parseNum(r.salario_fonte),
+        indireto_fonte: parseNum(r.indireto_fonte),
+        total_fonte_usuario: parseNum(r.total_fonte_usuario),
+        direto_dist: parseNum(r.direto_dist),
+        indireto_dist: parseNum(r.indireto_dist),
+        total_dist: parseNum(r.total_dist),
+        qtd_projetos: parseInt(r.qtd_projetos) || 0,
+        diferenca: parseNum(r.diferenca),
+        status: r.status || 'ok',
+      })),
+    });
+  } catch (error) {
+    console.error('❌ Erro na reconciliação por usuário:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/curva-s/reconciliacao-custos/:mes/:usuario
+ * Drill-down: para um usuário num mês, mostra distribuição por projeto
+ */
+app.get('/api/curva-s/reconciliacao-custos/:mes/:usuario', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso restrito a administradores' });
+    }
+
+    const rows = await queryReconciliacaoProjetos(req.params.mes, req.params.usuario);
+
+    const parseNum = (v) => parseFloat(v) || 0;
+
+    res.json({
+      success: true,
+      data: rows.map(r => ({
+        project_code: r.project_code || '',
+        projeto: r.projeto || '',
+        horas: parseNum(r.horas),
+        horas_totais: parseNum(r.horas_totais),
+        peso: parseNum(r.peso),
+        custo_direto: parseNum(r.custo_direto),
+        custo_indireto: parseNum(r.custo_indireto),
+        custo_total: parseNum(r.custo_total),
+      })),
+    });
+  } catch (error) {
+    console.error('❌ Erro na reconciliação por projeto:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * Rota: GET /api/projetos/cronograma
  * Retorna os dados de cronograma (smartsheet_data_projetos) de um projeto específico
  * Filtra por smartsheet_id do portfólio
@@ -951,6 +1125,41 @@ function aggregateNPS(npsRows, portRows) {
     porTime,
   };
 }
+
+/**
+ * Rota: GET /api/apoio-projetos/proximas-tarefas
+ * Retorna tarefas do SmartSheet com início nas próximas N semanas.
+ * Líderes veem apenas seus projetos; privilegiados veem todos.
+ * Query: weeksAhead (padrão: 2)
+ */
+app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) => {
+  try {
+    const weeksAhead = parseInt(req.query.weeksAhead) || 2;
+
+    let leaderName = null;
+    if (!isPrivileged(req.user.email)) {
+      leaderName = getLeaderNameFromEmail(req.user.email);
+      if (!leaderName) {
+        console.warn(`⚠️ Nome do líder não encontrado para o email: ${req.user.email}`);
+        return res.json({ success: true, data: [] });
+      }
+    }
+
+    const data = await queryProximasTarefasAll(leaderName, { weeksAhead });
+
+    res.json({
+      success: true,
+      count: data.length,
+      data
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar próximas tarefas:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 /**
  * Rota: GET /api/cs/nps
@@ -5281,6 +5490,27 @@ app.get('/api/modules', requireAuth, async (req, res) => {
  * GET /api/modules/home
  * Retorna módulos para exibir na Home
  */
+/**
+ * GET /api/user/accessible-areas
+ * Retorna as áreas (módulos agrupados) que o usuário pode acessar
+ * Baseado em: role, setor e overrides configurados em Permissões
+ */
+app.get('/api/user/accessible-areas', requireAuth, async (req, res) => {
+  try {
+    const userRole = getUserRole(req.user.email) || 'user';
+    const accessLevel = getUserAccessLevel(userRole);
+    const userOtus = await getUserOtusByEmail(req.user.email);
+    const sectorId = userOtus?.setor_id || null;
+    const modules = await fetchModulesForUser(req.user.email, accessLevel, sectorId);
+    // Extrair áreas únicas dos módulos acessíveis
+    const areas = [...new Set(modules.map(m => m.area).filter(Boolean))];
+    res.json({ success: true, areas });
+  } catch (error) {
+    console.error('❌ Erro ao buscar áreas acessíveis:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/modules/home', requireAuth, async (req, res) => {
   try {
     const userRole = getUserRole(req.user.email) || 'user';

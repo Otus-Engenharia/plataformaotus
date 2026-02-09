@@ -1,0 +1,19 @@
+{
+  "name": "construflow-bigquery-sync",
+  "version": "1.0.0",
+  "description": "Sincroniza dados do Construflow para BigQuery - Otus Engenharia",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test-connection.mjs",
+    "deploy": "gcloud functions deploy construflow-sync --gen2 --runtime=nodejs20 --region=southamerica-east1 --source=. --entry-point=syncConstruflowToBigQuery --trigger-http --allow-unauthenticated --timeout=540s --memory=1GB --env-vars-file=.env.yaml"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "^7.3.0"
+  },
+  "keywords": ["construflow", "bigquery", "sync", "otus"]
+}

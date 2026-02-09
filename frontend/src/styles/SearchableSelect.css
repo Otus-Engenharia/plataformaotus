@@ -1,0 +1,125 @@
+/* SearchableSelect - Dropdown pesquisável */
+.searchable-select {
+  position: relative;
+  width: 100%;
+}
+
+.searchable-select-trigger {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ededed;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: Verdana, sans-serif;
+  background: #ffffff;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+}
+
+.searchable-select-trigger:hover {
+  border-color: #ffdd00;
+}
+
+.searchable-select-trigger.open {
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.15);
+}
+
+.searchable-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.searchable-select-arrow {
+  font-size: 8px;
+  color: #737373;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+}
+
+.searchable-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #ffffff;
+  border: 1px solid #ffdd00;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: -1px;
+}
+
+.searchable-select-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid #ededed;
+  font-size: 10px;
+  font-family: Verdana, sans-serif;
+  color: #1a1a1a;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.searchable-select-input::placeholder {
+  color: #999;
+}
+
+.searchable-select-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.searchable-select-option {
+  padding: 0.5rem 0.75rem;
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  color: #1a1a1a;
+}
+
+.searchable-select-option:hover {
+  background: #fff9e6;
+}
+
+.searchable-select-option.selected {
+  background: #ffdd00;
+  font-weight: bold;
+}
+
+.searchable-select-empty {
+  padding: 0.75rem;
+  font-size: 10px;
+  color: #999;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Scrollbar da lista de opções */
+.searchable-select-options::-webkit-scrollbar {
+  width: 6px;
+}
+
+.searchable-select-options::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.searchable-select-options::-webkit-scrollbar-thumb {
+  background: #ffdd00;
+  border-radius: 3px;
+}
+
+.searchable-select-options::-webkit-scrollbar-thumb:hover {
+  background: #d3af00;
+}

@@ -1,0 +1,231 @@
+/**
+ * Estilos da Vista de Reconciliação de Custos - Design System Otus
+ */
+
+.audit-view {
+  width: 100%;
+  font-family: Verdana, sans-serif;
+}
+
+/* Loading / Error states */
+.audit-view-loading,
+.audit-view-error,
+.audit-view-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #555;
+  font-size: 14px;
+}
+
+.audit-view-error {
+  color: #c62828;
+}
+
+.audit-view-error button {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #ffdd00;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.audit-view-loading-overlay {
+  text-align: center;
+  padding: 0.75rem;
+  color: #777;
+  font-size: 13px;
+  background: #fffde7;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+/* Breadcrumb */
+.audit-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  font-size: 14px;
+}
+
+.audit-breadcrumb-item {
+  color: #555;
+  font-weight: 600;
+}
+
+.audit-breadcrumb-link {
+  color: #1a73e8;
+  cursor: pointer;
+}
+
+.audit-breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.audit-breadcrumb-active {
+  color: #1a1a1a;
+}
+
+.audit-breadcrumb-sep {
+  color: #999;
+}
+
+/* KPIs */
+.audit-view-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.audit-view-kpi {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-bottom: 3px solid #ffdd00;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.audit-view-kpi-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.audit-view-kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #777;
+  letter-spacing: 0.5px;
+}
+
+/* Tabela */
+.audit-view-table-wrapper {
+  overflow-x: auto;
+}
+
+.audit-view-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.audit-view-table th {
+  background: #f7f7f7;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #555;
+  letter-spacing: 0.3px;
+}
+
+.audit-view-table td {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.audit-view-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.audit-view-table .text-right {
+  text-align: right;
+}
+
+.audit-view-table .text-center {
+  text-align: center;
+}
+
+.audit-view-diff {
+  color: #c62828;
+  font-weight: 700;
+}
+
+/* Linhas clicáveis */
+.audit-row-clickable {
+  cursor: pointer;
+}
+
+.audit-row-clickable:hover {
+  background: #f5f5f5 !important;
+}
+
+/* Cores de status nas linhas */
+.audit-row-ok {
+  /* default, sem destaque */
+}
+
+.audit-row-divergente {
+  background: #fff8f8;
+}
+
+.audit-row-nao_alocado {
+  background: #fff3f0;
+}
+
+.audit-row-sem_fonte {
+  background: #f5f5f5;
+  color: #888;
+}
+
+/* Status badges */
+.audit-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.audit-status-ok {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.audit-status-divergente {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.audit-status-nao_alocado {
+  background: #fbe9e7;
+  color: #bf360c;
+}
+
+.audit-status-sem_fonte {
+  background: #f5f5f5;
+  color: #757575;
+}
+
+/* Rodapé de totais */
+.audit-summary-footer td {
+  padding: 0.6rem 0.75rem;
+  background: #f7f7f7;
+  border-top: 2px solid #e0e0e0;
+  font-size: 12px;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .audit-view-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-breadcrumb {
+    font-size: 12px;
+  }
+}
