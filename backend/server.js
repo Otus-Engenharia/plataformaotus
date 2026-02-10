@@ -1131,20 +1131,14 @@ function aggregateNPS(npsRows, portRows) {
 /**
  * Rota: GET /api/apoio-projetos/proximas-tarefas
  * Retorna tarefas do SmartSheet com início nas próximas N semanas.
- * Líderes veem apenas seus projetos; privilegiados veem todos.
+ * Sem filtro por líder - usado pelo setor de Tecnologia (Apoio de Projetos).
  * Query: weeksAhead (padrão: 2)
  */
 app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) => {
   try {
     const weeksAhead = parseInt(req.query.weeksAhead) || 2;
 
-    // Filtro por líder: apenas líderes de Operação veem só seus projetos
-    const { leaderName, hasAccess } = getLeaderDataFilter(req);
-    if (!hasAccess) {
-      return res.json({ success: true, data: [] });
-    }
-
-    const data = await queryProximasTarefasAll(leaderName, { weeksAhead });
+    const data = await queryProximasTarefasAll(null, { weeksAhead });
 
     res.json({
       success: true,

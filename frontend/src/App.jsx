@@ -976,7 +976,7 @@ function AppContent() {
     apoio: 'Apoio de Projetos',
     projetos: 'Projetos',
     configuracoes: 'Configurações',
-    indicadores: 'Indicadores do Setor de Projetos',
+    indicadores: 'Plataforma Otus',
     okrs: 'OKRs',
     workspace: 'Gestão de Tarefas',
   };
