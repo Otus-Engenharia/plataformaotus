@@ -63,6 +63,9 @@ const WorkspaceView = lazy(() => import('./pages/workspace/WorkspaceView'));
 const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
 // SectorWorkspaceView removido - funcionalidade agora no WorkspaceView com drawer
 
+// Lazy load da página de Admin & Financeiro
+const ControlePassivoView = lazy(() => import('./components/ControlePassivoView'));
+
 // Lazy load das páginas de OKRs
 const DashboardOKRs = lazy(() => import('./pages/okrs/DashboardOKRs'));
 const CompanyOKRs = lazy(() => import('./pages/okrs/CompanyOKRs'));
@@ -199,6 +202,11 @@ const icons = {
       <path d="M9 2a7 7 0 0 0-7 7c0 3.87 3.13 7 7 7h.07A7 7 0 0 0 9 2Zm0 12c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5Z" />
       <path d="M17.01 14.99l3.5 3.5a1.5 1.5 0 0 1-2.12 2.12l-3.5-3.5" fill="none" stroke="currentColor" strokeWidth="2" />
       <path d="M7 9h4M9 7v4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
+  financeiro: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
 };
@@ -510,6 +518,20 @@ function Sidebar({ collapsed, onToggle, area }) {
     </>
   );
 
+  // Links para área de ADMIN & FINANCEIRO
+  const adminFinanceiroLinks = (
+    <>
+      <Link
+        to="/admin-financeiro/controle-passivo"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/admin-financeiro/controle-passivo') || location.pathname === '/admin-financeiro' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Controle Passivo')}
+      >
+        <span className="nav-icon">{icons.financeiro}</span>
+        <span className="nav-text">Controle Passivo</span>
+      </Link>
+    </>
+  );
+
   // Links para área de WORKSPACE (Gestão de Tarefas)
   // Navegação simplificada - setores são gerenciados pelo drawer no WorkspaceView
   const workspaceLinks = (
@@ -796,6 +818,7 @@ function Sidebar({ collapsed, onToggle, area }) {
         {area === 'lideres' && lideresLinks}
         {area === 'cs' && csLinks}
         {area === 'apoio' && apoioLinks}
+        {area === 'admin_financeiro' && adminFinanceiroLinks}
         {area === 'configuracoes' && configuracoesLinks}
         {area === 'indicadores' && indicadoresIndLinks}
         {area === 'okrs' && okrsLinks}
@@ -904,6 +927,7 @@ function AppContent() {
   const canAccessConfiguracoesArea = canAccessArea('configuracoes');
   const canAccessCSArea = canAccessArea('cs');
   const canAccessApoioArea = canAccessArea('apoio');
+  const canAccessAdminFinanceiroArea = canAccessArea('admin_financeiro');
 
   // 1. Verificando auth: só loading minimalista, sem revelar estrutura do app
   if (loading) {
@@ -949,6 +973,10 @@ function AppContent() {
     if (path.startsWith('/apoio-projetos')) {
       return 'apoio';
     }
+    // Área Admin & Financeiro
+    if (path.startsWith('/admin-financeiro')) {
+      return 'admin_financeiro';
+    }
     if (path.startsWith('/horas') ||
         path.startsWith('/projetos') ||
         path.startsWith('/cs') ||
@@ -983,6 +1011,7 @@ function AppContent() {
     lideres: 'Líderes de Projeto',
     cs: 'Customer Success',
     apoio: 'Apoio de Projetos',
+    admin_financeiro: 'Admin & Financeiro',
     projetos: 'Projetos',
     configuracoes: 'Configurações',
     indicadores: 'Plataforma Otus',
@@ -1086,6 +1115,22 @@ function AppContent() {
               <Route path="gantt" element={<ApoioGanttView />} />
               <Route path="demandas" element={<DemandasKanbanView />} />
               <Route path="portfolio" element={<ApoioPortfolioView />} />
+            </Route>
+            {/* Área Admin & Financeiro - rotas aninhadas */}
+            <Route
+              path="/admin-financeiro"
+              element={
+                <ProtectedRoute>
+                  {canAccessAdminFinanceiroArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <Outlet />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="controle-passivo" replace />} />
+              <Route path="controle-passivo" element={<ControlePassivoView />} />
             </Route>
             <Route
               path="/horas"

@@ -69,6 +69,12 @@ const ICON_MAP = {
       <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   ),
+  // Ícone para Admin & Financeiro
+  admin_financeiro: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  ),
   // Ícone padrão para módulos sem ícone definido
   default: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

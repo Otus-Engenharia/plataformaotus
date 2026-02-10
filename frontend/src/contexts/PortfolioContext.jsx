@@ -40,7 +40,7 @@ export function PortfolioProvider({ children }) {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get(`${API_URL}/api/portfolio`, { withCredentials: true });
+      const response = await axios.get(`${API_URL}/api/portfolio?leaderFilter=true`, { withCredentials: true });
 
       if (response.data && response.data.success) {
         const dataArray = Array.isArray(response.data.data) ? response.data.data : [];

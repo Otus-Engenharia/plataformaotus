@@ -18,7 +18,7 @@ import session from 'express-session';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
@@ -575,16 +575,20 @@ app.get(
 /**
  * Rota: GET /api/portfolio
  * Retorna os dados do portfólio de projetos
- * Filtra por líder se o usuário for líder
+ * Filtra por líder apenas quando ?leaderFilter=true (usado na vista Portfolio)
  */
 app.get('/api/portfolio', requireAuth, async (req, res) => {
   try {
     console.log('📊 Buscando dados do portfólio...');
 
-    // Filtro por líder: apenas líderes de Operação veem só seus projetos
-    const { leaderName, hasAccess } = getLeaderDataFilter(req);
-    if (!hasAccess) {
-      return res.json({ success: true, count: 0, data: [] });
+    // Filtro por líder: só aplica quando explicitamente solicitado (vista Portfolio)
+    let leaderName = null;
+    if (req.query.leaderFilter === 'true') {
+      const { leaderName: name, hasAccess } = getLeaderDataFilter(req);
+      if (!hasAccess) {
+        return res.json({ success: true, count: 0, data: [] });
+      }
+      leaderName = name;
     }
     
     let data = [];
@@ -610,6 +614,39 @@ app.get('/api/portfolio', requireAuth, async (req, res) => {
       success: false,
       error: error.message,
       details: 'Verifique Supabase/BigQuery e a view de portfolio'
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/controle-passivo
+ * Retorna dados consolidados de controle passivo (valor contratado vs receita recebida)
+ * Combina portfólio com financeiro.entradas
+ */
+app.get('/api/controle-passivo', requireAuth, async (req, res) => {
+  try {
+    console.log('💰 Buscando dados do controle passivo...');
+
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      return res.json({ success: true, count: 0, data: [] });
+    }
+
+    const data = await queryControlePassivo(leaderName);
+
+    await logAction(req, 'view', 'controle-passivo', null, 'Controle Passivo', { count: data.length });
+
+    res.json({
+      success: true,
+      count: data.length,
+      data: data
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar controle passivo:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: 'Verifique BigQuery e as tabelas de portfólio/entradas'
     });
   }
 });
@@ -1163,10 +1200,15 @@ app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) =>
  */
 app.get('/api/apoio-projetos/portfolio', requireAuth, async (req, res) => {
   try {
-    const [portfolioData, featuresMap] = await Promise.all([
-      fetchPortfolioRealtime(null),
-      fetchProjectFeaturesForPortfolio()
-    ]);
+    let portfolioData = [];
+    try {
+      portfolioData = await fetchPortfolioRealtime(null);
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase falhou no apoio-projetos, usando BigQuery:', supabaseError.message);
+      portfolioData = await queryPortfolio(null);
+    }
+
+    const featuresMap = await fetchProjectFeaturesForPortfolio();
 
     const enrichedData = portfolioData.map(row => ({
       ...row,

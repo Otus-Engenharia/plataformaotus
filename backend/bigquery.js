@@ -1892,6 +1892,101 @@ export async function queryEstudoCustos() {
  * @param {{ dataInicio?: string, dataFim?: string }} opts - dataInicio/dataFim em YYYY-MM-DD (opcional)
  * @returns {Promise<Array<{ task_name, fase, projeto, usuario, duracao, data_de_apontamento, lider }>>}
  */
+/**
+ * Busca dados consolidados para o Controle Passivo (Admin & Financeiro)
+ *
+ * Combina portfólio com receitas recebidas (financeiro.entradas) para mostrar:
+ * - Valor contratado (contrato + aditivos)
+ * - Receita recebida (soma das entradas)
+ * - Valor a receber (contratado - recebido)
+ * - % recebido
+ */
+export async function queryControlePassivo(leaderName = null) {
+  const hasLider = await hasPortfolioColumn('lider');
+  if (leaderName && !hasLider) {
+    console.warn('⚠️ Coluna "lider" não encontrada na tabela do portfólio. Retornando vazio por segurança.');
+    return [];
+  }
+
+  const entradasSchema = await getEntradasSchema();
+  const entradasColumns = getColumnsSetFromSchema(entradasSchema);
+  let entradasDateColumn = pickFirstExistingColumn(entradasColumns, [
+    'M_s', 'mes', 'data', 'data_mes', 'data_entrada', 'dt', 'competencia', 'data_competencia'
+  ]);
+  if (!entradasDateColumn) {
+    entradasDateColumn = pickDateColumnFromSchema(entradasSchema);
+  }
+
+  let query = `
+    WITH portfolio_base AS (
+      SELECT
+        project_code_norm,
+        project_name,
+        comercial_name,
+        client,
+        lider,
+        nome_time,
+        status,
+        COALESCE(valor_total_contrato_mais_aditivos, 0) AS valor_contratado,
+        data_inicio_cronograma,
+        COALESCE(duracao_total_meses, 0) AS duracao_total_meses,
+        COALESCE(total_dias_pausa, 0) AS total_dias_pausa,
+        CASE
+          WHEN data_inicio_cronograma IS NOT NULL
+          THEN ROUND(
+            (DATE_DIFF(CURRENT_DATE(), SAFE_CAST(data_inicio_cronograma AS DATE), DAY)
+             - COALESCE(total_dias_pausa, 0)) / 30.44, 2)
+          ELSE NULL
+        END AS meses_ativos
+      FROM \`${projectId}.${datasetId}.${tablePortfolio}\`
+      WHERE project_code_norm IS NOT NULL
+  `;
+
+  if (leaderName) {
+    const escapedName = leaderName.replace(/'/g, "''");
+    query += ` AND LOWER(lider) = LOWER('${escapedName}')`;
+  }
+
+  query += `
+    ),
+    receitas_recebidas AS (
+      SELECT
+        CAST(codigo_projeto AS STRING) AS project_code,
+        SUM(COALESCE(Valor, 0)) AS receita_recebida_total
+      FROM \`${projectId}.financeiro.entradas\`
+      WHERE codigo_projeto IS NOT NULL${entradasDateColumn ? `
+        AND COALESCE(
+          SAFE_CAST(${entradasDateColumn} AS DATE),
+          SAFE.PARSE_DATE('%Y-%m-%d', CAST(${entradasDateColumn} AS STRING)),
+          SAFE.PARSE_DATE('%d/%m/%Y', CAST(${entradasDateColumn} AS STRING))
+        ) <= CURRENT_DATE()` : ''}
+      GROUP BY project_code
+    )
+    SELECT
+      p.project_code_norm,
+      p.project_name,
+      p.client,
+      p.status,
+      p.valor_contratado,
+      COALESCE(r.receita_recebida_total, 0) AS receita_recebida,
+      p.data_inicio_cronograma,
+      p.duracao_total_meses,
+      p.meses_ativos
+    FROM portfolio_base p
+    LEFT JOIN receitas_recebidas r
+      ON CAST(p.project_code_norm AS STRING) = r.project_code
+    ORDER BY p.project_code_norm
+  `;
+
+  try {
+    const rows = await executeQuery(query);
+    return rows;
+  } catch (e) {
+    console.error('❌ Erro ao buscar controle passivo:', e);
+    throw new Error(`Erro ao buscar controle passivo: ${e.message}`);
+  }
+}
+
 export async function queryHorasRaw(leaderName, opts = {}) {
   if (!bigquery) throw new Error('Cliente BigQuery não inicializado');
 
