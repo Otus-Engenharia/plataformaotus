@@ -14,13 +14,6 @@ const CONSOLIDATION_TYPES = [
   { value: 'manual', label: 'Manual' }
 ];
 
-const STATUS_OPTIONS = [
-  { value: 'on_track', label: 'No Caminho' },
-  { value: 'at_risk', label: 'Em Risco' },
-  { value: 'off_track', label: 'Fora do Caminho' },
-  { value: 'achieved', label: 'Atingido' }
-];
-
 export default function EditIndicatorDialog({
   indicador,
   onSubmit,
@@ -31,7 +24,6 @@ export default function EditIndicatorDialog({
     descricao: indicador?.descricao || '',
     metric_type: indicador?.metric_type || 'percentage',
     consolidation_type: indicador?.consolidation_type || 'manual',
-    status: indicador?.status || 'on_track',
     threshold_80: indicador?.threshold_80 || '',
     meta: indicador?.meta || '',
     threshold_120: indicador?.threshold_120 || '',
@@ -64,7 +56,6 @@ export default function EditIndicatorDialog({
         descricao: formData.descricao?.trim() || null,
         metric_type: formData.metric_type,
         consolidation_type: formData.consolidation_type,
-        status: formData.status,
         meta: parseFloat(formData.meta),
         threshold_80: formData.threshold_80 ? parseFloat(formData.threshold_80) : null,
         threshold_120: formData.threshold_120 ? parseFloat(formData.threshold_120) : null,
@@ -143,20 +134,6 @@ export default function EditIndicatorDialog({
                 ))}
               </select>
             </div>
-          </div>
-
-          {/* Status */}
-          <div className="form-group">
-            <label htmlFor="ind-status">Status</label>
-            <select
-              id="ind-status"
-              value={formData.status}
-              onChange={(e) => handleChange('status', e.target.value)}
-            >
-              {STATUS_OPTIONS.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
           </div>
 
           {/* Metas - Mínimo, Meta, Superação */}
