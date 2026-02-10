@@ -112,6 +112,12 @@ function CurvaSView() {
   const isSyncingScroll = useRef(false);
   const hasAutoScrolledRef = useRef(false);
 
+  // Mês atual (YYYY-MM) - excluído dos gráficos pois custos ainda estão incompletos (amortização)
+  const currentMonthKey = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
   // Busca dados quando o componente é montado
   useEffect(() => {
     fetchCurvaSData();
@@ -446,7 +452,10 @@ function CurvaSView() {
     
     while (currentYear < lastYear || (currentYear === lastYear && currentMonth <= lastMonthNum)) {
       const monthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-      
+
+      // Exclui mês atual - custos incompletos por amortização
+      if (monthKey >= currentMonthKey) break;
+
       if (grouped[monthKey]) {
         completeMonths.push(grouped[monthKey]);
       } else {
@@ -498,7 +507,7 @@ function CurvaSView() {
         valorMargemAcumulado: receitaAcumulado - custoAcumulado // Legado
       };
     });
-  }, [filteredData]);
+  }, [filteredData, currentMonthKey]);
 
   const syncScroll = (source) => {
     if (isSyncingScroll.current) return;
@@ -582,14 +591,16 @@ function CurvaSView() {
   }, [dataByMonth, filteredData]);
 
   // Filtra dados de cargo pelos mesmos project_codes do filteredData
+  // Exclui mês atual (custos incompletos por amortização)
   const filteredCustosCargo = useMemo(() => {
     const allowedProjectCodes = new Set(
       filteredData.map(item => item.project_code)
     );
     return custosPorCargo.filter(item =>
-      allowedProjectCodes.has(item.project_code)
+      allowedProjectCodes.has(item.project_code) &&
+      parseDate(item.mes) !== currentMonthKey
     );
-  }, [custosPorCargo, filteredData]);
+  }, [custosPorCargo, filteredData, currentMonthKey]);
 
   // Agrupa dados de cargo por mês e cargo para datasets dos gráficos
   const cargoChartDatasets = useMemo(() => {
