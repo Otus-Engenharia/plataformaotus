@@ -1,0 +1,98 @@
+/**
+ * Estilos da vista de Portfolio do Apoio de Projetos
+ * Importa estilos base de ApoioProjetosView.css e adiciona especificos
+ */
+@import './ApoioProjetosView.css';
+
+/* Title */
+.apoio-portfolio-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* Contagem de projetos filtrados */
+.apoio-portfolio-count {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* Celulas especificas da tabela portfolio */
+.apoio-portfolio-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.apoio-portfolio-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Status badge inline */
+.apoio-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.apoio-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Controle badge (readonly) */
+.apoio-controle-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Controle select (editable) */
+.apoio-controle-select {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1.5px solid #e5e7eb;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: white;
+  cursor: pointer;
+  font-family: 'Inter', Verdana, sans-serif;
+  transition: border-color 0.2s;
+}
+
+.apoio-controle-select:hover {
+  border-color: #9ca3af;
+}
+
+.apoio-controle-select:focus {
+  outline: none;
+  border-color: #ffcc00;
+  box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.2);
+}
+
+/* Summary card com indicador principal */
+.apoio-summary .apoio-summary-card-highlight {
+  border-left: 4px solid #ffcc00;
+  background: #fffef5;
+}

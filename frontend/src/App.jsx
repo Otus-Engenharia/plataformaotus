@@ -33,6 +33,7 @@ import AuditoriaCustosView from './components/AuditoriaCustosView';
 const ApoioCronogramaView = lazy(() => import('./pages/apoio/ApoioCronogramaView'));
 const ApoioGanttView = lazy(() => import('./pages/apoio/ApoioGanttView'));
 const DemandasKanbanView = lazy(() => import('./pages/apoio/DemandasKanbanView'));
+const ApoioPortfolioView = lazy(() => import('./pages/apoio/ApoioPortfolioView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -497,6 +498,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.demandas}</span>
         <span className="nav-text">Demandas</span>
+      </Link>
+      <Link
+        to="/apoio-projetos/portfolio"
+        className={`nav-link nav-link-modern ${location.pathname === '/apoio-projetos/portfolio' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Portfolio')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Portfolio</span>
       </Link>
     </>
   );
@@ -1076,6 +1085,7 @@ function AppContent() {
               <Route path="cronograma" element={<ApoioCronogramaView />} />
               <Route path="gantt" element={<ApoioGanttView />} />
               <Route path="demandas" element={<DemandasKanbanView />} />
+              <Route path="portfolio" element={<ApoioPortfolioView />} />
             </Route>
             <Route
               path="/horas"

@@ -62,7 +62,9 @@ import {
   getProjectIdByConstruflow,
   // Vista de Contatos
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
-  fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails
+  fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
+  // Apoio de Projetos - Portfolio
+  fetchProjectFeaturesForPortfolio, updateControleApoio
 } from './supabase.js';
 
 const app = express();
@@ -1151,6 +1153,71 @@ app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) =>
       success: false,
       error: error.message
     });
+  }
+});
+
+/**
+ * Rota: GET /api/apoio-projetos/portfolio
+ * Retorna dados do portfolio enriquecidos com plataforma_acd e controle_apoio
+ * Sem filtro por lider - usado pelo setor de Tecnologia (Apoio de Projetos)
+ */
+app.get('/api/apoio-projetos/portfolio', requireAuth, async (req, res) => {
+  try {
+    const [portfolioData, featuresMap] = await Promise.all([
+      fetchPortfolioRealtime(null),
+      fetchProjectFeaturesForPortfolio()
+    ]);
+
+    const enrichedData = portfolioData.map(row => ({
+      ...row,
+      plataforma_acd: featuresMap[row.project_code_norm]?.plataforma_acd || null,
+      controle_apoio: featuresMap[row.project_code_norm]?.controle_apoio || null,
+    }));
+
+    res.json({
+      success: true,
+      count: enrichedData.length,
+      data: enrichedData
+    });
+  } catch (error) {
+    console.error('Erro ao buscar portfolio do apoio:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Rota: PUT /api/apoio-projetos/portfolio/:projectCode/controle
+ * Atualiza o controle_apoio de um projeto
+ * Body: { controle_apoio: "Controlando" | "Não controlando" | "Dispensado" | null }
+ */
+app.put('/api/apoio-projetos/portfolio/:projectCode/controle', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode } = req.params;
+    const { controle_apoio } = req.body;
+
+    const validValues = ['Controlando', 'Não controlando', 'Dispensado', null];
+    if (!validValues.includes(controle_apoio)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valor invalido. Use: Controlando, Não controlando, Dispensado ou null'
+      });
+    }
+
+    const result = await updateControleApoio(projectCode, controle_apoio);
+
+    await logAction(req, 'update', 'apoio-portfolio', projectCode, 'Controle Apoio', { controle_apoio });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar controle_apoio:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

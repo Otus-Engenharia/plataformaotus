@@ -4917,3 +4917,72 @@ export async function fetchPortfolioEditOptions() {
     leaders: leadersResult.data || []
   };
 }
+
+// ============================================
+// APOIO DE PROJETOS - PORTFOLIO
+// ============================================
+
+/**
+ * Busca dados de project_features para enriquecer portfolio
+ * Retorna mapa { project_code: { plataforma_acd, controle_apoio } }
+ */
+export async function fetchProjectFeaturesForPortfolio() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('project_features')
+    .select('project_id, plataforma_acd, controle_apoio, projects!inner(project_code)');
+
+  if (error) {
+    throw new Error(`Erro ao buscar project_features: ${error.message}`);
+  }
+
+  const map = {};
+  (data || []).forEach(row => {
+    const code = row.projects?.project_code;
+    if (code) {
+      map[code] = {
+        plataforma_acd: row.plataforma_acd || null,
+        controle_apoio: row.controle_apoio || null,
+      };
+    }
+  });
+
+  return map;
+}
+
+/**
+ * Atualiza o campo controle_apoio em project_features
+ * @param {string} projectCode - Codigo do projeto (project_code)
+ * @param {string|null} controleApoio - Valor: Controlando, Nao controlando, Dispensado ou null
+ */
+export async function updateControleApoio(projectCode, controleApoio) {
+  const supabase = getSupabaseClient();
+
+  // Buscar project_id pelo project_code
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('project_code', projectCode)
+    .single();
+
+  if (projectError || !project) {
+    throw new Error(`Projeto nao encontrado: ${projectCode}`);
+  }
+
+  // Upsert em project_features
+  const { data, error } = await supabase
+    .from('project_features')
+    .upsert(
+      { project_id: project.id, controle_apoio: controleApoio },
+      { onConflict: 'project_id' }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar controle_apoio: ${error.message}`);
+  }
+
+  return data;
+}
