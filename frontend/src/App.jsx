@@ -65,6 +65,7 @@ const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
 
 // Lazy load da página de Admin & Financeiro
 const ControlePassivoView = lazy(() => import('./components/ControlePassivoView'));
+const IndicadoresVendasView = lazy(() => import('./components/IndicadoresVendasView'));
 
 // Lazy load das páginas de OKRs
 const DashboardOKRs = lazy(() => import('./pages/okrs/DashboardOKRs'));
@@ -463,6 +464,14 @@ function Sidebar({ collapsed, onToggle, area }) {
           <span className="nav-text">Alocacao de Times</span>
         </Link>
       )}
+      <Link
+        to="/lideres-projeto/indicadores-vendas"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/indicadores-vendas' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Indicadores Vendas')}
+      >
+        <span className="nav-icon">{icons.financeiro}</span>
+        <span className="nav-text">Indicadores Vendas</span>
+      </Link>
     </>
   );
 
@@ -1089,6 +1098,11 @@ function AppContent() {
               <Route path="curva-s" element={<CurvaSView />} />
               <Route path="baselines" element={<BaselinesView />} />
               <Route path="alocacao-times" element={isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />} />
+              <Route path="indicadores-vendas" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <IndicadoresVendasView />
+                </Suspense>
+              } />
             </Route>
             {/* Área CS */}
             <Route

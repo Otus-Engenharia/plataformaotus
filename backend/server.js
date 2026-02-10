@@ -64,7 +64,9 @@ import {
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
   fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
   // Apoio de Projetos - Portfolio
-  fetchProjectFeaturesForPortfolio, updateControleApoio
+  fetchProjectFeaturesForPortfolio, updateControleApoio,
+  // Portfolio - Edicao inline
+  fetchPortfolioEditOptions, updateProjectField
 } from './supabase.js';
 
 const app = express();
@@ -624,6 +626,52 @@ app.get('/api/portfolio', requireAuth, async (req, res) => {
 });
 
 /**
+ * Rota: GET /api/portfolio/edit-options
+ * Retorna opcoes para dropdowns de edicao (times, empresas, lideres)
+ */
+app.get('/api/portfolio/edit-options', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+    const data = await fetchPortfolioEditOptions();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Erro ao buscar opcoes de edicao:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/portfolio/:projectCode
+ * Atualiza campo editavel de um projeto no Supabase
+ * Body: { field, value, oldValue }
+ */
+app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode } = req.params;
+    const { field, value, oldValue } = req.body;
+
+    const allowedFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
+    if (!allowedFields.includes(field)) {
+      return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido` });
+    }
+
+    const result = await updateProjectField(projectCode, field, value);
+    await logAction(req, 'update', 'portfolio', projectCode, field, { value, oldValue });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar portfolio:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * Rota: GET /api/controle-passivo
  * Retorna dados consolidados de controle passivo (valor contratado vs receita recebida)
  * Combina portfólio com financeiro.entradas
@@ -669,16 +717,13 @@ app.get('/api/indicadores-vendas', requireAuth, async (req, res) => {
       return res.json({ success: true, count: 0, data: [] });
     }
 
-    // Buscar portfolio (Supabase com fallback BigQuery) e custos do BigQuery em paralelo
-    let portfolioData;
-    const custosPromise = queryCustosAgregadosProjeto();
-    try {
-      portfolioData = await fetchPortfolioRealtime(leaderName);
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase falhou, usando BigQuery para portfolio:', supabaseError.message);
-      portfolioData = await queryPortfolio(leaderName);
-    }
-    const custosData = await custosPromise;
+    // Buscar portfolio (BigQuery), custos (BigQuery) e area_efetiva (Supabase projects) em paralelo
+    const supabase = getSupabaseClient();
+    const [portfolioData, custosData, projectsResult] = await Promise.all([
+      queryPortfolio(leaderName),
+      queryCustosAgregadosProjeto(),
+      supabase.from('projects').select('project_code, area_efetiva')
+    ]);
 
     // Indexar custos por project_code
     const custosMap = {};
@@ -686,12 +731,21 @@ app.get('/api/indicadores-vendas', requireAuth, async (req, res) => {
       custosMap[c.project_code] = c;
     }
 
+    // Indexar area_efetiva por project_code (Supabase projects)
+    const projectsMap = {};
+    if (projectsResult.data) {
+      for (const p of projectsResult.data) {
+        if (p.project_code) projectsMap[String(p.project_code)] = p;
+      }
+    }
+
     // Merge e calcular derivados
     const merged = portfolioData
       .filter(p => p.project_code_norm || p.project_code)
       .map(p => {
-        const code = p.project_code_norm || p.project_code;
+        const code = String(p.project_code_norm || p.project_code);
         const custos = custosMap[code] || {};
+        const proj = projectsMap[code] || {};
         const ticket = Number(p.valor_total_contrato_mais_aditivos) || 0;
         const tempoTotal = Number(p.duracao_total_meses) || 0;
         const custoTotal = Number(custos.custo_total) || 0;
@@ -704,7 +758,7 @@ app.get('/api/indicadores-vendas', requireAuth, async (req, res) => {
           lider: p.lider,
           nome_time: p.nome_time,
           status: p.status,
-          area_construida: p.area_construida != null ? Number(p.area_construida) : null,
+          area_efetiva: proj.area_efetiva != null ? Number(proj.area_efetiva) : null,
           custo_total: custoTotal,
           meses_com_custo: mesesComCusto,
           custo_mensal: mesesComCusto > 0 ? Math.round((custoTotal / mesesComCusto) * 100) / 100 : 0,

@@ -1987,6 +1987,34 @@ export async function queryControlePassivo(leaderName = null) {
   }
 }
 
+/**
+ * Busca custos agregados por projeto para Indicadores de Vendas
+ * Agrega custo_total, meses_com_custo e horas_total por projeto
+ */
+export async function queryCustosAgregadosProjeto() {
+  const costDataset = 'financeiro';
+  const costTable = 'custo_usuario_projeto_mes';
+
+  const query = `
+    SELECT
+      c.project_code,
+      SUM(COALESCE(c.custo_total_usuario_projeto_mes, 0)) AS custo_total,
+      COUNT(DISTINCT c.mes) AS meses_com_custo,
+      SUM(COALESCE(c.horas_usuario_projeto_mes, 0)) AS horas_total
+    FROM \`${projectId}.${costDataset}.${costTable}\` c
+    WHERE c.project_code IS NOT NULL
+      AND c.mes IS NOT NULL
+    GROUP BY c.project_code
+  `;
+
+  try {
+    return await executeQuery(query);
+  } catch (e) {
+    console.error('❌ Erro ao buscar custos agregados:', e);
+    throw new Error(`Erro ao buscar custos agregados: ${e.message}`);
+  }
+}
+
 export async function queryHorasRaw(leaderName, opts = {}) {
   if (!bigquery) throw new Error('Cliente BigQuery não inicializado');
 
