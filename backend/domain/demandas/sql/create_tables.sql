@@ -4,7 +4,7 @@
 -- Tabela principal de demandas
 CREATE TABLE IF NOT EXISTS demandas (
   id BIGSERIAL PRIMARY KEY,
-  categoria TEXT NOT NULL CHECK (categoria IN ('ajuste_pastas', 'modelo_federado', 'modelagem')),
+  categoria TEXT NOT NULL CHECK (categoria IN ('ajuste_pastas', 'modelo_federado', 'regras_modelo_federado', 'modelagem')),
   tipo_servico TEXT CHECK (tipo_servico IN ('modelagem_compatibilizacao', 'pranchas_alvenaria', 'pranchas_furacao', 'unir_markups', 'quantitativo', 'outro')),
   tipo_servico_outro TEXT,
   coordenador_projeto TEXT NOT NULL,

@@ -6,18 +6,21 @@
 const VALID_CATEGORIAS = Object.freeze({
   AJUSTE_PASTAS: 'ajuste_pastas',
   MODELO_FEDERADO: 'modelo_federado',
+  REGRAS_MODELO_FEDERADO: 'regras_modelo_federado',
   MODELAGEM: 'modelagem',
 });
 
 const CATEGORIA_LABELS = Object.freeze({
   [VALID_CATEGORIAS.AJUSTE_PASTAS]: 'Ajuste de Pastas',
-  [VALID_CATEGORIAS.MODELO_FEDERADO]: 'Ajuste de Modelo Federado',
+  [VALID_CATEGORIAS.MODELO_FEDERADO]: 'Modelo Federado',
+  [VALID_CATEGORIAS.REGRAS_MODELO_FEDERADO]: 'Regras do Modelo Federado',
   [VALID_CATEGORIAS.MODELAGEM]: 'Modelagem',
 });
 
 const CATEGORIA_ICONS = Object.freeze({
   [VALID_CATEGORIAS.AJUSTE_PASTAS]: '📁',
   [VALID_CATEGORIAS.MODELO_FEDERADO]: '🏗️',
+  [VALID_CATEGORIAS.REGRAS_MODELO_FEDERADO]: '📋',
   [VALID_CATEGORIAS.MODELAGEM]: '📐',
 });
 
@@ -90,6 +93,10 @@ class DemandaCategoria {
 
   static modeloFederado() {
     return new DemandaCategoria(VALID_CATEGORIAS.MODELO_FEDERADO);
+  }
+
+  static regrasModeloFederado() {
+    return new DemandaCategoria(VALID_CATEGORIAS.REGRAS_MODELO_FEDERADO);
   }
 
   static modelagem() {

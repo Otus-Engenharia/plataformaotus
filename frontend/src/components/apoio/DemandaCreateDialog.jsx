@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import SearchableDropdown from '../SearchableDropdown';
 import './DemandaCreateDialog.css';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const CATEGORIAS = [
   { value: 'ajuste_pastas', label: 'Ajuste de Pastas', icon: '📁' },
-  { value: 'modelo_federado', label: 'Ajuste de Modelo Federado', icon: '🏗️' },
+  { value: 'modelo_federado', label: 'Modelo Federado', icon: '🏗️' },
+  { value: 'regras_modelo_federado', label: 'Regras do Modelo Federado', icon: '📋' },
   { value: 'modelagem', label: 'Modelagem', icon: '📐' },
 ];
 
@@ -23,16 +27,60 @@ export default function DemandaCreateDialog({ onClose, onSubmit }) {
     tipo_servico_outro: '',
     coordenador_projeto: '',
     cliente_projeto: '',
-    acesso_cronograma: false,
-    link_cronograma: '',
     acesso_drive: false,
     link_drive: '',
     descricao: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [portfolio, setPortfolio] = useState([]);
+  const [loadingPortfolio, setLoadingPortfolio] = useState(true);
+
+  // Busca dados do portfolio ao abrir o dialog
+  useEffect(() => {
+    async function fetchPortfolio() {
+      try {
+        const response = await fetch(`${API_URL}/api/portfolio`, { credentials: 'include' });
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          setPortfolio(data.data);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar portfolio:', err);
+      } finally {
+        setLoadingPortfolio(false);
+      }
+    }
+    fetchPortfolio();
+  }, []);
+
+  // Monta opcoes do dropdown a partir do portfolio
+  const projectOptions = useMemo(() => {
+    return portfolio
+      .filter(p => p.client && p.project_name)
+      .map(p => ({
+        value: `${p.client} - ${p.project_name}`,
+        label: `${p.client} - ${p.project_name}`,
+      }));
+  }, [portfolio]);
+
+  // Mapa para lookup rapido do lider pelo valor selecionado
+  const projectLiderMap = useMemo(() => {
+    const map = {};
+    portfolio.forEach(p => {
+      if (p.client && p.project_name) {
+        map[`${p.client} - ${p.project_name}`] = p.lider || '';
+      }
+    });
+    return map;
+  }, [portfolio]);
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleProjectSelect = (value) => {
+    updateField('cliente_projeto', value);
+    updateField('coordenador_projeto', projectLiderMap[value] || '');
   };
 
   const handleSubmit = async (e) => {
@@ -132,61 +180,32 @@ export default function DemandaCreateDialog({ onClose, onSubmit }) {
             </div>
           )}
 
-          {/* Coordenador do Projeto */}
+          {/* Projeto (dropdown do portfolio) */}
           <div className="dm-dialog__field">
             <label className="dm-dialog__label">
-              Coordenador do Projeto <span className="dm-dialog__required">*</span>
+              Projeto <span className="dm-dialog__required">*</span>
             </label>
-            <input
-              type="text"
-              className="dm-dialog__input"
-              value={formData.coordenador_projeto}
-              onChange={(e) => updateField('coordenador_projeto', e.target.value)}
-              placeholder="Nome do coordenador"
-              required
-            />
-          </div>
-
-          {/* Cliente - Projeto */}
-          <div className="dm-dialog__field">
-            <label className="dm-dialog__label">
-              Cliente - Projeto <span className="dm-dialog__required">*</span>
-            </label>
-            <input
-              type="text"
-              className="dm-dialog__input"
+            <SearchableDropdown
               value={formData.cliente_projeto}
-              onChange={(e) => updateField('cliente_projeto', e.target.value)}
-              placeholder="Ex: ABC - ABC_RUA289"
-              required
+              onChange={handleProjectSelect}
+              options={projectOptions}
+              placeholder={loadingPortfolio ? 'Carregando projetos...' : 'Selecione o projeto'}
+              disabled={loadingPortfolio}
             />
           </div>
 
-          {/* Acesso ao Cronograma */}
+          {/* Coordenador do Projeto (auto-preenchido) */}
           <div className="dm-dialog__field">
-            <label className="dm-dialog__label">Acesso ao Cronograma</label>
-            <div className="dm-dialog__toggle-row">
-              <label className="dm-dialog__toggle">
-                <input
-                  type="checkbox"
-                  checked={formData.acesso_cronograma}
-                  onChange={(e) => updateField('acesso_cronograma', e.target.checked)}
-                />
-                <span className="dm-dialog__toggle-slider"></span>
-                <span className="dm-dialog__toggle-text">
-                  {formData.acesso_cronograma ? 'Sim' : 'Nao'}
-                </span>
-              </label>
-            </div>
-            {formData.acesso_cronograma && (
-              <input
-                type="url"
-                className="dm-dialog__input dm-dialog__input--mt"
-                value={formData.link_cronograma}
-                onChange={(e) => updateField('link_cronograma', e.target.value)}
-                placeholder="Link do cronograma"
-              />
-            )}
+            <label className="dm-dialog__label">
+              Coordenador do Projeto
+            </label>
+            <input
+              type="text"
+              className="dm-dialog__input dm-dialog__input--readonly"
+              value={formData.coordenador_projeto}
+              readOnly
+              placeholder="Selecione um projeto acima"
+            />
           </div>
 
           {/* Acesso ao Drive */}

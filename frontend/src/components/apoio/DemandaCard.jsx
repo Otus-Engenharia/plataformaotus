@@ -13,6 +13,7 @@ const STATUS_CONFIG = {
 const CATEGORIA_CONFIG = {
   ajuste_pastas: { label: 'Ajuste de Pastas', icon: '📁', color: '#f59e0b' },
   modelo_federado: { label: 'Modelo Federado', icon: '🏗️', color: '#8b5cf6' },
+  regras_modelo_federado: { label: 'Regras do Modelo Federado', icon: '📋', color: '#10b981' },
   modelagem: { label: 'Modelagem', icon: '📐', color: '#3b82f6' },
 };
 
