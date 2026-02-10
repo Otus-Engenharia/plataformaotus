@@ -285,7 +285,7 @@ function getLeaderDataFilter(req) {
   // leader - apenas Operação tem filtro por líder
   if (role === 'leader') {
     if (req.user.setor_name === 'Operação') {
-      const leaderName = getLeaderNameFromEmail(req.user.email) || req.user.name;
+      const leaderName = req.user.name || getLeaderNameFromEmail(req.user.email);
       return { leaderName, hasAccess: true };
     }
     // Líderes de outros setores veem tudo
@@ -1631,7 +1631,7 @@ app.get('/api/projetos/apontamentos', requireAuth, async (req, res) => {
     // Se o usuário for líder, valida se o projeto pertence a ele
     let leaderName = null;
     if (!isPrivileged(req.user.email)) {
-      leaderName = getLeaderNameFromEmail(req.user.email);
+      leaderName = req.user.name || getLeaderNameFromEmail(req.user.email);
       if (!leaderName) {
         console.warn(`⚠️ Nome do líder não encontrado para: ${req.user.email}`);
         return res.json({

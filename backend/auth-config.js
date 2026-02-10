@@ -43,11 +43,11 @@ export const USER_ROLES = {
  * Este mapeamento permite fazer a correspondência correta.
  */
 export const EMAIL_TO_LEADER_NAME = {
-  'estevao.goulart@otusengenharia.com': 'Estevão Goulart',
-  'anna.bastos@otusengenharia.com': 'Anna Bastos',
-  'alicia.paim@otusengenharia.com': 'Alicia Paim',
-  // Dev mode - usa dados da Anna Bastos para testes de filtragem de líder
-  'dev-leader@otus.dev': 'Anna Bastos',
+  'estevao.goulart@otusengenharia.com': 'Estevao Goulart',
+  'anna.bastos@otusengenharia.com': 'Anna Luiza Bastos',
+  'alicia.paim@otusengenharia.com': 'Alicia Emanoele Paim',
+  // Dev mode - usa dados da Anna Luiza Bastos para testes de filtragem de líder
+  'dev-leader@otus.dev': 'Anna Luiza Bastos',
 };
 
 /**
@@ -76,9 +76,9 @@ export function getRealEmailForIndicadores(email) {
  * Ajuste conforme os valores reais em port_clientes.Ultimo_Time.
  */
 export const LEADER_TO_ULTIMO_TIME = {
-  'Anna Bastos': 'TIME Anna',
-  'Alicia Paim': 'TIME Alicia',
-  'Estevão Goulart': 'TIME Estevão',
+  'Anna Luiza Bastos': 'TIME Anna',
+  'Alicia Emanoele Paim': 'TIME Alicia',
+  'Estevao Goulart': 'TIME Estevão',
 };
 
 export function getUltimoTimeForLeader(leaderName) {
