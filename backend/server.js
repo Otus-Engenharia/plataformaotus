@@ -263,6 +263,46 @@ function requireAuth(req, res, next) {
 }
 
 /**
+ * Helper: Determina filtro de líder para rotas de dados (portfolio, curva-s, etc.)
+ *
+ * Regra de negócio:
+ * - dev/director/admin → sem filtro (veem tudo)
+ * - leader de Operação → filtrado pelo nome do líder (só vê seus projetos)
+ * - leader de outros setores (ex: Líderes de Projeto) → sem filtro (veem tudo)
+ * - user/outros → sem acesso
+ *
+ * @param {Object} req - Express request (com req.user populado)
+ * @returns {{ leaderName: string|null, hasAccess: boolean }}
+ */
+function getLeaderDataFilter(req) {
+  const role = req.user.role;
+
+  // dev/director/admin - acesso total sem filtro
+  if (['dev', 'director', 'admin'].includes(role)) {
+    return { leaderName: null, hasAccess: true };
+  }
+
+  // leader - apenas Operação tem filtro por líder
+  if (role === 'leader') {
+    if (req.user.setor_name === 'Operação') {
+      const leaderName = getLeaderNameFromEmail(req.user.email) || req.user.name;
+      return { leaderName, hasAccess: true };
+    }
+    // Líderes de outros setores veem tudo
+    return { leaderName: null, hasAccess: true };
+  }
+
+  // Fallback legado: tenta mapping do auth-config
+  const legacyName = getLeaderNameFromEmail(req.user.email);
+  if (legacyName) {
+    return { leaderName: legacyName, hasAccess: true };
+  }
+
+  // user/unknown - sem acesso aos dados
+  return { leaderName: null, hasAccess: false };
+}
+
+/**
  * Middleware de logging
  * Registra ações dos usuários automaticamente
  */
@@ -538,22 +578,11 @@ app.get(
 app.get('/api/portfolio', requireAuth, async (req, res) => {
   try {
     console.log('📊 Buscando dados do portfólio...');
-    
-    // Se o usuário for líder, filtra apenas seus projetos
-    // Se for diretora, retorna todos os projetos
-    let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
-      // Converte o email do usuário para o nome do líder na coluna do BigQuery
-      leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        console.warn(`⚠️ Nome do líder não encontrado para o email: ${req.user.email}`);
-        // Se não encontrar o mapeamento, retorna array vazio para segurança
-        return res.json({
-          success: true,
-          count: 0,
-          data: []
-        });
-      }
+
+    // Filtro por líder: apenas líderes de Operação veem só seus projetos
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      return res.json({ success: true, count: 0, data: [] });
     }
     
     let data = [];
@@ -664,20 +693,12 @@ app.get('/api/curva-s', requireAuth, async (req, res) => {
   try {
     console.log('📈 Buscando dados da Curva S...');
     
-    // Se o usuário for líder, filtra apenas seus projetos
-    let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
-      leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        console.warn(`⚠️ Nome do líder não encontrado para o email: ${req.user.email}`);
-        return res.json({
-          success: true,
-          count: 0,
-          data: []
-        });
-      }
+    // Filtro por líder: apenas líderes de Operação veem só seus projetos
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      return res.json({ success: true, count: 0, data: [] });
     }
-    
+
     // Filtro opcional por projeto específico
     const projectCode = req.query.projectCode || null;
     
@@ -721,19 +742,12 @@ app.get('/api/curva-s/colaboradores', requireAuth, async (req, res) => {
       });
     }
     
-    // Se o usuário for líder, valida se o projeto pertence a ele
-    let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
-      leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        return res.json({
-          success: true,
-          count: 0,
-          data: []
-        });
-      }
+    // Filtro por líder: apenas líderes de Operação veem só seus projetos
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      return res.json({ success: true, count: 0, data: [] });
     }
-    
+
     console.log(`📊 Buscando colaboradores do projeto: ${projectCode}`);
     let data = [];
 
@@ -766,13 +780,10 @@ app.get('/api/curva-s/colaboradores', requireAuth, async (req, res) => {
  */
 app.get('/api/curva-s/custos-por-cargo', requireAuth, async (req, res) => {
   try {
-    // Leader filtering (mesma lógica de /api/curva-s)
-    let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
-      leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        return res.json({ success: true, count: 0, data: [] });
-      }
+    // Filtro por líder: apenas líderes de Operação veem só seus projetos
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      return res.json({ success: true, count: 0, data: [] });
     }
 
     const projectCode = req.query.projectCode || null;
@@ -957,19 +968,10 @@ app.get('/api/projetos/cronograma', requireAuth, async (req, res) => {
       });
     }
 
-    // Se o usuário for líder, valida se o projeto pertence a ele
-    let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
-      leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        console.warn(`⚠️ Nome do líder não encontrado para: ${req.user.email}`);
-        return res.json({
-          success: true,
-          count: 0,
-          data: []
-        });
-      }
-      // TODO: Validar se o projeto pertence ao líder
+    // Filtro por líder: apenas líderes de Operação veem só seus projetos
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      return res.json({ success: true, count: 0, data: [] });
     }
 
     console.log(`📅 Chamando queryCronograma(${smartsheetId}, ${projectName})...`);
@@ -1136,13 +1138,10 @@ app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) =>
   try {
     const weeksAhead = parseInt(req.query.weeksAhead) || 2;
 
-    let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
-      leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        console.warn(`⚠️ Nome do líder não encontrado para o email: ${req.user.email}`);
-        return res.json({ success: true, data: [] });
-      }
+    // Filtro por líder: apenas líderes de Operação veem só seus projetos
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      return res.json({ success: true, data: [] });
     }
 
     const data = await queryProximasTarefasAll(leaderName, { weeksAhead });
@@ -1173,29 +1172,23 @@ app.get('/api/cs/nps', requireAuth, async (req, res) => {
     const organizacao = req.query.organizacao ?? '';
     const cargo = req.query.cargo ?? '';
 
+    // Filtro por líder: apenas líderes de Operação veem só seus dados
+    const { leaderName: npsLeaderName, hasAccess } = getLeaderDataFilter(req);
     let ultimoTime = null;
-    if (!isPrivileged(req.user.email)) {
-      const leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        return res.json({
-          success: true,
-          data: {
-            npsScore: 0,
-            promotores: 0,
-            neutros: 0,
-            detratores: 0,
-            totalRespostas: 0,
-            metaRespostas: META_RESPOSTAS_NPS,
-            respostasMetaPct: 0,
-            porNota: [],
-            porOrganizacao: [],
-            porTime: [],
-          },
-          filters: { campanhas: [], organizacoes: [], cargos: [] },
-          applied: { campanha: '', organizacao: '', cargo: '' },
-        });
-      }
-      ultimoTime = getUltimoTimeForLeader(leaderName);
+    if (!hasAccess) {
+      return res.json({
+        success: true,
+        data: {
+          npsScore: 0, promotores: 0, neutros: 0, detratores: 0,
+          totalRespostas: 0, metaRespostas: META_RESPOSTAS_NPS,
+          respostasMetaPct: 0, porNota: [], porOrganizacao: [], porTime: [],
+        },
+        filters: { campanhas: [], organizacoes: [], cargos: [] },
+        applied: { campanha: '', organizacao: '', cargo: '' },
+      });
+    }
+    if (npsLeaderName) {
+      ultimoTime = getUltimoTimeForLeader(npsLeaderName);
     }
 
     const [npsRows, portRows, filterRows] = await Promise.all([
@@ -1577,13 +1570,11 @@ app.put('/api/operacao/users/:id/team', requireAuth, async (req, res) => {
  */
 app.get('/api/horas', requireAuth, async (req, res) => {
   try {
-    let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
-      leaderName = getLeaderNameFromEmail(req.user.email);
-      if (!leaderName) {
-        const def = defaultHorasDateRange();
-        return res.json({ success: true, porTime: [], porProjeto: [], dataInicio: def.dataInicio, dataFim: def.dataFim });
-      }
+    // Filtro por líder: apenas líderes de Operação veem só seus dados
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      const def = defaultHorasDateRange();
+      return res.json({ success: true, porTime: [], porProjeto: [], dataInicio: def.dataInicio, dataFim: def.dataFim });
     }
     let dataInicio = req.query.dataInicio;
     let dataFim = req.query.dataFim;

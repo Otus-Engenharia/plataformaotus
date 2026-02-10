@@ -149,6 +149,7 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
             picture: pictureUrl,
             role: dbUser.role,
             team_id: dbUser.team_id,
+            setor_name: dbUser.setor?.name || null,
           };
 
           return done(null, user);
