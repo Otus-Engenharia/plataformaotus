@@ -89,6 +89,7 @@ const limiter = rateLimit({
   message: 'Muitas requisições deste IP, tente novamente em 15 minutos.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path.startsWith('/auth/google'),
 });
 app.use('/api/', limiter);
 

@@ -1821,7 +1821,7 @@ export async function fetchPositionIndicators(positionId) {
  * @returns {Promise<Object>}
  */
 export async function createPositionIndicator(positionId, templateData) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase
     .from(POSITION_INDICATORS_TABLE)
     .insert([{
@@ -1855,7 +1855,7 @@ export async function createPositionIndicator(positionId, templateData) {
  * @returns {Promise<Object>}
  */
 export async function updatePositionIndicator(templateId, templateData) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase
     .from(POSITION_INDICATORS_TABLE)
     .update({
@@ -1879,7 +1879,7 @@ export async function updatePositionIndicator(templateId, templateData) {
  * @returns {Promise<void>}
  */
 export async function deletePositionIndicator(templateId) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   const { error } = await supabase
     .from(POSITION_INDICATORS_TABLE)
     .delete()

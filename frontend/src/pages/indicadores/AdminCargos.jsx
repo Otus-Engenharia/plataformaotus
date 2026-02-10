@@ -295,7 +295,10 @@ export default function AdminCargos() {
         }
       );
 
-      if (!res.ok) throw new Error('Erro ao salvar metas mensais');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao salvar metas mensais');
+      }
 
       setShowMonthlyTargetsForm(false);
       setEditingIndicator(null);
