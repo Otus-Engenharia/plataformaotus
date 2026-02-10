@@ -12,36 +12,41 @@ const KANBAN_COLUMNS = [
     id: 'pendentes',
     title: 'Pendentes',
     statuses: ['pendente'],
+    dropStatus: 'pendente',
     color: '#f59e0b',
   },
   {
     id: 'em_analise',
     title: 'Em Analise',
     statuses: ['em_analise', 'aguardando_info'],
+    dropStatus: 'em_analise',
     color: '#3b82f6',
   },
   {
     id: 'em_progresso',
     title: 'Em Progresso',
     statuses: ['em_progresso'],
+    dropStatus: 'em_progresso',
     color: '#06b6d4',
   },
   {
     id: 'finalizados',
     title: 'Finalizados',
     statuses: ['finalizado'],
+    dropStatus: 'finalizado',
     color: '#22c55e',
   },
   {
     id: 'recusados',
     title: 'Recusados',
     statuses: ['recusado'],
+    dropStatus: 'recusado',
     color: '#6b7280',
   },
 ];
 
 export default function DemandasKanbanView() {
-  const { user, isPrivileged } = useAuth();
+  const { user, isPrivileged, canManageDemandas } = useAuth();
   const [demandas, setDemandas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -49,6 +54,10 @@ export default function DemandasKanbanView() {
   const [categoriaFilter, setCategoriaFilter] = useState('');
   const [selectedDemandaId, setSelectedDemandaId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  // Drag and drop state
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragOverColumn, setDragOverColumn] = useState(null);
 
   const fetchDemandas = useCallback(async () => {
     setLoading(true);
@@ -102,6 +111,84 @@ export default function DemandasKanbanView() {
   };
 
   const isOwnDemanda = (demanda) => demanda.author_email === user?.email;
+
+  const canDragDemanda = (demanda) => {
+    return canManageDemandas || isOwnDemanda(demanda);
+  };
+
+  // --- Drag and Drop handlers ---
+  const handleDragStart = (e, demanda) => {
+    setDraggingId(demanda.id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(demanda.id));
+  };
+
+  const handleDragOver = (e, columnId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverColumn !== columnId) {
+      setDragOverColumn(columnId);
+    }
+  };
+
+  const handleDragLeave = (e, columnId) => {
+    // Only clear if actually leaving the column (not entering a child)
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      if (dragOverColumn === columnId) {
+        setDragOverColumn(null);
+      }
+    }
+  };
+
+  const handleDrop = async (e, column) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    setDraggingId(null);
+
+    const demandaId = e.dataTransfer.getData('text/plain');
+    if (!demandaId) return;
+
+    const parsedId = parseInt(demandaId, 10);
+    const demanda = demandas.find(d => d.id === parsedId);
+    if (!demanda) return;
+
+    // Don't do anything if dropping in same column
+    if (column.statuses.includes(demanda.status)) return;
+
+    const newStatus = column.dropStatus;
+
+    // Optimistic update
+    setDemandas(prev => prev.map(d =>
+      d.id === parsedId ? { ...d, status: newStatus } : d
+    ));
+
+    try {
+      const response = await fetch(`${API_URL}/api/demandas/${parsedId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao atualizar status');
+      }
+
+      // Refresh to get accurate data
+      fetchDemandas();
+    } catch (err) {
+      console.error('Erro ao mover demanda:', err);
+      // Revert optimistic update
+      fetchDemandas();
+      alert(err.message);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggingId(null);
+    setDragOverColumn(null);
+  };
 
   const stats = {
     total: demandas.length,
@@ -183,8 +270,15 @@ export default function DemandasKanbanView() {
       <div className="dm-kanban__board">
         {KANBAN_COLUMNS.map(column => {
           const columnDemandas = getColumnDemandas(column);
+          const isDragOver = dragOverColumn === column.id;
           return (
-            <div key={column.id} className="dm-kanban__column">
+            <div
+              key={column.id}
+              className={`dm-kanban__column ${isDragOver ? 'dm-kanban__column--drag-over' : ''}`}
+              onDragOver={(e) => handleDragOver(e, column.id)}
+              onDragLeave={(e) => handleDragLeave(e, column.id)}
+              onDrop={(e) => handleDrop(e, column)}
+            >
               <div
                 className="dm-kanban__column-header"
                 style={{ '--column-color': column.color }}
@@ -194,13 +288,19 @@ export default function DemandasKanbanView() {
               </div>
               <div className="dm-kanban__column-content">
                 {columnDemandas.length === 0 ? (
-                  <div className="dm-kanban__empty">Nenhum item</div>
+                  <div className="dm-kanban__empty">
+                    {isDragOver ? 'Soltar aqui' : 'Nenhum item'}
+                  </div>
                 ) : (
                   columnDemandas.map(demanda => (
                     <DemandaCard
                       key={demanda.id}
                       demanda={demanda}
                       isOwn={isOwnDemanda(demanda)}
+                      isDragging={draggingId === demanda.id}
+                      draggable={canDragDemanda(demanda)}
+                      onDragStart={(e) => handleDragStart(e, demanda)}
+                      onDragEnd={handleDragEnd}
                       onClick={() => setSelectedDemandaId(demanda.id)}
                     />
                   ))
@@ -216,7 +316,9 @@ export default function DemandasKanbanView() {
         <DemandaDetailDialog
           demandaId={selectedDemandaId}
           isPrivileged={isPrivileged}
+          canManageDemandas={canManageDemandas}
           currentUserEmail={user?.email}
+          currentUserId={user?.id}
           onUpdate={fetchDemandas}
           onClose={() => setSelectedDemandaId(null)}
         />

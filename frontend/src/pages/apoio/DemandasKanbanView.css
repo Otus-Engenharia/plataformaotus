@@ -203,6 +203,18 @@
   max-height: 600px;
 }
 
+/* Drag over column */
+.dm-kanban__column--drag-over {
+  background: rgba(255, 204, 0, 0.06);
+  outline: 2px dashed rgba(255, 204, 0, 0.4);
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+
+.dm-kanban__column--drag-over .dm-kanban__column-content {
+  min-height: 80px;
+}
+
 .dm-kanban__empty {
   text-align: center;
   padding: 2rem 1rem;

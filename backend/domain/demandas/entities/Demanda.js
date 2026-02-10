@@ -175,6 +175,63 @@ class Demanda {
   }
 
   /**
+   * Atualiza campos de conteúdo da demanda
+   */
+  updateContent({
+    descricao,
+    coordenadorProjeto,
+    clienteProjeto,
+    categoria,
+    tipoServico,
+    tipoServicoOutro,
+    acessoCronograma,
+    linkCronograma,
+    acessoDrive,
+    linkDrive,
+  }) {
+    if (descricao !== undefined) {
+      if (!descricao || descricao.trim().length === 0) {
+        throw new Error('A descrição da demanda é obrigatória');
+      }
+      this.#descricao = descricao.trim();
+    }
+    if (coordenadorProjeto !== undefined) {
+      if (!coordenadorProjeto || coordenadorProjeto.trim().length === 0) {
+        throw new Error('O coordenador do projeto é obrigatório');
+      }
+      this.#coordenadorProjeto = coordenadorProjeto.trim();
+    }
+    if (clienteProjeto !== undefined) {
+      if (!clienteProjeto || clienteProjeto.trim().length === 0) {
+        throw new Error('O cliente/projeto é obrigatório');
+      }
+      this.#clienteProjeto = clienteProjeto.trim();
+    }
+    if (categoria !== undefined) {
+      this.#categoria = new DemandaCategoria(categoria);
+    }
+    if (tipoServico !== undefined) {
+      this.#tipoServico = tipoServico ? new TipoServico(tipoServico) : null;
+    }
+    if (tipoServicoOutro !== undefined) {
+      this.#tipoServicoOutro = tipoServicoOutro?.trim() || null;
+    }
+    if (acessoCronograma !== undefined) {
+      this.#acessoCronograma = !!acessoCronograma;
+    }
+    if (linkCronograma !== undefined) {
+      this.#linkCronograma = linkCronograma || null;
+    }
+    if (acessoDrive !== undefined) {
+      this.#acessoDrive = !!acessoDrive;
+    }
+    if (linkDrive !== undefined) {
+      this.#linkDrive = linkDrive || null;
+    }
+    this.#updatedAt = new Date();
+  }
+
+  /**
    * Atualiza a prioridade
    */
   setPrioridade(newPrioridade) {

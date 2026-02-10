@@ -18,8 +18,8 @@ import session from 'express-session';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo } from './bigquery.js';
-import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores } from './auth-config.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo, queryCustosAgregadosProjeto } from './bigquery.js';
+import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores, canManageDemandas } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
@@ -412,6 +412,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
     // Busca dados do usuário na tabela users_otus para obter setor_id e userId interno
     const userOtus = await getUserOtusByEmail(req.user.email);
 
+    const setorName = req.user.setor_name || null;
     res.json({
       success: true,
       user: {
@@ -421,9 +422,11 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         picture: req.user.picture,
         role: req.user.role,
         canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
+        canManageDemandas: canManageDemandas(req.user),
         // Dados do users_otus para controle de acesso por setor/responsável
         userId: userOtus?.id || null, // ID interno na tabela users_otus
         setor_id: userOtus?.setor_id || null,
+        setor_name: setorName,
       }
     });
   } catch (error) {
@@ -438,8 +441,10 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         picture: req.user.picture,
         role: req.user.role,
         canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
+        canManageDemandas: canManageDemandas(req.user),
         userId: null,
         setor_id: null,
+        setor_name: req.user.setor_name || null,
       }
     });
   }
@@ -647,6 +652,82 @@ app.get('/api/controle-passivo', requireAuth, async (req, res) => {
       success: false,
       error: error.message,
       details: 'Verifique BigQuery e as tabelas de portfólio/entradas'
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/indicadores-vendas
+ * Retorna dados de indicadores de vendas (portfolio Supabase + custos BigQuery)
+ */
+app.get('/api/indicadores-vendas', requireAuth, async (req, res) => {
+  try {
+    console.log('📊 Buscando dados de indicadores de vendas...');
+
+    const { leaderName, hasAccess } = getLeaderDataFilter(req);
+    if (!hasAccess) {
+      return res.json({ success: true, count: 0, data: [] });
+    }
+
+    // Buscar portfolio (Supabase com fallback BigQuery) e custos do BigQuery em paralelo
+    let portfolioData;
+    const custosPromise = queryCustosAgregadosProjeto();
+    try {
+      portfolioData = await fetchPortfolioRealtime(leaderName);
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase falhou, usando BigQuery para portfolio:', supabaseError.message);
+      portfolioData = await queryPortfolio(leaderName);
+    }
+    const custosData = await custosPromise;
+
+    // Indexar custos por project_code
+    const custosMap = {};
+    for (const c of custosData) {
+      custosMap[c.project_code] = c;
+    }
+
+    // Merge e calcular derivados
+    const merged = portfolioData
+      .filter(p => p.project_code_norm || p.project_code)
+      .map(p => {
+        const code = p.project_code_norm || p.project_code;
+        const custos = custosMap[code] || {};
+        const ticket = Number(p.valor_total_contrato_mais_aditivos) || 0;
+        const tempoTotal = Number(p.duracao_total_meses) || 0;
+        const custoTotal = Number(custos.custo_total) || 0;
+        const mesesComCusto = Number(custos.meses_com_custo) || 0;
+
+        return {
+          project_name: p.project_name,
+          project_code_norm: code,
+          client: p.client,
+          lider: p.lider,
+          nome_time: p.nome_time,
+          status: p.status,
+          area_construida: p.area_construida != null ? Number(p.area_construida) : null,
+          custo_total: custoTotal,
+          meses_com_custo: mesesComCusto,
+          custo_mensal: mesesComCusto > 0 ? Math.round((custoTotal / mesesComCusto) * 100) / 100 : 0,
+          ticket_vendas: ticket,
+          tempo_total_projeto: tempoTotal,
+          ticket_por_mes: tempoTotal > 0 ? Math.round((ticket / tempoTotal) * 100) / 100 : 0,
+          complexidade: p.complexidade != null ? Number(p.complexidade) : null,
+        };
+      });
+
+    await logAction(req, 'view', 'indicadores-vendas', null, 'Indicadores Vendas', { count: merged.length });
+
+    res.json({
+      success: true,
+      count: merged.length,
+      data: merged
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar indicadores de vendas:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: 'Verifique Supabase/BigQuery e as tabelas de portfólio/custos'
     });
   }
 });
@@ -1785,7 +1866,7 @@ app.get('/api/projetos/apontamentos', requireAuth, async (req, res) => {
 // Migrado para arquitetura Domain Driven Design
 // Ver: backend/routes/feedbacks.js
 // ============================================
-setupDDDRoutes(app, { requireAuth, isPrivileged, logAction });
+setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, logAction });
 
 /**
  * Rota: GET /api/admin/user-views

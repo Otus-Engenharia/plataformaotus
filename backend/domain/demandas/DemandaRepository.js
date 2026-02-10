@@ -52,6 +52,10 @@ class DemandaRepository {
     throw new Error('Método deleteComentario deve ser implementado');
   }
 
+  async deleteComentariosByDemandaId(demandaId) {
+    throw new Error('Método deleteComentariosByDemandaId deve ser implementado');
+  }
+
   // --- Usuários ---
 
   async getUserById(userId) {

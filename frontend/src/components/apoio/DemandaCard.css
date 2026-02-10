@@ -178,6 +178,21 @@
   gap: 0.125rem;
 }
 
+/* Drag and Drop */
+.dmcard[draggable="true"] {
+  cursor: grab;
+}
+
+.dmcard[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.dmcard--dragging {
+  opacity: 0.4;
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
 @media (max-width: 640px) {
   .dmcard {
     padding: 0.75rem;

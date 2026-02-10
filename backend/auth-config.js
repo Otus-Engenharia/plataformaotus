@@ -201,3 +201,21 @@ export function hasFullAccess(email) {
   const role = getUserRole(email);
   return role === 'dev' || role === 'director' || role === 'admin';
 }
+
+/**
+ * Setores que podem gerenciar demandas (editar status, prioridade, etc.)
+ */
+const DEMANDAS_MANAGER_SECTORS = ['Tecnologia'];
+
+/**
+ * Verifica se um usuário pode gerenciar demandas
+ * (Privilegiados ou membros do setor Tecnologia)
+ * @param {Object} user - Objeto do usuário com email e setor_name
+ * @returns {boolean}
+ */
+export function canManageDemandas(user) {
+  if (!user) return false;
+  if (isPrivileged(user.email)) return true;
+  if (user.setor_name && DEMANDAS_MANAGER_SECTORS.includes(user.setor_name)) return true;
+  return false;
+}

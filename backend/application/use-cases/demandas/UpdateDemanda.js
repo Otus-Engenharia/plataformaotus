@@ -11,7 +11,7 @@ class UpdateDemanda {
     this.#demandaRepository = demandaRepository;
   }
 
-  async execute({ id, status, prioridade, assignedTo, resolvedById }) {
+  async execute({ id, status, prioridade, assignedTo, resolvedById, contentFields }) {
     const demanda = await this.#demandaRepository.findById(id);
 
     if (!demanda) {
@@ -49,6 +49,10 @@ class UpdateDemanda {
           metadata: { assigned_to: assignedTo },
         });
       }
+    }
+
+    if (contentFields && Object.keys(contentFields).length > 0) {
+      demanda.updateContent(contentFields);
     }
 
     const updatedDemanda = await this.#demandaRepository.update(demanda);

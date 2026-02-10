@@ -12,6 +12,7 @@ import {
   CreateDemanda,
   UpdateDemandaStatus,
   UpdateDemanda,
+  DeleteDemanda,
   GetDemandaStats,
   AddComentario,
 } from '../application/use-cases/demandas/index.js';
@@ -31,8 +32,23 @@ function getRepository() {
   return demandaRepository;
 }
 
-function createRoutes(requireAuth, isPrivileged, logAction) {
+function createRoutes(requireAuth, isPrivileged, logAction, canManageDemandas) {
   const repository = getRepository();
+
+  /**
+   * Verifica se o usuario pode gerenciar a demanda (editar/deletar)
+   * canManageDemandas(user) || author da demanda
+   */
+  async function checkManagePermission(req, demandaId) {
+    if (canManageDemandas && canManageDemandas(req.user)) return { allowed: true };
+
+    // Busca demanda para verificar autoria
+    const demanda = await repository.findById(demandaId);
+    if (!demanda) return { allowed: false, notFound: true };
+    if (demanda.authorId === req.user.id) return { allowed: true, demanda };
+
+    return { allowed: false, demanda };
+  }
 
   /**
    * GET /api/demandas
@@ -198,17 +214,21 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
 
   /**
    * PUT /api/demandas/:id/status
+   * Permissao: canManageDemandas || autor da demanda
    */
   router.put('/:id/status', requireAuth, async (req, res) => {
     try {
-      if (!isPrivileged(req.user.email)) {
-        return res.status(403).json({
-          success: false,
-          error: 'Acesso negado',
-        });
+      const { id } = req.params;
+      const parsedId = parseInt(id, 10);
+
+      const perm = await checkManagePermission(req, parsedId);
+      if (perm.notFound) {
+        return res.status(404).json({ success: false, error: 'Demanda não encontrada' });
+      }
+      if (!perm.allowed) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
       }
 
-      const { id } = req.params;
       const { status } = req.body;
 
       if (!status || !DemandaStatus.isValid(status)) {
@@ -220,7 +240,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
 
       const updateStatus = new UpdateDemandaStatus(repository);
       const demanda = await updateStatus.execute({
-        id: parseInt(id, 10),
+        id: parsedId,
         status,
         resolvedById: req.user.id,
       });
@@ -244,18 +264,27 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
 
   /**
    * PUT /api/demandas/:id
+   * Permissao: canManageDemandas || autor da demanda
    */
   router.put('/:id', requireAuth, async (req, res) => {
     try {
-      if (!isPrivileged(req.user.email)) {
-        return res.status(403).json({
-          success: false,
-          error: 'Acesso negado',
-        });
+      const { id } = req.params;
+      const parsedId = parseInt(id, 10);
+
+      const perm = await checkManagePermission(req, parsedId);
+      if (perm.notFound) {
+        return res.status(404).json({ success: false, error: 'Demanda não encontrada' });
+      }
+      if (!perm.allowed) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
       }
 
-      const { id } = req.params;
-      const { status, prioridade, assigned_to } = req.body;
+      const {
+        status, prioridade, assigned_to,
+        categoria, tipo_servico, tipo_servico_outro,
+        coordenador_projeto, cliente_projeto, descricao,
+        acesso_cronograma, link_cronograma, acesso_drive, link_drive,
+      } = req.body;
 
       if (status && !DemandaStatus.isValid(status)) {
         return res.status(400).json({
@@ -271,7 +300,37 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
         });
       }
 
-      if (status === undefined && prioridade === undefined && assigned_to === undefined) {
+      if (categoria && !DemandaCategoria.isValid(categoria)) {
+        return res.status(400).json({
+          success: false,
+          error: `Categoria deve ser: ${DemandaCategoria.VALID_VALUES.join(', ')}`,
+        });
+      }
+
+      if (tipo_servico && !TipoServico.isValid(tipo_servico)) {
+        return res.status(400).json({
+          success: false,
+          error: `Tipo de serviço deve ser: ${TipoServico.VALID_VALUES.join(', ')}`,
+        });
+      }
+
+      // Build content fields object (only include fields that were sent)
+      const contentFields = {};
+      if (descricao !== undefined) contentFields.descricao = descricao;
+      if (coordenador_projeto !== undefined) contentFields.coordenadorProjeto = coordenador_projeto;
+      if (cliente_projeto !== undefined) contentFields.clienteProjeto = cliente_projeto;
+      if (categoria !== undefined) contentFields.categoria = categoria;
+      if (tipo_servico !== undefined) contentFields.tipoServico = tipo_servico;
+      if (tipo_servico_outro !== undefined) contentFields.tipoServicoOutro = tipo_servico_outro;
+      if (acesso_cronograma !== undefined) contentFields.acessoCronograma = acesso_cronograma;
+      if (link_cronograma !== undefined) contentFields.linkCronograma = link_cronograma;
+      if (acesso_drive !== undefined) contentFields.acessoDrive = acesso_drive;
+      if (link_drive !== undefined) contentFields.linkDrive = link_drive;
+
+      const hasAdmin = status !== undefined || prioridade !== undefined || assigned_to !== undefined;
+      const hasContent = Object.keys(contentFields).length > 0;
+
+      if (!hasAdmin && !hasContent) {
         return res.status(400).json({
           success: false,
           error: 'Nenhum campo para atualizar',
@@ -280,11 +339,12 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
 
       const updateDemanda = new UpdateDemanda(repository);
       const demanda = await updateDemanda.execute({
-        id: parseInt(id, 10),
+        id: parsedId,
         status,
         prioridade,
         assignedTo: assigned_to,
         resolvedById: req.user.id,
+        contentFields: hasContent ? contentFields : undefined,
       });
 
       if (logAction) {
@@ -292,6 +352,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
           status,
           prioridade,
           assigned_to,
+          ...(hasContent ? { content_updated: true } : {}),
         });
       }
 
@@ -304,6 +365,43 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
       res.status(500).json({
         success: false,
         error: error.message || 'Erro ao atualizar demanda',
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/demandas/:id
+   * Permissao: canManageDemandas || autor da demanda
+   */
+  router.delete('/:id', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const parsedId = parseInt(id, 10);
+
+      const perm = await checkManagePermission(req, parsedId);
+      if (perm.notFound) {
+        return res.status(404).json({ success: false, error: 'Demanda não encontrada' });
+      }
+      if (!perm.allowed) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      const deleteDemanda = new DeleteDemanda(repository);
+      await deleteDemanda.execute({ id: parsedId });
+
+      if (logAction) {
+        await logAction(req, 'delete', 'demanda', id, 'Demanda deletada');
+      }
+
+      res.json({
+        success: true,
+        data: { id: parsedId, deleted: true },
+      });
+    } catch (error) {
+      console.error('Erro ao deletar demanda:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao deletar demanda',
       });
     }
   });

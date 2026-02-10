@@ -61,7 +61,15 @@ function getInitials(name, email) {
   return '??';
 }
 
-export default function DemandaCard({ demanda, isOwn = false, onClick }) {
+export default function DemandaCard({
+  demanda,
+  isOwn = false,
+  isDragging = false,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+  onClick,
+}) {
   const categoriaConfig = CATEGORIA_CONFIG[demanda.categoria] || CATEGORIA_CONFIG.modelagem;
   const tipoConfig = demanda.tipo_servico ? TIPO_SERVICO_CONFIG[demanda.tipo_servico] : null;
   const prioridadeConfig = PRIORIDADE_CONFIG[demanda.prioridade] || PRIORIDADE_CONFIG.normal;
@@ -78,10 +86,19 @@ export default function DemandaCard({ demanda, isOwn = false, onClick }) {
     demanda.author_email?.split('@')[0] ||
     'Desconhecido';
 
+  const classNames = [
+    'dmcard',
+    isOwn && 'dmcard--own',
+    isDragging && 'dmcard--dragging',
+  ].filter(Boolean).join(' ');
+
   return (
     <article
-      className={`dmcard ${isOwn ? 'dmcard--own' : ''}`}
+      className={classNames}
       onClick={handleClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       tabIndex={0}
       role="button"
       aria-label={`Demanda: ${previewText}`}

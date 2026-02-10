@@ -209,6 +209,17 @@ class SupabaseDemandaRepository extends DemandaRepository {
     }
   }
 
+  async deleteComentariosByDemandaId(demandaId) {
+    const { error } = await this.#supabase
+      .from(COMENTARIOS_TABLE)
+      .delete()
+      .eq('demanda_id', demandaId);
+
+    if (error) {
+      throw new Error(`Erro ao remover comentários da demanda: ${error.message}`);
+    }
+  }
+
   // --- Usuários ---
 
   async getUserById(userId) {

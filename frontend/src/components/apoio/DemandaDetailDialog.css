@@ -100,6 +100,45 @@
   border-radius: 6px;
 }
 
+.dmdetail__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dmdetail__edit-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.375rem;
+  color: #3b82f6;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.dmdetail__edit-btn:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.dmdetail__delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.375rem;
+  color: #ef4444;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.dmdetail__delete-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.dmdetail__delete-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .dmdetail__close {
   background: none;
   border: none;
@@ -200,6 +239,106 @@
   word-break: break-word;
 }
 
+/* Edit mode section */
+.dmdetail__section--editing {
+  background: rgba(59, 130, 246, 0.04);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.dmdetail__edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.dmdetail__edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.dmdetail__edit-field--full {
+  grid-column: 1 / -1;
+}
+
+.dmdetail__edit-field--checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+
+.dmdetail__edit-field--checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
+.dmdetail__edit-field--checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.dmdetail__edit-field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #525252;
+}
+
+.dmdetail__edit-field select,
+.dmdetail__edit-field input,
+.dmdetail__edit-field textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: #18181b;
+  background: #fff;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.dmdetail__edit-field select:focus,
+.dmdetail__edit-field input:focus,
+.dmdetail__edit-field textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.dmdetail__edit-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dmdetail__cancel-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+  color: #525252;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dmdetail__cancel-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.dmdetail__cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Admin section */
 .dmdetail__section--admin {
   background: rgba(255, 204, 0, 0.04);
@@ -274,8 +413,13 @@
 
 @media (max-width: 640px) {
   .dmdetail__info-grid,
-  .dmdetail__admin-grid {
+  .dmdetail__admin-grid,
+  .dmdetail__edit-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dmdetail__edit-field--full {
+    grid-column: 1;
   }
 
   .dmdetail__header-left {
