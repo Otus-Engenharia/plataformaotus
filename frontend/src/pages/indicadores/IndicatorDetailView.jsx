@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   calculateIndicatorScore,
-  getTrafficLightColor,
+  calculateAccumulatedProgress,
   formatValue,
   getMonthsForCycle
 } from '../../utils/indicator-utils';
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
-import EditMonthlyTargetsDialog from '../../components/indicadores/dialogs/EditMonthlyTargetsDialog';
 import CreateRecoveryPlanDialog from '../../components/indicadores/dialogs/CreateRecoveryPlanDialog';
 import ViewRecoveryPlanDialog from '../../components/indicadores/dialogs/ViewRecoveryPlanDialog';
-import EditIndicatorDialog from '../../components/indicadores/dialogs/EditIndicatorDialog';
+import UnifiedEditIndicatorDialog from '../../components/indicadores/dialogs/UnifiedEditIndicatorDialog';
 import './IndicatorDetailView.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -22,6 +21,118 @@ const MONTH_NAMES = [
 ];
 
 const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+const CONSOLIDATION_LABELS = {
+  sum: {
+    realizado: 'Realizado Acumulado',
+    planejado: 'Planejado Acumulado',
+    score: 'Score Acumulado',
+    sublabelPlanejado: 'Esperado até agora',
+    description: 'Soma dos valores mensais',
+    tagLabel: 'Soma',
+    tagColor: 'blue',
+  },
+  average: {
+    realizado: 'Realizado (Média)',
+    planejado: 'Planejado (Média)',
+    score: 'Score (Média)',
+    sublabelPlanejado: 'Média esperada',
+    description: 'Média dos valores registrados',
+    tagLabel: 'Média',
+    tagColor: 'purple',
+  },
+  last_value: {
+    realizado: 'Último Realizado',
+    planejado: 'Meta Atual',
+    score: 'Score Atual',
+    sublabelPlanejado: 'Meta do período',
+    description: 'Último valor do período',
+    tagLabel: 'Último Valor',
+    tagColor: 'green',
+  },
+  manual: {
+    realizado: 'Realizado',
+    planejado: 'Meta',
+    score: 'Score',
+    sublabelPlanejado: 'Definido manualmente',
+    description: 'Definido manualmente',
+    tagLabel: 'Manual',
+    tagColor: 'orange',
+  },
+};
+
+function EditableKpiValue({ value, onSave, canEdit, formatFn, placeholder = '—' }) {
+  const [editing, setEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(value ?? '');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  useEffect(() => {
+    setTempValue(value ?? '');
+  }, [value]);
+
+  const handleSave = async () => {
+    if (saving) return;
+    const newValue = tempValue === '' ? null : parseFloat(tempValue);
+    const oldValue = value ?? null;
+    if (newValue === oldValue) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      await onSave(newValue);
+      setEditing(false);
+    } catch {
+      setTempValue(value ?? '');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleSave(); }
+    else if (e.key === 'Escape') { setTempValue(value ?? ''); setEditing(false); }
+  };
+
+  const displayValue = formatFn ? formatFn(value) : (value ?? placeholder);
+
+  if (!canEdit) return <span className="kpi-value">{displayValue}</span>;
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="number"
+        step="any"
+        value={tempValue}
+        onChange={e => setTempValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+        className="kpi-inline-input"
+        disabled={saving}
+        placeholder={placeholder}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="kpi-value kpi-value--editable"
+      onClick={() => { setTempValue(value ?? ''); setEditing(true); }}
+      title="Clique para editar"
+    >
+      {displayValue}
+      <svg className="kpi-edit-icon" viewBox="0 0 24 24" width="12" height="12">
+        <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+      </svg>
+    </span>
+  );
+}
 
 export default function IndicatorDetailView() {
   const { id } = useParams();
@@ -36,7 +147,6 @@ export default function IndicatorDetailView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
-  const [showEditTargetsDialog, setShowEditTargetsDialog] = useState(false);
   const [showEditIndicatorDialog, setShowEditIndicatorDialog] = useState(false);
   const [showRecoveryPlanDialog, setShowRecoveryPlanDialog] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -145,23 +255,6 @@ export default function IndicatorDetailView() {
     await fetchIndicador();
   };
 
-  const handleUpdateMonthlyTargets = async (data) => {
-    const res = await fetch(`${API_URL}/api/ind/indicators/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(data)
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Erro ao atualizar metas');
-    }
-
-    setShowEditTargetsDialog(false);
-    fetchIndicador();
-  };
-
   const handleCreateRecoveryPlan = async (planData) => {
     const res = await fetch(`${API_URL}/api/ind/indicators/${id}/recovery-plans`, {
       method: 'POST',
@@ -252,6 +345,33 @@ export default function IndicatorDetailView() {
     fetchIndicador();
   };
 
+  const handleUpdateIndicatorField = async (data) => {
+    const res = await fetch(`${API_URL}/api/ind/indicators/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Erro ao atualizar valor');
+    }
+
+    await fetchIndicador();
+  };
+
+  const handleToggleAutoCalculate = async () => {
+    const newValue = !indicador.auto_calculate;
+    // Ao ativar auto, limpa valores manuais
+    const data = { auto_calculate: newValue };
+    if (newValue) {
+      data.realizado_acumulado = null;
+      data.planejado_acumulado = null;
+    }
+    await handleUpdateIndicatorField(data);
+  };
+
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -272,17 +392,6 @@ export default function IndicatorDetailView() {
     } finally {
       setSubmittingComment(false);
     }
-  };
-
-  const getScore = () => {
-    if (!indicador) return 0;
-    return calculateIndicatorScore(
-      indicador.valor,
-      indicador.threshold_80,
-      indicador.meta,
-      indicador.threshold_120,
-      indicador.is_inverse
-    );
   };
 
   const getMonthlyData = () => {
@@ -318,16 +427,16 @@ export default function IndicatorDetailView() {
   };
 
   const getScoreLabel = (score) => {
-    if (score >= 100) return 'Superou';
-    if (score >= 80) return 'No alvo';
-    if (score >= 60) return 'Em risco';
+    if (score >= 120) return 'Superou';
+    if (score >= 100) return 'No alvo';
+    if (score >= 80) return 'Em risco';
     return 'Zerado';
   };
 
   const getScoreColor = (score) => {
-    if (score >= 100) return 'excellent';
-    if (score >= 80) return 'success';
-    if (score >= 60) return 'warning';
+    if (score >= 120) return 'excellent';
+    if (score >= 100) return 'success';
+    if (score >= 80) return 'warning';
     return 'danger';
   };
 
@@ -353,8 +462,19 @@ export default function IndicatorDetailView() {
     );
   }
 
-  const score = getScore();
   const monthlyData = getMonthlyData();
+  const currentMonth = new Date().getMonth() + 1;
+  const yearCheckIns = checkIns.filter(c => c.ano === selectedYear);
+  const autoAccumulated = calculateAccumulatedProgress(indicador, yearCheckIns, currentMonth);
+  const cLabels = CONSOLIDATION_LABELS[indicador.consolidation_type] || CONSOLIDATION_LABELS.last_value;
+  const isAutoCalc = indicador.auto_calculate !== false; // default true
+
+  // Auto: calculado dos check-ins/metas; Manual: valores salvos no indicador
+  const realizadoValue = isAutoCalc ? autoAccumulated.realizado : (indicador.realizado_acumulado ?? 0);
+  const planejadoValue = isAutoCalc ? autoAccumulated.planejado : (indicador.planejado_acumulado ?? 0);
+  const score = planejadoValue > 0
+    ? calculateIndicatorScore(realizadoValue, planejadoValue * 0.8, planejadoValue, planejadoValue * 1.2, indicador.is_inverse)
+    : 0;
   const scoreColor = getScoreColor(score);
 
   return (
@@ -369,8 +489,8 @@ export default function IndicatorDetailView() {
         </button>
 
         <div className={`score-badge score-badge--${scoreColor}`}>
-          <span className="score-badge__value">{score.toFixed(0)}%</span>
-          <span className="score-badge__trend">— Estável</span>
+          <span className="score-badge__value">{score.toFixed(0)}</span>
+          <span className="score-badge__trend">{getScoreLabel(score)}</span>
         </div>
       </header>
 
@@ -416,87 +536,169 @@ export default function IndicatorDetailView() {
             {indicador.metric_type === 'percentage' ? 'Porcentagem' :
              indicador.metric_type === 'currency' ? 'Moeda' : 'Número'}
           </span>
+          <span className={`tag tag--consolidation tag--consolidation-${cLabels.tagColor}`}>
+            {cLabels.tagColor === 'blue' && (
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M18 4H6v2l6.5 6L6 18v2h12v-3h-7l5-5-5-5h7z"/>
+              </svg>
+            )}
+            {cLabels.tagColor === 'purple' && (
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
+              </svg>
+            )}
+            {cLabels.tagColor === 'green' && (
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+              </svg>
+            )}
+            {cLabels.tagColor === 'orange' && (
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+              </svg>
+            )}
+            {cLabels.tagLabel}
+          </span>
         </div>
       </section>
 
-      {/* Progress Card */}
+      {/* Progress Card - KPIs + Score Bar */}
       <section className="card progress-card">
-        <div className="progress-card__content">
-          <div className="progress-card__main">
-            <div className="progress-header">
-              <span className="progress-label">Progresso</span>
-              <span className={`progress-value progress-value--${scoreColor}`}>{score.toFixed(0)}%</span>
-            </div>
-
-            <div className="progress-bar-container">
-              <div className="progress-bar">
-                <div
-                  className={`progress-bar__fill progress-bar__fill--${scoreColor}`}
-                  style={{ width: `${Math.min(score, 120) / 1.2}%` }}
-                />
-                <div className="progress-bar__markers">
-                  <span className="marker" style={{ left: '0%' }}>0%</span>
-                  <span className="marker" style={{ left: '66.67%' }}>80%</span>
-                  <span className="marker marker--target" style={{ left: '83.33%' }}>100%</span>
-                  <span className="marker" style={{ left: '100%' }}>120%</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="progress-values">
-              <div className="progress-value-item">
-                <span className="value-label">Inicial</span>
-                <span className="value-number">
-                  {formatValue(indicador.valor_inicial || 0, indicador.metric_type)}
-                </span>
-              </div>
-              <div className="progress-value-item">
-                <span className="value-label">
-                  Consolidado ({indicador.consolidation_type === 'sum' ? 'Soma' :
-                               indicador.consolidation_type === 'average' ? 'Média' : 'Manual'})
-                </span>
-                <span className="value-number value-number--editable">
-                  {formatValue(indicador.valor, indicador.metric_type)}
-                  <svg viewBox="0 0 24 24" width="14" height="14" className="edit-icon">
-                    <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                  </svg>
-                </span>
-              </div>
-              <div className="progress-value-item">
-                <span className="value-label">Meta</span>
-                <span className="value-number">
-                  {formatValue(indicador.meta, indicador.metric_type)}
-                </span>
-              </div>
-            </div>
+        <div className="progress-kpi-row">
+          <div className="kpi-block kpi-block--hero">
+            <span className="kpi-label">Meta Final</span>
+            <span className="kpi-value kpi-value--hero">
+              {formatValue(indicador.meta, indicador.metric_type)}
+            </span>
+            <span className="kpi-sublabel">
+              Peso: {indicador.peso || 1} · {cLabels.description}
+            </span>
           </div>
 
-          <div className="progress-card__legend">
-            <h4 className="legend-title">Faixas do Farol</h4>
-            <div className="legend-items">
-              <div className="legend-item">
-                <span className="legend-dot legend-dot--danger"></span>
-                <span className="legend-label">Zerado (0%)</span>
-                <span className="legend-range">&lt; 80.0%</span>
-              </div>
-              <div className="legend-item">
-                <span className="legend-dot legend-dot--warning"></span>
-                <span className="legend-label">Em risco (80-99%)</span>
-                <span className="legend-range">80.0% - 100.0%</span>
-              </div>
-              <div className="legend-item">
-                <span className="legend-dot legend-dot--success"></span>
-                <span className="legend-label">No alvo (100-119%)</span>
-                <span className="legend-range">100.0% - 120.0%</span>
-              </div>
-              <div className="legend-item">
-                <span className="legend-dot legend-dot--excellent"></span>
-                <span className="legend-label">Superou (120%)</span>
-                <span className="legend-range">&gt; 120.0%</span>
-              </div>
+          <div className={`kpi-block kpi-block--accent-${getScoreColor(score)}`}>
+            <div className="kpi-label-row">
+              <span className="kpi-label">{cLabels.realizado}</span>
+              {isAutoCalc ? (
+                <span className="kpi-auto-badge">
+                  <svg viewBox="0 0 24 24" width="10" height="10">
+                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  auto
+                </span>
+              ) : (
+                <span className="kpi-manual-badge">editar</span>
+              )}
+            </div>
+            {isAutoCalc ? (
+              <span className="kpi-value">
+                {formatValue(realizadoValue, indicador.metric_type)}
+              </span>
+            ) : (
+              <EditableKpiValue
+                value={realizadoValue}
+                onSave={(v) => handleUpdateIndicatorField({ realizado_acumulado: v ?? 0 })}
+                canEdit={isPrivileged}
+                formatFn={(v) => formatValue(v, indicador.metric_type)}
+              />
+            )}
+            <span className={`kpi-score kpi-score--${scoreColor}`}>
+              Score: {score.toFixed(0)}
+            </span>
+          </div>
+
+          <div className="kpi-block">
+            <div className="kpi-label-row">
+              <span className="kpi-label">{cLabels.planejado}</span>
+              {isAutoCalc ? (
+                <span className="kpi-auto-badge">
+                  <svg viewBox="0 0 24 24" width="10" height="10">
+                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  auto
+                </span>
+              ) : (
+                <span className="kpi-manual-badge">editar</span>
+              )}
+            </div>
+            {isAutoCalc ? (
+              <span className="kpi-value">
+                {formatValue(planejadoValue, indicador.metric_type)}
+              </span>
+            ) : (
+              <EditableKpiValue
+                value={planejadoValue}
+                onSave={(v) => handleUpdateIndicatorField({ planejado_acumulado: v ?? 0 })}
+                canEdit={isPrivileged}
+                formatFn={(v) => formatValue(v, indicador.metric_type)}
+              />
+            )}
+            <span className="kpi-sublabel">{cLabels.sublabelPlanejado}</span>
+          </div>
+        </div>
+
+        <div className="progress-bar-section">
+          <div className="progress-bar-header">
+            <span className="progress-label">{cLabels.score}</span>
+            <span className={`progress-score-value progress-score-value--${scoreColor}`}>
+              {score.toFixed(0)}
+            </span>
+          </div>
+          <div className="progress-bar">
+            <div
+              className={`progress-bar__fill progress-bar__fill--${scoreColor}`}
+              style={{ width: `${Math.min(score, 120) / 1.2}%` }}
+            />
+            <div className="progress-bar__markers">
+              <span className="marker" style={{ left: '0%' }}>0</span>
+              <span className="marker marker--threshold" style={{ left: '66.67%' }}>80</span>
+              <span className="marker marker--target" style={{ left: '83.33%' }}>100</span>
+              <span className="marker" style={{ left: '100%' }}>120</span>
             </div>
           </div>
         </div>
+
+        <div className="farol-legend-row">
+          <div className="farol-item">
+            <span className="farol-dot farol-dot--danger"></span>
+            Zerado (&lt; 80)
+          </div>
+          <div className="farol-item">
+            <span className="farol-dot farol-dot--warning"></span>
+            Em risco (80-99)
+          </div>
+          <div className="farol-item">
+            <span className="farol-dot farol-dot--success"></span>
+            No alvo (100-119)
+          </div>
+          <div className="farol-item">
+            <span className="farol-dot farol-dot--excellent"></span>
+            Superou (&ge; 120)
+          </div>
+        </div>
+
+        {isPrivileged && (
+          <div className="progress-card__footer">
+            <div className="progress-card__footer-left">
+              <svg viewBox="0 0 24 24" width="12" height="12">
+                <path fill="currentColor" d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+              </svg>
+              {isAutoCalc ? (
+                <span><strong>Planejado</strong> e <strong>Realizado</strong> calculados automaticamente dos check-ins e metas mensais.</span>
+              ) : (
+                <span><strong>Planejado</strong> e <strong>Realizado</strong> definidos manualmente. Clique nos valores para editar.</span>
+              )}
+            </div>
+            <label className="ind-toggle" title={isAutoCalc ? 'Desativar cálculo automático' : 'Ativar cálculo automático'}>
+              <input
+                type="checkbox"
+                checked={isAutoCalc}
+                onChange={handleToggleAutoCalculate}
+              />
+              <span className="ind-toggle__slider" />
+              <span className="ind-toggle__label">{isAutoCalc ? 'Automático' : 'Manual'}</span>
+            </label>
+          </div>
+        )}
       </section>
 
       {/* Monthly Targets Card */}
@@ -519,16 +721,6 @@ export default function IndicatorDetailView() {
             </button>
             <button
               type="button"
-              className="btn-action btn-action--outline"
-              onClick={() => setShowEditTargetsDialog(true)}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
-              </svg>
-              Editar Metas
-            </button>
-            <button
-              type="button"
               className="btn-icon"
               onClick={() => setShowEditIndicatorDialog(true)}
               title="Editar configurações do indicador"
@@ -543,26 +735,29 @@ export default function IndicatorDetailView() {
         <div className="monthly-grid">
           {monthlyData.map((month) => {
             const hasValue = month.value !== null;
-            const percentage = month.target > 0 && hasValue
-              ? ((month.value / month.target) * 100).toFixed(0)
+            const monthScore = hasValue && month.target > 0
+              ? calculateIndicatorScore(
+                  month.value,
+                  month.target * 0.8,
+                  month.target,
+                  month.target * 1.2,
+                  indicador.is_inverse
+                )
               : null;
-            const pctColor = percentage >= 100 ? 'success' : percentage >= 80 ? 'warning' : 'danger';
+            const monthColor = monthScore !== null ? getScoreColor(monthScore) : null;
 
             return (
-              <div key={month.month} className="monthly-item">
+              <div key={month.month} className={`monthly-item ${hasValue ? `monthly-item--${monthColor}` : 'monthly-item--empty'}`}>
                 <div className="monthly-item__header">
-                  <svg viewBox="0 0 24 24" width="16" height="16" className="calendar-icon">
-                    <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
-                  </svg>
                   <span className="monthly-item__month">{month.monthName}</span>
+                  {hasValue && monthScore !== null && (
+                    <span className={`month-score-badge month-score-badge--${monthColor}`}>
+                      {monthScore.toFixed(0)}
+                    </span>
+                  )}
                   {hasValue && month.notes && (
                     <svg viewBox="0 0 24 24" width="14" height="14" className="notes-icon" title={month.notes}>
                       <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                    </svg>
-                  )}
-                  {hasValue && (
-                    <svg viewBox="0 0 24 24" width="14" height="14" className="clock-icon">
-                      <path fill="currentColor" d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
                     </svg>
                   )}
                 </div>
@@ -582,9 +777,6 @@ export default function IndicatorDetailView() {
                         title="Clique para editar"
                       >
                         {formatValue(month.value, indicador.metric_type)}
-                        <span className={`value-badge value-badge--${pctColor}`}>
-                          {percentage}%
-                        </span>
                       </span>
                     ) : (
                       <button
@@ -789,15 +981,6 @@ export default function IndicatorDetailView() {
         />
       )}
 
-      {/* Edit Monthly Targets Dialog */}
-      {showEditTargetsDialog && (
-        <EditMonthlyTargetsDialog
-          indicador={indicador}
-          onSubmit={handleUpdateMonthlyTargets}
-          onClose={() => setShowEditTargetsDialog(false)}
-        />
-      )}
-
       {/* Create Recovery Plan Dialog */}
       {showRecoveryPlanDialog && (
         <CreateRecoveryPlanDialog
@@ -808,10 +991,11 @@ export default function IndicatorDetailView() {
         />
       )}
 
-      {/* Edit Indicator Dialog */}
+      {/* Edit Indicator Dialog (Unified - same as AdminCargos) */}
       {showEditIndicatorDialog && (
-        <EditIndicatorDialog
+        <UnifiedEditIndicatorDialog
           indicador={indicador}
+          isTemplate={false}
           onSubmit={handleEditIndicator}
           onClose={() => setShowEditIndicatorDialog(false)}
         />

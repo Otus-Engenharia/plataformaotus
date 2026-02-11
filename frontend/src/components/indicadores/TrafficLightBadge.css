@@ -58,6 +58,9 @@
 .traffic-light-red {
   background-color: rgba(234, 67, 53, 0.15);
 }
+.traffic-light-dark {
+  background-color: rgba(26, 26, 26, 0.12);
+}
 .traffic-light-gray {
   background-color: rgba(156, 163, 175, 0.15);
 }

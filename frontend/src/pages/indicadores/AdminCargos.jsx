@@ -1,25 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCurrentCycle, getCurrentYear } from '../../utils/indicator-utils';
+import UnifiedEditIndicatorDialog from '../../components/indicadores/dialogs/UnifiedEditIndicatorDialog';
 import './AdminPages.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
-
-const METRIC_TYPES = [
-  { value: 'number', label: 'Número' },
-  { value: 'percentage', label: 'Percentual' },
-  { value: 'currency', label: 'Moeda (R$)' },
-  { value: 'boolean', label: 'Sim/Não' }
-];
-
-const CONSOLIDATION_TYPES = [
-  { value: 'last_value', label: 'Último Valor' },
-  { value: 'sum', label: 'Soma' },
-  { value: 'average', label: 'Média' },
-  { value: 'manual', label: 'Manual' }
-];
-
-const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export default function AdminCargos() {
   const { isPrivileged, user } = useAuth();
@@ -35,8 +20,7 @@ export default function AdminCargos() {
 
   // Modal states
   const [showPositionForm, setShowPositionForm] = useState(false);
-  const [showIndicatorForm, setShowIndicatorForm] = useState(false);
-  const [showMonthlyTargetsForm, setShowMonthlyTargetsForm] = useState(false);
+  const [showUnifiedEdit, setShowUnifiedEdit] = useState(false);
   const [editingPosition, setEditingPosition] = useState(null);
   const [editingIndicator, setEditingIndicator] = useState(null);
   const [selectedPositionId, setSelectedPositionId] = useState(null);
@@ -45,13 +29,19 @@ export default function AdminCargos() {
     name: '', description: '', is_leadership: false, sector_id: ''
   });
 
-  const [indicatorForm, setIndicatorForm] = useState({
-    title: '', description: '', metric_type: 'number', consolidation_type: 'last_value',
-    default_initial: 0, default_target: 100, default_threshold_80: 80, default_threshold_120: 120,
-    default_weight: 1, is_inverse: false, monthly_targets: {}
-  });
-
-  const [monthlyTargets, setMonthlyTargets] = useState({});
+  // Sector color palette for left-border accent coding
+  const SECTOR_COLORS = [
+    '#2563EB', '#7C3AED', '#059669', '#D97706', '#DC2626',
+    '#0891B2', '#BE185D', '#4F46E5', '#15803D', '#B45309',
+  ];
+  const getSectorColor = (sectorId) => {
+    if (!sectorId) return '#48484A';
+    let hash = 0;
+    for (let i = 0; i < sectorId.length; i++) {
+      hash = sectorId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return SECTOR_COLORS[Math.abs(hash) % SECTOR_COLORS.length];
+  };
 
   useEffect(() => {
     fetchData();
@@ -205,56 +195,33 @@ export default function AdminCargos() {
   const openNewIndicatorForm = (positionId) => {
     setSelectedPositionId(positionId);
     setEditingIndicator(null);
-    setIndicatorForm({
-      title: '', description: '', metric_type: 'number', consolidation_type: 'last_value',
-      default_initial: 0, default_target: 100, default_threshold_80: 80, default_threshold_120: 120,
-      default_weight: 1, is_inverse: false, monthly_targets: {}
-    });
-    setShowIndicatorForm(true);
+    setShowUnifiedEdit(true);
   };
 
   const handleEditIndicator = (positionId, indicator) => {
     setSelectedPositionId(positionId);
     setEditingIndicator(indicator);
-    setIndicatorForm({
-      title: indicator.title || '',
-      description: indicator.description || '',
-      metric_type: indicator.metric_type || 'number',
-      consolidation_type: indicator.consolidation_type || 'last_value',
-      default_initial: indicator.default_initial || 0,
-      default_target: indicator.default_target || 100,
-      default_threshold_80: indicator.default_threshold_80 || 80,
-      default_threshold_120: indicator.default_threshold_120 || 120,
-      default_weight: indicator.default_weight || 1,
-      is_inverse: indicator.is_inverse || false,
-      monthly_targets: indicator.monthly_targets || {}
-    });
-    setShowIndicatorForm(true);
+    setShowUnifiedEdit(true);
   };
 
-  const handleIndicatorSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const url = editingIndicator
-        ? `${API_URL}/api/ind/positions/${selectedPositionId}/indicators/${editingIndicator.id}`
-        : `${API_URL}/api/ind/positions/${selectedPositionId}/indicators`;
+  const handleUnifiedSubmit = async (data) => {
+    const url = editingIndicator
+      ? `${API_URL}/api/ind/positions/${selectedPositionId}/indicators/${editingIndicator.id}`
+      : `${API_URL}/api/ind/positions/${selectedPositionId}/indicators`;
 
-      const res = await fetch(url, {
-        method: editingIndicator ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(indicatorForm)
-      });
+    const res = await fetch(url, {
+      method: editingIndicator ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
 
-      if (!res.ok) throw new Error('Erro ao salvar indicador');
+    if (!res.ok) throw new Error('Erro ao salvar indicador');
 
-      setShowIndicatorForm(false);
-      setEditingIndicator(null);
-      setSelectedPositionId(null);
-      fetchData();
-    } catch (err) {
-      alert(err.message);
-    }
+    setShowUnifiedEdit(false);
+    setEditingIndicator(null);
+    setSelectedPositionId(null);
+    fetchData();
   };
 
   const handleDeleteIndicator = async (positionId, indicator) => {
@@ -268,54 +235,6 @@ export default function AdminCargos() {
     } catch (err) {
       alert(err.message);
     }
-  };
-
-  // Monthly Targets
-  const openMonthlyTargets = (positionId, indicator) => {
-    setSelectedPositionId(positionId);
-    setEditingIndicator(indicator);
-    const targets = {};
-    for (let i = 1; i <= 12; i++) {
-      targets[i] = indicator.monthly_targets?.[i] ?? indicator.default_target;
-    }
-    setMonthlyTargets(targets);
-    setShowMonthlyTargetsForm(true);
-  };
-
-  const handleMonthlyTargetsSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(
-        `${API_URL}/api/ind/positions/${selectedPositionId}/indicators/${editingIndicator.id}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ monthly_targets: monthlyTargets })
-        }
-      );
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Erro ao salvar metas mensais');
-      }
-
-      setShowMonthlyTargetsForm(false);
-      setEditingIndicator(null);
-      setSelectedPositionId(null);
-      fetchData();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const applyFirstToAll = () => {
-    const firstValue = monthlyTargets[1] || 0;
-    const newTargets = {};
-    for (let i = 1; i <= 12; i++) {
-      newTargets[i] = firstValue;
-    }
-    setMonthlyTargets(newTargets);
   };
 
   if (!isPrivileged) {
@@ -402,13 +321,15 @@ export default function AdminCargos() {
             <p>{searchTerm ? 'Tente outro termo de busca.' : 'Clique em "Novo Cargo" para adicionar.'}</p>
           </div>
         ) : (
-          filteredPositions.map(position => {
+          filteredPositions.map((position, index) => {
             const sector = sectors.find(s => s.id === position.sector_id);
             const isExpanded = expandedPositions[position.id];
             const totalWeight = position.indicators?.reduce((sum, ind) => sum + (ind.default_weight || 0), 0) || 0;
+            const sectorColor = getSectorColor(position.sector_id);
+            const weightStatus = totalWeight > 100 ? 'exceeded' : totalWeight === 100 ? 'complete' : '';
 
             return (
-              <div key={position.id} className={`accordion-item glass-card ${isExpanded ? 'expanded' : ''}`}>
+              <div key={position.id} className={`accordion-item glass-card ${isExpanded ? 'expanded' : ''}`} style={{ '--i': index, '--sector-color': sectorColor }}>
                 {/* Accordion Header */}
                 <button
                   className="accordion-trigger"
@@ -503,10 +424,13 @@ export default function AdminCargos() {
                               <div className="indicator-info">
                                 <span className="indicator-title">{indicator.title}</span>
                                 <span className="indicator-meta">
-                                  Meta: {indicator.default_target} • Peso: {indicator.default_weight}
-                                  {indicator.is_inverse && ' • Inverso'}
+                                  Meta: {indicator.default_target}
+                                  {indicator.is_inverse && ' \u2022 Inverso'}
+                                  {' \u2022 '}
+                                  {indicator.auto_calculate === false ? 'Manual' : 'Auto'}
                                 </span>
                               </div>
+                              <span className="indicator-weight-chip">{indicator.default_weight}%</span>
                               <div className="indicator-actions">
                                 <button
                                   className="btn-ghost"
@@ -518,15 +442,6 @@ export default function AdminCargos() {
                                   Editar
                                 </button>
                                 <button
-                                  className="btn-ghost"
-                                  onClick={() => openMonthlyTargets(position.id, indicator)}
-                                >
-                                  <svg viewBox="0 0 24 24" width="14" height="14">
-                                    <path fill="currentColor" d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-8 4H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
-                                  </svg>
-                                  Metas
-                                </button>
-                                <button
                                   className="btn-ghost btn-danger-text"
                                   onClick={() => handleDeleteIndicator(position.id, indicator)}
                                 >
@@ -535,9 +450,17 @@ export default function AdminCargos() {
                               </div>
                             </div>
                           ))}
-                          <p className={`weight-total ${totalWeight > 100 ? 'weight-exceeded' : ''}`}>
-                            Peso total: {totalWeight}/100
-                          </p>
+                          <div className="weight-progress-container">
+                            <div className="weight-progress-bar-track">
+                              <div
+                                className={`weight-progress-bar-fill ${weightStatus}`}
+                                style={{ width: `${Math.min(totalWeight, 100)}%` }}
+                              />
+                            </div>
+                            <span className={`weight-progress-label ${weightStatus}`}>
+                              {totalWeight}/100
+                            </span>
+                          </div>
                         </div>
                       ) : (
                         <p className="empty-indicators">Nenhum indicador padrão configurado</p>
@@ -546,6 +469,24 @@ export default function AdminCargos() {
 
                     {/* Footer Actions */}
                     <div className="accordion-footer">
+                      <button
+                        className="btn-edit-position"
+                        onClick={() => {
+                          setEditingPosition(position);
+                          setPositionForm({
+                            name: position.name,
+                            description: position.description || '',
+                            is_leadership: position.is_leadership || false,
+                            sector_id: position.sector_id || ''
+                          });
+                          setShowPositionForm(true);
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" width="14" height="14">
+                          <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/>
+                        </svg>
+                        Editar Cargo
+                      </button>
                       <button
                         className="btn-danger-outline"
                         onClick={() => handleDeletePosition(position)}
@@ -627,196 +568,18 @@ export default function AdminCargos() {
         </div>
       )}
 
-      {/* Modal: Novo/Editar Indicador */}
-      {showIndicatorForm && (
-        <div className="modal-overlay" onClick={() => setShowIndicatorForm(false)}>
-          <div className="modal-content modal-large glass-card" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h2>{editingIndicator ? 'Editar Indicador' : 'Novo Indicador Padrão'}</h2>
-                <p className="modal-description">
-                  {editingIndicator
-                    ? 'Altere as configurações do indicador padrão'
-                    : 'Este indicador será atribuído automaticamente a pessoas com este cargo'}
-                </p>
-              </div>
-              <button className="modal-close" onClick={() => setShowIndicatorForm(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleIndicatorSubmit} className="modal-form">
-              <div className="form-group">
-                <label>Título *</label>
-                <input
-                  type="text"
-                  value={indicatorForm.title}
-                  onChange={e => setIndicatorForm({...indicatorForm, title: e.target.value})}
-                  placeholder="Ex: Taxa de Conversão"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Descrição</label>
-                <textarea
-                  value={indicatorForm.description}
-                  onChange={e => setIndicatorForm({...indicatorForm, description: e.target.value})}
-                  placeholder="Como este indicador é calculado..."
-                  rows={2}
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Tipo de Métrica</label>
-                  <select
-                    value={indicatorForm.metric_type}
-                    onChange={e => setIndicatorForm({...indicatorForm, metric_type: e.target.value})}
-                  >
-                    {METRIC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Consolidação</label>
-                  <select
-                    value={indicatorForm.consolidation_type}
-                    onChange={e => setIndicatorForm({...indicatorForm, consolidation_type: e.target.value})}
-                  >
-                    {CONSOLIDATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Valor Inicial</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={indicatorForm.default_initial}
-                    onChange={e => setIndicatorForm({...indicatorForm, default_initial: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Meta (100%)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={indicatorForm.default_target}
-                    onChange={e => setIndicatorForm({...indicatorForm, default_target: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Mínimo (80%)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={indicatorForm.default_threshold_80}
-                    onChange={e => setIndicatorForm({...indicatorForm, default_threshold_80: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Superação (120%)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={indicatorForm.default_threshold_120}
-                    onChange={e => setIndicatorForm({...indicatorForm, default_threshold_120: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Peso</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={indicatorForm.default_weight}
-                  onChange={e => setIndicatorForm({...indicatorForm, default_weight: parseInt(e.target.value) || 1})}
-                />
-              </div>
-
-              <div className="form-group form-switch-group">
-                <div>
-                  <label>Indicador Inverso</label>
-                  <p className="form-hint">Menor valor = melhor resultado</p>
-                </div>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={indicatorForm.is_inverse}
-                    onChange={e => setIndicatorForm({...indicatorForm, is_inverse: e.target.checked})}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowIndicatorForm(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary">{editingIndicator ? 'Salvar' : 'Criar Indicador'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Metas Mensais */}
-      {showMonthlyTargetsForm && (
-        <div className="modal-overlay" onClick={() => setShowMonthlyTargetsForm(false)}>
-          <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <h2>Metas Mensais - Template</h2>
-                <p className="modal-description">
-                  Configure as metas para cada mês. Estas metas serão copiadas quando o indicador for atribuído a uma pessoa.
-                </p>
-              </div>
-              <button className="modal-close" onClick={() => setShowMonthlyTargetsForm(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleMonthlyTargetsSubmit} className="modal-form">
-              <div className="monthly-targets-actions">
-                <button type="button" className="btn-small btn-outline" onClick={applyFirstToAll}>
-                  <svg viewBox="0 0 24 24" width="14" height="14">
-                    <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                  </svg>
-                  Aplicar 1º valor a todos
-                </button>
-              </div>
-
-              <div className="monthly-targets-grid">
-                {[
-                  { label: 'Q1', months: [1, 2, 3] },
-                  { label: 'Q2', months: [4, 5, 6] },
-                  { label: 'Q3', months: [7, 8, 9] },
-                  { label: 'Q4', months: [10, 11, 12] }
-                ].map(quarter => (
-                  <div key={quarter.label} className="quarter-group">
-                    <span className="quarter-label">{quarter.label}</span>
-                    <div className="quarter-inputs">
-                      {quarter.months.map(month => (
-                        <div key={month} className="month-input">
-                          <label>{MONTH_NAMES[month - 1]}</label>
-                          <input
-                            type="number"
-                            step="any"
-                            value={monthlyTargets[month] ?? ''}
-                            onChange={e => setMonthlyTargets({...monthlyTargets, [month]: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowMonthlyTargetsForm(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary">Salvar</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* Modal: Editar/Novo Indicador (Unificado com Metas Mensais) */}
+      {showUnifiedEdit && (
+        <UnifiedEditIndicatorDialog
+          indicador={editingIndicator}
+          onSubmit={handleUnifiedSubmit}
+          onClose={() => {
+            setShowUnifiedEdit(false);
+            setEditingIndicator(null);
+            setSelectedPositionId(null);
+          }}
+          isTemplate={true}
+        />
       )}
     </div>
   );

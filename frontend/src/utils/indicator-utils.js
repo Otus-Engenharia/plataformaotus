@@ -21,16 +21,16 @@ export function calculateIndicatorScore(value, threshold80, target, threshold120
 
   if (isInverse) {
     // Para métricas inversas (menor é melhor, ex: turnover, bugs)
-    if (v <= t120) return 120;
+    if (v >= t80) return 0;         // Pior que meta mínima -> zerado
+    if (v <= t120) return 120;      // Melhor que meta máxima -> cap 120
     if (v <= m) return 100 + ((m - v) / (m - t120)) * 20;
-    if (v <= t80) return 80 + ((t80 - v) / (t80 - m)) * 20;
-    return Math.max(0, 80 * (t80 / v));
+    return 80 + ((t80 - v) / (t80 - m)) * 20;
   } else {
     // Para métricas normais (maior é melhor)
-    if (v >= t120) return 120;
+    if (v < t80) return 0;          // Abaixo da meta mínima -> zerado
+    if (v >= t120) return 120;      // Acima da meta máxima -> cap 120
     if (v >= m) return 100 + ((v - m) / (t120 - m)) * 20;
-    if (v >= t80) return 80 + ((v - t80) / (m - t80)) * 20;
-    return Math.max(0, (v / t80) * 80);
+    return 80 + ((v - t80) / (m - t80)) * 20;
   }
 }
 
@@ -57,9 +57,9 @@ export function getIndicatorScore(indicador) {
  */
 export function getTrafficLightColor(score) {
   if (score === null || score === undefined) return 'gray';
-  if (score >= 100) return 'blue';
-  if (score >= 80) return 'green';
-  if (score >= 60) return 'yellow';
+  if (score >= 120) return 'dark';
+  if (score >= 100) return 'green';
+  if (score >= 80) return 'yellow';
   return 'red';
 }
 
@@ -71,7 +71,7 @@ export function getTrafficLightColor(score) {
 export function getTrafficLightClass(score) {
   const color = getTrafficLightColor(score);
   const classMap = {
-    blue: 'traffic-light-blue',
+    dark: 'traffic-light-dark',
     green: 'traffic-light-green',
     yellow: 'traffic-light-yellow',
     red: 'traffic-light-red',
@@ -88,10 +88,10 @@ export function getTrafficLightClass(score) {
 export function getTrafficLightHex(score) {
   const color = getTrafficLightColor(score);
   const hexMap = {
-    blue: '#4285F4',
-    green: '#34A853',
-    yellow: '#FBBC05',
-    red: '#EA4335',
+    dark: '#1a1a1a',
+    green: '#22c55e',
+    yellow: '#f59e0b',
+    red: '#ef4444',
     gray: '#9CA3AF',
   };
   return hexMap[color] || hexMap.gray;
@@ -265,16 +265,83 @@ export function getMonthsForCycle(cycle) {
 }
 
 /**
+ * Retorna meses agrupados por periodicidade para templates de indicadores
+ * @param {'trimestral'|'semestral'|'anual'} periodicity - Periodicidade
+ * @returns {Array<{label: string, months: number[]}>}
+ */
+export function getMonthGroupsForPeriodicity(periodicity) {
+  switch (periodicity) {
+    case 'trimestral':
+      return [
+        { label: 'Q1', months: [1, 2, 3] },
+        { label: 'Q2', months: [4, 5, 6] },
+        { label: 'Q3', months: [7, 8, 9] },
+        { label: 'Q4', months: [10, 11, 12] },
+      ];
+    case 'semestral':
+      return [
+        { label: '1º Semestre', months: [1, 2, 3, 4, 5, 6] },
+        { label: '2º Semestre', months: [7, 8, 9, 10, 11, 12] },
+      ];
+    case 'anual':
+    default:
+      return [
+        { label: 'Anual', months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+      ];
+  }
+}
+
+/**
+ * Distribui meta acumulada em metas mensais baseado no metodo de acumulo
+ * A meta acumulada se aplica POR PERIODO (ex: trimestral = meta por trimestre)
+ * @param {number} accumulated - Meta acumulada por periodo
+ * @param {'sum'|'average'|'last_value'|'manual'} method - Metodo de acumulo
+ * @param {'trimestral'|'semestral'|'anual'} periodicity - Periodicidade
+ * @returns {Object} Objeto {1: valor, 2: valor, ..., 12: valor}
+ */
+export function distributeAccumulatedTarget(accumulated, method, periodicity) {
+  const groups = getMonthGroupsForPeriodicity(periodicity);
+  const result = {};
+
+  for (const group of groups) {
+    const count = group.months.length;
+
+    switch (method) {
+      case 'sum':
+        group.months.forEach(m => {
+          result[m] = Math.round((accumulated / count) * 100) / 100;
+        });
+        break;
+      case 'average':
+        group.months.forEach(m => {
+          result[m] = accumulated;
+        });
+        break;
+      case 'last_value':
+        group.months.forEach((m, idx) => {
+          result[m] = idx === count - 1 ? accumulated : 0;
+        });
+        break;
+      case 'manual':
+      default:
+        break;
+    }
+  }
+
+  return result;
+}
+
+/**
  * Retorna o status textual baseado no score
  * @param {number} score - Score (0-120)
  * @returns {string} Status
  */
 export function getScoreStatus(score) {
   if (score === null || score === undefined) return 'Sem dados';
-  if (score >= 100) return 'Superando';
-  if (score >= 80) return 'No alvo';
-  if (score >= 60) return 'Em risco';
-  return 'Crítico';
+  if (score >= 120) return 'Superou';
+  if (score >= 100) return 'No alvo';
+  if (score >= 80) return 'Em risco';
+  return 'Zerado';
 }
 
 /**
@@ -369,6 +436,63 @@ export function calculateKRProgress(kr, checkIns = []) {
 
   // Cálculo padrão: realizado / planejado
   return Math.min(Math.max(Math.round((realizado / planejado) * 100), 0), 100);
+}
+
+/**
+ * Calcula o progresso acumulado planejado e realizado de um indicador
+ * @param {Object} indicador - Indicador completo
+ * @param {Array} yearCheckIns - Check-ins filtrados do ano
+ * @param {number} currentMonth - Mes atual (1-12)
+ * @returns {{ planejado: number, realizado: number, scoreAcumulado: number }}
+ */
+export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMonth) {
+  if (!indicador) return { planejado: 0, realizado: 0, scoreAcumulado: 0 };
+
+  const { start, end } = getCycleMonthRange(indicador.ciclo || 'anual');
+  const consolidationType = indicador.consolidation_type || 'last_value';
+  const monthlyTargets = indicador.monthly_targets || {};
+
+  // Calcular "Acumulado Planejado" ate o mes atual
+  let planejado = 0;
+  for (let m = start; m <= Math.min(currentMonth, end); m++) {
+    const target = parseFloat(monthlyTargets[m]) || parseFloat(indicador.meta) || 0;
+    if (consolidationType === 'sum') {
+      planejado += target;
+    } else {
+      // average e last_value: planejado = target do mes mais recente
+      planejado = target;
+    }
+  }
+
+  // Calcular "Acumulado Realizado" baseado no tipo de consolidacao
+  const relevantCheckIns = (yearCheckIns || [])
+    .filter(ci => ci.mes >= start && ci.mes <= Math.min(currentMonth, end))
+    .sort((a, b) => a.mes - b.mes);
+
+  let realizado = 0;
+  if (relevantCheckIns.length > 0) {
+    const valores = relevantCheckIns.map(ci => parseFloat(ci.valor) || 0);
+    if (consolidationType === 'sum') {
+      realizado = valores.reduce((sum, v) => sum + v, 0);
+    } else if (consolidationType === 'average') {
+      realizado = valores.reduce((sum, v) => sum + v, 0) / valores.length;
+    } else {
+      realizado = valores[valores.length - 1];
+    }
+  }
+
+  // Score acumulado com thresholds proporcionais
+  const scoreAcumulado = planejado > 0
+    ? calculateIndicatorScore(
+        realizado,
+        planejado * 0.8,
+        planejado,
+        planejado * 1.2,
+        indicador.is_inverse
+      )
+    : 0;
+
+  return { planejado, realizado, scoreAcumulado };
 }
 
 /**

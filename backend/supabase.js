@@ -2152,6 +2152,7 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
           is_inverse: template.is_inverse || false,
           consolidation_type: template.consolidation_type || 'last_value',
           metric_type: template.metric_type || 'number',
+          auto_calculate: template.auto_calculate !== false,
           monthly_targets: template.monthly_targets || {},
         });
 
