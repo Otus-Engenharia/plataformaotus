@@ -217,6 +217,13 @@ function ApontamentosView({
       return;
     }
 
+    const project = portfolio.find(p => p.project_code_norm === selectedProjectId);
+    if (!project?.construflow_id) {
+      setIssues([]);
+      setLoading(false);
+      return;
+    }
+
     // Reseta o filtro de local ao trocar de projeto
     setSelectedLocal('');
 
@@ -225,7 +232,7 @@ function ApontamentosView({
       setError(null);
       try {
         const response = await axios.get(`${API_URL}/api/projetos/apontamentos`, {
-          params: { construflowId: selectedProjectId },
+          params: { construflowId: project.construflow_id },
           withCredentials: true,
         });
         // Processa os dados e garante que arrays sejam arrays
@@ -997,7 +1004,7 @@ function ApontamentosView({
   // Busca o projeto selecionado do portfólio
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
-    return portfolio.find(p => String(p.construflow_id) === String(selectedProjectId));
+    return portfolio.find(p => p.project_code_norm === selectedProjectId);
   }, [portfolio, selectedProjectId]);
 
   // Extrai as disciplinas do cliente do projeto selecionado

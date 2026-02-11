@@ -7,6 +7,101 @@
   padding: 1.25rem 0;
 }
 
+/* ===== Subabas (Cadastro | Controle) ===== */
+.equipe-tabs-container {
+  background: white;
+  border: 1px solid #e6e6e6;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.equipe-tabs-header {
+  display: flex;
+  border-bottom: 2px solid #e6e6e6;
+  background: #f9fafb;
+}
+
+.equipe-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  background: transparent;
+  color: #737373;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+  position: relative;
+}
+
+.equipe-tab:hover {
+  background: #f3f4f6;
+  color: #1a1a1a;
+}
+
+.equipe-tab.active {
+  color: #1a1a1a;
+  background: white;
+  border-bottom-color: #fbbf24;
+}
+
+.equipe-tab svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.equipe-tab.active svg {
+  opacity: 1;
+}
+
+.equipe-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 0.375rem;
+  border-radius: 10px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: #e5e7eb;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.equipe-tab.active .equipe-tab-badge {
+  background: #fef3c7;
+  color: #a16207;
+}
+
+.equipe-tab-badge--alert {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  animation: equipe-badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes equipe-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.equipe-tabs-content {
+  padding: 1.5rem;
+}
+
+.equipe-tab-panel {
+  animation: equipe-tab-fade 0.2s ease;
+}
+
+@keyframes equipe-tab-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Header */
 .equipe-header {
   display: flex;
@@ -121,6 +216,31 @@
 }
 
 /* Células especializadas */
+.equipe-discipline-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.equipe-completeness-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.equipe-completeness-dot--complete {
+  background: #22c55e;
+}
+
+.equipe-completeness-dot--partial {
+  background: #f59e0b;
+}
+
+.equipe-completeness-dot--minimal {
+  background: #d1d5db;
+}
+
 .equipe-discipline-name {
   color: #1a1a1a;
   font-weight: 500;
@@ -627,6 +747,20 @@
 
 /* Responsivo */
 @media (max-width: 768px) {
+  .equipe-tabs-header {
+    overflow-x: auto;
+  }
+
+  .equipe-tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+
+  .equipe-tabs-content {
+    padding: 1rem;
+  }
+
   .equipe-header {
     flex-direction: column;
     align-items: flex-start;

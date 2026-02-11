@@ -225,8 +225,9 @@ export function PortfolioProvider({ children }) {
 
     // Calcula projetos em atraso usando apenas projetos ativos
     dataForActiveProjects.forEach(row => {
-      if (row.data_termino_cronograma && row.data_termino_contrato) {
-        const diff = calculateMonthDifference(row.data_termino_cronograma, row.data_termino_contrato);
+      const terminoContrato = row.data_termino_contrato_com_pausas || row.data_termino_contrato;
+      if (row.data_termino_cronograma && terminoContrato) {
+        const diff = calculateMonthDifference(row.data_termino_cronograma, terminoContrato);
         if (diff !== null && diff >= 3) {
           projetosEmAtraso++;
         }
@@ -253,7 +254,7 @@ export function PortfolioProvider({ children }) {
       if (row.diferenca_cronograma_contrato_status) {
         return row;
       }
-      const difference = calculateMonthDifference(row.data_termino_cronograma, row.data_termino_contrato);
+      const difference = calculateMonthDifference(row.data_termino_cronograma, row.data_termino_contrato_com_pausas || row.data_termino_contrato);
       const differenceStatus = getDifferenceStatus(difference);
       return {
         ...row,
@@ -406,6 +407,9 @@ export function PortfolioProvider({ children }) {
     editOptions,
     fetchEditOptions,
     updatePortfolioField,
+
+    // Dados filtrados (portfolio filtrado por time + lider)
+    dataForKPIs,
 
     // KPIs
     kpis,

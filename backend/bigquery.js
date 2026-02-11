@@ -2015,6 +2015,207 @@ export async function queryCustosAgregadosProjeto() {
   }
 }
 
+/**
+ * Busca disciplinas distintas do Smartsheet e ConstruFlow para análise cruzada.
+ * Usado para verificar se o coordenador registrou todas as disciplinas na plataforma Otus.
+ *
+ * @param {string} construflowId - ID do projeto no ConstruFlow
+ * @param {string|null} smartsheetId - ID do projeto no Smartsheet
+ * @param {string|null} projectName - Nome do projeto (fallback para match normalizado)
+ * @returns {Promise<Object>} - { smartsheet: string[], construflow: string[] }
+ */
+export async function queryDisciplinesCrossReference(construflowId, smartsheetId = null, projectName = null) {
+  if (!projectId || projectId === 'seu-project-id') {
+    throw new Error(`BIGQUERY_PROJECT_ID não está configurado. Valor atual: "${projectId}"`);
+  }
+  if (!bigquery) {
+    throw new Error('Cliente BigQuery não foi inicializado corretamente');
+  }
+
+  const smartsheetProjectId = 'dadosindicadores';
+  const smartsheetDataset = 'smartsheet';
+  const smartsheetTable = 'smartsheet_data_projetos';
+  const issuesDataset = 'construflow_data';
+
+  console.log(`🔀 [queryDisciplinesCrossReference] Iniciando análise cruzada de disciplinas`);
+  console.log(`   ConstruFlow ID: ${construflowId}`);
+  console.log(`   SmartSheet ID: ${smartsheetId}`);
+  console.log(`   Project Name: ${projectName}`);
+
+  // 1. Busca disciplinas do Smartsheet
+  let smartsheetDisciplines = [];
+  try {
+    if (smartsheetId) {
+      const escapedId = String(smartsheetId).replace(/'/g, "''");
+      const query = `
+        SELECT DISTINCT Disciplina
+        FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
+        WHERE ID_Projeto = '${escapedId}'
+          AND Disciplina IS NOT NULL
+          AND TRIM(Disciplina) != ''
+          AND Level = 5
+        ORDER BY Disciplina
+      `;
+      const rows = await executeQuery(query);
+      smartsheetDisciplines = rows.map(r => r.Disciplina).filter(Boolean);
+    }
+
+    // Fallback por nome normalizado se não encontrou
+    if (smartsheetDisciplines.length === 0 && projectName) {
+      const escapedName = String(projectName).replace(/'/g, "''");
+      const query = `
+        WITH normalized AS (
+          SELECT
+            Disciplina,
+            LOWER(REGEXP_REPLACE(
+              REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+              r'[^a-zA-Z0-9]', ''
+            )) AS nome_normalizado
+          FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
+          WHERE NomeDaPlanilha NOT LIKE '%(Backup%'
+            AND NomeDaPlanilha NOT LIKE '%Cópia%'
+            AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+            AND NomeDaPlanilha NOT LIKE '%Copy%'
+            AND Disciplina IS NOT NULL
+            AND TRIM(Disciplina) != ''
+            AND Level = 5
+        )
+        SELECT DISTINCT Disciplina
+        FROM normalized
+        WHERE nome_normalizado LIKE CONCAT('%', LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', '')), '%')
+        ORDER BY Disciplina
+      `;
+      const rows = await executeQuery(query);
+      smartsheetDisciplines = rows.map(r => r.Disciplina).filter(Boolean);
+    }
+
+    console.log(`   ✅ Smartsheet: ${smartsheetDisciplines.length} disciplinas`);
+  } catch (err) {
+    console.warn(`   ⚠️ Erro ao buscar disciplinas do Smartsheet (continuando):`, err.message);
+  }
+
+  // 2. Busca disciplinas do ConstruFlow
+  let construflowDisciplines = [];
+  try {
+    if (construflowId) {
+      const escapedCfId = String(construflowId).replace(/'/g, "''");
+      const query = `
+        SELECT DISTINCT d.name AS disciplineName
+        FROM \`${projectId}.${issuesDataset}.issues_disciplines\` id_dis
+        LEFT JOIN \`${projectId}.${issuesDataset}.disciplines\` d
+          ON CAST(d.id AS STRING) = CAST(id_dis.disciplineId AS STRING)
+        WHERE CAST(id_dis.issueId AS STRING) IN (
+          SELECT CAST(id AS STRING)
+          FROM \`${projectId}.${issuesDataset}.issues\`
+          WHERE CAST(projectId AS STRING) = '${escapedCfId}'
+        )
+          AND d.name IS NOT NULL
+        ORDER BY d.name
+      `;
+      const rows = await executeQuery(query);
+      construflowDisciplines = rows.map(r => r.disciplineName).filter(Boolean);
+    }
+
+    console.log(`   ✅ ConstruFlow: ${construflowDisciplines.length} disciplinas`);
+  } catch (err) {
+    console.warn(`   ⚠️ Erro ao buscar disciplinas do ConstruFlow (continuando):`, err.message);
+  }
+
+  return {
+    smartsheet: smartsheetDisciplines,
+    construflow: construflowDisciplines
+  };
+}
+
+/**
+ * Versão batch da análise cruzada de disciplinas.
+ * Faz apenas 2 queries BigQuery (1 Smartsheet + 1 ConstruFlow) para todos os projetos.
+ * @param {Array<{construflowId: string, smartsheetId: string}>} projects
+ * @returns {{ smartsheetByProject: Object, construflowByProject: Object }}
+ */
+export async function queryDisciplinesCrossReferenceBatch(projects) {
+  if (!projectId || projectId === 'seu-project-id') {
+    throw new Error(`BIGQUERY_PROJECT_ID não está configurado. Valor atual: "${projectId}"`);
+  }
+  if (!bigquery) {
+    throw new Error('Cliente BigQuery não foi inicializado corretamente');
+  }
+
+  const smartsheetProjectId = 'dadosindicadores';
+  const smartsheetDataset = 'smartsheet';
+  const smartsheetTable = 'smartsheet_data_projetos';
+  const issuesDataset = 'construflow_data';
+
+  const smartsheetByProject = {};
+  const construflowByProject = {};
+
+  // 1. Batch Smartsheet - todas as disciplinas de todos os projetos com smartsheetId
+  const smartsheetIds = projects
+    .map(p => p.smartsheetId)
+    .filter(Boolean)
+    .map(id => String(id));
+
+  if (smartsheetIds.length > 0) {
+    try {
+      const inClause = smartsheetIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
+      const query = `
+        SELECT ID_Projeto, Disciplina
+        FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
+        WHERE ID_Projeto IN (${inClause})
+          AND Disciplina IS NOT NULL
+          AND TRIM(Disciplina) != ''
+          AND Level = 5
+        GROUP BY ID_Projeto, Disciplina
+        ORDER BY ID_Projeto, Disciplina
+      `;
+      const rows = await executeQuery(query);
+      rows.forEach(r => {
+        const key = String(r.ID_Projeto);
+        if (!smartsheetByProject[key]) smartsheetByProject[key] = [];
+        smartsheetByProject[key].push(r.Disciplina);
+      });
+      console.log(`🔀 [batch] Smartsheet: ${rows.length} registros de ${Object.keys(smartsheetByProject).length} projetos`);
+    } catch (err) {
+      console.warn('⚠️ Erro batch Smartsheet (continuando):', err.message);
+    }
+  }
+
+  // 2. Batch ConstruFlow - todas as disciplinas de todos os projetos com construflowId
+  const construflowIds = projects
+    .map(p => p.construflowId)
+    .filter(Boolean)
+    .map(id => String(id));
+
+  if (construflowIds.length > 0) {
+    try {
+      const inClause = construflowIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
+      const query = `
+        SELECT CAST(i.projectId AS STRING) AS proj, d.name AS disciplineName
+        FROM \`${projectId}.${issuesDataset}.issues_disciplines\` id_dis
+        LEFT JOIN \`${projectId}.${issuesDataset}.disciplines\` d
+          ON CAST(d.id AS STRING) = CAST(id_dis.disciplineId AS STRING)
+        LEFT JOIN \`${projectId}.${issuesDataset}.issues\` i
+          ON CAST(i.id AS STRING) = CAST(id_dis.issueId AS STRING)
+        WHERE CAST(i.projectId AS STRING) IN (${inClause})
+          AND d.name IS NOT NULL
+        GROUP BY proj, d.name
+        ORDER BY proj, d.name
+      `;
+      const rows = await executeQuery(query);
+      rows.forEach(r => {
+        const key = String(r.proj);
+        if (!construflowByProject[key]) construflowByProject[key] = [];
+        construflowByProject[key].push(r.disciplineName);
+      });
+      console.log(`🔀 [batch] ConstruFlow: ${rows.length} registros de ${Object.keys(construflowByProject).length} projetos`);
+    } catch (err) {
+      console.warn('⚠️ Erro batch ConstruFlow (continuando):', err.message);
+    }
+  }
+
+  return { smartsheetByProject, construflowByProject };
+}
+
 export async function queryHorasRaw(leaderName, opts = {}) {
   if (!bigquery) throw new Error('Cliente BigQuery não inicializado');
 

@@ -18,7 +18,7 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
   // Busca o projeto selecionado do portfólio
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !portfolio || portfolio.length === 0) return null;
-    return portfolio.find(p => String(p.construflow_id) === String(selectedProjectId));
+    return portfolio.find(p => p.project_code_norm === selectedProjectId);
   }, [portfolio, selectedProjectId]);
 
   useEffect(() => {
@@ -357,7 +357,7 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
           
           // Se não existir ou for inválido, calcula
           const terminoCronograma = projectData.data_termino_cronograma;
-          const terminoContrato = projectData.data_termino_contrato;
+          const terminoContrato = projectData.data_termino_contrato_com_pausas || projectData.data_termino_contrato;
           
           if ((value === null || value === undefined || value === '' || typeof value !== 'number') && 
               terminoCronograma && 

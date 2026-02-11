@@ -31,6 +31,8 @@ const TYPE_CONFIG = {
 const CATEGORY_CONFIG = {
   ux: { label: 'UX', color: '#8b5cf6' },
   bug: { label: 'Bug', color: '#ef4444' },
+  bug_dados: { label: 'Bug de Dados', color: '#e67e22' },
+  bug_tecnologia: { label: 'Bug de Tecnologia', color: '#9b59b6' },
   performance: { label: 'Performance', color: '#f59e0b' },
   feature: { label: 'Feature', color: '#22c55e' },
   integracao: { label: 'Integração', color: '#3b82f6' },
@@ -54,6 +56,38 @@ function formatRelativeDate(dateStr) {
   if (diffDays < 7) return `${diffDays}d`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}sem`;
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+/**
+ * Extrai nome amigável da página a partir de uma URL
+ */
+function getPageName(url) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/^\//, '').replace(/\/$/, '');
+    if (!path) return 'Home';
+    const PAGE_NAMES = {
+      'portfolio': 'Portfolio',
+      'curva-s': 'Curva S',
+      'cronograma': 'Cronograma',
+      'cs': 'Customer Success',
+      'custos': 'Custos',
+      'horas': 'Horas',
+      'equipe': 'Equipe',
+      'indicadores': 'Indicadores',
+      'feedbacks': 'Feedbacks',
+      'okrs': 'OKRs',
+      'apontamentos': 'Apontamentos',
+      'projetos': 'Projetos',
+      'operacao': 'Operação',
+      'admin': 'Admin',
+    };
+    const firstSegment = path.split('/')[0];
+    return PAGE_NAMES[firstSegment] || firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -142,6 +176,11 @@ export default function FeedbackCard({ feedback, isOwn = false, onClick, onMenti
           <span className="fcard__name">{authorName}</span>
         </div>
         <div className="fcard__indicators">
+          {getPageName(feedback.page_url) && (
+            <span className="fcard__page" title={feedback.page_url}>
+              {getPageName(feedback.page_url)}
+            </span>
+          )}
           {feedback.admin_analysis && <span title="Tem resposta">💬</span>}
           {isOwn && <span title="Seu feedback">⭐</span>}
         </div>

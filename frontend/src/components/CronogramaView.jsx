@@ -36,7 +36,7 @@ function CronogramaView({ selectedProjectId, portfolio = [] }) {
   // Busca o projeto selecionado do portfólio para obter o smartsheet_id
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !portfolio || portfolio.length === 0) return null;
-    return portfolio.find(p => String(p.construflow_id) === String(selectedProjectId));
+    return portfolio.find(p => p.project_code_norm === selectedProjectId);
   }, [portfolio, selectedProjectId]);
 
   // Fecha dropdowns ao clicar fora

@@ -39,6 +39,54 @@ function getInitials(name, email) {
 }
 
 /**
+ * Extrai nome amigável da página a partir de uma URL
+ */
+function getPageName(url) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/^\//, '').replace(/\/$/, '');
+    if (!path) return 'Home';
+    const PAGE_NAMES = {
+      'portfolio': 'Portfolio',
+      'curva-s': 'Curva S',
+      'cronograma': 'Cronograma',
+      'cs': 'Customer Success',
+      'custos': 'Custos',
+      'horas': 'Horas',
+      'equipe': 'Equipe',
+      'indicadores': 'Indicadores',
+      'feedbacks': 'Feedbacks',
+      'okrs': 'OKRs',
+      'apontamentos': 'Apontamentos',
+      'projetos': 'Projetos',
+      'operacao': 'Operação',
+      'admin': 'Admin',
+    };
+    const firstSegment = path.split('/')[0];
+    return PAGE_NAMES[firstSegment] || firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Parseia screenshot_url: suporta JSON array (novo) ou string simples (legado)
+ */
+function parseScreenshots(screenshotUrl) {
+  if (!screenshotUrl) return [];
+  if (typeof screenshotUrl === 'string' && screenshotUrl.startsWith('[')) {
+    try {
+      const arr = JSON.parse(screenshotUrl);
+      return Array.isArray(arr) ? arr.filter(Boolean) : [];
+    } catch {
+      return [screenshotUrl];
+    }
+  }
+  return [screenshotUrl];
+}
+
+/**
  * Dialog de detalhes do feedback
  * @param {Object} props
  * @param {Object} props.feedback - Dados do feedback
@@ -162,6 +210,19 @@ export default function FeedbackDetailDialog({
             </span>
           </div>
 
+          {/* Page URL (if exists) */}
+          {feedback.page_url && (
+            <div className="feedback-detail__page-section">
+              <span className="feedback-detail__page-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                {getPageName(feedback.page_url)}
+              </span>
+            </div>
+          )}
+
           {/* Feedback content */}
           <div className="feedback-detail__content-section">
             <h4>Feedback</h4>
@@ -170,19 +231,27 @@ export default function FeedbackDetailDialog({
             </p>
           </div>
 
-          {/* Screenshot (if exists) */}
-          {feedback.screenshot_url && (
-            <div className="feedback-detail__screenshot-section">
-              <h4>Screenshot</h4>
-              <div className="feedback-detail__screenshot">
-                <img
-                  src={feedback.screenshot_url}
-                  alt="Screenshot do feedback"
-                  onClick={() => window.open(feedback.screenshot_url, '_blank')}
-                />
+          {/* Screenshots (if exist) */}
+          {(() => {
+            const screenshots = parseScreenshots(feedback.screenshot_url);
+            if (screenshots.length === 0) return null;
+            return (
+              <div className="feedback-detail__screenshot-section">
+                <h4>Imagens ({screenshots.length})</h4>
+                <div className={`feedback-detail__screenshots-grid feedback-detail__screenshots-grid--${Math.min(screenshots.length, 3)}`}>
+                  {screenshots.map((src, i) => (
+                    <div key={i} className="feedback-detail__screenshot">
+                      <img
+                        src={src}
+                        alt={`Imagem ${i + 1} do feedback`}
+                        onClick={() => window.open(src, '_blank')}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Admin response (read-only for non-privileged) */}
           {!isPrivileged && (feedback.admin_analysis || feedback.admin_action) && (

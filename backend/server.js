@@ -18,7 +18,7 @@ import session from 'express-session';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo, queryCustosAgregadosProjeto } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores, canManageDemandas } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
@@ -60,6 +60,10 @@ import {
   fetchProjectDisciplines, fetchStandardDisciplines, fetchCompanies, fetchContacts,
   createProjectDiscipline, updateProjectDiscipline, deleteProjectDiscipline,
   getProjectIdByConstruflow,
+  // Mapeamentos de disciplinas
+  fetchDisciplineMappings, createOrUpdateDisciplineMapping, deleteDisciplineMapping,
+  // Batch para cobertura de disciplinas (portfolio)
+  fetchProjectIdsByConstruflowBatch, fetchProjectDisciplinesBatch, fetchDisciplineMappingsBatch,
   // Vista de Contatos
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
   fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
@@ -668,6 +672,197 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Erro ao atualizar portfolio:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// HELPER: Classificação cruzada de disciplinas (reutilizável)
+// ============================================
+
+/**
+ * Classifica disciplinas em 7 sub-grupos e calcula estatísticas de cobertura.
+ * Reutilizado pelo endpoint individual e pelo endpoint batch.
+ * @param {string[]} smartsheetNames - Nomes de disciplinas do Smartsheet
+ * @param {string[]} construflowNames - Nomes de disciplinas do ConstruFlow
+ * @param {string[]} otusNames - Nomes de disciplinas da Otus
+ * @param {Array} customMappings - Mapeamentos personalizados do Supabase
+ * @returns {{ groups, analysis }}
+ */
+function classifyDisciplines(smartsheetNames, construflowNames, otusNames, customMappings = []) {
+  function normalize(name) {
+    return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  // Mapas de mapeamento customizado
+  const customMap = new Map();
+  customMappings.forEach(m => {
+    const normKey = normalize(m.external_discipline_name);
+    customMap.set(`${m.external_source}:${normKey}`, {
+      standardName: m.standard_discipline?.discipline_name,
+      mappingId: m.id,
+      standardDisciplineId: m.standard_discipline_id
+    });
+  });
+
+  const normalizedSmartsheet = new Map(smartsheetNames.map(n => [normalize(n), n]));
+  const normalizedConstruflow = new Map(construflowNames.map(n => [normalize(n), n]));
+  const normalizedOtus = new Map(otusNames.map(n => [normalize(n), n]));
+
+  const checkOtusMatch = (normKey, source) => {
+    const custom = customMap.get(`${source}:${normKey}`);
+    if (custom && custom.standardName) {
+      return normalizedOtus.has(normalize(custom.standardName));
+    }
+    return normalizedOtus.has(normKey);
+  };
+
+  const getCustomMapping = (normKey, source) => {
+    return customMap.get(`${source}:${normKey}`) || null;
+  };
+
+  const allExternalNormalized = new Set([...normalizedSmartsheet.keys(), ...normalizedConstruflow.keys()]);
+  const sort = arr => arr.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const groups = {
+    completeInAll3: [],
+    notInOtus: [],
+    onlySmartsheet: [],
+    onlyConstruflow: [],
+    onlyOtus: [],
+    missingConstruflow: [],
+    missingSmartsheet: []
+  };
+
+  for (const normKey of allExternalNormalized) {
+    const inSmartsheet = normalizedSmartsheet.has(normKey);
+    const inConstruflow = normalizedConstruflow.has(normKey);
+    const originalName = normalizedSmartsheet.get(normKey) || normalizedConstruflow.get(normKey);
+
+    let inOtus = false;
+    let mapping = null;
+    if (inSmartsheet) {
+      if (checkOtusMatch(normKey, 'smartsheet')) inOtus = true;
+      mapping = mapping || getCustomMapping(normKey, 'smartsheet');
+    }
+    if (inConstruflow) {
+      if (checkOtusMatch(normKey, 'construflow')) inOtus = true;
+      mapping = mapping || getCustomMapping(normKey, 'construflow');
+    }
+    if (!inOtus && normalizedOtus.has(normKey)) inOtus = true;
+
+    const entry = {
+      name: originalName, normKey, inSmartsheet, inConstruflow, inOtus,
+      hasCustomMapping: !!mapping,
+      mappingId: mapping?.mappingId || null,
+      mappedToName: mapping?.standardName || null
+    };
+
+    if (inSmartsheet && inConstruflow && inOtus) groups.completeInAll3.push(entry);
+    else if (inSmartsheet && inConstruflow && !inOtus) groups.notInOtus.push(entry);
+    else if (inSmartsheet && !inConstruflow && inOtus) groups.missingConstruflow.push(entry);
+    else if (!inSmartsheet && inConstruflow && inOtus) groups.missingSmartsheet.push(entry);
+    else if (inSmartsheet && !inConstruflow && !inOtus) groups.onlySmartsheet.push(entry);
+    else if (!inSmartsheet && inConstruflow && !inOtus) groups.onlyConstruflow.push(entry);
+  }
+
+  for (const [normKey, original] of normalizedOtus) {
+    if (!allExternalNormalized.has(normKey)) {
+      groups.onlyOtus.push({ name: original, normKey, inSmartsheet: false, inConstruflow: false, inOtus: true });
+    }
+  }
+
+  Object.values(groups).forEach(sort);
+
+  const totalAll = new Set([...allExternalNormalized, ...normalizedOtus.keys()]).size;
+  const pendingCount = totalAll - groups.completeInAll3.length;
+  const completionPercentage = totalAll > 0
+    ? Math.round((groups.completeInAll3.length / totalAll) * 1000) / 10
+    : 0;
+
+  return {
+    groups,
+    analysis: {
+      totalUnique: totalAll,
+      completeInAll3: groups.completeInAll3.length,
+      pendingCount,
+      completionPercentage,
+      hasCustomMappings: customMappings.length > 0
+    }
+  };
+}
+
+/**
+ * Rota: POST /api/portfolio/cobertura-disciplinas
+ * Calcula cobertura de disciplinas para múltiplos projetos (batch).
+ * Eficiente: apenas 2 queries BigQuery + 3 queries Supabase.
+ */
+app.post('/api/portfolio/cobertura-disciplinas', requireAuth, async (req, res) => {
+  try {
+    const { projects } = req.body;
+    if (!Array.isArray(projects) || projects.length === 0) {
+      return res.status(400).json({ success: false, error: 'Array projects é obrigatório' });
+    }
+
+    console.log(`📊 [cobertura-batch] Calculando cobertura para ${projects.length} projetos...`);
+
+    // 1. Batch BigQuery (2 queries)
+    const { smartsheetByProject, construflowByProject } = await queryDisciplinesCrossReferenceBatch(projects);
+
+    // 2. Batch Supabase: construflow_id -> project_id
+    const construflowIds = projects.map(p => p.construflowId).filter(Boolean);
+    const projectIdMap = await fetchProjectIdsByConstruflowBatch(construflowIds);
+
+    // 3. Batch Supabase: project_disciplines + discipline_mappings
+    const allProjectIds = [...new Set(Object.values(projectIdMap).filter(Boolean))];
+    const [disciplinesByProject, mappingsByProject] = await Promise.all([
+      fetchProjectDisciplinesBatch(allProjectIds),
+      fetchDisciplineMappingsBatch(allProjectIds)
+    ]);
+
+    // 4. Classificar por projeto
+    const results = projects.map(p => {
+      const ssId = p.smartsheetId ? String(p.smartsheetId) : null;
+      const cfId = p.construflowId ? String(p.construflowId) : null;
+      const smartsheetNames = (ssId && smartsheetByProject[ssId]) || [];
+      const construflowNames = (cfId && construflowByProject[cfId]) || [];
+
+      const internalId = cfId ? projectIdMap[cfId] : null;
+      const otusTeam = internalId ? (disciplinesByProject[internalId] || []) : [];
+      const otusNames = otusTeam.map(d => d.discipline?.discipline_name).filter(Boolean);
+      const customMappings = internalId ? (mappingsByProject[internalId] || []) : [];
+
+      const { groups, analysis } = classifyDisciplines(smartsheetNames, construflowNames, otusNames, customMappings);
+
+      // Sem ConstruFlow: considerar Smartsheet + Otus como completo
+      if (!cfId) {
+        const adjustedComplete = groups.completeInAll3.length + groups.missingConstruflow.length;
+        analysis.completeInAll3 = adjustedComplete;
+        analysis.pendingCount = analysis.totalUnique - adjustedComplete;
+        analysis.completionPercentage = analysis.totalUnique > 0
+          ? Math.round((adjustedComplete / analysis.totalUnique) * 1000) / 10
+          : 0;
+      }
+
+      return {
+        construflowId: p.construflowId,
+        smartsheetId: p.smartsheetId,
+        projectName: p.projectName,
+        projectCode: p.projectCode,
+        status: p.status,
+        lider: p.lider,
+        nomeTime: p.nomeTime,
+        smartsheet: smartsheetNames,
+        construflow: construflowNames,
+        otus: otusNames,
+        analysis,
+        groups
+      };
+    });
+
+    console.log(`📊 [cobertura-batch] Concluído. ${results.length} projetos processados.`);
+    res.json({ success: true, data: results });
+  } catch (error) {
+    console.error('❌ Erro na cobertura batch:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -6095,6 +6290,125 @@ app.get('/api/projetos/equipe/contatos', requireAuth, async (req, res) => {
     res.json({ success: true, count: data.length, data });
   } catch (error) {
     console.error('❌ Erro ao buscar contatos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/projetos/equipe/disciplinas-cruzadas
+ * Análise cruzada de disciplinas entre Smartsheet, ConstruFlow e Otus
+ */
+app.get('/api/projetos/equipe/disciplinas-cruzadas', requireAuth, async (req, res) => {
+  try {
+    const { construflowId, smartsheetId, projectName } = req.query;
+    if (!construflowId) {
+      return res.status(400).json({ success: false, error: 'construflowId é obrigatório' });
+    }
+
+    // 1. Busca disciplinas externas (Smartsheet + ConstruFlow)
+    const external = await queryDisciplinesCrossReference(construflowId, smartsheetId || null, projectName || null);
+
+    // 2. Busca disciplinas da Otus (Supabase)
+    const otusTeam = await fetchProjectDisciplines(construflowId);
+    const otusNames = otusTeam.map(d => d.discipline?.discipline_name).filter(Boolean);
+
+    // 3. Busca mapeamentos personalizados do projeto
+    const projId = await getProjectIdByConstruflow(construflowId);
+    const customMappings = projId ? await fetchDisciplineMappings(projId) : [];
+
+    // 4. Classifica usando helper compartilhado
+    const { groups, analysis } = classifyDisciplines(external.smartsheet, external.construflow, otusNames, customMappings);
+
+    res.json({
+      success: true,
+      data: {
+        smartsheet: external.smartsheet,
+        construflow: external.construflow,
+        otus: otusNames,
+        customMappings: customMappings.map(m => ({
+          id: m.id,
+          externalSource: m.external_source,
+          externalName: m.external_discipline_name,
+          standardDisciplineId: m.standard_discipline_id,
+          standardDisciplineName: m.standard_discipline?.discipline_name
+        })),
+        groups,
+        analysis
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro na análise cruzada de disciplinas:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// MAPEAMENTOS PERSONALIZADOS DE DISCIPLINAS
+// ============================================
+
+/**
+ * Rota: GET /api/projetos/equipe/mapeamentos-disciplinas
+ * Lista mapeamentos personalizados de um projeto
+ */
+app.get('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req, res) => {
+  try {
+    const { construflowId } = req.query;
+    if (!construflowId) {
+      return res.status(400).json({ success: false, error: 'construflowId é obrigatório' });
+    }
+    const projectId = await getProjectIdByConstruflow(construflowId);
+    if (!projectId) {
+      return res.json({ success: true, data: [] });
+    }
+    const data = await fetchDisciplineMappings(projectId);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Erro ao buscar mapeamentos:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/projetos/equipe/mapeamentos-disciplinas
+ * Cria ou atualiza um mapeamento personalizado
+ */
+app.post('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req, res) => {
+  try {
+    const { construflowId, externalSource, externalDisciplineName, standardDisciplineId } = req.body;
+    if (!construflowId || !externalSource || !externalDisciplineName || !standardDisciplineId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campos obrigatórios: construflowId, externalSource, externalDisciplineName, standardDisciplineId'
+      });
+    }
+    const projectId = await getProjectIdByConstruflow(construflowId);
+    if (!projectId) {
+      return res.status(404).json({ success: false, error: 'Projeto não encontrado' });
+    }
+    const data = await createOrUpdateDisciplineMapping({
+      projectId,
+      externalSource,
+      externalDisciplineName,
+      standardDisciplineId,
+      createdBy: req.user?.email || 'unknown'
+    });
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Erro ao salvar mapeamento:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/projetos/equipe/mapeamentos-disciplinas/:id
+ * Remove um mapeamento personalizado
+ */
+app.delete('/api/projetos/equipe/mapeamentos-disciplinas/:id', requireAuth, async (req, res) => {
+  try {
+    await deleteDisciplineMapping(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao deletar mapeamento:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

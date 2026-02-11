@@ -678,6 +678,18 @@ function Sidebar({ collapsed, onToggle, area }) {
             <span className="nav-icon">{icons.history}</span>
             <span className="nav-text">Histórico</span>
           </Link>
+        </>
+      )}
+      <Link
+        to="/ind/feedbacks"
+        className={`nav-link nav-link-modern ${location.pathname === '/ind/feedbacks' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Feedbacks')}
+      >
+        <span className="nav-icon">{icons.feedbacks}</span>
+        <span className="nav-text">Feedbacks</span>
+      </Link>
+      {isPrivileged && (
+        <>
           <div className="nav-section-divider"></div>
           <span className={`nav-section-title ${collapsed ? 'sr-only' : ''}`}>Administração</span>
           <Link
@@ -1405,6 +1417,16 @@ function AppContent() {
                       <HistoryView />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ind/feedbacks"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <FeedbackKanbanView />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />

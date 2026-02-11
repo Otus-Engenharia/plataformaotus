@@ -344,7 +344,7 @@ function PortfolioView() {
       if (!row || typeof row !== 'object') return row;
 
       const terminoCronograma = row.data_termino_cronograma;
-      const terminoContrato = row.data_termino_contrato;
+      const terminoContrato = row.data_termino_contrato_com_pausas || row.data_termino_contrato;
 
       const difference = calculateMonthDifference(terminoCronograma, terminoContrato);
       const differenceStatus = getDifferenceStatus(difference);

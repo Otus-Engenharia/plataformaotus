@@ -578,6 +578,12 @@ function CurvaSView() {
     const valorContrato = [...uniqueProjectContracts.values()].reduce((sum, v) => sum + v, 0);
     const faltaReceber = valorContrato - receitaBruta;
 
+    // Custo médio mensal (desconsiderando meses com custo < 300)
+    const mesesComCusto = dataByMonth.filter(m => m.custoTotal >= 300);
+    const custoMedio = mesesComCusto.length > 0
+      ? mesesComCusto.reduce((sum, m) => sum + m.custoTotal, 0) / mesesComCusto.length
+      : 0;
+
     return {
       receitaBruta,
       margem55,
@@ -586,7 +592,9 @@ function CurvaSView() {
       margemPercentual,
       horasTotal,
       valorContrato,
-      faltaReceber
+      faltaReceber,
+      custoMedio,
+      mesesConsiderados: mesesComCusto.length
     };
   }, [dataByMonth, filteredData]);
 
@@ -1084,6 +1092,11 @@ function CurvaSView() {
         <div className="kpi-card">
           <h3>Custo Total</h3>
           <p className="kpi-value">{formatCurrency(kpis.custoTotal)}</p>
+        </div>
+        <div className="kpi-card">
+          <h3>Custo Médio/Mês</h3>
+          <p className="kpi-value">{formatCurrency(kpis.custoMedio)}</p>
+          <span className="kpi-context">{kpis.mesesConsiderados} meses</span>
         </div>
         <div className="kpi-card">
           <h3>Receita Bruta</h3>

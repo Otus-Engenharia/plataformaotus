@@ -384,7 +384,8 @@
 
 /* ========== TABELA DE USUARIOS ========== */
 .operacao-table-wrapper {
-  max-height: 520px;
+  max-height: calc(100vh - 340px);
+  min-height: 300px;
   overflow-y: auto;
   overflow-x: auto;
   position: relative;

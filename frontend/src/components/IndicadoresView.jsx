@@ -19,6 +19,7 @@ import {
   Legend,
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import CoberturaDisciplinasView from './CoberturaDisciplinasView';
 import '../styles/IndicadoresView.css';
 
 // Registra componentes do Chart.js
@@ -53,6 +54,9 @@ function IndicadoresView() {
     tabelaPausadosData,
     tabelaFinalizadosData
   } = usePortfolio();
+
+  // Estado da tab ativa
+  const [activeTab, setActiveTab] = useState('lideres');
 
   // Estados locais para controle dos dropdowns
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
@@ -149,6 +153,22 @@ function IndicadoresView() {
             Atualizar
           </button>
         </div>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="indicadores-tabs">
+        <button
+          className={`indicadores-tab ${activeTab === 'lideres' ? 'indicadores-tab-active' : ''}`}
+          onClick={() => setActiveTab('lideres')}
+        >
+          Lideres de Projeto
+        </button>
+        <button
+          className={`indicadores-tab ${activeTab === 'coordenacao' ? 'indicadores-tab-active' : ''}`}
+          onClick={() => setActiveTab('coordenacao')}
+        >
+          Indicadores de Coordenacao
+        </button>
       </div>
 
       {/* Filtros Principais - Sticky no topo */}
@@ -255,6 +275,12 @@ function IndicadoresView() {
         </div>
       </div>
 
+      {activeTab === 'coordenacao' && (
+        <CoberturaDisciplinasView />
+      )}
+
+      {activeTab === 'lideres' && (
+      <>
       {/* RESUMO EXECUTIVO - KPIs */}
       <div className="executive-summary">
         <div className="summary-header">
@@ -684,6 +710,8 @@ function IndicadoresView() {
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

@@ -315,6 +315,13 @@
   display: none;
 }
 
+/* Screenshots Grid */
+.bug-dialog__screenshots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
 /* Screenshot Preview */
 .bug-dialog__screenshot-preview {
   position: relative;
@@ -326,7 +333,7 @@
 .bug-dialog__screenshot-preview img {
   display: block;
   width: 100%;
-  max-height: 200px;
+  max-height: 150px;
   object-fit: contain;
   background: #f5f5f5;
 }

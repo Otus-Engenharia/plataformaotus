@@ -151,7 +151,8 @@ class Demanda {
       : new DemandaStatus(newStatus);
 
     if (this.#status.isClosed && statusVO.isOpen) {
-      throw new Error('Não é possível reabrir uma demanda finalizada ou recusada');
+      this.#resolvedById = null;
+      this.#resolvedAt = null;
     }
 
     if (statusVO.isClosed) {

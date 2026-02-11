@@ -15,6 +15,40 @@
   font-family: Verdana, sans-serif;
 }
 
+/* ===== SUB-TABS ===== */
+.indicadores-container .indicadores-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e6e6e6;
+  margin-bottom: 0;
+}
+
+.indicadores-container .indicadores-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.625rem 1.25rem;
+  font-size: 11px;
+  font-family: Verdana, sans-serif;
+  color: #737373;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+  margin-bottom: -2px;
+  letter-spacing: 0.02em;
+}
+
+.indicadores-container .indicadores-tab:hover {
+  color: #1a1a1a;
+  border-bottom-color: rgba(255, 221, 0, 0.4);
+}
+
+.indicadores-container .indicadores-tab-active {
+  color: #1a1a1a;
+  border-bottom-color: #ffdd00;
+  font-weight: bold;
+}
+
 /* ===== FILTROS PRINCIPAIS STICKY ===== */
 .indicadores-container .top-filters-sticky {
   position: sticky;

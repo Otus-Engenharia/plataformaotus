@@ -55,20 +55,26 @@ export default function DemandaCreateDialog({ onClose, onSubmit }) {
 
   // Monta opcoes do dropdown a partir do portfolio
   const projectOptions = useMemo(() => {
+    const seen = new Set();
     return portfolio
-      .filter(p => p.client && p.project_name)
-      .map(p => ({
-        value: `${p.client} - ${p.project_name}`,
-        label: `${p.client} - ${p.project_name}`,
-      }));
+      .filter(p => p.project_name)
+      .reduce((acc, p) => {
+        const key = p.project_name;
+        if (!seen.has(key)) {
+          seen.add(key);
+          acc.push({ value: key, label: key });
+        }
+        return acc;
+      }, [])
+      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   }, [portfolio]);
 
   // Mapa para lookup rapido do lider pelo valor selecionado
   const projectLiderMap = useMemo(() => {
     const map = {};
     portfolio.forEach(p => {
-      if (p.client && p.project_name) {
-        map[`${p.client} - ${p.project_name}`] = p.lider || '';
+      if (p.project_name) {
+        map[p.project_name] = p.lider || '';
       }
     });
     return map;

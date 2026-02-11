@@ -14,6 +14,7 @@ import FerramentasView from './FerramentasView';
 import CronogramaView from './CronogramaView';
 import EquipeView from './EquipeView';
 import { API_URL } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/ProjetosView.css';
 
 // Status que representam projetos finalizados (case-insensitive)
@@ -112,10 +113,13 @@ const SUBVIEWS = {
 function ProjetosView() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [portfolio, setPortfolio] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [showOnlyActiveProjects, setShowOnlyActiveProjects] = useState(true); // Padrão: ativo
+  const [showOnlyMyTeam, setShowOnlyMyTeam] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState('');
   
   // Detecta subvista ativa pela URL ou usa a primeira como padrão
   const getActiveSubview = () => {
@@ -146,10 +150,7 @@ function ProjetosView() {
       // Aplica o filtro de projetos ativos por padrão (exclui finalizados e pausados)
       const validProjects = data
         .filter(p => {
-          const id = p.construflow_id;
-          if (id === null || id === undefined || String(id).trim() === '') {
-            return false;
-          }
+          if (!p.project_code_norm) return false;
           // Por padrão, exclui projetos finalizados e pausados
           if (isFinalizedStatus(p.status) || isPausedStatus(p.status)) {
             return false;
@@ -157,20 +158,20 @@ function ProjetosView() {
           return true;
         })
         .reduce((acc, project) => {
-          const exists = acc.find(p => p.construflow_id === project.construflow_id);
+          const exists = acc.find(p => p.project_code_norm === project.project_code_norm);
           if (!exists) {
             acc.push(project);
           }
           return acc;
         }, [])
         .sort((a, b) => {
-          const nameA = (a.project_name || a.project_code_norm || a.construflow_id || '').toLowerCase();
-          const nameB = (b.project_name || b.project_code_norm || b.construflow_id || '').toLowerCase();
+          const nameA = (a.project_name || a.project_code_norm || '').toLowerCase();
+          const nameB = (b.project_name || b.project_code_norm || '').toLowerCase();
           return nameA.localeCompare(nameB, 'pt-BR');
         });
-      
-      if (validProjects.length > 0 && validProjects[0].construflow_id) {
-        setSelectedProjectId(validProjects[0].construflow_id);
+
+      if (validProjects.length > 0) {
+        setSelectedProjectId(validProjects[0].project_code_norm);
       }
     }
     loadPortfolio();
@@ -191,31 +192,50 @@ function ProjetosView() {
   const currentSubview = SUBVIEWS[activeSubview];
   const SubviewComponent = currentSubview?.component;
 
-  // Ordena projetos para o select (filtra por ativos se necessário)
+  // Identifica o time do usuário logado pelo campo lider do portfolio
+  const userTeam = React.useMemo(() => {
+    if (!user?.name || portfolio.length === 0) return null;
+    const userNameLower = user.name.toLowerCase().trim();
+    const match = portfolio.find(p =>
+      p.lider && p.lider.toLowerCase().trim() === userNameLower
+    );
+    return match?.nome_time || null;
+  }, [user?.name, portfolio]);
+
+  // Time efetivo para filtro: auto-detectado ou selecionado manualmente
+  const effectiveTeam = userTeam || selectedTeam;
+
+  // Times únicos do portfolio (para select quando time não é auto-detectado)
+  const uniqueTeams = React.useMemo(() => {
+    return [...new Set(
+      portfolio.map(p => p.nome_time).filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [portfolio]);
+
+  // Ordena projetos para o select (filtra por ativos e time se necessário)
   const sortedProjects = portfolio
     .filter(p => {
-      const id = p.construflow_id;
-      if (id === null || id === undefined || String(id).trim() === '') {
-        return false;
-      }
-      // Se o filtro de apenas ativos estiver ativo, filtra projetos finalizados e pausados
+      if (!p.project_code_norm) return false;
       if (showOnlyActiveProjects) {
         if (isFinalizedStatus(p.status) || isPausedStatus(p.status)) {
           return false;
         }
       }
+      if (showOnlyMyTeam && effectiveTeam && p.nome_time !== effectiveTeam) {
+        return false;
+      }
       return true;
     })
     .reduce((acc, project) => {
-      const exists = acc.find(p => p.construflow_id === project.construflow_id);
+      const exists = acc.find(p => p.project_code_norm === project.project_code_norm);
       if (!exists) {
         acc.push(project);
       }
       return acc;
     }, [])
     .sort((a, b) => {
-      const nameA = (a.project_name || a.project_code_norm || a.construflow_id || '').toLowerCase();
-      const nameB = (b.project_name || b.project_code_norm || b.construflow_id || '').toLowerCase();
+      const nameA = (a.project_name || a.project_code_norm || '').toLowerCase();
+      const nameB = (b.project_name || b.project_code_norm || '').toLowerCase();
       return nameA.localeCompare(nameB, 'pt-BR');
     });
 
@@ -235,8 +255,8 @@ function ProjetosView() {
         >
           <option value="">Selecione um projeto</option>
           {sortedProjects.map(project => (
-            <option key={project.construflow_id} value={project.construflow_id}>
-              {project.project_name || project.project_code_norm || project.construflow_id}
+            <option key={project.project_code_norm} value={project.project_code_norm}>
+              {project.project_name || project.project_code_norm}
             </option>
           ))}
         </select>
@@ -250,7 +270,7 @@ function ProjetosView() {
               setShowOnlyActiveProjects(e.target.checked);
               // Se o projeto selecionado for finalizado e o filtro for ativado, limpa a seleção
               if (e.target.checked && selectedProjectId) {
-                const selectedProject = portfolio.find(p => String(p.construflow_id) === String(selectedProjectId));
+                const selectedProject = portfolio.find(p => p.project_code_norm === selectedProjectId);
                 if (selectedProject && isFinalizedStatus(selectedProject.status)) {
                   setSelectedProjectId(null);
                 }
@@ -260,7 +280,49 @@ function ProjetosView() {
           <span className="projetos-active-toggle-slider"></span>
           <span className="projetos-active-toggle-label">Somente Projetos Ativos</span>
         </label>
-        
+
+        <label className="projetos-active-toggle">
+          <input
+            type="checkbox"
+            checked={showOnlyMyTeam}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setShowOnlyMyTeam(checked);
+              if (checked && effectiveTeam && selectedProjectId) {
+                const currentProject = portfolio.find(p => p.project_code_norm === selectedProjectId);
+                if (currentProject && currentProject.nome_time !== effectiveTeam) {
+                  setSelectedProjectId(null);
+                }
+              }
+            }}
+          />
+          <span className="projetos-active-toggle-slider"></span>
+          <span className="projetos-active-toggle-label">
+            {userTeam ? `Projetos do Meu Time` : 'Filtrar por Time'}
+          </span>
+        </label>
+
+        {showOnlyMyTeam && !userTeam && (
+          <select
+            value={selectedTeam}
+            onChange={(e) => {
+              setSelectedTeam(e.target.value);
+              if (e.target.value && selectedProjectId) {
+                const currentProject = portfolio.find(p => p.project_code_norm === selectedProjectId);
+                if (currentProject && currentProject.nome_time !== e.target.value) {
+                  setSelectedProjectId(null);
+                }
+              }
+            }}
+            className="projetos-team-select"
+          >
+            <option value="">Selecione um time</option>
+            {uniqueTeams.map(team => (
+              <option key={team} value={team}>{team}</option>
+            ))}
+          </select>
+        )}
+
         {lastUpdate && (
           <span className="apontamentos-last-update">
             {lastUpdate.toLocaleDateString('pt-BR')} {lastUpdate.toLocaleTimeString('pt-BR')} - Última Atualização
@@ -309,6 +371,7 @@ function ProjetosView() {
           ) : activeSubview === 'equipe' ? (
             <SubviewComponent
               selectedProjectId={selectedProjectId}
+              portfolio={portfolio}
             />
           ) : (
             <SubviewComponent />

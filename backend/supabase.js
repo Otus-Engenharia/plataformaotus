@@ -4413,6 +4413,179 @@ export async function fetchStandardDisciplines() {
   return Array.isArray(data) ? data : [];
 }
 
+// ============================================
+// MAPEAMENTOS PERSONALIZADOS DE DISCIPLINAS
+// ============================================
+
+/**
+ * Busca mapeamentos personalizados de disciplinas para um projeto
+ * @param {number} projectId - ID interno do projeto (projects.id)
+ * @returns {Promise<Array>}
+ */
+export async function fetchDisciplineMappings(projectId) {
+  if (!projectId) return [];
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('discipline_mappings')
+    .select(`
+      id,
+      project_id,
+      external_source,
+      external_discipline_name,
+      standard_discipline_id,
+      created_at,
+      updated_at,
+      created_by,
+      standard_discipline:standard_discipline_id(id, discipline_name, short_name)
+    `)
+    .eq('project_id', projectId)
+    .order('external_discipline_name', { ascending: true });
+
+  if (error) {
+    console.error('Erro ao buscar mapeamentos de disciplinas:', error);
+    throw new Error(`Erro ao buscar mapeamentos: ${error.message}`);
+  }
+  return data || [];
+}
+
+/**
+ * Cria ou atualiza um mapeamento de disciplina (upsert)
+ */
+export async function createOrUpdateDisciplineMapping({ projectId, externalSource, externalDisciplineName, standardDisciplineId, createdBy }) {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from('discipline_mappings')
+    .upsert({
+      project_id: projectId,
+      external_source: externalSource,
+      external_discipline_name: externalDisciplineName,
+      standard_discipline_id: standardDisciplineId,
+      created_by: createdBy,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'project_id,external_source,external_discipline_name',
+      ignoreDuplicates: false
+    })
+    .select(`
+      id, project_id, external_source, external_discipline_name, standard_discipline_id,
+      standard_discipline:standard_discipline_id(id, discipline_name, short_name)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao salvar mapeamento: ${error.message}`);
+  }
+  return data;
+}
+
+/**
+ * Remove um mapeamento personalizado
+ */
+export async function deleteDisciplineMapping(mappingId) {
+  const supabase = getSupabaseServiceClient();
+
+  const { error } = await supabase
+    .from('discipline_mappings')
+    .delete()
+    .eq('id', mappingId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar mapeamento: ${error.message}`);
+  }
+}
+
+// ============================================
+// FUNÇÕES BATCH PARA COBERTURA DE DISCIPLINAS (PORTFOLIO)
+// ============================================
+
+/**
+ * Batch: busca project_id por construflow_id para múltiplos projetos
+ * @param {string[]} construflowIds
+ * @returns {Promise<Object>} Map { construflow_id: project_id }
+ */
+export async function fetchProjectIdsByConstruflowBatch(construflowIds) {
+  if (!construflowIds || construflowIds.length === 0) return {};
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('project_features')
+    .select('construflow_id, project_id')
+    .in('construflow_id', construflowIds);
+
+  if (error) {
+    console.error('Erro batch project_features:', error);
+    return {};
+  }
+
+  const map = {};
+  (data || []).forEach(r => { map[r.construflow_id] = r.project_id; });
+  return map;
+}
+
+/**
+ * Batch: busca disciplinas da equipe (Otus) para múltiplos projetos
+ * @param {number[]} projectIds - IDs internos (projects.id)
+ * @returns {Promise<Object>} Map { project_id: [{ discipline: { id, discipline_name, short_name } }] }
+ */
+export async function fetchProjectDisciplinesBatch(projectIds) {
+  if (!projectIds || projectIds.length === 0) return {};
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('project_disciplines')
+    .select(`
+      project_id,
+      discipline:discipline_id(id, discipline_name, short_name)
+    `)
+    .in('project_id', projectIds)
+    .eq('status', 'ativo');
+
+  if (error) {
+    console.error('Erro batch project_disciplines:', error);
+    return {};
+  }
+
+  const map = {};
+  (data || []).forEach(r => {
+    if (!map[r.project_id]) map[r.project_id] = [];
+    map[r.project_id].push(r);
+  });
+  return map;
+}
+
+/**
+ * Batch: busca mapeamentos personalizados para múltiplos projetos
+ * @param {number[]} projectIds - IDs internos (projects.id)
+ * @returns {Promise<Object>} Map { project_id: [mapping] }
+ */
+export async function fetchDisciplineMappingsBatch(projectIds) {
+  if (!projectIds || projectIds.length === 0) return {};
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('discipline_mappings')
+    .select(`
+      id, project_id, external_source, external_discipline_name,
+      standard_discipline_id,
+      standard_discipline:standard_discipline_id(id, discipline_name, short_name)
+    `)
+    .in('project_id', projectIds);
+
+  if (error) {
+    console.error('Erro batch discipline_mappings:', error);
+    return {};
+  }
+
+  const map = {};
+  (data || []).forEach(r => {
+    if (!map[r.project_id]) map[r.project_id] = [];
+    map[r.project_id].push(r);
+  });
+  return map;
+}
+
 /**
  * Busca todas as empresas disponíveis
  */

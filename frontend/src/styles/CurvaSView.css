@@ -208,6 +208,11 @@
   color: #F44336;
 }
 
+.kpi-context {
+  font-size: 0.7rem;
+  color: #737373;
+}
+
 /* KPI de Status - conteúdo customizado */
 .status-kpi-single {
   font-size: 14px;

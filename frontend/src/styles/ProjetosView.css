@@ -44,6 +44,21 @@
   min-width: 250px;
 }
 
+.projetos-team-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  background: white;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+.projetos-team-select:hover {
+  border-color: #ffdd00;
+}
+
 .projetos-project-filter .apontamentos-last-update {
   font-size: 0.75rem;
   color: #737373;

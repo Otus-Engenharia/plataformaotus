@@ -25,30 +25,47 @@ export default function BugReportDialog({ onClose }) {
   const [description, setDescription] = useState('');
   const [type, setType] = useState('bug');
   const [suggestionCategory, setSuggestionCategory] = useState('plataforma');
-  const [screenshot, setScreenshot] = useState(null);
-  const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const [screenshots, setScreenshots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  const MAX_IMAGES = 3;
+  const MAX_SIZE_MB = 2;
+
   const handleScreenshotChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('A imagem deve ter no máximo 5MB');
-        return;
-      }
-      setScreenshot(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const remaining = MAX_IMAGES - screenshots.length;
+    if (remaining <= 0) {
+      alert(`Máximo de ${MAX_IMAGES} imagens permitidas`);
+      return;
+    }
+
+    const filesToAdd = files.slice(0, remaining);
+    const oversized = filesToAdd.find(f => f.size > MAX_SIZE_MB * 1024 * 1024);
+    if (oversized) {
+      alert(`Cada imagem deve ter no máximo ${MAX_SIZE_MB}MB`);
+      return;
+    }
+
+    filesToAdd.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setScreenshotPreview(reader.result);
+        setScreenshots(prev => {
+          if (prev.length >= MAX_IMAGES) return prev;
+          return [...prev, reader.result];
+        });
       };
       reader.readAsDataURL(file);
-    }
+    });
+
+    // Reset input so same file can be re-selected
+    e.target.value = '';
   };
 
-  const removeScreenshot = () => {
-    setScreenshot(null);
-    setScreenshotPreview(null);
+  const removeScreenshot = (index) => {
+    setScreenshots(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
@@ -66,10 +83,12 @@ export default function BugReportDialog({ onClose }) {
 
     setLoading(true);
     try {
-      // Convert screenshot to base64 if exists
-      let screenshotBase64 = null;
-      if (screenshot) {
-        screenshotBase64 = screenshotPreview;
+      // Encode screenshots as JSON array (or null if none)
+      let screenshotPayload = null;
+      if (screenshots.length > 0) {
+        screenshotPayload = screenshots.length === 1
+          ? screenshots[0]
+          : JSON.stringify(screenshots);
       }
 
       // Determina o tipo correto para o backend
@@ -89,7 +108,7 @@ export default function BugReportDialog({ onClose }) {
           type: feedbackType,
           titulo: title.trim(),
           feedback_text: description.trim(),
-          screenshot_url: screenshotBase64,
+          screenshot_url: screenshotPayload,
           page_url: window.location.href
         })
       });
@@ -223,31 +242,37 @@ export default function BugReportDialog({ onClose }) {
             />
           </div>
 
-          {/* Screenshot */}
+          {/* Screenshots */}
           <div className="bug-dialog__field">
             <label className="bug-dialog__label">
-              Screenshot <span className="bug-dialog__optional">(opcional)</span>
+              Imagens <span className="bug-dialog__optional">(opcional, até {MAX_IMAGES})</span>
             </label>
-            {screenshotPreview ? (
-              <div className="bug-dialog__screenshot-preview">
-                <img src={screenshotPreview} alt="Screenshot preview" />
-                <button
-                  type="button"
-                  className="bug-dialog__screenshot-remove"
-                  onClick={removeScreenshot}
-                  aria-label="Remover screenshot"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+            {screenshots.length > 0 && (
+              <div className="bug-dialog__screenshots-grid">
+                {screenshots.map((preview, index) => (
+                  <div key={index} className="bug-dialog__screenshot-preview">
+                    <img src={preview} alt={`Imagem ${index + 1}`} />
+                    <button
+                      type="button"
+                      className="bug-dialog__screenshot-remove"
+                      onClick={() => removeScreenshot(index)}
+                      aria-label={`Remover imagem ${index + 1}`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : (
+            )}
+            {screenshots.length < MAX_IMAGES && (
               <label className="bug-dialog__upload">
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleScreenshotChange}
                   className="bug-dialog__upload-input"
                 />
@@ -256,8 +281,8 @@ export default function BugReportDialog({ onClose }) {
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
-                <span>Clique ou arraste uma imagem</span>
-                <span className="bug-dialog__upload-hint">PNG, JPG até 5MB</span>
+                <span>{screenshots.length === 0 ? 'Clique ou arraste imagens' : 'Adicionar mais imagens'}</span>
+                <span className="bug-dialog__upload-hint">PNG, JPG até {MAX_SIZE_MB}MB cada</span>
               </label>
             )}
           </div>

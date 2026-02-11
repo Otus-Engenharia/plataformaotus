@@ -10,7 +10,19 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import './FeedbackAdminView.css';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -47,12 +59,20 @@ const TIPO_CONFIG = {
 
 // Colunas do Kanban (ordem de exibição)
 // statuses pode ser um array para agrupar múltiplos status em uma coluna
-const KANBAN_COLUMNS = [
+const KANBAN_COLUMNS_DEFAULT = [
   { statuses: ['pendente'], label: 'Pendentes', color: '#f59e0b' },
   { statuses: ['em_analise'], label: 'Em Análise', color: '#3b82f6' },
   { statuses: ['em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'], label: 'Em Progresso', color: '#8b5cf6' },
   { statuses: ['finalizado'], label: 'Finalizados', color: '#22c55e' },
   { statuses: ['recusado'], label: 'Recusados', color: '#6b7280' },
+];
+
+// Na vista de bugs, recusados ficam junto com pendentes (não são "fechados")
+const KANBAN_COLUMNS_BUGS = [
+  { statuses: ['pendente', 'recusado'], label: 'Pendentes', color: '#f59e0b' },
+  { statuses: ['em_analise'], label: 'Em Análise', color: '#3b82f6' },
+  { statuses: ['em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'], label: 'Em Progresso', color: '#8b5cf6' },
+  { statuses: ['finalizado'], label: 'Finalizados', color: '#22c55e' },
 ];
 
 // === ICONS ===
@@ -414,14 +434,145 @@ export default function FeedbackAdminView({ category = 'all' }) {
     return feedbacks;
   }, [feedbacks, category]);
 
-  const stats = useMemo(() => ({
-    total: categoryFilteredFeedbacks.length,
-    pendentes: categoryFilteredFeedbacks.filter((f) => f.status === 'pendente').length,
-    emProgresso: categoryFilteredFeedbacks.filter((f) =>
-      ['em_analise', 'em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'].includes(f.status)
-    ).length,
-    finalizados: categoryFilteredFeedbacks.filter((f) => f.status === 'finalizado').length,
-  }), [categoryFilteredFeedbacks]);
+  const stats = useMemo(() => {
+    // Na vista de bugs, recusados contam como pendentes (não são "fechados")
+    const pendentesStatuses = category === 'bugs'
+      ? ['pendente', 'recusado']
+      : ['pendente'];
+
+    return {
+      total: categoryFilteredFeedbacks.length,
+      pendentes: categoryFilteredFeedbacks.filter((f) => pendentesStatuses.includes(f.status)).length,
+      emProgresso: categoryFilteredFeedbacks.filter((f) =>
+        ['em_analise', 'em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'].includes(f.status)
+      ).length,
+      finalizados: categoryFilteredFeedbacks.filter((f) => f.status === 'finalizado').length,
+    };
+  }, [categoryFilteredFeedbacks, category]);
+
+  // Dados mensais para o gráfico de evolução (criados vs fechados por mês)
+  const monthlyChartData = useMemo(() => {
+    if (categoryFilteredFeedbacks.length === 0) return null;
+
+    const MONTH_NAMES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+    // Encontrar o mês mais antigo entre todos os feedbacks
+    let earliest = new Date();
+    categoryFilteredFeedbacks.forEach(f => {
+      if (f.created_at) {
+        const d = new Date(f.created_at);
+        if (d < earliest) earliest = d;
+      }
+    });
+
+    // Gerar meses do mais antigo até o atual
+    const now = new Date();
+    const startYear = earliest.getFullYear();
+    const startMonth = earliest.getMonth();
+    const months = [];
+    let y = startYear, m = startMonth;
+    while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth())) {
+      months.push({ year: y, month: m });
+      m++;
+      if (m > 11) { m = 0; y++; }
+    }
+
+    const toKey = (year, month) => `${year}-${month}`;
+    const createdMap = {};
+    const finalizadoMap = {};
+    const recusadoMap = {};
+
+    months.forEach(mo => {
+      const key = toKey(mo.year, mo.month);
+      createdMap[key] = 0;
+      finalizadoMap[key] = 0;
+      recusadoMap[key] = 0;
+    });
+
+    categoryFilteredFeedbacks.forEach(f => {
+      if (f.created_at) {
+        const d = new Date(f.created_at);
+        const key = toKey(d.getFullYear(), d.getMonth());
+        if (key in createdMap) createdMap[key]++;
+      }
+      if (f.resolved_at && f.status === 'finalizado') {
+        const d = new Date(f.resolved_at);
+        const key = toKey(d.getFullYear(), d.getMonth());
+        if (key in finalizadoMap) finalizadoMap[key]++;
+      }
+      if (f.resolved_at && f.status === 'recusado') {
+        const d = new Date(f.resolved_at);
+        const key = toKey(d.getFullYear(), d.getMonth());
+        if (key in recusadoMap) recusadoMap[key]++;
+      }
+    });
+
+    const labels = months.map(mo => `${MONTH_NAMES[mo.month]}/${String(mo.year).slice(2)}`);
+    const created = months.map(mo => createdMap[toKey(mo.year, mo.month)]);
+    const finalizado = months.map(mo => finalizadoMap[toKey(mo.year, mo.month)]);
+    const recusado = months.map(mo => recusadoMap[toKey(mo.year, mo.month)]);
+
+    const datasets = [
+      {
+        label: 'Criados',
+        data: created,
+        backgroundColor: 'rgba(245, 158, 11, 0.7)',
+        borderColor: '#f59e0b',
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+      {
+        label: 'Finalizados',
+        data: finalizado,
+        backgroundColor: 'rgba(34, 197, 94, 0.7)',
+        borderColor: '#22c55e',
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+    ];
+
+    // Na vista de bugs, recusados não aparecem como barra separada
+    if (category !== 'bugs') {
+      datasets.push({
+        label: 'Recusados',
+        data: recusado,
+        backgroundColor: 'rgba(107, 114, 128, 0.7)',
+        borderColor: '#6b7280',
+        borderWidth: 1,
+        borderRadius: 4,
+      });
+    }
+
+    return { labels, datasets };
+  }, [categoryFilteredFeedbacks, category]);
+
+  const chartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { font: { size: 12 }, usePointStyle: true, pointStyle: 'rectRounded' },
+      },
+      title: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}`,
+        },
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { stepSize: 1, font: { size: 11 } },
+        grid: { color: 'rgba(0,0,0,0.05)' },
+      },
+      x: {
+        ticks: { font: { size: 11 } },
+        grid: { display: false },
+      },
+    },
+  }), []);
 
   // Tipos disponíveis baseado na categoria
   const availableTypes = useMemo(() => {
@@ -429,6 +580,9 @@ export default function FeedbackAdminView({ category = 'all' }) {
     if (category === 'sugestoes') return SUGGESTION_TYPES;
     return Object.keys(TIPO_CONFIG);
   }, [category]);
+
+  // Colunas do Kanban baseado na categoria (bugs: recusados ficam em Pendentes)
+  const kanbanColumns = category === 'bugs' ? KANBAN_COLUMNS_BUGS : KANBAN_COLUMNS_DEFAULT;
 
   const hasActiveFilters = filterStatus || filterTipo || searchTerm;
 
@@ -549,6 +703,16 @@ export default function FeedbackAdminView({ category = 'all' }) {
           </div>
         </div>
       </div>
+
+      {/* Gráfico Evolução Mensal */}
+      {monthlyChartData && (
+        <div className="glass-card feedback-admin__chart">
+          <h3 className="feedback-admin__chart-title">Evolução Mensal</h3>
+          <div className="feedback-admin__chart-container">
+            <Bar data={monthlyChartData} options={chartOptions} />
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="glass-card feedback-admin__filters">
@@ -685,7 +849,7 @@ export default function FeedbackAdminView({ category = 'all' }) {
       ) : (
         /* Kanban View */
         <div className="feedback-admin-kanban">
-          {KANBAN_COLUMNS.map((column) => {
+          {kanbanColumns.map((column) => {
             const columnFeedbacks = filteredFeedbacks.filter(
               (f) => column.statuses.includes(f.status)
             );
