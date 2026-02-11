@@ -59,20 +59,12 @@ const TIPO_CONFIG = {
 
 // Colunas do Kanban (ordem de exibição)
 // statuses pode ser um array para agrupar múltiplos status em uma coluna
-const KANBAN_COLUMNS_DEFAULT = [
+const KANBAN_COLUMNS = [
   { statuses: ['pendente'], label: 'Pendentes', color: '#f59e0b' },
   { statuses: ['em_analise'], label: 'Em Análise', color: '#3b82f6' },
   { statuses: ['em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'], label: 'Em Progresso', color: '#8b5cf6' },
   { statuses: ['finalizado'], label: 'Finalizados', color: '#22c55e' },
   { statuses: ['recusado'], label: 'Recusados', color: '#6b7280' },
-];
-
-// Na vista de bugs, recusados ficam junto com pendentes (não são "fechados")
-const KANBAN_COLUMNS_BUGS = [
-  { statuses: ['pendente', 'recusado'], label: 'Pendentes', color: '#f59e0b' },
-  { statuses: ['em_analise'], label: 'Em Análise', color: '#3b82f6' },
-  { statuses: ['em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'], label: 'Em Progresso', color: '#8b5cf6' },
-  { statuses: ['finalizado'], label: 'Finalizados', color: '#22c55e' },
 ];
 
 // === ICONS ===
@@ -434,21 +426,14 @@ export default function FeedbackAdminView({ category = 'all' }) {
     return feedbacks;
   }, [feedbacks, category]);
 
-  const stats = useMemo(() => {
-    // Na vista de bugs, recusados contam como pendentes (não são "fechados")
-    const pendentesStatuses = category === 'bugs'
-      ? ['pendente', 'recusado']
-      : ['pendente'];
-
-    return {
-      total: categoryFilteredFeedbacks.length,
-      pendentes: categoryFilteredFeedbacks.filter((f) => pendentesStatuses.includes(f.status)).length,
-      emProgresso: categoryFilteredFeedbacks.filter((f) =>
-        ['em_analise', 'em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'].includes(f.status)
-      ).length,
-      finalizados: categoryFilteredFeedbacks.filter((f) => f.status === 'finalizado').length,
-    };
-  }, [categoryFilteredFeedbacks, category]);
+  const stats = useMemo(() => ({
+    total: categoryFilteredFeedbacks.length,
+    pendentes: categoryFilteredFeedbacks.filter((f) => f.status === 'pendente').length,
+    emProgresso: categoryFilteredFeedbacks.filter((f) =>
+      ['em_analise', 'em_progresso', 'backlog_desenvolvimento', 'backlog_treinamento', 'analise_funcionalidade'].includes(f.status)
+    ).length,
+    finalizados: categoryFilteredFeedbacks.filter((f) => f.status === 'finalizado').length,
+  }), [categoryFilteredFeedbacks]);
 
   // Dados mensais para o gráfico de evolução (criados vs fechados por mês)
   const monthlyChartData = useMemo(() => {
@@ -490,7 +475,8 @@ export default function FeedbackAdminView({ category = 'all' }) {
     });
 
     categoryFilteredFeedbacks.forEach(f => {
-      if (f.created_at) {
+      // Criados: exclui recusados (não são bugs reais)
+      if (f.created_at && f.status !== 'recusado') {
         const d = new Date(f.created_at);
         const key = toKey(d.getFullYear(), d.getMonth());
         if (key in createdMap) createdMap[key]++;
@@ -512,39 +498,36 @@ export default function FeedbackAdminView({ category = 'all' }) {
     const finalizado = months.map(mo => finalizadoMap[toKey(mo.year, mo.month)]);
     const recusado = months.map(mo => recusadoMap[toKey(mo.year, mo.month)]);
 
-    const datasets = [
-      {
-        label: 'Criados',
-        data: created,
-        backgroundColor: 'rgba(245, 158, 11, 0.7)',
-        borderColor: '#f59e0b',
-        borderWidth: 1,
-        borderRadius: 4,
-      },
-      {
-        label: 'Finalizados',
-        data: finalizado,
-        backgroundColor: 'rgba(34, 197, 94, 0.7)',
-        borderColor: '#22c55e',
-        borderWidth: 1,
-        borderRadius: 4,
-      },
-    ];
-
-    // Na vista de bugs, recusados não aparecem como barra separada
-    if (category !== 'bugs') {
-      datasets.push({
-        label: 'Recusados',
-        data: recusado,
-        backgroundColor: 'rgba(107, 114, 128, 0.7)',
-        borderColor: '#6b7280',
-        borderWidth: 1,
-        borderRadius: 4,
-      });
-    }
-
-    return { labels, datasets };
-  }, [categoryFilteredFeedbacks, category]);
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Criados',
+          data: created,
+          backgroundColor: 'rgba(245, 158, 11, 0.7)',
+          borderColor: '#f59e0b',
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: 'Finalizados',
+          data: finalizado,
+          backgroundColor: 'rgba(34, 197, 94, 0.7)',
+          borderColor: '#22c55e',
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: 'Recusados',
+          data: recusado,
+          backgroundColor: 'rgba(107, 114, 128, 0.7)',
+          borderColor: '#6b7280',
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+      ],
+    };
+  }, [categoryFilteredFeedbacks]);
 
   const chartOptions = useMemo(() => ({
     responsive: true,
@@ -580,9 +563,6 @@ export default function FeedbackAdminView({ category = 'all' }) {
     if (category === 'sugestoes') return SUGGESTION_TYPES;
     return Object.keys(TIPO_CONFIG);
   }, [category]);
-
-  // Colunas do Kanban baseado na categoria (bugs: recusados ficam em Pendentes)
-  const kanbanColumns = category === 'bugs' ? KANBAN_COLUMNS_BUGS : KANBAN_COLUMNS_DEFAULT;
 
   const hasActiveFilters = filterStatus || filterTipo || searchTerm;
 
@@ -849,7 +829,7 @@ export default function FeedbackAdminView({ category = 'all' }) {
       ) : (
         /* Kanban View */
         <div className="feedback-admin-kanban">
-          {kanbanColumns.map((column) => {
+          {KANBAN_COLUMNS.map((column) => {
             const columnFeedbacks = filteredFeedbacks.filter(
               (f) => column.statuses.includes(f.status)
             );
