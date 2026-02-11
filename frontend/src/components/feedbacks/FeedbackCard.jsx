@@ -9,6 +9,7 @@ import { renderTextWithMentions } from './FeedbackMention';
 const STATUS_CONFIG = {
   pendente: { label: 'Pendente', color: '#f59e0b' },
   em_analise: { label: 'Em Análise', color: '#3b82f6' },
+  em_progresso: { label: 'Em Progresso', color: '#8b5cf6' },
   backlog_desenvolvimento: { label: 'Backlog Dev', color: '#8b5cf6' },
   backlog_treinamento: { label: 'Backlog Treino', color: '#ec4899' },
   analise_funcionalidade: { label: 'Análise Func.', color: '#06b6d4' },

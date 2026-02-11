@@ -6,6 +6,7 @@
 const VALID_STATUSES = Object.freeze({
   PENDENTE: 'pendente',
   EM_ANALISE: 'em_analise',
+  EM_PROGRESSO: 'em_progresso',
   BACKLOG_DESENVOLVIMENTO: 'backlog_desenvolvimento',
   BACKLOG_TREINAMENTO: 'backlog_treinamento',
   ANALISE_FUNCIONALIDADE: 'analise_funcionalidade',
@@ -16,6 +17,7 @@ const VALID_STATUSES = Object.freeze({
 const STATUS_LABELS = Object.freeze({
   [VALID_STATUSES.PENDENTE]: 'Pendente',
   [VALID_STATUSES.EM_ANALISE]: 'Em Análise',
+  [VALID_STATUSES.EM_PROGRESSO]: 'Em Progresso',
   [VALID_STATUSES.BACKLOG_DESENVOLVIMENTO]: 'Backlog Desenvolvimento',
   [VALID_STATUSES.BACKLOG_TREINAMENTO]: 'Backlog Treinamento',
   [VALID_STATUSES.ANALISE_FUNCIONALIDADE]: 'Análise de Funcionalidade',
