@@ -7,6 +7,7 @@ import {
   formatValue,
   getMonthsForCycle
 } from '../../utils/indicator-utils';
+import ScoreZoneGauge from '../../components/indicadores/ScoreZoneGauge';
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
 import CreateRecoveryPlanDialog from '../../components/indicadores/dialogs/CreateRecoveryPlanDialog';
 import ViewRecoveryPlanDialog from '../../components/indicadores/dialogs/ViewRecoveryPlanDialog';
@@ -639,41 +640,8 @@ export default function IndicatorDetailView() {
         <div className="progress-bar-section">
           <div className="progress-bar-header">
             <span className="progress-label">{cLabels.score}</span>
-            <span className={`progress-score-value progress-score-value--${scoreColor}`}>
-              {score.toFixed(0)}
-            </span>
           </div>
-          <div className="progress-bar">
-            <div
-              className={`progress-bar__fill progress-bar__fill--${scoreColor}`}
-              style={{ width: `${Math.min(score, 120) / 1.2}%` }}
-            />
-            <div className="progress-bar__markers">
-              <span className="marker" style={{ left: '0%' }}>0</span>
-              <span className="marker marker--threshold" style={{ left: '66.67%' }}>80</span>
-              <span className="marker marker--target" style={{ left: '83.33%' }}>100</span>
-              <span className="marker" style={{ left: '100%' }}>120</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="farol-legend-row">
-          <div className="farol-item">
-            <span className="farol-dot farol-dot--danger"></span>
-            Zerado (&lt; 80)
-          </div>
-          <div className="farol-item">
-            <span className="farol-dot farol-dot--warning"></span>
-            Em risco (80-99)
-          </div>
-          <div className="farol-item">
-            <span className="farol-dot farol-dot--success"></span>
-            No alvo (100-119)
-          </div>
-          <div className="farol-item">
-            <span className="farol-dot farol-dot--excellent"></span>
-            Superou (&ge; 120)
-          </div>
+          <ScoreZoneGauge score={score} size="lg" showLabels showLegend showScore />
         </div>
 
         {isPrivileged && (

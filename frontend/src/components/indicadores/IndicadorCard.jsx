@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { getIndicatorScore, formatValue, isIndicatorAtRisk, getCycleLabel } from '../../utils/indicator-utils';
 import TrafficLightBadge from './TrafficLightBadge';
-import ScoreProgressBar from './ScoreProgressBar';
+import ScoreZoneGauge from './ScoreZoneGauge';
 import './IndicadorCard.css';
 
 /**
@@ -68,7 +68,7 @@ export default function IndicadorCard({
           </div>
         </div>
 
-        <ScoreProgressBar score={score} value={indicador.valor} target={indicador.meta} />
+        <ScoreZoneGauge score={score} size="sm" showLabels={false} showScore={false} />
 
         <div className="indicador-card-meta">
           {indicador.ciclo && (

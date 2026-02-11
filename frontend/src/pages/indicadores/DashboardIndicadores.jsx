@@ -11,6 +11,7 @@ import {
   getCurrentYear,
   getCycleLabel
 } from '../../utils/indicator-utils';
+import ScoreZoneGauge, { ScoreZoneBadge } from '../../components/indicadores/ScoreZoneGauge';
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
 import './DashboardIndicadores.css';
 
@@ -105,32 +106,11 @@ function IndicadorCard({ indicador, index }) {
             <p className="ind-card__description">{indicador.descricao}</p>
           )}
         </div>
-        <div className={`ind-card__score ind-card__score--${status}`}>
-          <span className="ind-card__score-value">{score.toFixed(0)}%</span>
-          <svg className="ind-card__score-icon" viewBox="0 0 24 24" width="14" height="14">
-            {score >= 100 ? (
-              <path fill="currentColor" d="M7 14l5-5 5 5z"/>
-            ) : score >= 80 ? (
-              <path fill="currentColor" d="M7 10h10v4H7z"/>
-            ) : (
-              <path fill="currentColor" d="M7 10l5 5 5-5z"/>
-            )}
-          </svg>
-        </div>
+        <ScoreZoneBadge score={score} />
       </div>
 
       <div className="ind-card__progress-container">
-        <div className="ind-card__progress">
-          <div
-            className={`ind-card__progress-bar ind-card__progress-bar--${status}`}
-            style={{ '--progress': `${progress}%` }}
-          />
-        </div>
-        <div className="ind-card__progress-markers">
-          <span>0%</span>
-          <span>80%</span>
-          <span>100%</span>
-        </div>
+        <ScoreZoneGauge score={score} size="sm" showLabels={false} showScore={false} />
       </div>
 
       <div className="ind-card__footer">

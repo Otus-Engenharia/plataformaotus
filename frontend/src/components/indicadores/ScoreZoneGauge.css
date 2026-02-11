@@ -1,0 +1,296 @@
+/* ==========================================================================
+   ScoreZoneGauge - Gauge de score com zonas segmentadas
+   Cada zona ocupa espaço visual igual para eliminar a "zona morta"
+   ========================================================================== */
+
+.zone-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ---------- Header (score + status) ---------- */
+
+.zone-gauge__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.zone-gauge__score {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.zone-gauge__score--zerado  { color: #ef4444; }
+.zone-gauge__score--risco   { color: #d97706; }
+.zone-gauge__score--alvo    { color: #16a34a; }
+.zone-gauge__score--superou { color: #1a1a1a; }
+
+.zone-gauge__status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+}
+
+.zone-gauge__status--zerado  { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.zone-gauge__status--risco   { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+.zone-gauge__status--alvo    { background: rgba(34, 197, 94, 0.1);  color: #16a34a; }
+.zone-gauge__status--superou { background: rgba(26, 26, 26, 0.08);  color: #1a1a1a; }
+
+/* ---------- Zone Bar ---------- */
+
+.zone-gauge__bar {
+  position: relative;
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: visible;
+  gap: 2px;
+}
+
+.zone-gauge__segment {
+  flex: 1;
+  position: relative;
+  border-radius: 2px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Zone colors */
+.zone-gauge__segment--zerado  { background: #fecaca; }
+.zone-gauge__segment--risco   { background: #fde68a; }
+.zone-gauge__segment--alvo    { background: #bbf7d0; }
+.zone-gauge__segment--superou { background: #d4d4d8; }
+
+/* Active zone: saturated & slightly raised */
+.zone-gauge__segment--active.zone-gauge__segment--zerado  { background: #ef4444; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+.zone-gauge__segment--active.zone-gauge__segment--risco   { background: #f59e0b; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
+.zone-gauge__segment--active.zone-gauge__segment--alvo    { background: #22c55e; box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3); }
+.zone-gauge__segment--active.zone-gauge__segment--superou { background: #1a1a1a; box-shadow: 0 2px 8px rgba(26, 26, 26, 0.3); }
+
+/* Passed zones (left of active): medium saturation */
+.zone-gauge__segment--passed.zone-gauge__segment--zerado  { background: #fca5a5; }
+.zone-gauge__segment--passed.zone-gauge__segment--risco   { background: #fcd34d; }
+.zone-gauge__segment--passed.zone-gauge__segment--alvo    { background: #86efac; }
+
+/* Zone label inside bar (lg only) */
+.zone-gauge__zone-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.zone-gauge__segment--active .zone-gauge__zone-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.zone-gauge__segment--active.zone-gauge__segment--risco .zone-gauge__zone-label {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- Pointer / Needle ---------- */
+
+.zone-gauge__pointer {
+  position: absolute;
+  top: -6px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.zone-gauge__pointer-line {
+  width: 3px;
+  height: 24px;
+  border-radius: 2px;
+  background: #1a1a1a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.zone-gauge__pointer--zerado .zone-gauge__pointer-line  { background: #b91c1c; }
+.zone-gauge__pointer--risco .zone-gauge__pointer-line    { background: #b45309; }
+.zone-gauge__pointer--alvo .zone-gauge__pointer-line     { background: #15803d; }
+.zone-gauge__pointer--superou .zone-gauge__pointer-line  { background: #1a1a1a; }
+
+.zone-gauge__pointer-value {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+  line-height: 1;
+}
+
+/* ---------- Range Labels ---------- */
+
+.zone-gauge__ranges {
+  display: flex;
+  gap: 2px;
+}
+
+.zone-gauge__range {
+  flex: 1;
+  text-align: center;
+  font-size: 0.6875rem;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-gauge__range--active {
+  font-weight: 600;
+  color: #52525b;
+}
+
+/* ---------- Legend ---------- */
+
+.zone-gauge__legend {
+  display: flex;
+  gap: 1.25rem;
+  padding-top: 0.5rem;
+}
+
+.zone-gauge__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: #737373;
+}
+
+.zone-gauge__legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.zone-gauge__legend-dot--zerado  { background: #ef4444; }
+.zone-gauge__legend-dot--risco   { background: #f59e0b; }
+.zone-gauge__legend-dot--alvo    { background: #22c55e; }
+.zone-gauge__legend-dot--superou { background: #1a1a1a; }
+
+/* ==========================================================================
+   Size Variants
+   ========================================================================== */
+
+/* --- Large (detail view) --- */
+.zone-gauge--lg .zone-gauge__bar {
+  height: 28px;
+  border-radius: 8px;
+  gap: 3px;
+}
+
+.zone-gauge--lg .zone-gauge__segment {
+  border-radius: 5px;
+}
+
+.zone-gauge--lg .zone-gauge__pointer {
+  top: -4px;
+}
+
+.zone-gauge--lg .zone-gauge__pointer-line {
+  width: 3px;
+  height: 36px;
+}
+
+.zone-gauge--lg .zone-gauge__score {
+  font-size: 2rem;
+}
+
+/* --- Medium (default, cards) --- */
+.zone-gauge--md .zone-gauge__bar {
+  height: 12px;
+  gap: 2px;
+}
+
+/* --- Small (compact cards, inline) --- */
+.zone-gauge--sm {
+  gap: 0;
+}
+
+.zone-gauge--sm .zone-gauge__bar {
+  height: 6px;
+  gap: 1px;
+  border-radius: 3px;
+}
+
+.zone-gauge--sm .zone-gauge__segment {
+  border-radius: 1px;
+}
+
+.zone-gauge--sm .zone-gauge__pointer {
+  top: -3px;
+}
+
+.zone-gauge--sm .zone-gauge__pointer-line {
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+}
+
+.zone-gauge--sm .zone-gauge__pointer-value {
+  font-size: 0.625rem;
+}
+
+/* ==========================================================================
+   ScoreZoneBadge - Badge compacto com cor da zona
+   ========================================================================== */
+
+.zone-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 2rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
+  color: white;
+  line-height: 1.3;
+}
+
+.zone-badge--zerado  { background: #ef4444; }
+.zone-badge--risco   { background: #f59e0b; color: #1a1a1a; }
+.zone-badge--alvo    { background: #22c55e; }
+.zone-badge--superou { background: #1a1a1a; }
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .zone-gauge--lg .zone-gauge__bar {
+    height: 20px;
+  }
+
+  .zone-gauge--lg .zone-gauge__zone-label {
+    font-size: 0.5625rem;
+  }
+
+  .zone-gauge--lg .zone-gauge__pointer-line {
+    height: 28px;
+  }
+
+  .zone-gauge__legend {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .zone-gauge__header {
+    flex-wrap: wrap;
+  }
+}
