@@ -1,0 +1,223 @@
+/**
+ * EstudoCustoCard - Card design for Kanban
+ */
+
+.eccard {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.eccard:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.eccard:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.15);
+}
+
+.eccard--own {
+  background: linear-gradient(135deg, #fffef5 0%, #ffffff 100%);
+  border-left: 3px solid #ffdd00;
+}
+
+/* Top row */
+.eccard__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.eccard__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.eccard__code {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #525252;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  background: rgba(255, 221, 0, 0.15);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.eccard__fase {
+  font-size: 0.5625rem;
+  font-weight: 500;
+  color: #71717a;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.eccard__icons {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.eccard__icon {
+  display: flex;
+  align-items: center;
+  color: #a1a1aa;
+  transition: color 0.15s;
+}
+
+.eccard__icon--study {
+  color: #22c55e;
+}
+
+.eccard__icon--construflow {
+  color: #3b82f6;
+}
+
+.eccard__date {
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
+/* Projeto */
+.eccard__projeto {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #18181b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+/* Nome do Time */
+.eccard__time {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #525252;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Data Prevista */
+.eccard__data-prevista {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: #71717a;
+}
+
+.eccard__data-prevista svg {
+  flex-shrink: 0;
+}
+
+/* Footer */
+.eccard__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.eccard__author {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.eccard__avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffdd00 0%, #f5c800 100%);
+  color: #18181b;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.eccard__name {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eccard__indicators {
+  display: flex;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.eccard__prioridade {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--pri-color, #6b7280);
+  background: color-mix(in srgb, var(--pri-color, #6b7280) 12%, transparent);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
+
+.eccard__comments {
+  font-size: 0.6875rem;
+  color: #71717a;
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+/* Drag and Drop */
+.eccard[draggable="true"] {
+  cursor: grab;
+}
+
+.eccard[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.eccard--dragging {
+  opacity: 0.4;
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 640px) {
+  .eccard {
+    padding: 0.75rem;
+  }
+  .eccard__projeto {
+    font-size: 0.75rem;
+  }
+}

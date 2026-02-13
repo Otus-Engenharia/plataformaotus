@@ -6,6 +6,7 @@
 
 import { createRoutes as createFeedbackRoutes } from './feedbacks.js';
 import { createRoutes as createDemandaRoutes } from './demandas.js';
+import { createRoutes as createEstudoCustoRoutes } from './estudos-custos.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -15,7 +16,7 @@ import { createRoutes as createDemandaRoutes } from './demandas.js';
  * @param {Function} middleware.isPrivileged - Função para verificar privilégios
  * @param {Function} middleware.logAction - Função para registrar ações
  */
-export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, logAction }) {
+export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, logAction }) {
   // Rotas de Feedbacks (DDD)
   const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/feedbacks', feedbackRoutes);
@@ -24,5 +25,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const demandaRoutes = createDemandaRoutes(requireAuth, isPrivileged, logAction, canManageDemandas);
   app.use('/api/demandas', demandaRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas');
+  // Rotas de Estudos de Custos (DDD)
+  const estudoCustoRoutes = createEstudoCustoRoutes(requireAuth, isPrivileged, logAction, canManageEstudosCustos);
+  app.use('/api/estudos-custos', estudoCustoRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos');
 }

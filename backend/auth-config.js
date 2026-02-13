@@ -219,3 +219,21 @@ export function canManageDemandas(user) {
   if (user.setor_name && DEMANDAS_MANAGER_SECTORS.includes(user.setor_name)) return true;
   return false;
 }
+
+/**
+ * Setores que podem gerenciar solicitacoes de estudo de custos
+ */
+const ESTUDOS_CUSTOS_MANAGER_SECTORS = ['CS'];
+
+/**
+ * Verifica se um usuario pode gerenciar solicitacoes de estudo de custos
+ * (Privilegiados ou membros do setor CS)
+ * @param {Object} user - Objeto do usuario com email e setor_name
+ * @returns {boolean}
+ */
+export function canManageEstudosCustos(user) {
+  if (!user) return false;
+  if (isPrivileged(user.email)) return true;
+  if (user.setor_name && ESTUDOS_CUSTOS_MANAGER_SECTORS.includes(user.setor_name)) return true;
+  return false;
+}

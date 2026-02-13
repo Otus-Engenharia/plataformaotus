@@ -12,6 +12,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 import { Bar } from 'react-chartjs-2';
 import { API_URL } from '../api';
 import EstudoCustosView from './EstudoCustosView';
+import EstudoCustoKanbanView from '../pages/cs/EstudoCustoKanbanView';
 import '../styles/CSView.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip);
@@ -140,7 +141,7 @@ function CSView({ initialTab }) {
       <header className="cs-header">
         <div className="cs-header-text">
           <h1 className="cs-title">CS</h1>
-          <p className="cs-subtitle">Customer Success — NPS e Estudo de Custos</p>
+          <p className="cs-subtitle">Customer Success — NPS, Estudo de Custos e Solicitacoes</p>
         </div>
       </header>
 
@@ -167,11 +168,28 @@ function CSView({ initialTab }) {
         >
           Estudo de Custos
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'solicitacoes'}
+          aria-controls="cs-panel-solicitacoes"
+          id="cs-tab-solicitacoes"
+          className={`cs-tab ${tab === 'solicitacoes' ? 'cs-tab-active' : ''}`}
+          onClick={() => setTab('solicitacoes')}
+        >
+          Solicitacoes
+        </button>
       </nav>
 
       {tab === 'estudo-custos' && (
         <section id="cs-panel-estudo-custos" role="tabpanel" aria-labelledby="cs-tab-estudo-custos">
           <EstudoCustosView />
+        </section>
+      )}
+
+      {tab === 'solicitacoes' && (
+        <section id="cs-panel-solicitacoes" role="tabpanel" aria-labelledby="cs-tab-solicitacoes">
+          <EstudoCustoKanbanView />
         </section>
       )}
 

@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
-import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores, canManageDemandas } from './auth-config.js';
+import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
@@ -430,6 +430,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         role: req.user.role,
         canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
         canManageDemandas: canManageDemandas(req.user),
+        canManageEstudosCustos: canManageEstudosCustos(req.user),
         // Dados do users_otus para controle de acesso por setor/responsável
         userId: userOtus?.id || null, // ID interno na tabela users_otus
         setor_id: userOtus?.setor_id || null,
@@ -449,6 +450,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         role: req.user.role,
         canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
         canManageDemandas: canManageDemandas(req.user),
+        canManageEstudosCustos: canManageEstudosCustos(req.user),
         userId: null,
         setor_id: null,
         setor_name: req.user.setor_name || null,
@@ -2147,7 +2149,7 @@ app.get('/api/projetos/apontamentos', requireAuth, async (req, res) => {
 // Migrado para arquitetura Domain Driven Design
 // Ver: backend/routes/feedbacks.js
 // ============================================
-setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, logAction });
+setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, logAction });
 
 /**
  * Rota: GET /api/admin/user-views

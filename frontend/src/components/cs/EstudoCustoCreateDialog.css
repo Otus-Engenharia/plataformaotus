@@ -1,0 +1,257 @@
+/* EstudoCustoCreateDialog styles */
+
+.ec-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.ec-dialog {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.ec-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  z-index: 1;
+}
+
+.ec-dialog__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ec-dialog__header-icon {
+  width: 20px;
+  height: 20px;
+  color: #ffcc00;
+}
+
+.ec-dialog__title-row h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #18181b;
+}
+
+.ec-dialog__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #71717a;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.ec-dialog__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.ec-dialog__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ec-dialog__form {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ec-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ec-dialog__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.ec-dialog__required {
+  color: #ef4444;
+}
+
+/* Inputs */
+.ec-dialog__input,
+.ec-dialog__select,
+.ec-dialog__textarea {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #18181b;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.ec-dialog__input:focus,
+.ec-dialog__select:focus,
+.ec-dialog__textarea:focus {
+  outline: none;
+  border-color: #ffcc00;
+  box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.15);
+}
+
+.ec-dialog__input--readonly {
+  background: #f5f5f5;
+  color: #71717a;
+  cursor: default;
+}
+
+.ec-dialog__textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Link Preview */
+.ec-dialog__link-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(59, 130, 246, 0.04);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 8px;
+  color: #3b82f6;
+}
+
+.ec-dialog__link-preview a {
+  font-size: 0.8125rem;
+  color: #3b82f6;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ec-dialog__link-preview a:hover {
+  text-decoration: underline;
+}
+
+/* Toggle switch */
+.ec-dialog__toggle-row {
+  display: flex;
+  align-items: center;
+}
+
+.ec-dialog__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.ec-dialog__toggle input {
+  display: none;
+}
+
+.ec-dialog__toggle-slider {
+  width: 36px;
+  height: 20px;
+  background: #d1d5db;
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.ec-dialog__toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.ec-dialog__toggle input:checked + .ec-dialog__toggle-slider {
+  background: #ffcc00;
+}
+
+.ec-dialog__toggle input:checked + .ec-dialog__toggle-slider::after {
+  transform: translateX(16px);
+}
+
+.ec-dialog__toggle-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #525252;
+}
+
+/* Actions */
+.ec-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.ec-dialog__btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.ec-dialog__btn--secondary {
+  background: #f5f5f5;
+  color: #525252;
+}
+
+.ec-dialog__btn--secondary:hover {
+  background: #e5e5e5;
+}
+
+.ec-dialog__btn--primary {
+  background: #ffcc00;
+  color: #18181b;
+}
+
+.ec-dialog__btn--primary:hover:not(:disabled) {
+  background: #f5c800;
+  box-shadow: 0 2px 8px rgba(255, 204, 0, 0.3);
+}
+
+.ec-dialog__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .ec-dialog__title-row h2 {
+    font-size: 1rem;
+  }
+}

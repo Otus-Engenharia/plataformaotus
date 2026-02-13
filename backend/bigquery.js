@@ -1684,7 +1684,7 @@ export async function queryProximasTarefasAll(leaderName = null, options = {}) {
       ON s.nome_normalizado LIKE CONCAT('%', p.nome_normalizado, '%')
     WHERE
       s.DataDeInicio IS NOT NULL
-      AND s.DataDeInicio >= CURRENT_DATE()
+      AND s.DataDeTermino >= CURRENT_DATE()
       AND s.DataDeInicio <= DATE_ADD(CURRENT_DATE(), INTERVAL ${weeksAhead} WEEK)
   `;
 
