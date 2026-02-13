@@ -128,6 +128,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, canManageEstudosCust
         link_construflow,
         data_prevista_apresentacao,
         descricao,
+        observacoes,
       } = req.body;
 
       if (!projeto) {
@@ -146,6 +147,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, canManageEstudosCust
         linkConstruflow: link_construflow || null,
         dataPrevistaApresentacao: data_prevista_apresentacao || null,
         descricao: descricao || null,
+        observacoes: observacoes || null,
         authorId: req.user.id,
       });
 
@@ -239,6 +241,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, canManageEstudosCust
         projeto, nome_time, status_fase,
         construflow_id, link_construflow,
         data_prevista_apresentacao, descricao,
+        observacoes,
       } = req.body;
 
       if (status && !EstudoCustoStatus.isValid(status)) {
@@ -263,6 +266,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, canManageEstudosCust
       if (link_construflow !== undefined) contentFields.linkConstruflow = link_construflow;
       if (data_prevista_apresentacao !== undefined) contentFields.dataPrevistaApresentacao = data_prevista_apresentacao;
       if (descricao !== undefined) contentFields.descricao = descricao;
+      if (observacoes !== undefined) contentFields.observacoes = observacoes;
 
       const hasAdmin = status !== undefined || prioridade !== undefined || assigned_to !== undefined;
       const hasContent = Object.keys(contentFields).length > 0;

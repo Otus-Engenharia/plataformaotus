@@ -15,6 +15,7 @@ export default function EstudoCustoCreateDialog({ onClose, onSubmit }) {
     link_construflow: '',
     data_prevista_apresentacao: '',
     descricao: '',
+    observacoes: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [portfolio, setPortfolio] = useState([]);
@@ -133,6 +134,20 @@ export default function EstudoCustoCreateDialog({ onClose, onSubmit }) {
         </div>
 
         <form className="ec-dialog__form" onSubmit={handleSubmit}>
+          {/* Instrucoes */}
+          <div className="ec-dialog__info-box">
+            <svg className="ec-dialog__info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <ul className="ec-dialog__info-list">
+              <li>Este formulario tem como objetivo centralizar as solicitacoes para elaboracao de Estudos de Custos;</li>
+              <li>As solicitacoes devem ser realizadas com antecedencia minima de 1 mes em relacao a data prevista para apresentacao;</li>
+              <li>E necessario garantir que os apontamentos selecionados no Construflow estejam resolvidos/finalizados, devidamente identificados com a tag de Estudo de Custos.</li>
+            </ul>
+          </div>
+
           {/* Toggle Meus Projetos */}
           <div className="ec-dialog__field">
             <div className="ec-dialog__toggle-row">
@@ -235,6 +250,18 @@ export default function EstudoCustoCreateDialog({ onClose, onSubmit }) {
               value={formData.descricao}
               onChange={(e) => updateField('descricao', e.target.value)}
               placeholder="Descricao adicional (opcional)..."
+              rows={3}
+            />
+          </div>
+
+          {/* Observacoes */}
+          <div className="ec-dialog__field">
+            <label className="ec-dialog__label">Observacoes</label>
+            <textarea
+              className="ec-dialog__textarea"
+              value={formData.observacoes}
+              onChange={(e) => updateField('observacoes', e.target.value)}
+              placeholder="Observacoes adicionais (opcional)..."
               rows={3}
             />
           </div>

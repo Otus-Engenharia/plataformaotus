@@ -18,6 +18,7 @@ class EstudoCusto {
   #linkEstudoCustos;
   #dataPrevistaApresentacao;
   #descricao;
+  #observacoes;
   #status;
   #prioridade;
   #authorId;
@@ -37,6 +38,7 @@ class EstudoCusto {
     linkEstudoCustos = null,
     dataPrevistaApresentacao = null,
     descricao = null,
+    observacoes = null,
     status = 'pendente',
     prioridade = 'normal',
     authorId,
@@ -63,6 +65,7 @@ class EstudoCusto {
     this.#linkEstudoCustos = linkEstudoCustos || null;
     this.#dataPrevistaApresentacao = dataPrevistaApresentacao || null;
     this.#descricao = descricao?.trim() || null;
+    this.#observacoes = observacoes?.trim() || null;
     this.#status = status instanceof EstudoCustoStatus ? status : new EstudoCustoStatus(status);
     this.#prioridade = prioridade instanceof Prioridade ? prioridade : new Prioridade(prioridade);
     this.#authorId = authorId;
@@ -83,6 +86,7 @@ class EstudoCusto {
   get linkEstudoCustos() { return this.#linkEstudoCustos; }
   get dataPrevistaApresentacao() { return this.#dataPrevistaApresentacao; }
   get descricao() { return this.#descricao; }
+  get observacoes() { return this.#observacoes; }
   get status() { return this.#status; }
   get prioridade() { return this.#prioridade; }
   get authorId() { return this.#authorId; }
@@ -145,6 +149,7 @@ class EstudoCusto {
     linkConstruflow,
     dataPrevistaApresentacao,
     descricao,
+    observacoes,
   }) {
     if (projeto !== undefined) {
       if (!projeto || projeto.trim().length === 0) {
@@ -158,6 +163,7 @@ class EstudoCusto {
     if (linkConstruflow !== undefined) this.#linkConstruflow = linkConstruflow || null;
     if (dataPrevistaApresentacao !== undefined) this.#dataPrevistaApresentacao = dataPrevistaApresentacao || null;
     if (descricao !== undefined) this.#descricao = descricao?.trim() || null;
+    if (observacoes !== undefined) this.#observacoes = observacoes?.trim() || null;
     this.#updatedAt = new Date();
   }
 
@@ -184,6 +190,7 @@ class EstudoCusto {
       link_estudo_custos: this.#linkEstudoCustos,
       data_prevista_apresentacao: this.#dataPrevistaApresentacao,
       descricao: this.#descricao,
+      observacoes: this.#observacoes,
       status: this.#status.value,
       prioridade: this.#prioridade.value,
       author_id: this.#authorId,
@@ -207,6 +214,7 @@ class EstudoCusto {
       link_estudo_custos: this.#linkEstudoCustos,
       data_prevista_apresentacao: this.#dataPrevistaApresentacao,
       descricao: this.#descricao,
+      observacoes: this.#observacoes,
       status: this.#status.value,
       prioridade: this.#prioridade.value,
       author_id: this.#authorId,
@@ -234,6 +242,7 @@ class EstudoCusto {
       linkEstudoCustos: data.link_estudo_custos,
       dataPrevistaApresentacao: data.data_prevista_apresentacao,
       descricao: data.descricao,
+      observacoes: data.observacoes,
       status: data.status,
       prioridade: data.prioridade,
       authorId: data.author_id,
@@ -253,6 +262,7 @@ class EstudoCusto {
     linkConstruflow,
     dataPrevistaApresentacao,
     descricao,
+    observacoes,
     authorId,
   }) {
     return new EstudoCusto({
@@ -263,6 +273,7 @@ class EstudoCusto {
       linkConstruflow,
       dataPrevistaApresentacao,
       descricao,
+      observacoes,
       authorId,
     });
   }

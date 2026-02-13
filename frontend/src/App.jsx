@@ -33,6 +33,7 @@ const ApoioCronogramaView = lazy(() => import('./pages/apoio/ApoioCronogramaView
 const ApoioGanttView = lazy(() => import('./pages/apoio/ApoioGanttView'));
 const DemandasKanbanView = lazy(() => import('./pages/apoio/DemandasKanbanView'));
 const ApoioPortfolioView = lazy(() => import('./pages/apoio/ApoioPortfolioView'));
+const EstudoCustoKanbanView = lazy(() => import('./pages/cs/EstudoCustoKanbanView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -461,16 +462,16 @@ function Sidebar({ collapsed, onToggle, area }) {
     </>
   );
 
-  // Links para área de CS (placeholder - expandir depois)
+  // Links para área de CS
   const csLinks = (
     <>
       <Link
-        to="/cs-area"
-        className={`nav-link nav-link-modern nav-link-active`}
-        title={linkTitle('CS')}
+        to="/cs-area/estudos-custos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/cs-area/estudos-custos') || location.pathname === '/cs-area' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Estudos de Custos')}
       >
         <span className="nav-icon">{icons.cs}</span>
-        <span className="nav-text">Dashboard CS</span>
+        <span className="nav-text">Estudos de Custos</span>
       </Link>
     </>
   );
@@ -1101,15 +1102,20 @@ function AppContent() {
                 </Suspense>
               } />
             </Route>
-            {/* Área CS */}
+            {/* Área CS - rotas aninhadas */}
             <Route
               path="/cs-area"
               element={
                 <ProtectedRoute>
-                  <CSAreaView />
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <Outlet />
+                  </Suspense>
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<Navigate to="estudos-custos" replace />} />
+              <Route path="estudos-custos" element={<EstudoCustoKanbanView />} />
+            </Route>
             {/* Área Apoio de Projetos - rotas aninhadas */}
             <Route
               path="/apoio-projetos"

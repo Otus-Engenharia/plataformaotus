@@ -95,6 +95,7 @@ export default function EstudoCustoDetailDialog({
     setEditForm({
       descricao: estudo.descricao || '',
       data_prevista_apresentacao: estudo.data_prevista_apresentacao || '',
+      observacoes: estudo.observacoes || '',
     });
     setIsEditing(true);
   };
@@ -309,6 +310,14 @@ export default function EstudoCustoDetailDialog({
                     rows={4}
                   />
                 </div>
+                <div className="ecdetail__edit-field ecdetail__edit-field--full">
+                  <label>Observacoes</label>
+                  <textarea
+                    value={editForm.observacoes}
+                    onChange={(e) => handleEditChange('observacoes', e.target.value)}
+                    rows={3}
+                  />
+                </div>
               </div>
               <div className="ecdetail__edit-actions">
                 <button
@@ -401,6 +410,14 @@ export default function EstudoCustoDetailDialog({
                 <div className="ecdetail__section">
                   <h3 className="ecdetail__section-title">Descricao</h3>
                   <p className="ecdetail__descricao">{estudo.descricao}</p>
+                </div>
+              )}
+
+              {/* Observacoes */}
+              {estudo.observacoes && (
+                <div className="ecdetail__section">
+                  <h3 className="ecdetail__section-title">Observacoes</h3>
+                  <p className="ecdetail__descricao">{estudo.observacoes}</p>
                 </div>
               )}
             </>

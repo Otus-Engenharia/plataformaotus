@@ -21,6 +21,7 @@ class CreateEstudoCusto {
     linkConstruflow,
     dataPrevistaApresentacao,
     descricao,
+    observacoes,
     authorId,
   }) {
     const estudoCusto = EstudoCusto.create({
@@ -31,6 +32,7 @@ class CreateEstudoCusto {
       linkConstruflow,
       dataPrevistaApresentacao,
       descricao,
+      observacoes,
       authorId,
     });
 
