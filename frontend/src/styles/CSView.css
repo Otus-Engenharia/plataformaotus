@@ -10,6 +10,36 @@
   font-family: 'Inter', Verdana, sans-serif;
 }
 
+/* ---- Tabs ---- */
+.cs-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cs-tab {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.cs-tab:hover {
+  color: #0f172a;
+}
+
+.cs-tab-active {
+  color: #0ea5e9;
+  border-bottom-color: #0ea5e9;
+}
+
 /* ---- Loading ---- */
 .cs-loading,
 .cs-error {
@@ -555,5 +585,14 @@
   .cs-card {
     min-width: 0;
     flex: 1;
+  }
+
+  .cs-tabs {
+    flex-wrap: wrap;
+  }
+
+  .cs-tab {
+    flex: 1;
+    min-width: 0;
   }
 }

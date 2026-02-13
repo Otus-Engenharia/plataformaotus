@@ -20,6 +20,7 @@ const COLUMNS = [
   { key: 'project_name',        label: 'Projeto',                  type: 'text' },
   { key: 'status',              label: 'Status',                   type: 'status' },
   { key: 'area_efetiva',        label: 'Área Efetiva',             type: 'number' },
+  { key: 'area_total',          label: 'Área Total',               type: 'number' },
   { key: 'custo_total',         label: 'Custo Total',              type: 'currency' },
   { key: 'meses_com_custo',     label: 'Meses com Custo',          type: 'number' },
   { key: 'custo_mensal',        label: 'Custo Mensal',             type: 'currency' },
@@ -385,7 +386,8 @@ function IndicadoresVendasView() {
 
   // Totals row
   const totals = useMemo(() => {
-    const areaTotal = filteredData.reduce((s, r) => s + (Number(r.area_efetiva) || 0), 0);
+    const areaEfetiva = filteredData.reduce((s, r) => s + (Number(r.area_efetiva) || 0), 0);
+    const areaTotal = filteredData.reduce((s, r) => s + (Number(r.area_total) || 0), 0);
     const custoTotal = filteredData.reduce((s, r) => s + (Number(r.custo_total) || 0), 0);
     const mesesTotal = filteredData.reduce((s, r) => s + (Number(r.meses_com_custo) || 0), 0);
     const ticketTotal = filteredData.reduce((s, r) => s + (Number(r.ticket_vendas) || 0), 0);
@@ -393,7 +395,8 @@ function IndicadoresVendasView() {
     const complexidadeTotal = filteredData.reduce((s, r) => s + (Number(r.complexidade) || 0), 0);
 
     return {
-      area_efetiva: areaTotal,
+      area_efetiva: areaEfetiva,
+      area_total: areaTotal,
       custo_total: custoTotal,
       meses_com_custo: mesesTotal,
       custo_mensal: mesesTotal > 0 ? custoTotal / mesesTotal : 0,

@@ -36,6 +36,12 @@ function isClosedStatus(status) {
   return s === 'close' || s === 'termo de encerramento' || s === 'churn pelo cliente';
 }
 
+// Status "a iniciar" (planejamento/pre-execucao)
+function isAIniciarStatus(status) {
+  if (!status) return false;
+  return status.toLowerCase().trim().includes('a iniciar');
+}
+
 function getControleColor(value) {
   const option = CONTROLE_OPTIONS.find(o => o.value === value);
   return option?.color || '#9ca3af';
@@ -47,6 +53,40 @@ const Icons = {
       <path d="M23 4v6h-6" />
       <path d="M1 20v-6h6" />
       <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </svg>
+  ),
+  Search: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+  Folder: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  Edit: () => (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  ),
+  Plus: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  ),
+  Check: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  X: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
 };
@@ -63,7 +103,23 @@ export default function ApoioPortfolioView() {
   const [timeFilter, setTimeFilter] = useState('');
   const [liderFilter, setLiderFilter] = useState('');
   const [controleFilter, setControleFilter] = useState('');
-  const [statusGroupFilter, setStatusGroupFilter] = useState('todos');
+  const [selectedFases, setSelectedFases] = useState(new Set());
+  const [showFinalizados, setShowFinalizados] = useState(false);
+  const [showPausados, setShowPausados] = useState(false);
+  const [showAIniciar, setShowAIniciar] = useState(false);
+
+  // Edicao inline do link IFC
+  const [editingIfcCode, setEditingIfcCode] = useState(null);
+  const [editingIfcValue, setEditingIfcValue] = useState('');
+
+  const toggleFase = (fase) => {
+    setSelectedFases(prev => {
+      const next = new Set(prev);
+      if (next.has(fase)) next.delete(fase);
+      else next.add(fase);
+      return next;
+    });
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -105,6 +161,16 @@ export default function ApoioPortfolioView() {
     return Array.from(set).sort();
   }, [data]);
 
+  const uniqueFases = useMemo(() => {
+    const set = new Set();
+    data.forEach(r => {
+      if (r.status && /^fase\s+\d+/i.test(r.status.trim())) {
+        set.add(r.status.trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [data]);
+
   // Dados filtrados
   const filteredData = useMemo(() => {
     let filtered = data;
@@ -134,18 +200,24 @@ export default function ApoioPortfolioView() {
       }
     }
 
-    if (statusGroupFilter === 'elegiveis') {
-      filtered = filtered.filter(r => isEligibleStatus(r.status));
-    } else if (statusGroupFilter === 'encerrados') {
-      filtered = filtered.filter(r => isClosedStatus(r.status));
-    } else if (statusGroupFilter === 'pausados') {
-      filtered = filtered.filter(r => isPausedStatus(r.status));
-    } else if (statusGroupFilter === 'ativos') {
-      filtered = filtered.filter(r => !isFinalizedStatus(r.status) && !isPausedStatus(r.status));
+    // Filtro por fases selecionadas (multi-select)
+    if (selectedFases.size > 0) {
+      filtered = filtered.filter(r => selectedFases.has(r.status?.trim()));
+    }
+
+    // Toggles de visibilidade (excluem quando OFF)
+    if (!showFinalizados) {
+      filtered = filtered.filter(r => !isFinalizedStatus(r.status));
+    }
+    if (!showPausados) {
+      filtered = filtered.filter(r => !isPausedStatus(r.status));
+    }
+    if (!showAIniciar) {
+      filtered = filtered.filter(r => !isAIniciarStatus(r.status));
     }
 
     return filtered;
-  }, [data, searchTerm, timeFilter, liderFilter, controleFilter, statusGroupFilter]);
+  }, [data, searchTerm, timeFilter, liderFilter, controleFilter, selectedFases, showFinalizados, showPausados, showAIniciar]);
 
   // KPIs calculados sobre TODOS os dados (sem filtros de tabela)
   const kpis = useMemo(() => {
@@ -186,11 +258,75 @@ export default function ApoioPortfolioView() {
     }
   };
 
+  // Handlers de edicao do link IFC
+  const startEditingIfc = (projectCode, currentValue) => {
+    setEditingIfcCode(projectCode);
+    setEditingIfcValue(currentValue || '');
+  };
+
+  const cancelEditingIfc = () => {
+    setEditingIfcCode(null);
+    setEditingIfcValue('');
+  };
+
+  const saveIfcLink = async (projectCode) => {
+    const value = editingIfcValue.trim() || null;
+    const oldValue = data.find(r => r.project_code_norm === projectCode)?.link_ifc;
+
+    setData(prev => prev.map(row =>
+      row.project_code_norm === projectCode
+        ? { ...row, link_ifc: value }
+        : row
+    ));
+    setEditingIfcCode(null);
+    setEditingIfcValue('');
+
+    try {
+      await axios.put(
+        `${API_URL}/api/apoio-projetos/portfolio/${projectCode}/link-ifc`,
+        { link_ifc: value },
+        { withCredentials: true }
+      );
+    } catch (err) {
+      setData(prev => prev.map(row =>
+        row.project_code_norm === projectCode
+          ? { ...row, link_ifc: oldValue }
+          : row
+      ));
+      alert('Erro ao salvar link IFC: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const removeIfcLink = async (projectCode) => {
+    const oldValue = data.find(r => r.project_code_norm === projectCode)?.link_ifc;
+
+    setData(prev => prev.map(row =>
+      row.project_code_norm === projectCode
+        ? { ...row, link_ifc: null }
+        : row
+    ));
+
+    try {
+      await axios.put(
+        `${API_URL}/api/apoio-projetos/portfolio/${projectCode}/link-ifc`,
+        { link_ifc: null },
+        { withCredentials: true }
+      );
+    } catch (err) {
+      setData(prev => prev.map(row =>
+        row.project_code_norm === projectCode
+          ? { ...row, link_ifc: oldValue }
+          : row
+      ));
+      alert('Erro ao remover link IFC: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   return (
     <div className="apoio-container">
       {/* Header */}
       <div className="apoio-header">
-        <h2 className="apoio-portfolio-title">Portfolio - Controle de Projetos</h2>
+        <h2 className="apoio-portfolio-title">Portfolio</h2>
         <button
           className="apoio-refresh-btn"
           onClick={fetchData}
@@ -201,40 +337,41 @@ export default function ApoioPortfolioView() {
         </button>
       </div>
 
-      {/* KPIs */}
-      <div className="apoio-summary">
-        <div className="apoio-summary-card">
-          <span className="apoio-summary-value">{kpis.total}</span>
-          <span className="apoio-summary-label">Total de Projetos</span>
+      {/* KPIs - 2 fileiras */}
+      <div className="apoio-kpi-grid">
+        <div className="apoio-kpi-card">
+          <span className="apoio-kpi-value">{kpis.total}</span>
+          <span className="apoio-kpi-label">Total</span>
         </div>
-        <div className="apoio-summary-card">
-          <span className="apoio-summary-value">{kpis.elegiveis}</span>
-          <span className="apoio-summary-label">Ativos Elegiveis</span>
+        <div className="apoio-kpi-card">
+          <span className="apoio-kpi-value">{kpis.elegiveis}</span>
+          <span className="apoio-kpi-label">Elegiveis</span>
         </div>
-        <div className="apoio-summary-card" style={{ borderLeft: '4px solid #22c55e' }}>
-          <span className="apoio-summary-value">{kpis.controlados}</span>
-          <span className="apoio-summary-label">Controlados</span>
+        <div className="apoio-kpi-card apoio-kpi-card--green">
+          <span className="apoio-kpi-value">{kpis.controlados}</span>
+          <span className="apoio-kpi-label">Controlados</span>
         </div>
-        <div className="apoio-summary-card apoio-summary-card-highlight">
-          <span className="apoio-summary-value">{kpis.indicador}%</span>
-          <span className="apoio-summary-label">Indicador Controle</span>
+        <div className="apoio-kpi-card apoio-kpi-hero">
+          <span className="apoio-kpi-value">{kpis.indicador}%</span>
+          <span className="apoio-kpi-label">Indicador</span>
         </div>
-        <div className="apoio-summary-card">
-          <span className="apoio-summary-value">{kpis.dispensados}</span>
-          <span className="apoio-summary-label">Dispensados</span>
+        <div className="apoio-kpi-card apoio-kpi-card--amber">
+          <span className="apoio-kpi-value">{kpis.dispensados}</span>
+          <span className="apoio-kpi-label">Dispensados</span>
         </div>
-        <div className="apoio-summary-card">
-          <span className="apoio-summary-value">{kpis.encerrados}</span>
-          <span className="apoio-summary-label">Encerrados</span>
+        <div className="apoio-kpi-card">
+          <span className="apoio-kpi-value">{kpis.encerrados}</span>
+          <span className="apoio-kpi-label">Encerrados</span>
         </div>
-        <div className="apoio-summary-card">
-          <span className="apoio-summary-value">{kpis.pausados}</span>
-          <span className="apoio-summary-label">Pausados</span>
+        <div className="apoio-kpi-card">
+          <span className="apoio-kpi-value">{kpis.pausados}</span>
+          <span className="apoio-kpi-label">Pausados</span>
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="apoio-filters">
+      {/* Busca */}
+      <div className="apoio-search-bar">
+        <Icons.Search />
         <input
           type="text"
           className="apoio-search-input"
@@ -242,22 +379,53 @@ export default function ApoioPortfolioView() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+      </div>
 
-        <div className="apoio-filter-group">
-          <label className="apoio-filter-label">Status:</label>
-          <select
-            className="apoio-weeks-select"
-            value={statusGroupFilter}
-            onChange={(e) => setStatusGroupFilter(e.target.value)}
-          >
-            <option value="todos">Todos</option>
-            <option value="elegiveis">Ativos Elegiveis (Fase 01-04)</option>
-            <option value="ativos">Todos Ativos (nao encerrados)</option>
-            <option value="encerrados">Encerrados</option>
-            <option value="pausados">Pausados</option>
-          </select>
+      {/* Toggle Section - Fases + Visibilidade */}
+      <div className="apoio-toggle-section">
+        <div className="apoio-toggle-row">
+          <span className="apoio-toggle-row-label">Fases</span>
+          {uniqueFases.map(fase => (
+            <button
+              key={fase}
+              className={`apoio-fase-btn ${selectedFases.has(fase) ? 'active' : ''}`}
+              onClick={() => toggleFase(fase)}
+              style={selectedFases.has(fase) ? { '--fase-color': getStatusColor(fase) } : {}}
+            >
+              {fase.replace(/fase\s+/i, 'F')}
+            </button>
+          ))}
+          {selectedFases.size > 0 && (
+            <button className="apoio-toggle-clear" onClick={() => setSelectedFases(new Set())}>
+              Limpar
+            </button>
+          )}
         </div>
+        <div className="apoio-toggle-row">
+          <span className="apoio-toggle-row-label">Incluir</span>
+          <button
+            className={`apoio-toggle-btn ${showFinalizados ? 'active' : ''}`}
+            onClick={() => setShowFinalizados(!showFinalizados)}
+          >
+            Finalizados
+          </button>
+          <button
+            className={`apoio-toggle-btn ${showPausados ? 'active' : ''}`}
+            onClick={() => setShowPausados(!showPausados)}
+          >
+            Pausados
+          </button>
+          <button
+            className={`apoio-toggle-btn ${showAIniciar ? 'active' : ''}`}
+            onClick={() => setShowAIniciar(!showAIniciar)}
+          >
+            A Iniciar
+          </button>
+        </div>
+      </div>
 
+      {/* Filtros dropdown */}
+      <div className="apoio-filters">
         <div className="apoio-filter-group">
           <label className="apoio-filter-label">Time:</label>
           <select
@@ -296,11 +464,10 @@ export default function ApoioPortfolioView() {
             <option value="null">Nao definido</option>
           </select>
         </div>
-      </div>
 
-      {/* Contagem filtrada */}
-      <div className="apoio-portfolio-count">
-        {filteredData.length} projeto{filteredData.length !== 1 ? 's' : ''} exibido{filteredData.length !== 1 ? 's' : ''}
+        <div className="apoio-portfolio-count">
+          <strong>{filteredData.length}</strong> projeto{filteredData.length !== 1 ? 's' : ''}
+        </div>
       </div>
 
       {/* Conteudo */}
@@ -330,6 +497,7 @@ export default function ApoioPortfolioView() {
                 <th style={{ width: 120 }}>Lider</th>
                 <th style={{ width: 120 }}>Time</th>
                 <th style={{ width: 100 }}>ACD</th>
+                <th style={{ width: 80 }}>IFC</th>
                 <th style={{ width: 150 }}>Controle</th>
               </tr>
             </thead>
@@ -361,6 +529,78 @@ export default function ApoioPortfolioView() {
                   <td>{row.lider || '-'}</td>
                   <td>{row.nome_time || '-'}</td>
                   <td>{row.plataforma_acd || '-'}</td>
+                  <td className="apoio-ifc-cell">
+                    {editingIfcCode === row.project_code_norm ? (
+                      <div className="apoio-ifc-edit">
+                        <input
+                          type="url"
+                          className="apoio-ifc-input"
+                          value={editingIfcValue}
+                          onChange={(e) => setEditingIfcValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveIfcLink(row.project_code_norm);
+                            if (e.key === 'Escape') cancelEditingIfc();
+                          }}
+                          placeholder="Cole o link..."
+                          autoFocus
+                        />
+                        <button
+                          className="apoio-ifc-btn apoio-ifc-btn--save"
+                          onClick={() => saveIfcLink(row.project_code_norm)}
+                          title="Salvar"
+                        >
+                          <Icons.Check />
+                        </button>
+                        <button
+                          className="apoio-ifc-btn apoio-ifc-btn--cancel"
+                          onClick={cancelEditingIfc}
+                          title="Cancelar"
+                        >
+                          <Icons.X />
+                        </button>
+                      </div>
+                    ) : row.link_ifc ? (
+                      <div className="apoio-ifc-actions">
+                        <a
+                          href={row.link_ifc}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="apoio-ifc-link"
+                          title="Abrir pasta IFC"
+                        >
+                          <Icons.Folder />
+                        </a>
+                        {hasFullAccess && (
+                          <>
+                            <button
+                              className="apoio-ifc-btn apoio-ifc-btn--edit"
+                              onClick={() => startEditingIfc(row.project_code_norm, row.link_ifc)}
+                              title="Editar link"
+                            >
+                              <Icons.Edit />
+                            </button>
+                            <button
+                              className="apoio-ifc-btn apoio-ifc-btn--remove"
+                              onClick={() => removeIfcLink(row.project_code_norm)}
+                              title="Remover link"
+                            >
+                              <Icons.X />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ) : hasFullAccess ? (
+                      <button
+                        className="apoio-ifc-btn apoio-ifc-btn--add"
+                        onClick={() => startEditingIfc(row.project_code_norm, '')}
+                        title="Adicionar link IFC"
+                      >
+                        <Icons.Plus />
+                      </button>
+                    ) : (
+                      <span className="apoio-ifc-empty">-</span>
+                    )}
+                  </td>
                   <td>
                     {hasFullAccess ? (
                       <select

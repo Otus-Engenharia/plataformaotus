@@ -76,8 +76,8 @@ export default function EditMonthlyTargetsDialog({
   const unit = indicador?.metric_type === 'percentage' ? '%' : '';
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog-content dialog-small glass-card" onClick={e => e.stopPropagation()}>
+    <div className="dialog-overlay">
+      <div className="dialog-content dialog-small glass-card">
         <div className="dialog-header">
           <div>
             <h2>Metas Mensais</h2>

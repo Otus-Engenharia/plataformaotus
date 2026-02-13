@@ -27,7 +27,7 @@ export default function EditIndicatorDialog({
     threshold_80: indicador?.threshold_80 || '',
     meta: indicador?.meta || '',
     threshold_120: indicador?.threshold_120 || '',
-    peso: indicador?.peso || 1,
+    peso: indicador?.peso ?? 1,
     is_inverse: indicador?.is_inverse || false
   });
   const [loading, setLoading] = useState(false);
@@ -59,7 +59,7 @@ export default function EditIndicatorDialog({
         meta: parseFloat(formData.meta),
         threshold_80: formData.threshold_80 ? parseFloat(formData.threshold_80) : null,
         threshold_120: formData.threshold_120 ? parseFloat(formData.threshold_120) : null,
-        peso: formData.peso ? parseInt(formData.peso, 10) : 1,
+        peso: formData.peso !== '' ? parseInt(formData.peso, 10) : 1,
         is_inverse: formData.is_inverse
       });
     } catch (err) {
@@ -70,8 +70,8 @@ export default function EditIndicatorDialog({
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog-content dialog-medium glass-card" onClick={e => e.stopPropagation()}>
+    <div className="dialog-overlay">
+      <div className="dialog-content dialog-medium glass-card">
         <div className="dialog-header">
           <div>
             <h2>Editar Indicador</h2>
@@ -182,7 +182,7 @@ export default function EditIndicatorDialog({
             <input
               id="ind-peso"
               type="number"
-              min="1"
+              min="0"
               max="100"
               value={formData.peso}
               onChange={(e) => handleChange('peso', e.target.value)}

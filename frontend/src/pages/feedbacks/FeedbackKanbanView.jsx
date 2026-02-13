@@ -320,8 +320,8 @@ export default function FeedbackKanbanView() {
 
       {/* Create Form Dialog */}
       {showCreateForm && (
-        <div className="feedback-dialog-overlay" onClick={() => setShowCreateForm(false)}>
-          <div className="feedback-dialog" onClick={e => e.stopPropagation()}>
+        <div className="feedback-dialog-overlay">
+          <div className="feedback-dialog">
             <div className="feedback-dialog__header">
               <div className="feedback-dialog__title-row">
                 <svg className="feedback-dialog__header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

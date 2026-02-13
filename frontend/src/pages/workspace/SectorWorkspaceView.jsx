@@ -136,8 +136,8 @@ function ProjectModal({ project, sectorId, sectorName, onClose, onSave }) {
   };
 
   return (
-    <div className="ws-modal-overlay" onClick={onClose}>
-      <div className="ws-modal" onClick={e => e.stopPropagation()}>
+    <div className="ws-modal-overlay">
+      <div className="ws-modal">
         <div className="ws-modal-header">
           <h2>{project ? 'Editar Projeto' : 'Novo Projeto'}</h2>
           <button className="ws-modal-close" onClick={onClose}>

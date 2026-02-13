@@ -481,15 +481,21 @@ export default function FeedbackAdminView({ category = 'all' }) {
         const key = toKey(d.getFullYear(), d.getMonth());
         if (key in createdMap) createdMap[key]++;
       }
-      if (f.resolved_at && f.status === 'finalizado') {
-        const d = new Date(f.resolved_at);
-        const key = toKey(d.getFullYear(), d.getMonth());
-        if (key in finalizadoMap) finalizadoMap[key]++;
+      if (f.status === 'finalizado') {
+        const dateStr = f.resolved_at || f.updated_at;
+        if (dateStr) {
+          const d = new Date(dateStr);
+          const key = toKey(d.getFullYear(), d.getMonth());
+          if (key in finalizadoMap) finalizadoMap[key]++;
+        }
       }
-      if (f.resolved_at && f.status === 'recusado') {
-        const d = new Date(f.resolved_at);
-        const key = toKey(d.getFullYear(), d.getMonth());
-        if (key in recusadoMap) recusadoMap[key]++;
+      if (f.status === 'recusado') {
+        const dateStr = f.resolved_at || f.updated_at;
+        if (dateStr) {
+          const d = new Date(dateStr);
+          const key = toKey(d.getFullYear(), d.getMonth());
+          if (key in recusadoMap) recusadoMap[key]++;
+        }
       }
     });
 
@@ -903,8 +909,8 @@ export default function FeedbackAdminView({ category = 'all' }) {
 
       {/* Modal */}
       {selectedFeedback && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content feedback-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content feedback-modal">
             <div className="modal-header">
               <div className="modal-header-info">
                 <div className="modal-badges">

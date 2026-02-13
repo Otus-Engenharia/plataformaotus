@@ -744,8 +744,8 @@ function AlocacaoTimesView() {
 
       {/* Modal: Editar Time */}
       {showTeamModal && (
-        <div className="modal-overlay" onClick={handleCloseTeamModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="modal-header">
               <h3>{editingTeam ? 'Editar Time' : 'Novo Time'}</h3>
               <button className="btn-close" onClick={handleCloseTeamModal}>

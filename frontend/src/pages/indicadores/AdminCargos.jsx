@@ -216,7 +216,10 @@ export default function AdminCargos() {
       body: JSON.stringify(data)
     });
 
-    if (!res.ok) throw new Error('Erro ao salvar indicador');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.error || 'Erro ao salvar indicador');
+    }
 
     setShowUnifiedEdit(false);
     setEditingIndicator(null);
@@ -420,7 +423,7 @@ export default function AdminCargos() {
                       {position.indicators && position.indicators.length > 0 ? (
                         <div className="indicators-list">
                           {position.indicators.map(indicator => (
-                            <div key={indicator.id} className="indicator-row">
+                            <div key={indicator.id} className={`indicator-row ${indicator.default_weight === 0 ? 'indicator-row--inactive' : ''}`}>
                               <div className="indicator-info">
                                 <span className="indicator-title">{indicator.title}</span>
                                 <span className="indicator-meta">
@@ -430,7 +433,9 @@ export default function AdminCargos() {
                                   {indicator.auto_calculate === false ? 'Manual' : 'Auto'}
                                 </span>
                               </div>
-                              <span className="indicator-weight-chip">{indicator.default_weight}%</span>
+                              <span className={`indicator-weight-chip ${indicator.default_weight === 0 ? 'indicator-weight-chip--inactive' : ''}`}>
+                                {indicator.default_weight === 0 ? 'Desativado' : `${indicator.default_weight}%`}
+                              </span>
                               <div className="indicator-actions">
                                 <button
                                   className="btn-ghost"
@@ -504,8 +509,8 @@ export default function AdminCargos() {
 
       {/* Modal: Novo/Editar Cargo */}
       {showPositionForm && (
-        <div className="modal-overlay" onClick={() => setShowPositionForm(false)}>
-          <div className="modal-content glass-card" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content glass-card">
             <div className="modal-header">
               <div>
                 <h2>{editingPosition ? 'Editar Cargo' : 'Criar Cargo'}</h2>

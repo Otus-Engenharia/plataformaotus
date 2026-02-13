@@ -4010,6 +4010,20 @@
   flex-shrink: 0;
 }
 
+/* Deactivated indicator (peso = 0) */
+.admin-cargos .indicator-row--inactive {
+  opacity: 0.55;
+}
+
+.admin-cargos .indicator-row--inactive:hover {
+  opacity: 0.75;
+}
+
+.admin-cargos .indicator-weight-chip--inactive {
+  background: rgba(115, 115, 115, 0.1);
+  color: #737373;
+}
+
 /* ---- Weight Progress Bar ---- */
 
 .admin-cargos .weight-progress-container {

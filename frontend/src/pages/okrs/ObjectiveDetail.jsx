@@ -337,8 +337,8 @@ function CreateKeyResultDialog({ open, onClose, onSuccess, objectiveId, currentT
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--lg" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--lg">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">Novo Key Result</h2>
           <button className="okr-modal__close" onClick={onClose}>
@@ -584,8 +584,8 @@ function ActionPlanDialog({ open, onClose, onSuccess, initiativeId, plan, setorI
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--md" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--md">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">{isEditing ? 'Editar' : 'Novo'} Plano de Ação</h2>
             <button className="okr-modal__close" onClick={onClose}>
@@ -736,8 +736,8 @@ function CreateInitiativeDialog({ open, onClose, onSuccess, objectiveId, setorId
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--md" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--md">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">Nova Iniciativa</h2>
           <button className="okr-modal__close" onClick={onClose}>
@@ -881,8 +881,8 @@ function EditInitiativeDialog({ open, onClose, onSuccess, initiative, setorId })
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--md" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--md">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">Editar Iniciativa</h2>
             <button className="okr-modal__close" onClick={onClose}>
@@ -1043,8 +1043,8 @@ function EditObjectiveDialog({ open, onClose, onSuccess, objective }) {
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">Editar Objetivo</h2>
             <button className="okr-modal__close" onClick={onClose}>
@@ -1166,8 +1166,8 @@ function DeleteConfirmDialog({ open, onClose, onConfirm, title, message, isDelet
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--sm" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--sm">
           <div className="okr-modal__header">
             <div className="okr-modal__icon okr-modal__icon--danger">
               <svg viewBox="0 0 24 24" width="24" height="24">

@@ -830,10 +830,9 @@ function OperacaoView() {
 
       {/* Modal: Editar Vistas do Usuario */}
       {showViewsModal && (
-        <div className="modal-overlay" onClick={handleCloseViewsModal}>
+        <div className="modal-overlay">
           <div
             className="modal-content views-editor-modal"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
               <h3>Editar Permissoes</h3>
@@ -872,8 +871,8 @@ function OperacaoView() {
 
       {/* Modal: Editar Dados do Usuario */}
       {showEditUserModal && editingUser && (
-        <div className="modal-overlay" onClick={() => setShowEditUserModal(false)}>
-          <div className="modal-content user-edit-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content user-edit-modal">
             <div className="modal-header">
               <div className="modal-user-info">
                 <div className="user-avatar modal-avatar">{getInitials(editingUser.name)}</div>
@@ -984,8 +983,8 @@ function OperacaoView() {
 
       {/* Modal: Criar Novo Usuario */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={handleCloseCreateModal}>
-          <div className="modal-content user-create-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content user-create-modal">
             <div className="modal-header">
               <h3>Adicionar Colaborador</h3>
               <p className="modal-subtitle">Preencha os dados do novo colaborador</p>

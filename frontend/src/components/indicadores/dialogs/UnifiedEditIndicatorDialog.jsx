@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { distributeAccumulatedTarget } from '../../../utils/indicator-utils';
 import './Dialogs.css';
 
 const METRIC_TYPES = [
   { value: 'number', label: 'Número' },
+  { value: 'integer', label: 'Número Inteiro' },
   { value: 'percentage', label: 'Percentual' },
   { value: 'currency', label: 'Moeda (R$)' },
   { value: 'boolean', label: 'Sim/Não' }
@@ -16,21 +17,22 @@ const CONSOLIDATION_TYPES = [
   { value: 'manual', label: 'Manual' }
 ];
 
-const PERIODICITY_OPTIONS = [
-  { value: 'trimestral', label: 'Trimestral' },
-  { value: 'semestral', label: 'Semestral' },
-  { value: 'anual', label: 'Anual' }
-];
-
-// Sempre Q1-Q4 na grade de meses
 const QUARTER_GROUPS = [
-  { label: 'Q1', months: [1, 2, 3] },
-  { label: 'Q2', months: [4, 5, 6] },
-  { label: 'Q3', months: [7, 8, 9] },
-  { label: 'Q4', months: [10, 11, 12] },
+  { key: 'q1', label: 'Q1', months: [1, 2, 3] },
+  { key: 'q2', label: 'Q2', months: [4, 5, 6] },
+  { key: 'q3', label: 'Q3', months: [7, 8, 9] },
+  { key: 'q4', label: 'Q4', months: [10, 11, 12] },
 ];
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function isMonthActive(month, activeQuarters, mesInicio = 1) {
+  if (month < mesInicio) return false;
+  if (month <= 3) return !!activeQuarters.q1;
+  if (month <= 6) return !!activeQuarters.q2;
+  if (month <= 9) return !!activeQuarters.q3;
+  return !!activeQuarters.q4;
+}
 
 export default function UnifiedEditIndicatorDialog({
   indicador,
@@ -64,11 +66,16 @@ export default function UnifiedEditIndicatorDialog({
       ? (indicador?.default_weight ?? 1)
       : (indicador?.peso ?? 1),
     is_inverse: indicador?.is_inverse || false,
-    auto_calculate: indicador?.auto_calculate !== false
+    auto_calculate: indicador?.auto_calculate !== false,
+    mes_inicio: indicador?.mes_inicio || 1
   });
 
   const [showMetasPanel, setShowMetasPanel] = useState(false);
-  const [periodicity, setPeriodicity] = useState('trimestral');
+  const [activeQuarters, setActiveQuarters] = useState(() => {
+    const existing = indicador?.active_quarters;
+    if (existing && typeof existing === 'object') return { ...existing };
+    return { q1: true, q2: true, q3: true, q4: true };
+  });
   const [monthlyTargets, setMonthlyTargets] = useState(() => {
     const existing = indicador?.monthly_targets || {};
     const initial = {};
@@ -79,8 +86,35 @@ export default function UnifiedEditIndicatorDialog({
   });
   const [loading, setLoading] = useState(false);
 
+  // Auto-distribuir metas quando Acúmulo Automático está ligado
+  useEffect(() => {
+    if (!formData.auto_calculate) return;
+    if (formData.consolidation_type === 'manual') return;
+
+    const target = parseFloat(formData.target);
+    if (isNaN(target)) return;
+
+    const mInicio = parseInt(formData.mes_inicio) || 1;
+    const distributed = distributeAccumulatedTarget(
+      target, formData.consolidation_type, activeQuarters, mInicio, formData.metric_type
+    );
+    setMonthlyTargets(prev => {
+      const updated = { ...prev };
+      Object.entries(distributed).forEach(([month, value]) => {
+        updated[month] = value;
+      });
+      return updated;
+    });
+  }, [formData.auto_calculate, formData.target, formData.consolidation_type, formData.mes_inicio, formData.metric_type, activeQuarters]);
+
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'consolidation_type' && (value === 'last_value' || value === 'manual')) {
+        next.auto_calculate = false;
+      }
+      return next;
+    });
   };
 
   const handleTargetChange = (month, value) => {
@@ -88,6 +122,24 @@ export default function UnifiedEditIndicatorDialog({
       ...prev,
       [month]: value === '' ? '' : value
     }));
+  };
+
+  const handleQuarterToggle = (quarterKey) => {
+    setActiveQuarters(prev => {
+      const next = { ...prev, [quarterKey]: !prev[quarterKey] };
+      // Zero out months of deactivated quarter
+      if (!next[quarterKey]) {
+        const group = QUARTER_GROUPS.find(g => g.key === quarterKey);
+        if (group) {
+          setMonthlyTargets(prevTargets => {
+            const updated = { ...prevTargets };
+            group.months.forEach(m => { updated[m] = 0; });
+            return updated;
+          });
+        }
+      }
+      return next;
+    });
   };
 
   const handleDistribute = () => {
@@ -98,11 +150,11 @@ export default function UnifiedEditIndicatorDialog({
 
     const accumulated = parseFloat(formData.target);
     if (!accumulated && accumulated !== 0) {
-      alert('Defina a Meta 100% Acumulada antes de distribuir.');
+      alert('Defina a Meta 100% Anual antes de distribuir.');
       return;
     }
 
-    const distributed = distributeAccumulatedTarget(accumulated, formData.consolidation_type, periodicity);
+    const distributed = distributeAccumulatedTarget(accumulated, formData.consolidation_type, activeQuarters, mesInicio, formData.metric_type);
     setMonthlyTargets(prev => {
       const updated = { ...prev };
       Object.entries(distributed).forEach(([month, value]) => {
@@ -113,15 +165,118 @@ export default function UnifiedEditIndicatorDialog({
   };
 
   const applyFirstToAll = () => {
-    const firstValue = monthlyTargets[1];
+    // Encontrar o primeiro mês ativo
+    let firstActiveMonth = null;
+    for (let i = 1; i <= 12; i++) {
+      if (isMonthActive(i, activeQuarters, mesInicio)) {
+        firstActiveMonth = i;
+        break;
+      }
+    }
+    if (!firstActiveMonth) return;
+    const firstValue = monthlyTargets[firstActiveMonth];
     if (firstValue !== '' && firstValue !== null && firstValue !== undefined) {
       const newTargets = { ...monthlyTargets };
       for (let i = 1; i <= 12; i++) {
-        newTargets[i] = firstValue;
+        if (isMonthActive(i, activeQuarters, mesInicio)) {
+          newTargets[i] = firstValue;
+        }
       }
       setMonthlyTargets(newTargets);
     }
   };
+
+  // Ratios for rule-of-three calculation
+  const ratio80 = useMemo(() => {
+    const t = parseFloat(formData.target);
+    const t80 = parseFloat(formData.threshold_80);
+    if (!t || t === 0) return 0;
+    return t80 / t;
+  }, [formData.target, formData.threshold_80]);
+
+  const ratio120 = useMemo(() => {
+    const t = parseFloat(formData.target);
+    const t120 = parseFloat(formData.threshold_120);
+    if (!t || t === 0) return 0;
+    return t120 / t;
+  }, [formData.target, formData.threshold_120]);
+
+  // Auto-detect indicador inverso pela relação entre thresholds
+  const isInverse = useMemo(() => {
+    const t80 = parseFloat(formData.threshold_80);
+    const t120 = parseFloat(formData.threshold_120);
+    if (isNaN(t80) || isNaN(t120) || t80 === t120) return formData.is_inverse;
+    return t80 > t120; // Mínima > Superação = inverso
+  }, [formData.threshold_80, formData.threshold_120, formData.is_inverse]);
+
+  const mesInicio = parseInt(formData.mes_inicio) || 1;
+
+  // Arredondamento: Math.floor para inteiro, 2 casas decimais para o resto
+  const roundByMetric = (val) =>
+    formData.metric_type === 'integer' ? Math.floor(val) : Math.round(val * 100) / 100;
+
+  // Accumulated values computed from monthly targets + consolidation type
+  const accumulatedValues = useMemo(() => {
+    const result = {};
+    const consolidation = formData.consolidation_type;
+    let runningSum = 0;
+    let activeCount = 0;
+
+    for (let m = 1; m <= 12; m++) {
+      const val = parseFloat(monthlyTargets[m]) || 0;
+      const active = isMonthActive(m, activeQuarters, mesInicio);
+
+      if (!active) {
+        result[m] = { value: null, meta80: null, meta120: null };
+        continue;
+      }
+
+      if (consolidation === 'sum') {
+        runningSum += val;
+        result[m] = {
+          value: roundByMetric(runningSum),
+          meta80: roundByMetric(runningSum * ratio80),
+          meta120: roundByMetric(runningSum * ratio120),
+        };
+      } else if (consolidation === 'average') {
+        runningSum += val;
+        activeCount++;
+        const avg = activeCount > 0 ? runningSum / activeCount : 0;
+        result[m] = {
+          value: roundByMetric(avg),
+          meta80: roundByMetric(avg * ratio80),
+          meta120: roundByMetric(avg * ratio120),
+        };
+      } else {
+        // last_value or manual: accumulated = current month's value
+        result[m] = {
+          value: roundByMetric(val),
+          meta80: roundByMetric(val * ratio80),
+          meta120: roundByMetric(val * ratio120),
+        };
+      }
+    }
+    return result;
+  }, [monthlyTargets, activeQuarters, formData.consolidation_type, formData.metric_type, ratio80, ratio120, mesInicio]);
+
+  // Validação: acumulado do último mês ativo deve bater com meta anual
+  const accMismatch = useMemo(() => {
+    const target = parseFloat(formData.target);
+    if (!target) return null;
+    let lastActiveMonth = null;
+    for (let m = 12; m >= 1; m--) {
+      if (isMonthActive(m, activeQuarters, mesInicio) && accumulatedValues[m]?.value !== null) {
+        lastActiveMonth = m;
+        break;
+      }
+    }
+    if (!lastActiveMonth) return null;
+    const accValue = accumulatedValues[lastActiveMonth].value;
+    if (accValue === 0 && Object.values(monthlyTargets).every(v => v === '' || v === 0)) return null;
+    const diff = Math.abs(accValue - target);
+    if (diff < 0.01) return null;
+    return { lastMonth: lastActiveMonth, accValue, target, diff };
+  }, [accumulatedValues, formData.target, activeQuarters, mesInicio, monthlyTargets]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -155,10 +310,12 @@ export default function UnifiedEditIndicatorDialog({
           default_target: parseFloat(formData.target),
           default_threshold_80: formData.threshold_80 ? parseFloat(formData.threshold_80) : null,
           default_threshold_120: formData.threshold_120 ? parseFloat(formData.threshold_120) : null,
-          default_weight: formData.weight ? parseInt(formData.weight, 10) : 1,
-          is_inverse: formData.is_inverse,
+          default_weight: formData.weight !== '' ? parseInt(formData.weight, 10) : 1,
+          is_inverse: isInverse,
           auto_calculate: formData.auto_calculate,
-          monthly_targets: cleanTargets
+          monthly_targets: cleanTargets,
+          active_quarters: activeQuarters,
+          mes_inicio: parseInt(formData.mes_inicio) || 1,
         });
       } else {
         await onSubmit({
@@ -169,10 +326,12 @@ export default function UnifiedEditIndicatorDialog({
           meta: parseFloat(formData.target),
           threshold_80: formData.threshold_80 ? parseFloat(formData.threshold_80) : null,
           threshold_120: formData.threshold_120 ? parseFloat(formData.threshold_120) : null,
-          peso: formData.weight ? parseInt(formData.weight, 10) : 1,
-          is_inverse: formData.is_inverse,
+          peso: formData.weight !== '' ? parseInt(formData.weight, 10) : 1,
+          is_inverse: isInverse,
           auto_calculate: formData.auto_calculate,
-          monthly_targets: cleanTargets
+          monthly_targets: cleanTargets,
+          active_quarters: activeQuarters,
+          mes_inicio: parseInt(formData.mes_inicio) || 1,
         });
       }
     } catch (err) {
@@ -183,20 +342,18 @@ export default function UnifiedEditIndicatorDialog({
   };
 
   const unit = formData.metric_type === 'percentage' ? '%' : '';
-  const periodicityLabel = PERIODICITY_OPTIONS.find(p => p.value === periodicity)?.label || '';
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
+    <div className="dialog-overlay">
       <div
         className={`dialog-content dialog-expandable glass-card ${showMetasPanel ? 'expanded' : ''}`}
-        onClick={e => e.stopPropagation()}
       >
         <div className="dialog-header">
           <div>
             <h2>
               {isEditing ? 'Editar Indicador' : 'Novo Indicador Padrão'}
               {showMetasPanel && (
-                <span className="periodicity-badge">{periodicityLabel}</span>
+                <span className="periodicity-badge">ANUAL</span>
               )}
             </h2>
             <p className="dialog-subtitle">
@@ -267,35 +424,13 @@ export default function UnifiedEditIndicatorDialog({
                 </div>
               </div>
 
-              {/* Periodicidade */}
-              <div className="periodicity-selector">
-                <label className="periodicity-label">Periodicidade da Meta</label>
-                <div className="periodicity-buttons">
-                  {PERIODICITY_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className={`periodicity-btn ${periodicity === opt.value ? 'active' : ''}`}
-                      onClick={() => setPeriodicity(opt.value)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                <span className="form-hint">
-                  {periodicity === 'trimestral' && 'As metas acumuladas abaixo representam o total por trimestre'}
-                  {periodicity === 'semestral' && 'As metas acumuladas abaixo representam o total por semestre'}
-                  {periodicity === 'anual' && 'As metas acumuladas abaixo representam o total anual'}
-                </span>
-              </div>
-
               {/* Divider */}
               <hr className="form-divider" />
 
-              {/* Metas Acumuladas */}
+              {/* Metas Anuais */}
               <div className="form-row form-row--triple">
                 <div className="form-group">
-                  <label htmlFor="u-t80">Meta Mínima Acumulada</label>
+                  <label htmlFor="u-t80">Meta Mínima Anual</label>
                   <input
                     id="u-t80"
                     type="number"
@@ -308,7 +443,7 @@ export default function UnifiedEditIndicatorDialog({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="u-target">Meta 100% Acumulada</label>
+                  <label htmlFor="u-target">Meta 100% Anual</label>
                   <input
                     id="u-target"
                     type="number"
@@ -322,7 +457,7 @@ export default function UnifiedEditIndicatorDialog({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="u-t120">Meta Superação Acumulada</label>
+                  <label htmlFor="u-t120">Meta Superação Anual</label>
                   <input
                     id="u-t120"
                     type="number"
@@ -335,11 +470,21 @@ export default function UnifiedEditIndicatorDialog({
                 </div>
               </div>
 
+              {/* Mismatch warning - só no modo manual */}
+              {!formData.auto_calculate && accMismatch && showMetasPanel && (
+                <div className="acc-mismatch-warning">
+                  <span>Acumulado {MONTH_NAMES_SHORT[accMismatch.lastMonth - 1]} = {accMismatch.accValue}, Meta Anual = {accMismatch.target}</span>
+                  <button type="button" className="btn-fix-distribution" onClick={handleDistribute}>
+                    Corrigir
+                  </button>
+                </div>
+              )}
+
               {/* Divider */}
               <hr className="form-divider" />
 
-              {/* Valor Inicial + Peso */}
-              <div className="form-row">
+              {/* Valor Inicial + Mês de Início + Peso */}
+              <div className="form-row form-row--triple">
                 <div className="form-group">
                   <label htmlFor="u-initial">Valor Inicial</label>
                   <input
@@ -351,11 +496,23 @@ export default function UnifiedEditIndicatorDialog({
                   />
                 </div>
                 <div className="form-group">
+                  <label htmlFor="u-mes-inicio">Mês de Início</label>
+                  <select
+                    id="u-mes-inicio"
+                    value={formData.mes_inicio}
+                    onChange={(e) => handleChange('mes_inicio', e.target.value)}
+                  >
+                    {MONTH_NAMES_SHORT.map((name, i) => (
+                      <option key={i + 1} value={i + 1}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
                   <label htmlFor="u-peso">Peso</label>
                   <input
                     id="u-peso"
                     type="number"
-                    min="1"
+                    min="0"
                     max="100"
                     value={formData.weight}
                     onChange={(e) => handleChange('weight', e.target.value)}
@@ -363,23 +520,23 @@ export default function UnifiedEditIndicatorDialog({
                   />
                 </div>
               </div>
-              <label className={`inverse-toggle ${formData.is_inverse ? 'active' : ''}`}>
+              <label className={`inverse-toggle readonly ${isInverse ? 'active' : ''}`}>
                 <input
                   type="checkbox"
-                  checked={formData.is_inverse}
-                  onChange={(e) => handleChange('is_inverse', e.target.checked)}
+                  checked={isInverse}
+                  disabled
                 />
                 <div className="inverse-toggle-indicator">
                   <svg viewBox="0 0 24 24" width="14" height="14">
-                    <path fill="currentColor" d={formData.is_inverse
+                    <path fill="currentColor" d={isInverse
                       ? 'M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z'
                       : 'M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z'
                     } />
                   </svg>
                 </div>
                 <div className="inverse-toggle-text">
-                  <strong>{formData.is_inverse ? 'Indicador Inverso' : 'Indicador Normal'}</strong>
-                  <span>{formData.is_inverse
+                  <strong>{isInverse ? 'Indicador Inverso' : 'Indicador Normal'}</strong>
+                  <span>{isInverse
                     ? 'Quanto menor o valor, melhor o resultado (ex: turnover, bugs, acidentes)'
                     : 'Quanto maior o valor, melhor o resultado (ex: receita, NPS, entregas)'
                   }</span>
@@ -435,7 +592,7 @@ export default function UnifiedEditIndicatorDialog({
               </div>
             </div>
 
-            {/* ---- PAINEL LATERAL: Metas Mensais (sempre Q1-Q4) ---- */}
+            {/* ---- PAINEL LATERAL: Metas Mensais ---- */}
             {showMetasPanel && (
               <div className="dialog-side-panel visible">
                 <h3 className="side-panel-title">Metas Mensais</h3>
@@ -443,56 +600,125 @@ export default function UnifiedEditIndicatorDialog({
                   Defina a meta esperada para cada mês. As metas serão copiadas ao atribuir o indicador.
                 </p>
 
-                {/* Botões de ação */}
-                <div className="side-panel-actions">
-                  <button
-                    type="button"
-                    className="btn-distribute"
-                    onClick={handleDistribute}
-                    title={`Distribui a Meta 100% Acumulada (${periodicityLabel}) nos meses com base no Método de Acúmulo`}
-                  >
-                    <svg viewBox="0 0 24 24" width="14" height="14">
-                      <path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14h-2V9h-2l3-4 3 4h-2v8z"/>
-                    </svg>
-                    Distribuir Automático
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-apply-all-small"
-                    onClick={applyFirstToAll}
-                    title="Copiar o primeiro valor para todos os meses"
-                  >
-                    <svg viewBox="0 0 24 24" width="12" height="12">
-                      <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                    </svg>
-                    1º → todos
-                  </button>
+                {/* Header com 80% / 100% / 120% */}
+                <div className="accumulated-header-row">
+                  <span className="acc-header acc-header--80">80%</span>
+                  <span className="acc-header acc-header--100">100%</span>
+                  <span className="acc-header acc-header--120">120%</span>
                 </div>
 
-                {/* Grade Mensal - SEMPRE Q1-Q4 */}
+                {/* Grade Mensal no formato tabela (igual ao Acumulado) */}
                 <div className="monthly-groups">
-                  {QUARTER_GROUPS.map(group => (
-                    <div key={group.label} className="period-group">
-                      <span className="period-group-label">{group.label}</span>
-                      <div className="period-group-inputs">
-                        {group.months.map(m => (
-                          <div key={m} className="period-month-input">
-                            <label>{MONTH_NAMES_SHORT[m - 1]}</label>
-                            <div className="input-with-unit">
-                              <input
-                                type="number"
-                                step="any"
-                                value={monthlyTargets[m] ?? ''}
-                                onChange={(e) => handleTargetChange(m, e.target.value)}
-                                placeholder="0"
-                              />
-                              {unit && <span className="input-unit">{unit}</span>}
-                            </div>
+                  {QUARTER_GROUPS.map(group => {
+                    const quarterActive = activeQuarters[group.key];
+                    return (
+                      <div key={group.label} className={`period-group period-group--with-toggle ${!quarterActive ? 'period-group--disabled' : ''}`}>
+                        <label className="quarter-side-toggle">
+                          <input
+                            type="checkbox"
+                            checked={!!quarterActive}
+                            onChange={() => handleQuarterToggle(group.key)}
+                          />
+                          <span className="quarter-inline-slider" />
+                        </label>
+                        <div className="period-group-content">
+                          <div className="period-group-header">
+                            <span className="period-group-label">{group.label}</span>
                           </div>
-                        ))}
+                          <div className="accumulated-months">
+                            {group.months.map(m => {
+                              const monthActive = isMonthActive(m, activeQuarters, mesInicio);
+                              const val = parseFloat(monthlyTargets[m]) || 0;
+                              const m80 = val ? roundByMetric(val * ratio80) : 0;
+                              const m120 = val ? roundByMetric(val * ratio120) : 0;
+                              if (!monthActive) {
+                                return (
+                                  <div key={m} className="accumulated-month-row accumulated-month-row--disabled">
+                                    <span className="acc-month-label">{MONTH_NAMES_SHORT[m - 1]}</span>
+                                    <span className="acc-value acc-value--disabled">—</span>
+                                    <span className="acc-value acc-value--disabled">—</span>
+                                    <span className="acc-value acc-value--disabled">—</span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={m} className="accumulated-month-row">
+                                  <span className="acc-month-label">{MONTH_NAMES_SHORT[m - 1]}</span>
+                                  <span className="acc-value acc-value--80">{val > 0 ? m80 : '—'}</span>
+                                  <div className="acc-input-cell">
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      value={monthlyTargets[m] ?? ''}
+                                      onChange={(e) => handleTargetChange(m, e.target.value)}
+                                      placeholder="0"
+                                      readOnly={formData.auto_calculate}
+                                      className={`acc-input ${formData.auto_calculate ? 'acc-input--readonly' : ''}`}
+                                    />
+                                  </div>
+                                  <span className="acc-value acc-value--120">{val > 0 ? m120 : '—'}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ---- PAINEL ACUMULADO ---- */}
+            {showMetasPanel && (
+              <div className="dialog-accumulated-panel visible">
+                <h3 className="side-panel-title">Acumulado</h3>
+                <p className="side-panel-subtitle">
+                  Valores acumulados mês a mês ({CONSOLIDATION_TYPES.find(c => c.value === formData.consolidation_type)?.label || 'Soma'})
+                </p>
+
+                <div className="accumulated-header-row">
+                  <span className="acc-header acc-header--80">80%</span>
+                  <span className="acc-header acc-header--100">100%</span>
+                  <span className="acc-header acc-header--120">120%</span>
+                </div>
+
+                <div className="monthly-groups">
+                  {QUARTER_GROUPS.map(group => {
+                    const quarterActive = activeQuarters[group.key];
+                    return (
+                      <div key={group.label} className={`period-group ${!quarterActive ? 'period-group--disabled' : ''}`}>
+                        <div className="period-group-header">
+                          <span className="period-group-label">{group.label}</span>
+                        </div>
+                        <div className="accumulated-months">
+                          {group.months.map(m => {
+                            const monthActive = isMonthActive(m, activeQuarters, mesInicio);
+                            const acc = accumulatedValues[m];
+                            if (!monthActive || !acc || acc.value === null) {
+                              return (
+                                <div key={m} className="accumulated-month-row accumulated-month-row--disabled">
+                                  <span className="acc-month-label">{MONTH_NAMES_SHORT[m - 1]}</span>
+                                  <span className="acc-value acc-value--disabled">—</span>
+                                  <span className="acc-value acc-value--disabled">—</span>
+                                  <span className="acc-value acc-value--disabled">—</span>
+                                </div>
+                              );
+                            }
+                            const isLastMonth = accMismatch && m === accMismatch.lastMonth;
+                            return (
+                              <div key={m} className={`accumulated-month-row ${isLastMonth ? 'accumulated-month-row--warning' : ''}`}>
+                                <span className="acc-month-label">{MONTH_NAMES_SHORT[m - 1]}</span>
+                                <span className="acc-value acc-value--80">{acc.meta80}</span>
+                                <span className="acc-value acc-value--100">{acc.value}</span>
+                                <span className="acc-value acc-value--120">{acc.meta120}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

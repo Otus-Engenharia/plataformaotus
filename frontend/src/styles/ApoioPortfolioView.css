@@ -4,29 +4,274 @@
  */
 @import './ApoioProjetosView.css';
 
-/* Title */
+/* ── Title ── */
 .apoio-portfolio-title {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: #1a1a1a;
   margin: 0;
   font-family: 'Inter', Verdana, sans-serif;
+  letter-spacing: -0.5px;
 }
 
-/* Contagem de projetos filtrados */
-.apoio-portfolio-count {
-  font-size: 0.8rem;
-  color: #6b7280;
-  margin-bottom: 1rem;
+/* ── KPI Grid ── */
+.apoio-kpi-grid {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.apoio-kpi-card {
+  flex: 1;
+  min-width: 100px;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apoio-kpi-card--green {
+  border-left: 3px solid #22c55e;
+}
+
+.apoio-kpi-card--amber {
+  border-left: 3px solid #f59e0b;
+}
+
+.apoio-kpi-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.apoio-kpi-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
   font-family: 'Inter', Verdana, sans-serif;
 }
 
-/* Celulas especificas da tabela portfolio */
+/* Hero card - Indicador principal */
+.apoio-kpi-hero {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border: none;
+}
+
+.apoio-kpi-hero .apoio-kpi-value {
+  color: #ffcc00;
+  font-size: 2rem;
+}
+
+.apoio-kpi-hero .apoio-kpi-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Search Bar ── */
+.apoio-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  color: #9ca3af;
+  transition: border-color 0.2s;
+}
+
+.apoio-search-bar:focus-within {
+  border-color: #ffcc00;
+  box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.1);
+}
+
+.apoio-search-bar .apoio-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  padding: 0;
+  min-width: 0;
+}
+
+.apoio-search-bar .apoio-search-input::placeholder {
+  color: #c0c0c0;
+}
+
+/* ── Toggle Section ── */
+.apoio-toggle-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.apoio-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.apoio-toggle-row-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  min-width: 48px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* Fase toggle buttons */
+.apoio-fase-btn {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e5e7eb;
+  background: white;
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', Verdana, sans-serif;
+  transition: all 0.15s ease;
+}
+
+.apoio-fase-btn:hover {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+}
+
+.apoio-fase-btn.active {
+  background: color-mix(in srgb, var(--fase-color, #3b82f6) 12%, white);
+  border-color: var(--fase-color, #3b82f6);
+  color: var(--fase-color, #3b82f6);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--fase-color, #3b82f6) 12%, transparent);
+}
+
+.apoio-fase-btn.active:hover {
+  background: color-mix(in srgb, var(--fase-color, #3b82f6) 20%, white);
+}
+
+/* Visibility toggle buttons */
+.apoio-toggle-btn {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e5e7eb;
+  background: white;
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', Verdana, sans-serif;
+  transition: all 0.15s ease;
+}
+
+.apoio-toggle-btn:hover {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+}
+
+.apoio-toggle-btn.active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.apoio-toggle-btn.active:hover {
+  background: #fde68a;
+}
+
+/* Clear button */
+.apoio-toggle-clear {
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px dashed #d1d5db;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Inter', Verdana, sans-serif;
+  transition: all 0.15s ease;
+}
+
+.apoio-toggle-clear:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+/* ── Filters bar ── */
+.apoio-portfolio-count {
+  margin-left: auto;
+  padding: 4px 14px;
+  background: #f3f4f6;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: #6b7280;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.apoio-portfolio-count strong {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* ── Table ── */
+.apoio-table thead {
+  background: #1a1a1a;
+  border-bottom: 3px solid #ffcc00;
+}
+
+.apoio-table th {
+  color: #ffffff;
+  background: #1a1a1a;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.apoio-table tbody tr {
+  border-left: 3px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.apoio-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.apoio-table tbody tr:hover {
+  border-left-color: #ffcc00;
+  background: #fffef5;
+}
+
+/* Celulas especificas */
 .apoio-portfolio-code {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.8rem;
-  color: #374151;
-  font-weight: 600;
+  font-size: 0.78rem;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .apoio-portfolio-name {
@@ -91,8 +336,163 @@
   box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.2);
 }
 
-/* Summary card com indicador principal */
+/* ── IFC Column ── */
+.apoio-ifc-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.apoio-ifc-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.apoio-ifc-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  color: #22c55e;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+
+.apoio-ifc-link:hover {
+  background: #dcfce7;
+  border-color: #22c55e;
+  transform: scale(1.05);
+}
+
+.apoio-ifc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+  color: #9ca3af;
+}
+
+.apoio-ifc-btn:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.apoio-ifc-btn--add {
+  width: 28px;
+  height: 28px;
+  border-style: dashed;
+  color: #9ca3af;
+}
+
+.apoio-ifc-btn--add:hover {
+  border-color: #ffcc00;
+  color: #ffcc00;
+  background: #fffef5;
+}
+
+.apoio-ifc-btn--edit {
+  color: #6b7280;
+}
+
+.apoio-ifc-btn--edit:hover {
+  color: #3b82f6;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.apoio-ifc-btn--remove {
+  color: #d1d5db;
+}
+
+.apoio-ifc-btn--remove:hover {
+  color: #ef4444;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.apoio-ifc-btn--save {
+  color: #22c55e;
+  border-color: #bbf7d0;
+}
+
+.apoio-ifc-btn--save:hover {
+  background: #f0fdf4;
+}
+
+.apoio-ifc-btn--cancel {
+  color: #9ca3af;
+}
+
+.apoio-ifc-btn--cancel:hover {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.apoio-ifc-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.apoio-ifc-input {
+  width: 100%;
+  min-width: 120px;
+  padding: 4px 8px;
+  border: 1.5px solid #ffcc00;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  outline: none;
+  background: #fffef5;
+}
+
+.apoio-ifc-input:focus {
+  box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.2);
+}
+
+.apoio-ifc-empty {
+  color: #d1d5db;
+  font-size: 0.8rem;
+}
+
+/* Summary card legacy override */
 .apoio-summary .apoio-summary-card-highlight {
   border-left: 4px solid #ffcc00;
   background: #fffef5;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .apoio-kpi-grid {
+    flex-wrap: wrap;
+  }
+
+  .apoio-kpi-card {
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 768px) {
+  .apoio-kpi-grid {
+    flex-direction: column;
+  }
+
+  .apoio-kpi-card {
+    min-width: unset;
+  }
+
+  .apoio-toggle-section {
+    gap: 12px;
+  }
 }

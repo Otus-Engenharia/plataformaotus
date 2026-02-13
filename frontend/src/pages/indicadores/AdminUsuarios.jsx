@@ -571,8 +571,8 @@ export default function AdminUsuarios() {
 
       {/* Edit Modal */}
       {showEditModal && editingUser && (
-        <div className="modal-overlay-v2" onClick={() => setShowEditModal(false)}>
-          <div className="modal-card glass-card" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay-v2">
+          <div className="modal-card glass-card">
             <button type="button" className="modal-close-btn" onClick={() => setShowEditModal(false)}>
               <svg viewBox="0 0 24 24" width="20" height="20">
                 <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>

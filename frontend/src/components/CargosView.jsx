@@ -353,8 +353,8 @@ function CargosView() {
 
       {/* Modal de Edição */}
       {editModalOpen && selectedPosition && (
-        <div className="modal-overlay" onClick={() => setEditModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="modal-header">
               <h3>Editar Vistas - {selectedPosition.name}</h3>
               <button className="modal-close" onClick={() => setEditModalOpen(false)}>

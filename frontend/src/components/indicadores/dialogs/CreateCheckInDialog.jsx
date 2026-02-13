@@ -74,8 +74,8 @@ export default function CreateCheckInDialog({
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog-content glass-card" onClick={e => e.stopPropagation()}>
+    <div className="dialog-overlay">
+      <div className="dialog-content glass-card">
         <div className="dialog-header">
           <div>
             <h2>{isEditing ? 'Editar Check-in' : 'Registrar Check-in'}</h2>

@@ -545,8 +545,8 @@ function EquipeView({ selectedProjectId, portfolio = [] }) {
 
       {/* Modal de adicionar/editar */}
       {showModal && (
-        <div className="equipe-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="equipe-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="equipe-modal-overlay">
+          <div className="equipe-modal">
             <div className="equipe-modal-header">
               <h3>{editingItem ? 'Editar Membro' : 'Adicionar Membro'}</h3>
               <button className="equipe-modal-close" onClick={() => setShowModal(false)}>

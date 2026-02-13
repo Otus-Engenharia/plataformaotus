@@ -189,8 +189,8 @@ function CreateObjectiveDialog({ open, onClose, onSuccess, sectors = [] }) {
   ];
 
   return (
-    <div className="okr-modal-overlay" onClick={onClose}>
-      <div className="okr-modal" onClick={e => e.stopPropagation()}>
+    <div className="okr-modal-overlay">
+      <div className="okr-modal">
         <div className="okr-modal__header">
           <h2 className="okr-modal__title">Novo Objetivo</h2>
           <button className="okr-modal__close" onClick={onClose}>

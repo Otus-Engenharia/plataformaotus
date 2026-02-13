@@ -250,8 +250,8 @@ function TaskModal({ task, projectId, users, onClose, onSave, onDelete }) {
   };
 
   return (
-    <div className="pv-modal-overlay" onClick={onClose}>
-      <div className="pv-modal pv-modal-lg" onClick={e => e.stopPropagation()}>
+    <div className="pv-modal-overlay">
+      <div className="pv-modal pv-modal-lg">
         <div className="pv-modal-header">
           <h2>{task ? 'Editar Tarefa' : 'Nova Tarefa'}</h2>
           <button className="pv-modal-close" onClick={onClose}>

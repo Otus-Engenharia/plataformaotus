@@ -110,8 +110,8 @@ export default function DemandaCreateDialog({ onClose, onSubmit }) {
     (!isModelagem || formData.tipo_servico);
 
   return (
-    <div className="dm-dialog-overlay" onClick={onClose}>
-      <div className="dm-dialog" onClick={e => e.stopPropagation()}>
+    <div className="dm-dialog-overlay">
+      <div className="dm-dialog">
         <div className="dm-dialog__header">
           <div className="dm-dialog__title-row">
             <svg className="dm-dialog__header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

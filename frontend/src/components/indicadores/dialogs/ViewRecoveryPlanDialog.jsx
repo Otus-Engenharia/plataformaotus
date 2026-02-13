@@ -125,8 +125,8 @@ export default function ViewRecoveryPlanDialog({
   const completedCount = actions.filter(a => a.concluida).length;
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog-content dialog-large glass-card" onClick={e => e.stopPropagation()}>
+    <div className="dialog-overlay">
+      <div className="dialog-content dialog-large glass-card">
         <div className="dialog-header">
           <div className="plan-header-info">
             <div className="plan-reference">

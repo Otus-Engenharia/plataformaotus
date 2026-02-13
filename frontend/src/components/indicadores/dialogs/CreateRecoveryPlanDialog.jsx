@@ -20,6 +20,8 @@ const MONTH_OPTIONS = [
 export default function CreateRecoveryPlanDialog({
   indicador,
   responsaveis = [],
+  initialMonth = null,
+  initialYear = null,
   onSubmit,
   onClose
 }) {
@@ -27,8 +29,8 @@ export default function CreateRecoveryPlanDialog({
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
 
-  const [mesReferencia, setMesReferencia] = useState(currentMonth);
-  const [anoReferencia, setAnoReferencia] = useState(currentYear);
+  const [mesReferencia, setMesReferencia] = useState(initialMonth || currentMonth);
+  const [anoReferencia, setAnoReferencia] = useState(initialYear || currentYear);
   const [descricao, setDescricao] = useState('');
   const [prazoFinal, setPrazoFinal] = useState('');
   const [actions, setActions] = useState([{
@@ -97,8 +99,8 @@ export default function CreateRecoveryPlanDialog({
   const yearOptions = [currentYear - 1, currentYear, currentYear + 1];
 
   return (
-    <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog-content dialog-large glass-card" onClick={e => e.stopPropagation()}>
+    <div className="dialog-overlay">
+      <div className="dialog-content dialog-large glass-card">
         <div className="dialog-header">
           <div>
             <h2>Criar Plano de Recuperação</h2>

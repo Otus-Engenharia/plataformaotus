@@ -16,7 +16,6 @@ import IndicadoresLiderancaView from './components/IndicadoresLiderancaView';
 import ProjetosView from './components/ProjetosView';
 import ConfiguracoesView from './components/ConfiguracoesView';
 import CSView from './components/CSView';
-import EstudoCustosView from './components/EstudoCustosView';
 import HorasView from './components/HorasView';
 import FormularioPassagemView from './components/FormularioPassagemView';
 // FeedbacksView removido - substituído por FeedbackKanbanView e FeedbackAdminView (lazy loaded)
@@ -122,11 +121,6 @@ const icons = {
   cs: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-    </svg>
-  ),
-  estudoCustos: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm0 2v16h10V4H7Zm2 2h6v2H9V6Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z" />
     </svg>
   ),
   contatos: (
@@ -374,15 +368,7 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.cs}</span>
         <span className="nav-text">CS</span>
       </Link>
-      <Link 
-        to="/estudo-de-custos" 
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/estudo-de-custos') ? 'nav-link-active' : ''}`}
-        title={linkTitle('Estudo de Custos')}
-      >
-        <span className="nav-icon">{icons.estudoCustos}</span>
-        <span className="nav-text">Estudo de Custos</span>
-      </Link>
-      <Link 
+      <Link
         to="/contatos" 
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/contatos') ? 'nav-link-active' : ''}`}
         title={linkTitle('Contatos')}
@@ -1001,7 +987,6 @@ function AppContent() {
     if (path.startsWith('/horas') ||
         path.startsWith('/projetos') ||
         path.startsWith('/cs') ||
-        path.startsWith('/estudo-de-custos') ||
         path.startsWith('/contatos') ||
         path.startsWith('/formulario-passagem') ||
         path.startsWith('/feedbacks') ||
@@ -1255,11 +1240,7 @@ function AppContent() {
             />
             <Route
               path="/estudo-de-custos"
-              element={
-                <ProtectedRoute>
-                  {canAccessProjetosArea ? <EstudoCustosView /> : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/cs" replace state={{ tab: 'estudo-custos' }} />}
             />
             <Route
               path="/contatos"

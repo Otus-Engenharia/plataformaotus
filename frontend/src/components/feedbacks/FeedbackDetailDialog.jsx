@@ -144,21 +144,9 @@ export default function FeedbackDetailDialog({
     }
   };
 
-  const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      if (hasChanges && isPrivileged) {
-        if (window.confirm('Você tem alterações não salvas. Deseja sair?')) {
-          onClose();
-        }
-      } else {
-        onClose();
-      }
-    }
-  };
-
   return (
-    <div className="dialog-overlay" onClick={handleOverlayClick}>
-      <div className="dialog-content dialog-large glass-card" onClick={e => e.stopPropagation()}>
+    <div className="dialog-overlay">
+      <div className="dialog-content dialog-large glass-card">
         {/* Header */}
         <div className="dialog-header">
           <div className="feedback-detail__header-info">

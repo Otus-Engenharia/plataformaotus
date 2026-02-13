@@ -211,8 +211,8 @@ export default function AdminSetores() {
 
       {/* Modal */}
       {showForm && (
-        <div className="modal-overlay" onClick={closeForm}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal">
             <div className="modal__header">
               <h2 className="modal__title">
                 {editingSector ? 'Editar Setor' : 'Novo Setor'}

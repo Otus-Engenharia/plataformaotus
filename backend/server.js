@@ -68,7 +68,7 @@ import {
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
   fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
   // Apoio de Projetos - Portfolio
-  fetchProjectFeaturesForPortfolio, updateControleApoio,
+  fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc,
   // Portfolio - Edicao inline
   fetchPortfolioEditOptions, updateProjectField
 } from './supabase.js';
@@ -918,7 +918,7 @@ app.get('/api/indicadores-vendas', requireAuth, async (req, res) => {
     const [portfolioData, custosData, projectsResult] = await Promise.all([
       queryPortfolio(leaderName),
       queryCustosAgregadosProjeto(),
-      supabase.from('projects').select('project_code, area_efetiva')
+      supabase.from('projects').select('project_code, area_efetiva, area_construida')
     ]);
 
     // Indexar custos por project_code
@@ -955,6 +955,7 @@ app.get('/api/indicadores-vendas', requireAuth, async (req, res) => {
           nome_time: p.nome_time,
           status: p.status,
           area_efetiva: proj.area_efetiva != null ? Number(proj.area_efetiva) : null,
+          area_total: proj.area_construida != null ? Number(proj.area_construida) : null,
           custo_total: custoTotal,
           meses_com_custo: mesesComCusto,
           custo_mensal: mesesComCusto > 0 ? Math.round((custoTotal / mesesComCusto) * 100) / 100 : 0,
@@ -1545,6 +1546,7 @@ app.get('/api/apoio-projetos/portfolio', requireAuth, async (req, res) => {
       ...row,
       plataforma_acd: featuresMap[row.project_code_norm]?.plataforma_acd || null,
       controle_apoio: featuresMap[row.project_code_norm]?.controle_apoio || null,
+      link_ifc: featuresMap[row.project_code_norm]?.link_ifc || null,
     }));
 
     res.json({
@@ -1590,6 +1592,35 @@ app.put('/api/apoio-projetos/portfolio/:projectCode/controle', requireAuth, asyn
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Erro ao atualizar controle_apoio:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/apoio-projetos/portfolio/:projectCode/link-ifc
+ * Atualiza o link da pasta de IFCs atualizados de um projeto
+ * Body: { link_ifc: "https://..." | null }
+ */
+app.put('/api/apoio-projetos/portfolio/:projectCode/link-ifc', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user.email)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode } = req.params;
+    const { link_ifc } = req.body;
+
+    if (link_ifc !== null && typeof link_ifc !== 'string') {
+      return res.status(400).json({ success: false, error: 'link_ifc deve ser uma URL ou null' });
+    }
+
+    const result = await updateLinkIfc(projectCode, link_ifc || null);
+
+    await logAction(req, 'update', 'apoio-portfolio', projectCode, 'Link IFC', { link_ifc });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar link_ifc:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -4625,7 +4656,19 @@ app.get('/api/ind/indicators/my', requireAuth, async (req, res) => {
     };
 
     const indicadores = await fetchIndicadoresIndividuais(filters);
-    res.json({ success: true, data: indicadores });
+
+    // Enriquecer com check-ins e recovery plans para o dashboard
+    const enriched = await Promise.all(
+      indicadores.map(async (ind) => {
+        const [checkIns, recoveryPlans] = await Promise.all([
+          fetchCheckIns(ind.id),
+          fetchRecoveryPlans(ind.id)
+        ]);
+        return { ...ind, check_ins: checkIns, recovery_plans: recoveryPlans };
+      })
+    );
+
+    res.json({ success: true, data: enriched });
   } catch (error) {
     console.error('❌ Erro ao buscar meus indicadores:', error);
     res.status(500).json({ success: false, error: error.message });

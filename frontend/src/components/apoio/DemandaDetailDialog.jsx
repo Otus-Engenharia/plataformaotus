@@ -200,20 +200,10 @@ export default function DemandaDetailDialog({
     await fetchDemanda();
   };
 
-  const handleOverlayClick = () => {
-    if (hasChanges || isEditing) {
-      if (window.confirm('Existem alteracoes nao salvas. Deseja sair?')) {
-        onClose();
-      }
-    } else {
-      onClose();
-    }
-  };
-
   if (loading) {
     return (
-      <div className="dmdetail-overlay" onClick={onClose}>
-        <div className="dmdetail" onClick={e => e.stopPropagation()}>
+      <div className="dmdetail-overlay">
+        <div className="dmdetail">
           <div className="dmdetail__loading">
             <div className="spinner"></div>
             <p>Carregando...</p>
@@ -225,8 +215,8 @@ export default function DemandaDetailDialog({
 
   if (error || !demanda) {
     return (
-      <div className="dmdetail-overlay" onClick={onClose}>
-        <div className="dmdetail" onClick={e => e.stopPropagation()}>
+      <div className="dmdetail-overlay">
+        <div className="dmdetail">
           <div className="dmdetail__error">
             <p>{error || 'Demanda nao encontrada'}</p>
             <button onClick={onClose}>Fechar</button>
@@ -242,8 +232,8 @@ export default function DemandaDetailDialog({
   const tipoConfig = demanda.tipo_servico ? TIPO_SERVICO_CONFIG[demanda.tipo_servico] : null;
 
   return (
-    <div className="dmdetail-overlay" onClick={handleOverlayClick}>
-      <div className="dmdetail" onClick={e => e.stopPropagation()}>
+    <div className="dmdetail-overlay">
+      <div className="dmdetail">
         {/* Header */}
         <div className="dmdetail__header">
           <div className="dmdetail__header-left">
@@ -291,7 +281,7 @@ export default function DemandaDetailDialog({
                 </svg>
               </button>
             )}
-            <button className="dmdetail__close" onClick={handleOverlayClick}>
+            <button className="dmdetail__close" onClick={onClose}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />

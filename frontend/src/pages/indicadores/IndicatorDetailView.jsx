@@ -5,7 +5,8 @@ import {
   calculateIndicatorScore,
   calculateAccumulatedProgress,
   formatValue,
-  getMonthsForCycle
+  getMonthsForCycle,
+  getCycleMonthRange
 } from '../../utils/indicator-utils';
 import ScoreZoneGauge from '../../components/indicadores/ScoreZoneGauge';
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
@@ -135,6 +136,67 @@ function EditableKpiValue({ value, onSave, canEdit, formatFn, placeholder = '—
   );
 }
 
+/**
+ * Barra de range visual com zonas coloridas e ponteiro.
+ * Mostra onde um valor cai dentro do range 80%/100%/120%.
+ */
+function MonthRangeBar({ score, min, target, max, value, metricType, hasValue, size = 'md' }) {
+  const getPosition = (s) => {
+    const clamped = Math.max(0, Math.min(s, 120));
+    if (clamped < 80) return (clamped / 80) * 25;
+    if (clamped < 100) return 25 + ((clamped - 80) / 20) * 25;
+    if (clamped < 120) return 50 + ((clamped - 100) / 20) * 25;
+    return 75;
+  };
+
+  const getZoneId = (s) => {
+    if (s >= 120) return 'superou';
+    if (s >= 100) return 'alvo';
+    if (s >= 80) return 'risco';
+    return 'zerado';
+  };
+
+  const pos = hasValue && score != null ? getPosition(score) : null;
+  const zoneId = hasValue && score != null ? getZoneId(score) : null;
+
+  return (
+    <div className={`range-bar range-bar--${size}`}>
+      <div className="range-bar__track">
+        <div className="range-bar__zone range-bar__zone--zerado" />
+        <div className="range-bar__zone range-bar__zone--risco" />
+        <div className="range-bar__zone range-bar__zone--alvo" />
+        <div className="range-bar__zone range-bar__zone--superou" />
+        {pos !== null && (
+          <div
+            className={`range-bar__needle range-bar__needle--${zoneId}`}
+            style={{ left: `${pos}%` }}
+          >
+            <div className="range-bar__needle-line" />
+            {size !== 'sm' && (
+              <span className="range-bar__needle-value">
+                {formatValue(value, metricType)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      {size !== 'sm' && (
+        <div className="range-bar__labels">
+          <span className="range-bar__label range-bar__label--min">
+            {formatValue(min, metricType)}
+          </span>
+          <span className="range-bar__label range-bar__label--target">
+            {formatValue(target, metricType)}
+          </span>
+          <span className="range-bar__label range-bar__label--max">
+            {formatValue(max, metricType)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function IndicatorDetailView() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -156,10 +218,24 @@ export default function IndicatorDetailView() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [selectedQuarter, setSelectedQuarter] = useState(null);
+  const [recoveryPlanContext, setRecoveryPlanContext] = useState(null);
 
   useEffect(() => {
     fetchIndicador();
   }, [id]);
+
+  // Inicializa o quarter selecionado quando o indicador carrega
+  useEffect(() => {
+    if (!indicador) return;
+    const ciclo = indicador.ciclo || 'anual';
+    const currentQ = `q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
+    if (ciclo === 'anual' || ciclo === 'trimestral') {
+      setSelectedQuarter(currentQ);
+    } else if (/^q[1-4]$/.test(ciclo)) {
+      setSelectedQuarter(ciclo);
+    }
+  }, [indicador?.ciclo, indicador?.id]);
 
   // Busca membros da equipe quando o indicador é carregado
   useEffect(() => {
@@ -222,7 +298,31 @@ export default function IndicatorDetailView() {
 
       setShowCheckInDialog(false);
       setSelectedMonth(null);
+      setSelectedCheckIn(null);
       await fetchIndicador();
+
+      // Calcular score do mês para verificar necessidade de plano de recuperação
+      const monthlyTargets = indicador.monthly_targets || {};
+      const target = parseFloat(monthlyTargets[checkInData.mes]) || parseFloat(indicador.meta) || 0;
+      if (target > 0) {
+        const min = target * ratio80;
+        const max = target * ratio120;
+        const monthScore = calculateIndicatorScore(
+          checkInData.valor,
+          min,
+          target,
+          max,
+          indicador.is_inverse
+        );
+
+        if (monthScore < 80) {
+          // OBRIGATÓRIO - Score ZERADO
+          setRecoveryPlanContext({ month: checkInData.mes, score: monthScore, isMandatory: true });
+        } else if (monthScore < 100) {
+          // SUGESTÃO - Score EM RISCO
+          setRecoveryPlanContext({ month: checkInData.mes, score: monthScore, isMandatory: false });
+        }
+      }
     } catch (error) {
       console.error('Erro ao criar check-in:', error);
       throw error;
@@ -395,19 +495,37 @@ export default function IndicatorDetailView() {
     }
   };
 
+  // Ratios derivados dos thresholds do indicador
+  const metaNum = parseFloat(indicador?.meta) || 0;
+  const ratio80 = metaNum > 0
+    ? (indicador?.threshold_80 != null ? parseFloat(indicador.threshold_80) : metaNum * 0.8) / metaNum
+    : 0.8;
+  const ratio120 = metaNum > 0
+    ? (indicador?.threshold_120 != null ? parseFloat(indicador.threshold_120) : metaNum * 1.2) / metaNum
+    : 1.2;
+
   const getMonthlyData = () => {
-    const months = getMonthsForCycle(indicador?.ciclo || 'anual');
+    let months = getMonthsForCycle(indicador?.ciclo || 'anual');
+    // Filtrar pelo quarter selecionado
+    if (selectedQuarter && (indicador?.ciclo === 'anual' || indicador?.ciclo === 'trimestral')) {
+      const { start, end } = getCycleMonthRange(selectedQuarter);
+      months = months.filter(m => m.value >= start && m.value <= end);
+    }
     const yearCheckIns = checkIns.filter(c => c.ano === selectedYear);
 
     return months.map(m => {
       const checkIn = yearCheckIns.find(c => c.mes === m.value);
-      const target = indicador?.monthly_targets?.[m.value] || indicador?.meta;
+      const target = parseFloat(indicador?.monthly_targets?.[m.value]) || parseFloat(indicador?.meta) || 0;
+      const min = target * ratio80;
+      const max = target * ratio120;
 
       return {
         month: m.value,
         monthName: MONTH_NAMES[m.value - 1],
         shortName: MONTH_SHORT[m.value - 1],
         target,
+        min,
+        max,
         value: checkIn?.valor ?? null,
         notes: checkIn?.notas,
         checkInId: checkIn?.id,
@@ -466,7 +584,11 @@ export default function IndicatorDetailView() {
   const monthlyData = getMonthlyData();
   const currentMonth = new Date().getMonth() + 1;
   const yearCheckIns = checkIns.filter(c => c.ano === selectedYear);
-  const autoAccumulated = calculateAccumulatedProgress(indicador, yearCheckIns, currentMonth);
+  // Usa o quarter selecionado para calcular acumulado quando aplicável
+  const cycleForCalc = selectedQuarter && (indicador.ciclo === 'anual' || indicador.ciclo === 'trimestral')
+    ? selectedQuarter
+    : indicador.ciclo;
+  const autoAccumulated = calculateAccumulatedProgress({ ...indicador, ciclo: cycleForCalc }, yearCheckIns, currentMonth);
   const cLabels = CONSOLIDATION_LABELS[indicador.consolidation_type] || CONSOLIDATION_LABELS.last_value;
   const isAutoCalc = indicador.auto_calculate !== false; // default true
 
@@ -477,6 +599,10 @@ export default function IndicatorDetailView() {
     ? calculateIndicatorScore(realizadoValue, planejadoValue * 0.8, planejadoValue, planejadoValue * 1.2, indicador.is_inverse)
     : 0;
   const scoreColor = getScoreColor(score);
+
+  // Range acumulado
+  const accMin = planejadoValue * ratio80;
+  const accMax = planejadoValue * ratio120;
 
   return (
     <div className="indicator-detail">
@@ -563,7 +689,7 @@ export default function IndicatorDetailView() {
         </div>
       </section>
 
-      {/* Progress Card - KPIs + Score Bar */}
+      {/* Progress Card - KPIs + Range + Score Bar */}
       <section className="card progress-card">
         <div className="progress-kpi-row">
           <div className="kpi-block kpi-block--hero">
@@ -574,6 +700,14 @@ export default function IndicatorDetailView() {
             <span className="kpi-sublabel">
               Peso: {indicador.peso || 1} · {cLabels.description}
             </span>
+            <div className="kpi-range-row">
+              <span className="kpi-range kpi-range--min">
+                Mín: {formatValue(metaNum * ratio80, indicador.metric_type)}
+              </span>
+              <span className="kpi-range kpi-range--max">
+                Sup: {formatValue(metaNum * ratio120, indicador.metric_type)}
+              </span>
+            </div>
           </div>
 
           <div className={`kpi-block kpi-block--accent-${getScoreColor(score)}`}>
@@ -605,6 +739,18 @@ export default function IndicatorDetailView() {
             <span className={`kpi-score kpi-score--${scoreColor}`}>
               Score: {score.toFixed(0)}
             </span>
+            {planejadoValue > 0 && (
+              <MonthRangeBar
+                score={score}
+                min={accMin}
+                target={planejadoValue}
+                max={accMax}
+                value={realizadoValue}
+                metricType={indicador.metric_type}
+                hasValue={realizadoValue > 0}
+                size="sm"
+              />
+            )}
           </div>
 
           <div className="kpi-block">
@@ -634,6 +780,14 @@ export default function IndicatorDetailView() {
               />
             )}
             <span className="kpi-sublabel">{cLabels.sublabelPlanejado}</span>
+            <div className="kpi-range-row">
+              <span className="kpi-range kpi-range--min">
+                Mín: {formatValue(accMin, indicador.metric_type)}
+              </span>
+              <span className="kpi-range kpi-range--max">
+                Sup: {formatValue(accMax, indicador.metric_type)}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -679,16 +833,6 @@ export default function IndicatorDetailView() {
           <div className="monthly-header__right">
             <button
               type="button"
-              className="btn-action"
-              onClick={() => openCheckInDialog()}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-              </svg>
-              Check-in
-            </button>
-            <button
-              type="button"
               className="btn-icon"
               onClick={() => setShowEditIndicatorDialog(true)}
               title="Editar configurações do indicador"
@@ -700,15 +844,37 @@ export default function IndicatorDetailView() {
           </div>
         </div>
 
+        {/* Quarter Selector */}
+        {(indicador.ciclo === 'anual' || indicador.ciclo === 'trimestral') && (
+          <div className="quarter-selector">
+            {[
+              { key: 'q1', label: 'Q1', months: 'Jan-Mar' },
+              { key: 'q2', label: 'Q2', months: 'Abr-Jun' },
+              { key: 'q3', label: 'Q3', months: 'Jul-Set' },
+              { key: 'q4', label: 'Q4', months: 'Out-Dez' },
+            ].map(q => (
+              <button
+                key={q.key}
+                type="button"
+                className={`quarter-tab ${selectedQuarter === q.key ? 'quarter-tab--active' : ''}`}
+                onClick={() => setSelectedQuarter(q.key)}
+              >
+                {q.label}
+                <span className="quarter-months">{q.months}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="monthly-grid">
           {monthlyData.map((month) => {
             const hasValue = month.value !== null;
             const monthScore = hasValue && month.target > 0
               ? calculateIndicatorScore(
                   month.value,
-                  month.target * 0.8,
+                  month.min,
                   month.target,
-                  month.target * 1.2,
+                  month.max,
                   indicador.is_inverse
                 )
               : null;
@@ -718,44 +884,88 @@ export default function IndicatorDetailView() {
               <div key={month.month} className={`monthly-item ${hasValue ? `monthly-item--${monthColor}` : 'monthly-item--empty'}`}>
                 <div className="monthly-item__header">
                   <span className="monthly-item__month">{month.monthName}</span>
-                  {hasValue && monthScore !== null && (
-                    <span className={`month-score-badge month-score-badge--${monthColor}`}>
-                      {monthScore.toFixed(0)}
-                    </span>
-                  )}
                   {hasValue && month.notes && (
                     <svg viewBox="0 0 24 24" width="14" height="14" className="notes-icon" title={month.notes}>
                       <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
                     </svg>
                   )}
-                </div>
-                <div className="monthly-item__values">
-                  <div className="value-group">
-                    <span className="value-group__label">Planejado</span>
-                    <span className="value-group__number">
-                      {formatValue(month.target, indicador.metric_type)}
+                  {hasValue && monthScore !== null && (
+                    <span className={`month-score-badge month-score-badge--${monthColor}`}>
+                      {monthScore.toFixed(0)}
                     </span>
-                  </div>
-                  <div className="value-group">
-                    <span className="value-group__label">Realizado</span>
-                    {hasValue ? (
-                      <span
-                        className="value-group__number value-group__number--clickable"
-                        onClick={() => openCheckInDialog(month.month, month.checkIn)}
-                        title="Clique para editar"
-                      >
-                        {formatValue(month.value, indicador.metric_type)}
+                  )}
+                </div>
+
+                {/* Range Bar Visual */}
+                {month.target > 0 && (
+                  <MonthRangeBar
+                    score={monthScore || 0}
+                    min={month.min}
+                    target={month.target}
+                    max={month.max}
+                    value={month.value}
+                    metricType={indicador.metric_type}
+                    hasValue={hasValue}
+                    size="md"
+                  />
+                )}
+
+                {/* Range reference values */}
+                {month.target > 0 && (
+                  <div className="monthly-item__range-refs">
+                    <div className="range-ref">
+                      <span className="range-ref__label">Mínima</span>
+                      <span className="range-ref__value range-ref__value--min">
+                        {formatValue(month.min, indicador.metric_type)}
                       </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn-register"
-                        onClick={() => openCheckInDialog(month.month)}
-                      >
-                        Registrar
-                      </button>
-                    )}
+                    </div>
+                    <div className="range-ref range-ref--center">
+                      <span className="range-ref__label">Meta</span>
+                      <span className="range-ref__value range-ref__value--target">
+                        {formatValue(month.target, indicador.metric_type)}
+                      </span>
+                    </div>
+                    <div className="range-ref">
+                      <span className="range-ref__label">Superação</span>
+                      <span className="range-ref__value range-ref__value--max">
+                        {formatValue(month.max, indicador.metric_type)}
+                      </span>
+                    </div>
                   </div>
+                )}
+
+                {/* Realizado */}
+                <div className="monthly-item__realizado">
+                  {hasValue ? (
+                    <>
+                      <div className="monthly-item__realizado-row">
+                        <span className="monthly-item__realizado-label">Realizado</span>
+                        <span
+                          className="monthly-item__realizado-value"
+                          onClick={() => openCheckInDialog(month.month, month.checkIn)}
+                          title="Clique para editar"
+                        >
+                          {formatValue(month.value, indicador.metric_type)}
+                          <svg className="kpi-edit-icon" viewBox="0 0 24 24" width="10" height="10">
+                            <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                          </svg>
+                        </span>
+                      </div>
+                      {monthScore !== null && (
+                        <span className={`monthly-item__status monthly-item__status--${monthColor}`}>
+                          {getScoreLabel(monthScore)}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-register"
+                      onClick={() => openCheckInDialog(month.month)}
+                    >
+                      Registrar
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -954,8 +1164,18 @@ export default function IndicatorDetailView() {
         <CreateRecoveryPlanDialog
           responsaveis={teamMembers}
           indicador={indicador}
-          onSubmit={handleCreateRecoveryPlan}
-          onClose={() => setShowRecoveryPlanDialog(false)}
+          initialMonth={recoveryPlanContext?.month}
+          initialYear={selectedYear}
+          onSubmit={async (planData) => {
+            await handleCreateRecoveryPlan(planData);
+            setRecoveryPlanContext(null);
+          }}
+          onClose={() => {
+            // Se é obrigatório, não permite fechar sem criar
+            if (recoveryPlanContext?.isMandatory) return;
+            setShowRecoveryPlanDialog(false);
+            setRecoveryPlanContext(null);
+          }}
         />
       )}
 
@@ -1017,6 +1237,66 @@ export default function IndicatorDetailView() {
           }}
           onClose={closePlanDialog}
         />
+      )}
+
+      {/* Recovery Plan Suggestion/Mandatory Dialog */}
+      {recoveryPlanContext && !showRecoveryPlanDialog && (
+        <div className="dialog-overlay recovery-suggestion-overlay">
+          <div className="recovery-suggestion-dialog">
+            <div className="recovery-suggestion-dialog__header">
+              <h3>
+                {recoveryPlanContext.isMandatory
+                  ? 'Plano de Recuperação Obrigatório'
+                  : 'Sugestão de Plano de Recuperação'}
+              </h3>
+              {!recoveryPlanContext.isMandatory && (
+                <button
+                  className="dialog-close"
+                  onClick={() => setRecoveryPlanContext(null)}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            <div className="recovery-suggestion-dialog__body">
+              <div className={`score-warning score-warning--${recoveryPlanContext.isMandatory ? 'danger' : 'warning'}`}>
+                <div className="score-warning__badge">
+                  <span className="score-warning__value">{recoveryPlanContext.score.toFixed(0)}</span>
+                  <span className="score-warning__label">{getScoreLabel(recoveryPlanContext.score)}</span>
+                </div>
+                <p className="score-warning__text">
+                  {recoveryPlanContext.isMandatory
+                    ? `O check-in de ${MONTH_NAMES[(recoveryPlanContext.month || 1) - 1]} resultou em score zerado. É obrigatório criar um plano de recuperação.`
+                    : `O check-in de ${MONTH_NAMES[(recoveryPlanContext.month || 1) - 1]} ficou abaixo da meta. Recomendamos criar um plano de recuperação.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="recovery-suggestion-dialog__actions">
+              {!recoveryPlanContext.isMandatory && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setRecoveryPlanContext(null)}
+                >
+                  Não agora
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setShowRecoveryPlanDialog(true);
+                }}
+              >
+                Criar Plano de Recuperação
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

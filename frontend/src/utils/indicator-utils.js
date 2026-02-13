@@ -131,7 +131,8 @@ export function calculatePersonScore(indicadores) {
   let weightedSum = 0;
 
   for (const ind of indicadores) {
-    const peso = ind.peso || 1;
+    const peso = ind.peso ?? 1;
+    if (peso === 0) continue;
     const score = getIndicatorScore(ind);
     totalWeight += peso;
     weightedSum += score * peso;
@@ -161,6 +162,8 @@ export function formatValue(value, metricType = 'number', decimals = 1) {
       return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     case 'boolean':
       return num > 0.5 ? 'Sim' : 'Não';
+    case 'integer':
+      return Math.floor(num).toLocaleString('pt-BR');
     case 'number':
     default:
       return num.toLocaleString('pt-BR', { maximumFractionDigits: decimals });
@@ -292,40 +295,80 @@ export function getMonthGroupsForPeriodicity(periodicity) {
 }
 
 /**
- * Distribui meta acumulada em metas mensais baseado no metodo de acumulo
- * A meta acumulada se aplica POR PERIODO (ex: trimestral = meta por trimestre)
- * @param {number} accumulated - Meta acumulada por periodo
+ * Distribui meta acumulada anual em metas mensais baseado no metodo de acumulo
+ * @param {number} accumulated - Meta acumulada anual
  * @param {'sum'|'average'|'last_value'|'manual'} method - Metodo de acumulo
- * @param {'trimestral'|'semestral'|'anual'} periodicity - Periodicidade
+ * @param {Object} [activeQuarters] - Trimestres ativos { q1: bool, q2: bool, q3: bool, q4: bool }
+ * @param {number} [mesInicio=1] - Mes de inicio (1-12), meses anteriores sao inativos
+ * @param {string} [metricType='number'] - Tipo de metrica ('integer' arredonda para baixo)
  * @returns {Object} Objeto {1: valor, 2: valor, ..., 12: valor}
  */
-export function distributeAccumulatedTarget(accumulated, method, periodicity) {
-  const groups = getMonthGroupsForPeriodicity(periodicity);
-  const result = {};
+export function distributeAccumulatedTarget(accumulated, method, activeQuarters, mesInicio = 1, metricType = 'number') {
+  // Se receber string de periodicidade (compatibilidade), tratar como anual
+  if (typeof activeQuarters === 'string') {
+    activeQuarters = { q1: true, q2: true, q3: true, q4: true };
+  }
+  const aq = activeQuarters || { q1: true, q2: true, q3: true, q4: true };
+  const round = (val) => metricType === 'integer' ? Math.floor(val) : Math.round(val * 100) / 100;
 
-  for (const group of groups) {
-    const count = group.months.length;
+  const quarterMonths = { q1: [1, 2, 3], q2: [4, 5, 6], q3: [7, 8, 9], q4: [10, 11, 12] };
+  const activeMonths = [];
+  for (const [q, months] of Object.entries(quarterMonths)) {
+    if (aq[q]) activeMonths.push(...months.filter(m => m >= mesInicio));
+  }
+
+  const result = {};
+  const count = activeMonths.length || 1;
+  const lastActiveMonth = activeMonths[activeMonths.length - 1];
+
+  // Para sum: calcular base e ajustar último mês para soma exata
+  let sumBase, sumUsed;
+  if (method === 'sum') {
+    if (metricType === 'integer') {
+      sumBase = Math.floor(accumulated / count);
+      // Distribuir resto nos últimos meses (+1 cada)
+      sumUsed = 0;
+    } else {
+      sumBase = round(accumulated / count);
+      sumUsed = 0;
+    }
+  }
+
+  let activeIndex = 0;
+  for (let m = 1; m <= 12; m++) {
+    const isActive = activeMonths.includes(m);
+    if (!isActive) {
+      result[m] = 0;
+      continue;
+    }
 
     switch (method) {
       case 'sum':
-        group.months.forEach(m => {
-          result[m] = Math.round((accumulated / count) * 100) / 100;
-        });
+        if (m === lastActiveMonth) {
+          // Último mês recebe o resto para soma exata
+          result[m] = metricType === 'integer'
+            ? accumulated - sumUsed
+            : round(accumulated - sumUsed);
+        } else if (metricType === 'integer') {
+          const intRemainder = accumulated - (sumBase * count);
+          const extraStart = count - intRemainder;
+          result[m] = activeIndex >= extraStart ? sumBase + 1 : sumBase;
+        } else {
+          result[m] = sumBase;
+        }
+        sumUsed += result[m];
         break;
       case 'average':
-        group.months.forEach(m => {
-          result[m] = accumulated;
-        });
+        result[m] = accumulated;
         break;
       case 'last_value':
-        group.months.forEach((m, idx) => {
-          result[m] = idx === count - 1 ? accumulated : 0;
-        });
+        result[m] = m === lastActiveMonth ? accumulated : 0;
         break;
       case 'manual':
       default:
         break;
     }
+    activeIndex++;
   }
 
   return result;
@@ -517,4 +560,68 @@ export function calculateKRProgressVsMeta(kr) {
 
   // Permite valores > 100% para mostrar superação da meta
   return Math.round((realizado / meta) * 100);
+}
+
+/**
+ * Parseia o campo acoes de um recovery plan (pode ser JSON string, array ou texto)
+ * @param {*} acoes - Campo acoes do recovery plan
+ * @returns {Array<{descricao: string, concluida: boolean, prazo?: string, responsavel?: string}>}
+ */
+export function parseAcoes(acoes) {
+  if (!acoes) return [];
+  if (Array.isArray(acoes)) return acoes;
+  if (typeof acoes === 'string') {
+    try {
+      const parsed = JSON.parse(acoes);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return acoes.split('\n').filter(a => a.trim()).map(a => ({
+        descricao: a.trim(),
+        concluida: false
+      }));
+    }
+  }
+  return [];
+}
+
+/**
+ * Calcula scores mensais ponderados de uma pessoa para cada mês do ciclo
+ * @param {Array} indicadores - Indicadores com check_ins
+ * @param {string} ciclo - Ciclo (q1, q2, q3, q4, anual)
+ * @param {number} ano - Ano
+ * @returns {Array<{month: number, monthName: string, score: number|null, hasData: boolean}>}
+ */
+export function calculateMonthlyPersonScores(indicadores, ciclo, ano) {
+  const monthShort = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const { start, end } = getCycleMonthRange(ciclo);
+  const results = [];
+
+  for (let m = start; m <= end; m++) {
+    let totalWeight = 0;
+    let weightedSum = 0;
+
+    for (const ind of indicadores) {
+      const checkIn = (ind.check_ins || []).find(ci => ci.mes === m && ci.ano === ano);
+      if (!checkIn) continue;
+
+      const target = parseFloat(ind.monthly_targets?.[m]) || parseFloat(ind.meta) || 0;
+      if (target === 0) continue;
+
+      const t80 = target * 0.8;
+      const t120 = target * 1.2;
+      const score = calculateIndicatorScore(checkIn.valor, t80, target, t120, ind.is_inverse);
+      const peso = ind.peso || 1;
+      totalWeight += peso;
+      weightedSum += score * peso;
+    }
+
+    results.push({
+      month: m,
+      monthName: monthShort[m - 1],
+      score: totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) / 100 : null,
+      hasData: totalWeight > 0
+    });
+  }
+
+  return results;
 }

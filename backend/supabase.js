@@ -1834,9 +1834,10 @@ export async function createPositionIndicator(positionId, templateData) {
       default_target: templateData.default_target,
       default_threshold_80: templateData.default_threshold_80,
       default_threshold_120: templateData.default_threshold_120,
-      default_weight: templateData.default_weight || 1,
+      default_weight: templateData.default_weight ?? 1,
       is_inverse: templateData.is_inverse || false,
       monthly_targets: templateData.monthly_targets || {},
+      active_quarters: templateData.active_quarters || { q1: true, q2: true, q3: true, q4: true },
     }])
     .select()
     .single();
@@ -2032,13 +2033,14 @@ export async function createIndicadorFromTemplate(templateId, personEmail, ciclo
       cargo_id: template.position_id,
       setor_id: template.position?.sector_id || null,
       template_id: templateId,
-      peso: template.default_weight || 1,
+      peso: template.default_weight ?? 1,
       threshold_80: template.default_threshold_80,
       threshold_120: template.default_threshold_120,
       is_inverse: template.is_inverse || false,
       consolidation_type: template.consolidation_type || 'last_value',
       metric_type: template.metric_type || 'number',
       monthly_targets: template.monthly_targets || {},
+      active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
     }])
     .select()
     .single();
@@ -2146,7 +2148,7 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
           cargo_id: positionId,
           setor_id: position?.sector_id || null,
           template_id: template.id,
-          peso: template.default_weight || 1,
+          peso: template.default_weight ?? 1,
           threshold_80: template.default_threshold_80,
           threshold_120: template.default_threshold_120,
           is_inverse: template.is_inverse || false,
@@ -2613,7 +2615,8 @@ function calculatePersonScore(indicadores) {
   let weightedSum = 0;
 
   for (const ind of indicadores) {
-    const peso = ind.peso || 1;
+    const peso = ind.peso ?? 1;
+    if (peso === 0) continue;
     const score = calculateIndicatorScore(ind);
     totalWeight += peso;
     weightedSum += score * peso;
@@ -5105,7 +5108,7 @@ export async function fetchProjectFeaturesForPortfolio() {
 
   const { data, error } = await supabase
     .from('project_features')
-    .select('project_id, plataforma_acd, controle_apoio, projects!inner(project_code)');
+    .select('project_id, plataforma_acd, controle_apoio, link_ifc, projects!inner(project_code)');
 
   if (error) {
     throw new Error(`Erro ao buscar project_features: ${error.message}`);
@@ -5118,6 +5121,7 @@ export async function fetchProjectFeaturesForPortfolio() {
       map[code] = {
         plataforma_acd: row.plataforma_acd || null,
         controle_apoio: row.controle_apoio || null,
+        link_ifc: row.link_ifc || null,
       };
     }
   });
@@ -5156,6 +5160,40 @@ export async function updateControleApoio(projectCode, controleApoio) {
 
   if (error) {
     throw new Error(`Erro ao atualizar controle_apoio: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza o campo link_ifc em project_features
+ * @param {string} projectCode - Codigo do projeto (project_code)
+ * @param {string|null} linkIfc - URL da pasta de IFCs atualizados
+ */
+export async function updateLinkIfc(projectCode, linkIfc) {
+  const supabase = getSupabaseClient();
+
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('project_code', projectCode)
+    .single();
+
+  if (projectError || !project) {
+    throw new Error(`Projeto nao encontrado: ${projectCode}`);
+  }
+
+  const { data, error } = await supabase
+    .from('project_features')
+    .upsert(
+      { project_id: project.id, link_ifc: linkIfc },
+      { onConflict: 'project_id' }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar link_ifc: ${error.message}`);
   }
 
   return data;

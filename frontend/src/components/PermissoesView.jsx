@@ -763,8 +763,8 @@ function PermissoesView() {
 
       {/* Modal: Editar Módulo */}
       {editingModule && (
-        <div className="modal-overlay" onClick={() => setEditingModule(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <h3>Editar Módulo</h3>
             <div className="form-group">
               <label>Nome</label>
@@ -822,8 +822,8 @@ function PermissoesView() {
 
       {/* Modal: Nova Exceção */}
       {showOverrideModal && (
-        <div className="modal-overlay" onClick={() => setShowOverrideModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <h3>Nova Exceção</h3>
             <div className="form-group">
               <label>Módulo</label>

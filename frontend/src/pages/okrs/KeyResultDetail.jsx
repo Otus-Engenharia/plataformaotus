@@ -169,8 +169,8 @@ function CheckInDialog({ open, onClose, onSuccess, kr, checkIns = [], quarter, o
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">Registrar Check-in</h2>
           <button className="okr-modal__close" onClick={onClose}>
@@ -519,8 +519,8 @@ function CommentDialog({ open, onClose, onSuccess, krId, replyTo = null }) {
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">{title}</h2>
             <button className="okr-modal__close" onClick={onClose}>
@@ -658,8 +658,8 @@ function RecoveryPlanDialog({ open, onClose, onSuccess, krId, defaultMonth, defa
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--lg" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--lg">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">Novo Plano de Recuperação</h2>
           <button className="okr-modal__close" onClick={onClose}>
@@ -787,8 +787,8 @@ function EditRecoveryPlanDialog({ open, onClose, onSuccess, plan }) {
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--lg" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--lg">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">Editar Plano de Recuperação</h2>
           <button className="okr-modal__close" onClick={onClose}>
@@ -984,8 +984,8 @@ function EditKeyResultDialog({ open, onClose, onSuccess, kr, quarter, setorId })
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--lg" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--lg">
           <div className="okr-modal__header">
             <h2 className="okr-modal__title">Editar Key Result</h2>
           <button className="okr-modal__close" onClick={onClose}>
@@ -1215,8 +1215,8 @@ function DeleteConfirmDialog({ open, onClose, onConfirm, title, message, isDelet
 
   return (
     <Portal>
-      <div className="okr-modal-overlay" onClick={onClose}>
-        <div className="okr-modal okr-modal--sm" onClick={e => e.stopPropagation()}>
+      <div className="okr-modal-overlay">
+        <div className="okr-modal okr-modal--sm">
           <div className="okr-modal__header">
             <div className="okr-modal__icon okr-modal__icon--danger">
               <svg viewBox="0 0 24 24" width="24" height="24">

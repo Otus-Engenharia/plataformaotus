@@ -11,6 +11,7 @@ import axios from 'axios';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { API_URL } from '../api';
+import EstudoCustosView from './EstudoCustosView';
 import '../styles/CSView.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip);
@@ -26,7 +27,8 @@ function formatLastUpdate(date) {
   });
 }
 
-function CSView() {
+function CSView({ initialTab }) {
+  const [tab, setTab] = useState(initialTab || 'nps');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -137,15 +139,49 @@ function CSView() {
     <div className="cs-container">
       <header className="cs-header">
         <div className="cs-header-text">
-          <h1 className="cs-title">Relatório de NPS</h1>
-          <p className="cs-subtitle">Dados do setor de sucesso do cliente</p>
+          <h1 className="cs-title">CS</h1>
+          <p className="cs-subtitle">Customer Success — NPS e Estudo de Custos</p>
         </div>
-        {lastUpdated && (
-          <p className="cs-last-update" aria-live="polite">
-            Última atualização: {formatLastUpdate(lastUpdated)}
-          </p>
-        )}
       </header>
+
+      <nav className="cs-tabs" role="tablist" aria-label="Abas de CS">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'nps'}
+          aria-controls="cs-panel-nps"
+          id="cs-tab-nps"
+          className={`cs-tab ${tab === 'nps' ? 'cs-tab-active' : ''}`}
+          onClick={() => setTab('nps')}
+        >
+          NPS
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'estudo-custos'}
+          aria-controls="cs-panel-estudo-custos"
+          id="cs-tab-estudo-custos"
+          className={`cs-tab ${tab === 'estudo-custos' ? 'cs-tab-active' : ''}`}
+          onClick={() => setTab('estudo-custos')}
+        >
+          Estudo de Custos
+        </button>
+      </nav>
+
+      {tab === 'estudo-custos' && (
+        <section id="cs-panel-estudo-custos" role="tabpanel" aria-labelledby="cs-tab-estudo-custos">
+          <EstudoCustosView />
+        </section>
+      )}
+
+      {tab === 'nps' && (
+      <>
+      {lastUpdated && (
+        <p className="cs-last-update" aria-live="polite">
+          Última atualização: {formatLastUpdate(lastUpdated)}
+        </p>
+      )}
 
       <section className="cs-filters" aria-label="Filtros do relatório">
         <label className="cs-filter">
@@ -348,6 +384,8 @@ function CSView() {
           </div>
         </div>
       </section>
+      </>
+      )}
     </div>
   );
 }
