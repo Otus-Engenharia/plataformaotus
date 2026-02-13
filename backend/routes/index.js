@@ -7,6 +7,7 @@
 import { createRoutes as createFeedbackRoutes } from './feedbacks.js';
 import { createRoutes as createDemandaRoutes } from './demandas.js';
 import { createRoutes as createEstudoCustoRoutes } from './estudos-custos.js';
+import { createRoutes as createProjetoRoutes } from './projetos.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -16,7 +17,7 @@ import { createRoutes as createEstudoCustoRoutes } from './estudos-custos.js';
  * @param {Function} middleware.isPrivileged - Função para verificar privilégios
  * @param {Function} middleware.logAction - Função para registrar ações
  */
-export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, logAction }) {
+export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction }) {
   // Rotas de Feedbacks (DDD)
   const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/feedbacks', feedbackRoutes);
@@ -29,5 +30,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const estudoCustoRoutes = createEstudoCustoRoutes(requireAuth, isPrivileged, logAction, canManageEstudosCustos);
   app.use('/api/estudos-custos', estudoCustoRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos');
+  // Rotas de Projetos (DDD) - Formulário de Passagem
+  const projetoRoutes = createProjetoRoutes(requireAuth, canAccessFormularioPassagem, logAction);
+  app.use('/api/projetos', projetoRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos');
 }

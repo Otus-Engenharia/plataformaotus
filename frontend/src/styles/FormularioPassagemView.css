@@ -1,6 +1,8 @@
 /**
- * Estilos: Formulário de Passagem
+ * Estilos: Formulário de Passagem (Wizard)
  */
+
+/* ---- Container e Header ---- */
 
 .formulario-passagem-container {
   padding: 1.5rem 2rem 2.5rem;
@@ -10,7 +12,7 @@
 }
 
 .formulario-passagem-header {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .formulario-passagem-header h1 {
@@ -24,6 +26,8 @@
   color: #64748b;
   font-size: 1rem;
 }
+
+/* ---- Mensagens ---- */
 
 .formulario-passagem-error {
   padding: 3rem;
@@ -53,6 +57,85 @@
   border: 1px solid #fca5a5;
 }
 
+/* ---- Wizard Navigation ---- */
+
+.wizard-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 2rem;
+  padding: 1.25rem 2rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.wizard-step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 80px;
+}
+
+.wizard-step-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border: 2px solid #d1d5db;
+  color: #9ca3af;
+  background: #fff;
+  transition: all 0.2s;
+}
+
+.wizard-step-indicator.active .wizard-step-circle {
+  border-color: #ffcc00;
+  background: #ffcc00;
+  color: #1a1a1a;
+}
+
+.wizard-step-indicator.completed .wizard-step-circle {
+  border-color: #10b981;
+  background: #10b981;
+  color: #fff;
+}
+
+.wizard-step-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.wizard-step-indicator.active .wizard-step-label {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.wizard-step-indicator.completed .wizard-step-label {
+  color: #10b981;
+}
+
+.wizard-step-line {
+  flex: 1;
+  height: 2px;
+  background: #e5e7eb;
+  margin: 0 0.75rem;
+  margin-bottom: 1.5rem;
+  transition: background 0.2s;
+}
+
+.wizard-step-line.completed {
+  background: #10b981;
+}
+
+/* ---- Formulário ---- */
+
 .formulario-passagem-form {
   background: #ffffff;
   padding: 2rem;
@@ -60,8 +143,33 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.form-group {
+/* ---- Section Divider ---- */
+
+.section-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 2rem 0;
+}
+
+/* ---- Steps ---- */
+
+.wizard-step-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 0.25rem;
+}
+
+.wizard-step-description {
+  color: #64748b;
+  font-size: 0.9375rem;
   margin-bottom: 1.5rem;
+}
+
+/* ---- Form Groups ---- */
+
+.form-group {
+  margin-bottom: 1.25rem;
 }
 
 .form-group label {
@@ -82,6 +190,7 @@
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 
 .form-group input:focus,
@@ -94,13 +203,105 @@
 
 .form-group textarea {
   resize: vertical;
-  min-height: 120px;
+  min-height: 100px;
 }
 
-.form-actions {
-  margin-top: 2rem;
+.form-group select {
+  appearance: auto;
+  cursor: pointer;
+}
+
+.form-loading {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+/* ---- Form Rows (campos lado a lado) ---- */
+
+.form-row {
   display: flex;
-  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.form-row-2 > .form-group {
+  flex: 1;
+}
+
+.form-row-3 > .form-group {
+  flex: 1;
+}
+
+/* ---- Botões ---- */
+
+.btn-add-new {
+  background: none;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-add-new:hover:not(:disabled) {
+  border-color: #ffcc00;
+  color: #b45309;
+}
+
+.btn-add-new:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Wizard Actions ---- */
+
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.wizard-actions-right {
+  margin-left: auto;
+}
+
+.btn-prev {
+  padding: 0.75rem 1.5rem;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-prev:hover {
+  background: #e5e7eb;
+}
+
+.btn-next {
+  padding: 0.75rem 2rem;
+  background: #ffcc00;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-next:hover {
+  background: #e6b800;
 }
 
 .btn-submit {
@@ -122,4 +323,90 @@
 .btn-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* ---- Responsivo ---- */
+
+/* ---- Modal ---- */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #374151;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* ---- Responsivo ---- */
+
+@media (max-width: 640px) {
+  .formulario-passagem-container {
+    padding: 1rem;
+  }
+
+  .formulario-passagem-form {
+    padding: 1.25rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .wizard-navigation {
+    padding: 1rem;
+  }
 }
