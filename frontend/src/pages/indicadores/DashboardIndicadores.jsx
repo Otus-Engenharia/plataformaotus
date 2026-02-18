@@ -4,8 +4,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   calculatePersonScore,
   calculateIndicatorScore,
+  calculateAccumulatedProgress,
   filterAtRiskIndicators,
   getIndicatorScore,
+  getScoreStatus,
   formatValue,
   getCycleOptions,
   getCurrentCycle,
@@ -13,12 +15,9 @@ import {
   getCycleLabel,
   getCycleMonthRange,
   parseAcoes,
-  calculateMonthlyPersonScores
 } from '../../utils/indicator-utils';
-import ScoreZoneGauge, { ScoreZoneBadge } from '../../components/indicadores/ScoreZoneGauge';
+import ScoreZoneGauge, { ScoreRing } from '../../components/indicadores/ScoreZoneGauge';
 import MiniSparkline from '../../components/indicadores/dashboard/MiniSparkline';
-import RecoveryPlanInline from '../../components/indicadores/dashboard/RecoveryPlanInline';
-import MonthlyTimeline from '../../components/indicadores/dashboard/MonthlyTimeline';
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
 import './DashboardIndicadores.css';
 
@@ -54,14 +53,24 @@ function getIndicatorMonthlyData(indicador, ciclo, ano) {
 }
 
 /**
- * Gets the latest check-in note for an indicator
+ * Gets all check-in notes for an indicator, sorted newest first
  */
-function getLatestNote(indicador) {
-  const checkIns = (indicador.check_ins || [])
+function getAllNotes(indicador) {
+  return (indicador.check_ins || [])
     .filter(ci => ci.notas && ci.notas.trim())
-    .sort((a, b) => b.mes - a.mes);
-  if (checkIns.length === 0) return null;
-  return { month: MONTH_SHORT[checkIns[0].mes - 1], text: checkIns[0].notas };
+    .sort((a, b) => b.mes - a.mes)
+    .map(ci => ({ month: MONTH_SHORT[ci.mes - 1], monthNum: ci.mes, text: ci.notas }));
+}
+
+/**
+ * Maps score to zone id for CSS classes
+ */
+function getScoreZoneId(score) {
+  if (score === null || score === undefined) return 'none';
+  if (score >= 120) return 'superou';
+  if (score >= 100) return 'alvo';
+  if (score >= 80) return 'risco';
+  return 'zerado';
 }
 
 /**
@@ -76,12 +85,13 @@ function getActivePlans(indicador) {
 // ────────────────────────────────────────────────────────────
 // Enriched Indicator Card — tells the full story per indicator
 // ────────────────────────────────────────────────────────────
-function IndicadorCard({ indicador, ciclo, ano, index }) {
-  const score = getIndicatorScore(indicador);
-  const valorFormatado = formatValue(indicador.valor, indicador.metric_type);
-  const metaFormatada = formatValue(indicador.meta, indicador.metric_type);
+function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
+  const acc = accumulatedData || { realizado: 0, planejado: 0, score: 0 };
+  const score = acc.score;
+  const realizadoFormatado = formatValue(acc.realizado, indicador.metric_type);
+  const planejadoFormatado = formatValue(acc.planejado, indicador.metric_type);
   const monthlyData = getIndicatorMonthlyData(indicador, ciclo, ano);
-  const latestNote = getLatestNote(indicador);
+  const allNotes = getAllNotes(indicador);
   const activePlans = getActivePlans(indicador);
 
   const getStatus = () => {
@@ -96,31 +106,31 @@ function IndicadorCard({ indicador, ciclo, ano, index }) {
       className={`ind-card ind-card--${status}`}
       style={{ animationDelay: `${80 + index * 60}ms` }}
     >
-      {/* Card Header */}
+      {/* Card Header with ScoreRing */}
       <div className="ind-card__header">
+        <ScoreRing score={score} size={44} />
         <div className="ind-card__title-group">
           <h3 className="ind-card__title">{indicador.nome}</h3>
           {indicador.descricao && (
             <p className="ind-card__description">{indicador.descricao}</p>
           )}
         </div>
-        <ScoreZoneBadge score={score} />
       </div>
 
-      {/* Mini Sparkline — monthly evolution */}
-      <div className="ind-card__sparkline">
-        <MiniSparkline months={monthlyData} height={52} />
+      {/* Zone Gauge Bar — shows where the indicator falls on the scale */}
+      <div className="ind-card__zone-bar">
+        <ScoreZoneGauge score={score} size="sm" showLabels={false} showScore={false} />
       </div>
 
       {/* Stats Row */}
       <div className="ind-card__stats">
         <div className="ind-card__stat">
-          <span className="ind-card__stat-label">Atual</span>
-          <span className="ind-card__stat-value">{valorFormatado}</span>
+          <span className="ind-card__stat-label">Realizado</span>
+          <span className="ind-card__stat-value">{realizadoFormatado}</span>
         </div>
         <div className="ind-card__stat">
-          <span className="ind-card__stat-label">Meta</span>
-          <span className="ind-card__stat-value">{metaFormatada}</span>
+          <span className="ind-card__stat-label">Planejado</span>
+          <span className="ind-card__stat-value">{planejadoFormatado}</span>
         </div>
         <div className="ind-card__stat ind-card__stat--weight">
           <span className="ind-card__stat-label">Peso</span>
@@ -128,23 +138,83 @@ function IndicadorCard({ indicador, ciclo, ano, index }) {
         </div>
       </div>
 
-      {/* Latest Note */}
-      {latestNote && (
-        <div className="ind-card__note">
-          <svg viewBox="0 0 24 24" width="14" height="14" className="ind-card__note-icon">
-            <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
-          </svg>
-          <span className="ind-card__note-month">{latestNote.month}:</span>
-          <span className="ind-card__note-text">{latestNote.text}</span>
+      {/* Mini Sparkline — monthly evolution */}
+      <div className="ind-card__sparkline">
+        <MiniSparkline months={monthlyData} height={52} />
+      </div>
+
+      {/* All Monthly Notes — month-by-month narrative for the leader */}
+      {allNotes.length > 0 && (
+        <div className="ind-card__notes">
+          <div className="ind-card__notes-header">
+            <svg viewBox="0 0 24 24" width="14" height="14" className="ind-card__notes-icon">
+              <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
+            </svg>
+            <span className="ind-card__notes-title">Notas ({allNotes.length})</span>
+          </div>
+          <div className="ind-card__notes-list">
+            {allNotes.map((note, i) => (
+              <div key={i} className="ind-card__note-item">
+                <span className="ind-card__note-month">{note.month}:</span>
+                <span className="ind-card__note-text">{note.text}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Recovery Plans */}
+      {/* Expanded Recovery Plans — the star feature */}
       {activePlans.length > 0 && (
         <div className="ind-card__plans">
-          {activePlans.map(plan => (
-            <RecoveryPlanInline key={plan.id} plan={plan} />
-          ))}
+          {activePlans.map(plan => {
+            const actions = parseAcoes(plan.acoes);
+            const completed = actions.filter(a => a.concluida).length;
+            const total = actions.length;
+            const statusConfig = {
+              pendente: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)', label: 'Pendente' },
+              em_andamento: { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)', label: 'Em andamento' },
+            };
+            const config = statusConfig[plan.status] || statusConfig.pendente;
+
+            return (
+              <div key={plan.id} className="ind-card__plan" style={{ '--plan-color': config.color, '--plan-bg': config.bg }}>
+                <div className="ind-card__plan-header">
+                  <span className="ind-card__plan-dot" />
+                  <span className="ind-card__plan-status">{config.label}</span>
+                  {total > 0 && (
+                    <span className="ind-card__plan-count">{completed}/{total}</span>
+                  )}
+                </div>
+                {plan.descricao && (
+                  <p className="ind-card__plan-desc">{plan.descricao}</p>
+                )}
+                {total > 0 && (
+                  <>
+                    <div className="ind-card__plan-progress-track">
+                      <div className="ind-card__plan-progress-fill" style={{ width: `${(completed / total) * 100}%` }} />
+                    </div>
+                    <ul className="ind-card__plan-actions">
+                      {actions.map((action, ai) => (
+                        <li key={ai} className={`ind-card__plan-action ${action.concluida ? 'ind-card__plan-action--done' : ''}`}>
+                          <span className="ind-card__plan-action-check">
+                            {action.concluida ? (
+                              <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="2"/></svg>
+                            )}
+                          </span>
+                          <span className="ind-card__plan-action-text">{action.descricao}</span>
+                          {action.responsavel && (
+                            <span className="ind-card__plan-action-resp">{action.responsavel}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -318,17 +388,23 @@ export default function DashboardIndicadores() {
 
   // ── Computed values ──
   const scoreGeral = calculatePersonScore(indicadores) || 0;
-  const indicadoresAtRisk = filterAtRiskIndicators(indicadores);
-  const indicadoresAtingidos = indicadores.filter(i => getIndicatorScore(i) >= 100);
-  const monthlyScores = useMemo(
-    () => calculateMonthlyPersonScores(indicadores, ciclo, ano),
-    [indicadores, ciclo, ano]
-  );
+  const currentMonth = new Date().getMonth() + 1;
 
-  const activeRecoveryPlansCount = indicadores
-    .flatMap(i => (i.recovery_plans || []))
-    .filter(p => p.status === 'pendente' || p.status === 'em_andamento')
-    .length;
+  const accumulatedMap = useMemo(() => {
+    const map = {};
+    for (const ind of indicadores) {
+      const yearCheckIns = (ind.check_ins || []).filter(ci => ci.ano === ano);
+      const acc = calculateAccumulatedProgress(ind, yearCheckIns, currentMonth);
+      const isAutoCalc = ind.auto_calculate !== false;
+      const realizado = isAutoCalc ? acc.realizado : (ind.realizado_acumulado ?? 0);
+      const planejado = isAutoCalc ? acc.planejado : (ind.planejado_acumulado ?? 0);
+      const score = planejado > 0
+        ? calculateIndicatorScore(realizado, planejado * 0.8, planejado, planejado * 1.2, ind.is_inverse)
+        : 0;
+      map[ind.id] = { realizado, planejado, score };
+    }
+    return map;
+  }, [indicadores, ano, currentMonth]);
 
   const usedTemplateIds = new Set(indicadores.map(i => i.template_id).filter(Boolean));
   const availableTemplates = templates.filter(t => !usedTemplateIds.has(t.id));
@@ -409,57 +485,25 @@ export default function DashboardIndicadores() {
         </div>
       </header>
 
-      {/* ── Farol + Summary Metrics ── */}
-      <section className="farol-section">
-        {/* Farol — primary featured card */}
-        <div className="farol-card">
+      {/* ── Farol — Nota Final ── */}
+      <section className="farol-section farol-section--compact">
+        <div className="farol-card farol-card--dark">
           <div className="farol-card__glow" />
-          <div className="farol-card__content">
-            <div className="farol-card__label">
-              <span className="farol-card__title">Farol</span>
-              <span className="farol-card__subtitle">Resultado ponderado dos indicadores</span>
+          <div className="farol-card__content farol-card__content--horizontal">
+            <div className="farol-card__score-area">
+              <span className="farol-card__label-text">FAROL</span>
+              <span className="farol-card__big-score">
+                {scoreGeral !== null ? Math.round(scoreGeral) : '--'}
+              </span>
             </div>
-            <div className="farol-card__gauge">
-              <ScoreZoneGauge score={scoreGeral} size="lg" showLabels={true} showScore={true} />
+            <div className="farol-card__summary-badges">
+              <span className="farol-badge farol-badge--subtitle">
+                Resultado ponderado de {indicadores.length} indicador{indicadores.length !== 1 ? 'es' : ''}
+              </span>
             </div>
-          </div>
-        </div>
-
-        {/* Summary metric cards */}
-        <div className="summary-cards">
-          <div className={`summary-card ${indicadoresAtRisk.length > 0 ? 'summary-card--danger' : ''}`}>
-            <span className="summary-card__label">Em Risco</span>
-            <span className="summary-card__value">{indicadoresAtRisk.length}</span>
-            <span className="summary-card__detail">abaixo da meta</span>
-            <svg viewBox="0 0 24 24" width="18" height="18" className="summary-card__icon">
-              <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-            </svg>
-          </div>
-
-          <div className={`summary-card ${indicadoresAtingidos.length > 0 ? 'summary-card--success' : ''}`}>
-            <span className="summary-card__label">Atingidos</span>
-            <span className="summary-card__value">{indicadoresAtingidos.length}</span>
-            <span className="summary-card__detail">na meta ou acima</span>
-            <svg viewBox="0 0 24 24" width="18" height="18" className="summary-card__icon">
-              <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-            </svg>
-          </div>
-
-          <div className={`summary-card ${activeRecoveryPlansCount > 0 ? 'summary-card--warning' : ''}`}>
-            <span className="summary-card__label">Planos Ativos</span>
-            <span className="summary-card__value">{activeRecoveryPlansCount}</span>
-            <span className="summary-card__detail">acoes em andamento</span>
-            <svg viewBox="0 0 24 24" width="18" height="18" className="summary-card__icon">
-              <path fill="currentColor" d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-            </svg>
           </div>
         </div>
       </section>
-
-      {/* ── Monthly Evolution Timeline ── */}
-      {indicadores.length > 0 && (
-        <MonthlyTimeline monthlyScores={monthlyScores} />
-      )}
 
       {/* ── Indicators Section ── */}
       <section className="indicators-section">
@@ -504,16 +548,12 @@ export default function DashboardIndicadores() {
                 ciclo={ciclo}
                 ano={ano}
                 index={index}
+                accumulatedData={accumulatedMap[ind.id]}
               />
             ))}
           </div>
         )}
       </section>
-
-      {/* ── Attention Section (Recovery Plans) ── */}
-      {indicadores.length > 0 && (
-        <AttentionSection indicadores={indicadores} />
-      )}
 
       {/* ── Dialogs ── */}
       {showCheckInDialog && selectedIndicador && (
