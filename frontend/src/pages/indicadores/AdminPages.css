@@ -3111,12 +3111,12 @@
 
 /* Role Selector */
 .role-selector {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
 }
 
 .role-option-v2 {
-  flex: 1;
   display: flex;
   align-items: center;
   gap: 0.625rem;
@@ -3158,6 +3158,18 @@
 
 .role-indicator.role-admin {
   background: #d97706;
+}
+
+.role-indicator.role-director {
+  background: #7c3aed;
+}
+
+.role-indicator.role-ceo {
+  background: #dc2626;
+}
+
+.role-indicator.role-dev {
+  background: #059669;
 }
 
 .role-option-v2 > div {
@@ -3310,7 +3322,7 @@
   }
 
   .role-selector {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -3454,6 +3466,18 @@
   letter-spacing: 0.04em;
   border-radius: 6px;
   transition: all 0.2s ease;
+}
+
+.role-pill-dev {
+  background: linear-gradient(135deg, #ede9fe 0%, #c4b5fd 100%);
+  color: #5b21b6;
+  box-shadow: inset 0 -1px 0 rgba(139, 92, 246, 0.3);
+}
+
+.role-pill-ceo {
+  background: linear-gradient(135deg, #fef9c3 0%, #facc15 100%);
+  color: #713f12;
+  box-shadow: inset 0 -1px 0 rgba(202, 138, 4, 0.3);
 }
 
 .role-pill-admin {

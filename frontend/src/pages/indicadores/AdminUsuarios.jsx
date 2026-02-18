@@ -5,6 +5,22 @@ import './AdminPages.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+// Hierarquia de papéis (maior para menor privilégio)
+const ROLE_HIERARCHY = [
+  { value: 'dev', label: 'Dev', desc: 'Desenvolvimento + acesso total' },
+  { value: 'ceo', label: 'CEO', desc: 'Diretoria executiva' },
+  { value: 'director', label: 'Director', desc: 'Acesso total (diretoria)' },
+  { value: 'admin', label: 'Admin', desc: 'Acesso total' },
+  { value: 'leader', label: 'Líder', desc: 'Gerencia equipe' },
+  { value: 'user', label: 'Usuário', desc: 'Visualiza indicadores' },
+];
+
+function getVisibleRoles(currentRole) {
+  const idx = ROLE_HIERARCHY.findIndex(r => r.value === currentRole);
+  if (idx === -1) return ROLE_HIERARCHY.filter(r => r.value === 'user');
+  return ROLE_HIERARCHY.slice(idx);
+}
+
 export default function AdminUsuarios() {
   const { isPrivileged, user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
@@ -426,9 +442,9 @@ export default function AdminUsuarios() {
               className={`filter-dropdown ${filterRole ? 'filter-active' : ''}`}
             >
               <option value="">Papel</option>
-              <option value="admin">Admin</option>
-              <option value="leader">Líder</option>
-              <option value="user">Usuário</option>
+              {getVisibleRoles(currentUser?.role).map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
 
             <SearchableDropdown
@@ -526,8 +542,8 @@ export default function AdminUsuarios() {
                         </div>
                       </td>
                       <td className="col-role">
-                        <span className={`role-pill ${user.role === 'admin' || user.role === 'director' ? 'role-pill-admin' : user.role === 'leader' ? 'role-pill-leader' : 'role-pill-user'}`}>
-                          {user.role === 'admin' || user.role === 'director' ? 'Admin' : user.role === 'leader' ? 'Líder' : 'Usuário'}
+                        <span className={`role-pill ${user.role === 'dev' ? 'role-pill-dev' : user.role === 'ceo' ? 'role-pill-ceo' : user.role === 'director' || user.role === 'admin' ? 'role-pill-admin' : user.role === 'leader' ? 'role-pill-leader' : 'role-pill-user'}`}>
+                          {user.role === 'dev' ? 'Dev' : user.role === 'ceo' ? 'CEO' : user.role === 'director' ? 'Director' : user.role === 'admin' ? 'Admin' : user.role === 'leader' ? 'Líder' : 'Usuário'}
                         </span>
                       </td>
                       <td className="col-sector">
@@ -597,11 +613,7 @@ export default function AdminUsuarios() {
               <div className="form-field">
                 <label>Papel de acesso</label>
                 <div className="role-selector">
-                  {[
-                    { value: 'user', label: 'Usuário', desc: 'Visualiza indicadores' },
-                    { value: 'leader', label: 'Líder', desc: 'Gerencia equipe' },
-                    { value: 'admin', label: 'Admin', desc: 'Acesso total' }
-                  ].map(opt => (
+                  {getVisibleRoles(currentUser?.role).map(opt => (
                     <label
                       key={opt.value}
                       className={`role-option-v2 ${editForm.role === opt.value ? 'selected' : ''}`}
