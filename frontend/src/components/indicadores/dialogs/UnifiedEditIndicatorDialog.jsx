@@ -24,10 +24,33 @@ const QUARTER_GROUPS = [
   { key: 'q4', label: 'Q4', months: [10, 11, 12] },
 ];
 
+const FREQUENCY_TYPES = [
+  { value: 'mensal', label: 'Mensal' },
+  { value: 'trimestral', label: 'Trimestral' },
+  { value: 'semestral', label: 'Semestral' },
+  { value: 'anual', label: 'Anual' },
+];
+
+const FREQUENCY_VISIBLE_MONTHS = {
+  mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  trimestral: [3, 6, 9, 12],
+  semestral: [6, 12],
+  anual: [12],
+};
+
+const FREQUENCY_LABELS = {
+  mensal: 'MENSAL',
+  trimestral: 'TRIMESTRAL',
+  semestral: 'SEMESTRAL',
+  anual: 'ANUAL',
+};
+
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-function isMonthActive(month, activeQuarters, mesInicio = 1) {
+function isMonthActive(month, activeQuarters, mesInicio = 1, frequencia = 'mensal') {
   if (month < mesInicio) return false;
+  const visibleMonths = FREQUENCY_VISIBLE_MONTHS[frequencia] || FREQUENCY_VISIBLE_MONTHS.mensal;
+  if (!visibleMonths.includes(month)) return false;
   if (month <= 3) return !!activeQuarters.q1;
   if (month <= 6) return !!activeQuarters.q2;
   if (month <= 9) return !!activeQuarters.q3;
@@ -38,7 +61,8 @@ export default function UnifiedEditIndicatorDialog({
   indicador,
   onSubmit,
   onClose,
-  isTemplate = false
+  isTemplate = false,
+  sectors = []
 }) {
   const isEditing = !!indicador;
 
@@ -67,7 +91,9 @@ export default function UnifiedEditIndicatorDialog({
       : (indicador?.peso ?? 1),
     is_inverse: indicador?.is_inverse || false,
     auto_calculate: indicador?.auto_calculate !== false,
-    mes_inicio: indicador?.mes_inicio || 1
+    mes_inicio: indicador?.mes_inicio || 1,
+    frequencia: indicador?.frequencia || 'mensal',
+    setor_apuracao_id: indicador?.setor_apuracao_id || ''
   });
 
   const [showMetasPanel, setShowMetasPanel] = useState(false);
@@ -96,7 +122,7 @@ export default function UnifiedEditIndicatorDialog({
 
     const mInicio = parseInt(formData.mes_inicio) || 1;
     const distributed = distributeAccumulatedTarget(
-      target, formData.consolidation_type, activeQuarters, mInicio, formData.metric_type
+      target, formData.consolidation_type, activeQuarters, mInicio, formData.metric_type, formData.frequencia
     );
     setMonthlyTargets(prev => {
       const updated = { ...prev };
@@ -105,7 +131,7 @@ export default function UnifiedEditIndicatorDialog({
       });
       return updated;
     });
-  }, [formData.auto_calculate, formData.target, formData.consolidation_type, formData.mes_inicio, formData.metric_type, activeQuarters]);
+  }, [formData.auto_calculate, formData.target, formData.consolidation_type, formData.mes_inicio, formData.metric_type, formData.frequencia, activeQuarters]);
 
   const handleChange = (field, value) => {
     setFormData(prev => {
@@ -154,7 +180,7 @@ export default function UnifiedEditIndicatorDialog({
       return;
     }
 
-    const distributed = distributeAccumulatedTarget(accumulated, formData.consolidation_type, activeQuarters, mesInicio, formData.metric_type);
+    const distributed = distributeAccumulatedTarget(accumulated, formData.consolidation_type, activeQuarters, mesInicio, formData.metric_type, formData.frequencia);
     setMonthlyTargets(prev => {
       const updated = { ...prev };
       Object.entries(distributed).forEach(([month, value]) => {
@@ -168,7 +194,7 @@ export default function UnifiedEditIndicatorDialog({
     // Encontrar o primeiro mês ativo
     let firstActiveMonth = null;
     for (let i = 1; i <= 12; i++) {
-      if (isMonthActive(i, activeQuarters, mesInicio)) {
+      if (isMonthActive(i, activeQuarters, mesInicio, formData.frequencia)) {
         firstActiveMonth = i;
         break;
       }
@@ -178,7 +204,7 @@ export default function UnifiedEditIndicatorDialog({
     if (firstValue !== '' && firstValue !== null && firstValue !== undefined) {
       const newTargets = { ...monthlyTargets };
       for (let i = 1; i <= 12; i++) {
-        if (isMonthActive(i, activeQuarters, mesInicio)) {
+        if (isMonthActive(i, activeQuarters, mesInicio, formData.frequencia)) {
           newTargets[i] = firstValue;
         }
       }
@@ -224,7 +250,7 @@ export default function UnifiedEditIndicatorDialog({
 
     for (let m = 1; m <= 12; m++) {
       const val = parseFloat(monthlyTargets[m]) || 0;
-      const active = isMonthActive(m, activeQuarters, mesInicio);
+      const active = isMonthActive(m, activeQuarters, mesInicio, formData.frequencia);
 
       if (!active) {
         result[m] = { value: null, meta80: null, meta120: null };
@@ -257,7 +283,7 @@ export default function UnifiedEditIndicatorDialog({
       }
     }
     return result;
-  }, [monthlyTargets, activeQuarters, formData.consolidation_type, formData.metric_type, ratio80, ratio120, mesInicio]);
+  }, [monthlyTargets, activeQuarters, formData.consolidation_type, formData.metric_type, formData.frequencia, ratio80, ratio120, mesInicio]);
 
   // Validação: acumulado do último mês ativo deve bater com meta anual
   const accMismatch = useMemo(() => {
@@ -265,7 +291,7 @@ export default function UnifiedEditIndicatorDialog({
     if (!target) return null;
     let lastActiveMonth = null;
     for (let m = 12; m >= 1; m--) {
-      if (isMonthActive(m, activeQuarters, mesInicio) && accumulatedValues[m]?.value !== null) {
+      if (isMonthActive(m, activeQuarters, mesInicio, formData.frequencia) && accumulatedValues[m]?.value !== null) {
         lastActiveMonth = m;
         break;
       }
@@ -316,6 +342,8 @@ export default function UnifiedEditIndicatorDialog({
           monthly_targets: cleanTargets,
           active_quarters: activeQuarters,
           mes_inicio: parseInt(formData.mes_inicio) || 1,
+          frequencia: formData.frequencia || 'mensal',
+          setor_apuracao_id: formData.setor_apuracao_id || null,
         });
       } else {
         await onSubmit({
@@ -332,6 +360,8 @@ export default function UnifiedEditIndicatorDialog({
           monthly_targets: cleanTargets,
           active_quarters: activeQuarters,
           mes_inicio: parseInt(formData.mes_inicio) || 1,
+          frequencia: formData.frequencia || 'mensal',
+          setor_apuracao_id: formData.setor_apuracao_id || null,
         });
       }
     } catch (err) {
@@ -353,7 +383,7 @@ export default function UnifiedEditIndicatorDialog({
             <h2>
               {isEditing ? 'Editar Indicador' : 'Novo Indicador Padrão'}
               {showMetasPanel && (
-                <span className="periodicity-badge">ANUAL</span>
+                <span className="periodicity-badge">{FREQUENCY_LABELS[formData.frequencia] || 'MENSAL'}</span>
               )}
             </h2>
             <p className="dialog-subtitle">
@@ -395,8 +425,8 @@ export default function UnifiedEditIndicatorDialog({
                 />
               </div>
 
-              {/* Tipo de Métrica + Método de Acúmulo */}
-              <div className="form-row">
+              {/* Tipo de Métrica + Método de Acúmulo + Frequência */}
+              <div className="form-row form-row--triple">
                 <div className="form-group">
                   <label htmlFor="u-metric">Tipo de Métrica</label>
                   <select
@@ -422,7 +452,37 @@ export default function UnifiedEditIndicatorDialog({
                     ))}
                   </select>
                 </div>
+
+                <div className="form-group">
+                  <label htmlFor="u-frequencia">Frequência</label>
+                  <select
+                    id="u-frequencia"
+                    value={formData.frequencia}
+                    onChange={(e) => handleChange('frequencia', e.target.value)}
+                  >
+                    {FREQUENCY_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              {/* Setor de Apuração */}
+              {sectors.length > 0 && (
+                <div className="form-group">
+                  <label htmlFor="u-setor-apuracao">Setor responsável pela Apuração</label>
+                  <select
+                    id="u-setor-apuracao"
+                    value={formData.setor_apuracao_id}
+                    onChange={(e) => handleChange('setor_apuracao_id', e.target.value)}
+                  >
+                    <option value="">— Nenhum —</option>
+                    {sectors.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Divider */}
               <hr className="form-divider" />
@@ -627,7 +687,7 @@ export default function UnifiedEditIndicatorDialog({
                           </div>
                           <div className="accumulated-months">
                             {group.months.map(m => {
-                              const monthActive = isMonthActive(m, activeQuarters, mesInicio);
+                              const monthActive = isMonthActive(m, activeQuarters, mesInicio, formData.frequencia);
                               const val = parseFloat(monthlyTargets[m]) || 0;
                               const m80 = val ? roundByMetric(val * ratio80) : 0;
                               const m120 = val ? roundByMetric(val * ratio120) : 0;
@@ -693,7 +753,7 @@ export default function UnifiedEditIndicatorDialog({
                         </div>
                         <div className="accumulated-months">
                           {group.months.map(m => {
-                            const monthActive = isMonthActive(m, activeQuarters, mesInicio);
+                            const monthActive = isMonthActive(m, activeQuarters, mesInicio, formData.frequencia);
                             const acc = accumulatedValues[m];
                             if (!monthActive || !acc || acc.value === null) {
                               return (

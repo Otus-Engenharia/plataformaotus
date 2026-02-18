@@ -584,6 +584,7 @@ export default function AdminCargos() {
             setSelectedPositionId(null);
           }}
           isTemplate={true}
+          sectors={sectors}
         />
       )}
     </div>

@@ -1838,6 +1838,10 @@ export async function createPositionIndicator(positionId, templateData) {
       is_inverse: templateData.is_inverse || false,
       monthly_targets: templateData.monthly_targets || {},
       active_quarters: templateData.active_quarters || { q1: true, q2: true, q3: true, q4: true },
+      auto_calculate: templateData.auto_calculate !== false,
+      mes_inicio: templateData.mes_inicio || 1,
+      frequencia: templateData.frequencia || 'mensal',
+      setor_apuracao_id: templateData.setor_apuracao_id || null,
     }])
     .select()
     .single();
@@ -2156,6 +2160,10 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
           metric_type: template.metric_type || 'number',
           auto_calculate: template.auto_calculate !== false,
           monthly_targets: template.monthly_targets || {},
+          active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
+          mes_inicio: template.mes_inicio || 1,
+          frequencia: template.frequencia || 'mensal',
+          setor_apuracao_id: template.setor_apuracao_id || null,
         });
 
       if (createError) {

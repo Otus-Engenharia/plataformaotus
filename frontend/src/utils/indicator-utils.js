@@ -301,9 +301,10 @@ export function getMonthGroupsForPeriodicity(periodicity) {
  * @param {Object} [activeQuarters] - Trimestres ativos { q1: bool, q2: bool, q3: bool, q4: bool }
  * @param {number} [mesInicio=1] - Mes de inicio (1-12), meses anteriores sao inativos
  * @param {string} [metricType='number'] - Tipo de metrica ('integer' arredonda para baixo)
+ * @param {string} [frequencia='mensal'] - Frequencia de medicao ('mensal'|'trimestral'|'semestral'|'anual')
  * @returns {Object} Objeto {1: valor, 2: valor, ..., 12: valor}
  */
-export function distributeAccumulatedTarget(accumulated, method, activeQuarters, mesInicio = 1, metricType = 'number') {
+export function distributeAccumulatedTarget(accumulated, method, activeQuarters, mesInicio = 1, metricType = 'number', frequencia = 'mensal') {
   // Se receber string de periodicidade (compatibilidade), tratar como anual
   if (typeof activeQuarters === 'string') {
     activeQuarters = { q1: true, q2: true, q3: true, q4: true };
@@ -311,10 +312,18 @@ export function distributeAccumulatedTarget(accumulated, method, activeQuarters,
   const aq = activeQuarters || { q1: true, q2: true, q3: true, q4: true };
   const round = (val) => metricType === 'integer' ? Math.floor(val) : Math.round(val * 100) / 100;
 
+  const FREQ_MONTHS = {
+    mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    trimestral: [3, 6, 9, 12],
+    semestral: [6, 12],
+    anual: [12],
+  };
+  const visibleMonths = FREQ_MONTHS[frequencia] || FREQ_MONTHS.mensal;
+
   const quarterMonths = { q1: [1, 2, 3], q2: [4, 5, 6], q3: [7, 8, 9], q4: [10, 11, 12] };
   const activeMonths = [];
   for (const [q, months] of Object.entries(quarterMonths)) {
-    if (aq[q]) activeMonths.push(...months.filter(m => m >= mesInicio));
+    if (aq[q]) activeMonths.push(...months.filter(m => m >= mesInicio && visibleMonths.includes(m)));
   }
 
   const result = {};
