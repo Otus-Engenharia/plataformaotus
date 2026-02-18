@@ -378,13 +378,13 @@
 }
 
 /* ==========================================================================
-   Indicator Card — Enriched with storytelling
+   Indicator Card v2 — Premium KPI Storytelling Card
    ========================================================================== */
 .ind-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 1.125rem 1.25rem;
+  padding: 0;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -394,19 +394,19 @@
   transition: var(--transition-normal);
 }
 
+/* Status accent — top edge stripe */
 .ind-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
-  width: 3px;
-  height: 100%;
-  transition: var(--transition-fast);
+  right: 0;
+  height: 3px;
 }
 
 .ind-card--success::before { background: var(--color-success); }
 .ind-card--warning::before { background: var(--color-warning); }
-.ind-card--danger::before { background: var(--color-danger); }
+.ind-card--danger::before  { background: var(--color-danger); }
 
 .ind-card:hover {
   border-color: var(--color-border-hover);
@@ -414,28 +414,26 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* Card Header */
-.ind-card__header {
+/* ─── Section 1: Identity ─── */
+.ind-card__identity {
   display: flex;
   align-items: flex-start;
-  gap: 0.875rem;
-  margin-bottom: 0.75rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1.125rem 1.25rem 0;
 }
 
-.ind-card__header .score-ring {
-  flex-shrink: 0;
-}
-
-.ind-card__title-group {
+.ind-card__title-block {
   flex: 1;
   min-width: 0;
 }
 
 .ind-card__title {
-  font-size: 0.875rem;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
   font-weight: 600;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--color-text-primary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -444,37 +442,148 @@
 }
 
 .ind-card__description {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--color-text-muted);
-  margin: 0.25rem 0 0;
+  margin: 0.1875rem 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  line-height: 1.4;
 }
 
-/* Card Sparkline */
-.ind-card__sparkline {
-  margin-bottom: 0.75rem;
-  padding: 0.25rem 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+.ind-card__notes-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding: 0.1875rem 0.5rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+  margin-top: 0.125rem;
 }
 
-/* Card Stats */
-.ind-card__stats {
+.ind-card__notes-badge svg {
+  opacity: 0.5;
+}
+
+/* ─── Section 2: Result Cluster ─── */
+.ind-card__result-cluster {
   display: flex;
-  gap: 1.25rem;
-  margin-bottom: 0.75rem;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1.25rem;
+  margin: 0.5rem 0.75rem 0;
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-md);
 }
 
-.ind-card__stat {
+.ind-card__result-cluster .score-ring {
+  flex-shrink: 0;
+}
+
+.ind-card__result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ind-card__zone-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.ind-card__zone-label--zerado  { color: #ef4444; }
+.ind-card__zone-label--risco   { color: #d97706; }
+.ind-card__zone-label--alvo    { color: #16a34a; }
+.ind-card__zone-label--superou { color: #1a1a1a; }
+.ind-card__zone-label--none    { color: var(--color-text-muted); }
+
+.ind-card__peso-tag {
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ─── Section 3: Key Metrics ─── */
+.ind-card__metrics {
+  padding: 0 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.ind-card__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.625rem;
+  background: rgba(0, 0, 0, 0.025);
+  border: 1px dashed rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.625rem;
+}
+
+.ind-card__meta-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.ind-card__meta-value {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ind-card__comparison {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 0.5rem;
+}
+
+.ind-card__metric {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
 }
 
-.ind-card__stat-label {
+.ind-card__metric--realizado {
+  text-align: left;
+}
+
+.ind-card__metric--planejado {
+  text-align: right;
+}
+
+.ind-card__metric-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.75rem;
+}
+
+.ind-card__metric-vs {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.ind-card__metric-label {
   font-size: 0.625rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -482,46 +591,109 @@
   font-weight: 500;
 }
 
-.ind-card__stat-value {
-  font-size: 0.875rem;
-  font-weight: 600;
+.ind-card__metric-value {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
   color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
-.ind-card__stat--weight {
-  margin-left: auto;
-  padding: 0.25rem 0.5rem;
-  background: rgba(0, 0, 0, 0.025);
-  border-radius: var(--radius-sm);
+/* Realizado gets the status color */
+.ind-card--success .ind-card__metric--realizado .ind-card__metric-value {
+  color: var(--color-success);
 }
 
-/* Zone Bar inside card */
+.ind-card--warning .ind-card__metric--realizado .ind-card__metric-value {
+  color: var(--color-warning);
+}
+
+.ind-card--danger .ind-card__metric--realizado .ind-card__metric-value {
+  color: var(--color-danger);
+}
+
+/* Planejado stays muted */
+.ind-card__metric--planejado .ind-card__metric-value {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+/* Progress bar: realizado / planejado ratio */
+.ind-card__progress-track {
+  position: relative;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ind-card__progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ind-card__progress-fill--success { background: var(--color-success); }
+.ind-card__progress-fill--warning { background: var(--color-warning); }
+.ind-card__progress-fill--danger  { background: var(--color-danger); }
+
+.ind-card__progress-label {
+  position: absolute;
+  right: 0;
+  top: -14px;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Section 4: Sparkline ─── */
+.ind-card__sparkline {
+  margin: 0.75rem 1.25rem 0;
+  padding: 0.5rem 0;
+}
+
+.ind-card__sparkline-header {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+.ind-card__sparkline-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+/* ─── Section 5: Zone Bar ─── */
 .ind-card__zone-bar {
-  margin-bottom: 0.75rem;
-  padding: 0.375rem 0;
+  padding: 0.25rem 1.25rem 0;
 }
 
-/* Monthly Notes Section */
-.ind-card__notes {
-  margin-bottom: 0.75rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
+/* ─── Section 6: Recovery Plan Alerts ─── */
+.ind-card__alerts {
+  margin: 0.625rem 1.25rem 0;
   padding-top: 0.625rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
 }
 
-.ind-card__notes-header {
+.ind-card__alerts-header {
   display: flex;
   align-items: center;
   gap: 0.375rem;
   margin-bottom: 0.5rem;
 }
 
-.ind-card__notes-icon {
-  color: var(--color-text-muted);
+.ind-card__alerts-icon {
+  color: var(--color-warning);
   flex-shrink: 0;
-  opacity: 0.6;
 }
 
-.ind-card__notes-title {
+.ind-card__alerts-title {
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -529,150 +701,139 @@
   color: var(--color-text-muted);
 }
 
+.ind-card__alert-strip {
+  padding: 0.5rem 0.625rem;
+  background: var(--alert-bg);
+  border-left: 3px solid var(--alert-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.375rem;
+}
+
+.ind-card__alert-strip:last-child {
+  margin-bottom: 0;
+}
+
+.ind-card__alert-top {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.ind-card__alert-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--alert-color);
+  flex-shrink: 0;
+}
+
+.ind-card__alert-status {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--alert-color);
+}
+
+.ind-card__alert-progress {
+  margin-left: auto;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ind-card__alert-desc {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0.25rem 0 0.375rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ind-card__alert-bar-track {
+  height: 2px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.ind-card__alert-bar-fill {
+  height: 100%;
+  background: var(--alert-color);
+  border-radius: 1px;
+  transition: width 0.6s ease-out;
+}
+
+/* ─── Section 7: Notes (collapsible) ─── */
+.ind-card__notes-details {
+  margin: 0.375rem 1.25rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.ind-card__notes-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.ind-card__notes-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ind-card__notes-summary svg {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.ind-card__notes-chevron {
+  margin-left: auto;
+  transition: transform var(--transition-fast);
+}
+
+.ind-card__notes-details[open] .ind-card__notes-chevron {
+  transform: rotate(180deg);
+}
+
 .ind-card__notes-list {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  max-height: 180px;
+  gap: 0.3125rem;
+  max-height: 160px;
   overflow-y: auto;
+  padding-bottom: 0.5rem;
 }
 
 .ind-card__note-item {
   display: flex;
   align-items: flex-start;
   gap: 0.375rem;
-  padding: 0.375rem 0.5rem;
-  background: var(--color-bg-subtle);
-  border-radius: 6px;
+  padding: 0.3125rem 0.5rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 5px;
   font-size: 0.6875rem;
   line-height: 1.5;
 }
 
-.ind-card__note-item .ind-card__note-month {
+.ind-card__note-month {
   font-weight: 600;
   color: var(--color-text-secondary);
   flex-shrink: 0;
+  min-width: 2rem;
 }
 
-.ind-card__note-item .ind-card__note-text {
+.ind-card__note-text {
   color: var(--color-text-secondary);
 }
 
-/* Expanded Recovery Plans */
-.ind-card__plans {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.625rem;
-}
-
-.ind-card__plan {
-  padding: 0.75rem;
-  background: var(--plan-bg);
-  border-left: 3px solid var(--plan-color);
-  border-radius: var(--radius-sm);
-}
-
-.ind-card__plan-header {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-bottom: 0.375rem;
-}
-
-.ind-card__plan-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--plan-color);
-  flex-shrink: 0;
-}
-
-.ind-card__plan-status {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--plan-color);
-}
-
-.ind-card__plan-count {
-  margin-left: auto;
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.ind-card__plan-desc {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  line-height: 1.5;
-  margin: 0 0 0.5rem;
-}
-
-.ind-card__plan-progress-track {
-  height: 3px;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.ind-card__plan-progress-fill {
-  height: 100%;
-  background: var(--plan-color);
-  border-radius: 2px;
-  transition: width 0.6s ease-out;
-}
-
-.ind-card__plan-actions {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.ind-card__plan-action {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.375rem;
-  font-size: 0.6875rem;
-  line-height: 1.4;
-  padding: 0.25rem 0;
-}
-
-.ind-card__plan-action--done {
-  opacity: 0.5;
-}
-
-.ind-card__plan-action--done .ind-card__plan-action-text {
-  text-decoration: line-through;
-}
-
-.ind-card__plan-action-check {
-  flex-shrink: 0;
-  color: var(--plan-color);
-  display: flex;
-  align-items: center;
-  margin-top: 1px;
-}
-
-.ind-card__plan-action--done .ind-card__plan-action-check {
-  color: var(--color-success);
-}
-
-.ind-card__plan-action-text {
-  color: var(--color-text-primary);
-}
-
-.ind-card__plan-action-resp {
-  margin-left: auto;
-  font-size: 0.625rem;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-/* Card Footer Link */
+/* ─── Footer Link ─── */
 .ind-card__link {
   display: flex;
   align-items: center;
@@ -683,7 +844,7 @@
   color: var(--color-text-muted);
   text-decoration: none;
   margin-top: auto;
-  padding-top: 0.625rem;
+  padding: 0.625rem 1.25rem;
   border-top: 1px solid var(--color-border);
   transition: var(--transition-fast);
 }
@@ -698,57 +859,6 @@
 
 .ind-card__link:hover svg {
   transform: translateX(2px);
-}
-
-/* ==========================================================================
-   Recovery Plan Inline (inside cards)
-   ========================================================================== */
-.recovery-inline {
-  padding: 0.5rem 0.625rem;
-  background: var(--rp-bg);
-  border-radius: var(--radius-sm);
-  border-left: 2px solid var(--rp-color);
-}
-
-.recovery-inline__header {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.6875rem;
-}
-
-.recovery-inline__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--rp-color);
-  flex-shrink: 0;
-}
-
-.recovery-inline__status {
-  font-weight: 600;
-  color: var(--rp-color);
-}
-
-.recovery-inline__count {
-  margin-left: auto;
-  color: var(--color-text-muted);
-  font-size: 0.625rem;
-}
-
-.recovery-inline__progress-track {
-  height: 3px;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 2px;
-  margin-top: 0.375rem;
-  overflow: hidden;
-}
-
-.recovery-inline__progress-fill {
-  height: 100%;
-  background: var(--rp-color);
-  border-radius: 2px;
-  transition: width 0.6s ease-out;
 }
 
 /* ==========================================================================
@@ -1253,17 +1363,49 @@
     font-size: 3rem;
   }
 
-  .ind-card__header .score-ring {
-    width: 36px;
-    height: 36px;
+  .ind-card__result-cluster {
+    margin: 0.375rem 0.5rem 0;
+    padding: 0.625rem 0.875rem;
   }
 
-  .ind-card__stats {
-    flex-wrap: wrap;
-    gap: 0.75rem;
+  .ind-card__metrics {
+    padding: 0 0.875rem;
   }
 
-  .ind-card__stat--weight {
-    margin-left: 0;
+  .ind-card__sparkline {
+    margin: 0.5rem 0.875rem 0;
+  }
+
+  .ind-card__zone-bar {
+    padding: 0.25rem 0.875rem 0;
+  }
+
+  .ind-card__alerts {
+    margin: 0.5rem 0.875rem 0;
+  }
+
+  .ind-card__notes-details {
+    margin: 0.375rem 0.875rem 0;
+  }
+
+  .ind-card__link {
+    padding: 0.5rem 0.875rem;
+  }
+
+  .ind-card__comparison {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .ind-card__metric--planejado {
+    text-align: left;
+  }
+
+  .ind-card__metric-divider {
+    display: none;
+  }
+
+  .ind-card__metric-value {
+    font-size: 1rem;
   }
 }

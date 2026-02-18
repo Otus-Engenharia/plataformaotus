@@ -83,11 +83,12 @@ function getActivePlans(indicador) {
 
 
 // ────────────────────────────────────────────────────────────
-// Enriched Indicator Card — tells the full story per indicator
+// Indicator Card v2 — Premium KPI Storytelling Card
 // ────────────────────────────────────────────────────────────
 function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
   const acc = accumulatedData || { realizado: 0, planejado: 0, score: 0 };
   const score = acc.score;
+  const metaFormatada = formatValue(indicador.meta, indicador.metric_type);
   const realizadoFormatado = formatValue(acc.realizado, indicador.metric_type);
   const planejadoFormatado = formatValue(acc.planejado, indicador.metric_type);
   const monthlyData = getIndicatorMonthlyData(indicador, ciclo, ano);
@@ -101,116 +102,131 @@ function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
   };
   const status = getStatus();
 
+  const progressPct = acc.planejado > 0
+    ? Math.min((acc.realizado / acc.planejado) * 100, 150)
+    : 0;
+
   return (
     <div
       className={`ind-card ind-card--${status}`}
       style={{ animationDelay: `${80 + index * 60}ms` }}
     >
-      {/* Card Header with ScoreRing */}
-      <div className="ind-card__header">
-        <ScoreRing score={score} size={44} />
-        <div className="ind-card__title-group">
+      {/* ─── SECTION 1: Identity ─── */}
+      <div className="ind-card__identity">
+        <div className="ind-card__title-block">
           <h3 className="ind-card__title">{indicador.nome}</h3>
           {indicador.descricao && (
             <p className="ind-card__description">{indicador.descricao}</p>
           )}
         </div>
+        {allNotes.length > 0 && (
+          <span className="ind-card__notes-badge" title={`${allNotes.length} nota(s)`}>
+            <svg viewBox="0 0 24 24" width="12" height="12">
+              <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
+            </svg>
+            {allNotes.length}
+          </span>
+        )}
       </div>
 
-      {/* Zone Gauge Bar — shows where the indicator falls on the scale */}
+      {/* ─── SECTION 2: Result Cluster (Score + Peso) ─── */}
+      <div className="ind-card__result-cluster">
+        <ScoreRing score={score} size={56} />
+        <div className="ind-card__result-info">
+          <span className={`ind-card__zone-label ind-card__zone-label--${getScoreZoneId(score)}`}>
+            {score >= 120 ? 'Superou' : score >= 100 ? 'No alvo' : score >= 80 ? 'Em risco' : 'Zerado'}
+          </span>
+          <span className="ind-card__peso-tag">
+            Peso {indicador.peso || 1}
+          </span>
+        </div>
+      </div>
+
+      {/* ─── SECTION 3: Key Metrics (Meta, Realizado, Planejado) ─── */}
+      <div className="ind-card__metrics">
+        <div className="ind-card__meta-row">
+          <span className="ind-card__meta-label">Meta (anual)</span>
+          <span className="ind-card__meta-value">{metaFormatada}</span>
+        </div>
+
+        <div className="ind-card__comparison">
+          <div className="ind-card__metric ind-card__metric--realizado">
+            <span className="ind-card__metric-label">Realizado</span>
+            <span className="ind-card__metric-value">{realizadoFormatado}</span>
+          </div>
+          <div className="ind-card__metric-divider">
+            <span className="ind-card__metric-vs">vs</span>
+          </div>
+          <div className="ind-card__metric ind-card__metric--planejado">
+            <span className="ind-card__metric-label">Planejado</span>
+            <span className="ind-card__metric-value">{planejadoFormatado}</span>
+          </div>
+        </div>
+
+        <div className="ind-card__progress-track">
+          <div
+            className={`ind-card__progress-fill ind-card__progress-fill--${status}`}
+            style={{ width: `${Math.min(progressPct, 100)}%` }}
+          />
+          <span className="ind-card__progress-label">
+            {progressPct > 0 ? `${Math.round(progressPct)}%` : '--'}
+          </span>
+        </div>
+      </div>
+
+      {/* ─── SECTION 4: Monthly Sparkline (larger) ─── */}
+      <div className="ind-card__sparkline">
+        <div className="ind-card__sparkline-header">
+          <span className="ind-card__sparkline-label">Evolucao Mensal</span>
+        </div>
+        <MiniSparkline months={monthlyData} height={64} />
+      </div>
+
+      {/* ─── SECTION 5: Zone Gauge (subtle, bottom reference) ─── */}
       <div className="ind-card__zone-bar">
         <ScoreZoneGauge score={score} size="sm" showLabels={false} showScore={false} />
       </div>
 
-      {/* Stats Row */}
-      <div className="ind-card__stats">
-        <div className="ind-card__stat">
-          <span className="ind-card__stat-label">Realizado</span>
-          <span className="ind-card__stat-value">{realizadoFormatado}</span>
-        </div>
-        <div className="ind-card__stat">
-          <span className="ind-card__stat-label">Planejado</span>
-          <span className="ind-card__stat-value">{planejadoFormatado}</span>
-        </div>
-        <div className="ind-card__stat ind-card__stat--weight">
-          <span className="ind-card__stat-label">Peso</span>
-          <span className="ind-card__stat-value">{indicador.peso || 1}</span>
-        </div>
-      </div>
-
-      {/* Mini Sparkline — monthly evolution */}
-      <div className="ind-card__sparkline">
-        <MiniSparkline months={monthlyData} height={52} />
-      </div>
-
-      {/* All Monthly Notes — month-by-month narrative for the leader */}
-      {allNotes.length > 0 && (
-        <div className="ind-card__notes">
-          <div className="ind-card__notes-header">
-            <svg viewBox="0 0 24 24" width="14" height="14" className="ind-card__notes-icon">
-              <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
-            </svg>
-            <span className="ind-card__notes-title">Notas ({allNotes.length})</span>
-          </div>
-          <div className="ind-card__notes-list">
-            {allNotes.map((note, i) => (
-              <div key={i} className="ind-card__note-item">
-                <span className="ind-card__note-month">{note.month}:</span>
-                <span className="ind-card__note-text">{note.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Expanded Recovery Plans — the star feature */}
+      {/* ─── SECTION 6: Recovery Plans (alert strips) ─── */}
       {activePlans.length > 0 && (
-        <div className="ind-card__plans">
+        <div className="ind-card__alerts">
+          <div className="ind-card__alerts-header">
+            <svg viewBox="0 0 24 24" width="13" height="13" className="ind-card__alerts-icon">
+              <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+            </svg>
+            <span className="ind-card__alerts-title">
+              Plano de Recuperacao ({activePlans.length})
+            </span>
+          </div>
           {activePlans.map(plan => {
             const actions = parseAcoes(plan.acoes);
             const completed = actions.filter(a => a.concluida).length;
             const total = actions.length;
             const statusConfig = {
-              pendente: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)', label: 'Pendente' },
-              em_andamento: { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.08)', label: 'Em andamento' },
+              pendente: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.06)', label: 'Pendente' },
+              em_andamento: { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.06)', label: 'Em andamento' },
             };
             const config = statusConfig[plan.status] || statusConfig.pendente;
 
             return (
-              <div key={plan.id} className="ind-card__plan" style={{ '--plan-color': config.color, '--plan-bg': config.bg }}>
-                <div className="ind-card__plan-header">
-                  <span className="ind-card__plan-dot" />
-                  <span className="ind-card__plan-status">{config.label}</span>
+              <div key={plan.id} className="ind-card__alert-strip" style={{ '--alert-color': config.color, '--alert-bg': config.bg }}>
+                <div className="ind-card__alert-top">
+                  <span className="ind-card__alert-dot" />
+                  <span className="ind-card__alert-status">{config.label}</span>
                   {total > 0 && (
-                    <span className="ind-card__plan-count">{completed}/{total}</span>
+                    <span className="ind-card__alert-progress">{completed}/{total}</span>
                   )}
                 </div>
                 {plan.descricao && (
-                  <p className="ind-card__plan-desc">{plan.descricao}</p>
+                  <p className="ind-card__alert-desc">{plan.descricao}</p>
                 )}
                 {total > 0 && (
-                  <>
-                    <div className="ind-card__plan-progress-track">
-                      <div className="ind-card__plan-progress-fill" style={{ width: `${(completed / total) * 100}%` }} />
-                    </div>
-                    <ul className="ind-card__plan-actions">
-                      {actions.map((action, ai) => (
-                        <li key={ai} className={`ind-card__plan-action ${action.concluida ? 'ind-card__plan-action--done' : ''}`}>
-                          <span className="ind-card__plan-action-check">
-                            {action.concluida ? (
-                              <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                            ) : (
-                              <svg viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="2"/></svg>
-                            )}
-                          </span>
-                          <span className="ind-card__plan-action-text">{action.descricao}</span>
-                          {action.responsavel && (
-                            <span className="ind-card__plan-action-resp">{action.responsavel}</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
+                  <div className="ind-card__alert-bar-track">
+                    <div
+                      className="ind-card__alert-bar-fill"
+                      style={{ width: `${(completed / total) * 100}%` }}
+                    />
+                  </div>
                 )}
               </div>
             );
@@ -218,7 +234,30 @@ function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
         </div>
       )}
 
-      {/* Card Footer Link */}
+      {/* ─── SECTION 7: Collapsible Notes ─── */}
+      {allNotes.length > 0 && (
+        <details className="ind-card__notes-details">
+          <summary className="ind-card__notes-summary">
+            <svg viewBox="0 0 24 24" width="13" height="13">
+              <path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
+            </svg>
+            Notas ({allNotes.length})
+            <svg viewBox="0 0 24 24" width="14" height="14" className="ind-card__notes-chevron">
+              <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+            </svg>
+          </summary>
+          <div className="ind-card__notes-list">
+            {allNotes.map((note, i) => (
+              <div key={i} className="ind-card__note-item">
+                <span className="ind-card__note-month">{note.month}</span>
+                <span className="ind-card__note-text">{note.text}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {/* ─── Footer Link ─── */}
       <Link to={`/ind/indicador/${indicador.id}`} className="ind-card__link">
         Ver detalhes
         <svg viewBox="0 0 24 24" width="14" height="14">
