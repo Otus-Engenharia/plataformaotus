@@ -940,16 +940,19 @@ export default function IndicatorDetailView() {
                     <>
                       <div className="monthly-item__realizado-row">
                         <span className="monthly-item__realizado-label">Realizado</span>
-                        <span
-                          className="monthly-item__realizado-value"
-                          onClick={() => openCheckInDialog(month.month, month.checkIn)}
-                          title="Clique para editar"
-                        >
+                        <span className="monthly-item__realizado-value">
                           {formatValue(month.value, indicador.metric_type)}
-                          <svg className="kpi-edit-icon" viewBox="0 0 24 24" width="10" height="10">
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-edit-checkin"
+                          onClick={() => openCheckInDialog(month.month, month.checkIn)}
+                          title="Editar medição"
+                        >
+                          <svg viewBox="0 0 24 24" width="14" height="14">
                             <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                           </svg>
-                        </span>
+                        </button>
                       </div>
                       {monthScore !== null && (
                         <span className={`monthly-item__status monthly-item__status--${monthColor}`}>
