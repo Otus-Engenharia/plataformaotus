@@ -358,6 +358,7 @@ export default function DashboardIndicadores() {
   const [selectedIndicador, setSelectedIndicador] = useState(null);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [filtroEmRisco, setFiltroEmRisco] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -444,6 +445,11 @@ export default function DashboardIndicadores() {
     }
     return map;
   }, [indicadores, ano, currentMonth]);
+
+  const indicadoresEmRisco = indicadores.filter(
+    ind => (accumulatedMap[ind.id]?.score || 0) < 100
+  );
+  const indicadoresFiltrados = filtroEmRisco ? indicadoresEmRisco : indicadores;
 
   const usedTemplateIds = new Set(indicadores.map(i => i.template_id).filter(Boolean));
   const availableTemplates = templates.filter(t => !usedTemplateIds.has(t.id));
@@ -549,16 +555,30 @@ export default function DashboardIndicadores() {
         <div className="indicators-section__header">
           <h2 className="indicators-section__title">
             Indicadores
-            <span className="indicators-section__count">{indicadores.length}</span>
+            <span className="indicators-section__count">{indicadoresFiltrados.length}</span>
           </h2>
-          {availableTemplates.length > 0 && (
-            <button className="btn btn--outline" onClick={() => setShowAddDialog(true)}>
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-              </svg>
-              Adicionar
-            </button>
-          )}
+          <div className="indicators-section__actions">
+            {indicadoresEmRisco.length > 0 && (
+              <button
+                className={`filter-chip filter-chip--toggle ${filtroEmRisco ? 'filter-chip--active' : ''}`}
+                onClick={() => setFiltroEmRisco(f => !f)}
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                </svg>
+                Em risco
+                <span className="filter-chip__badge">{indicadoresEmRisco.length}</span>
+              </button>
+            )}
+            {availableTemplates.length > 0 && (
+              <button className="btn btn--outline" onClick={() => setShowAddDialog(true)}>
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                Adicionar
+              </button>
+            )}
+          </div>
         </div>
 
         {indicadores.length === 0 ? (
@@ -580,7 +600,7 @@ export default function DashboardIndicadores() {
           </div>
         ) : (
           <div className="indicators-grid">
-            {indicadores.map((ind, index) => (
+            {indicadoresFiltrados.map((ind, index) => (
               <IndicadorCard
                 key={ind.id}
                 indicador={ind}
@@ -592,6 +612,8 @@ export default function DashboardIndicadores() {
             ))}
           </div>
         )}
+
+        {filtroEmRisco && <AttentionSection indicadores={indicadoresFiltrados} />}
       </section>
 
       {/* ── Dialogs ── */}
