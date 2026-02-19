@@ -30,6 +30,52 @@ npm run preview      # Preview production build
 docker-compose -f docker-compose.yaml up --build
 ```
 
+## Branching Strategy (GitFlow Simplificado)
+
+### Modelo de Branches
+
+| Branch | Propósito | Permanente | Deploy |
+|--------|-----------|------------|--------|
+| `main` | Produção. VPS puxa deste branch. | Sim | Produção (VPS) |
+| `develop` | Integração. Features aceitas. | Sim | — |
+| `feature/*` | Novas funcionalidades | Não | — |
+| `hotfix/*` | Correções urgentes de produção | Não | — |
+
+### Regras
+
+1. **NUNCA commitar direto em `main` ou `develop`**. Sempre usar feature/hotfix branches.
+2. **Feature branches**: criam de `develop`, mergem em `develop` via PR ou merge local.
+3. **Hotfix branches**: criam de `main`, mergem em `main` E `develop`.
+4. **Deploy**: merge `develop` → `main`, depois deploy da `main`.
+5. **Nomes**: `feature/descricao-kebab-case`, `hotfix/descricao-kebab-case`.
+
+### Comandos Comuns
+
+```bash
+# Criar feature
+git checkout develop && git pull origin develop
+git checkout -b feature/minha-feature
+
+# Criar hotfix
+git checkout main && git pull origin main
+git checkout -b hotfix/corrigir-bug
+
+# Finalizar feature (push + PR para develop)
+git push -u origin feature/minha-feature
+
+# Deploy (merge develop → main)
+git checkout main && git merge --no-ff develop
+git push origin main
+```
+
+### Workflow do Claude Code (IA)
+
+Ao desenvolver com Claude Code:
+1. Claude DEVE criar feature branch antes de qualquer alteração
+2. Claude DEVE fazer push e sugerir PR para `develop`
+3. Claude NÃO PODE commitar direto em `main` ou `develop`
+4. Use o skill `otus-deploy` para o fluxo completo
+
 ## Architecture
 
 ### Domain Driven Design (DDD)
