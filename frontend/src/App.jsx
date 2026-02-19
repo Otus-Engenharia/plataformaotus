@@ -949,6 +949,9 @@ function AppContent() {
   const canAccessCSArea = canAccessArea('cs');
   const canAccessApoioArea = canAccessArea('apoio');
   const canAccessAdminFinanceiroArea = canAccessArea('admin_financeiro');
+  const canAccessOkrsArea = canAccessArea('okrs');
+  const canAccessIndicadoresArea = canAccessArea('indicadores');
+  const canAccessWorkspaceArea = canAccessArea('workspace');
 
   // 1. Verificando auth: só loading minimalista, sem revelar estrutura do app
   if (loading) {
@@ -1120,9 +1123,11 @@ function AppContent() {
               path="/cs-area"
               element={
                 <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <Outlet />
-                  </Suspense>
+                  {canAccessCSArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <Outlet />
+                    </Suspense>
+                  ) : <Navigate to="/home" replace />}
                 </ProtectedRoute>
               }
             >
@@ -1134,9 +1139,11 @@ function AppContent() {
               path="/apoio-projetos"
               element={
                 <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <Outlet />
-                  </Suspense>
+                  {canAccessApoioArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <Outlet />
+                    </Suspense>
+                  ) : <Navigate to="/home" replace />}
                 </ProtectedRoute>
               }
             >
@@ -1175,72 +1182,22 @@ function AppContent() {
               path="/okrs"
               element={
                 <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <DashboardOKRs />
-                  </Suspense>
+                  {canAccessOkrsArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <Outlet />
+                    </Suspense>
+                  ) : <Navigate to="/home" replace />}
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/okrs/empresa"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <CompanyOKRs />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/okrs/setor/:id"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <SectorOKRs />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/okrs/objetivo/:id"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <ObjectiveDetail />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/okrs/kr/:id"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <KeyResultDetail />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/okrs/check-in"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <CheckInMeeting />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/okrs/historico"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <HistoryOKRs />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
+            >
+              <Route index element={<DashboardOKRs />} />
+              <Route path="empresa" element={<CompanyOKRs />} />
+              <Route path="setor/:id" element={<SectorOKRs />} />
+              <Route path="objetivo/:id" element={<ObjectiveDetail />} />
+              <Route path="kr/:id" element={<KeyResultDetail />} />
+              <Route path="check-in" element={<CheckInMeeting />} />
+              <Route path="historico" element={<HistoryOKRs />} />
+            </Route>
             <Route
               path="/projetos"
               element={
@@ -1318,27 +1275,19 @@ function AppContent() {
               path="/workspace"
               element={
                 <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <WorkspaceView />
-                  </Suspense>
+                  {canAccessWorkspaceArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <Outlet />
+                    </Suspense>
+                  ) : <Navigate to="/home" replace />}
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/workspace/project/:projectId"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <ProjectView />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            {/* Redirecionar rota antiga de setor para workspace */}
-            <Route
-              path="/workspace/setor/:sectorId"
-              element={<Navigate to="/workspace" replace />}
-            />
+            >
+              <Route index element={<WorkspaceView />} />
+              <Route path="project/:projectId" element={<ProjectView />} />
+              {/* Redirecionar rota antiga de setor para workspace */}
+              <Route path="setor/:sectorId" element={<Navigate to="/workspace" replace />} />
+            </Route>
             <Route
               path="/acessos"
               element={
@@ -1380,126 +1329,26 @@ function AppContent() {
               path="/ind"
               element={
                 <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <DashboardIndicadores />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/equipe"
-              element={
-                <ProtectedRoute>
-                  {isPrivileged ? (
+                  {canAccessIndicadoresArea ? (
                     <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <TeamView />
+                      <Outlet />
                     </Suspense>
-                  ) : <Navigate to="/ind" replace />}
+                  ) : <Navigate to="/home" replace />}
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/ind/visao-geral"
-              element={
-                <ProtectedRoute>
-                  {isPrivileged ? (
-                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <OverviewIndicadores />
-                    </Suspense>
-                  ) : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/historico"
-              element={
-                <ProtectedRoute>
-                  {isPrivileged ? (
-                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <HistoryView />
-                    </Suspense>
-                  ) : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/feedbacks"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <FeedbackKanbanView />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/pessoa/:id"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <PersonDetailView />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/indicador/:id"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <IndicatorDetailView />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/admin/setores"
-              element={
-                <ProtectedRoute>
-                  {isPrivileged ? (
-                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <AdminSetores />
-                    </Suspense>
-                  ) : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/admin/cargos"
-              element={
-                <ProtectedRoute>
-                  {isPrivileged ? (
-                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <AdminCargos />
-                    </Suspense>
-                  ) : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/admin/usuarios"
-              element={
-                <ProtectedRoute>
-                  {isPrivileged ? (
-                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <AdminUsuarios />
-                    </Suspense>
-                  ) : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ind/admin/todos-indicadores"
-              element={
-                <ProtectedRoute>
-                  {isDev ? (
-                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <TeamView showAll />
-                    </Suspense>
-                  ) : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
-            />
+            >
+              <Route index element={<DashboardIndicadores />} />
+              <Route path="equipe" element={isPrivileged ? <TeamView /> : <Navigate to="/ind" replace />} />
+              <Route path="visao-geral" element={isPrivileged ? <OverviewIndicadores /> : <Navigate to="/ind" replace />} />
+              <Route path="historico" element={isPrivileged ? <HistoryView /> : <Navigate to="/ind" replace />} />
+              <Route path="feedbacks" element={<FeedbackKanbanView />} />
+              <Route path="pessoa/:id" element={<PersonDetailView />} />
+              <Route path="indicador/:id" element={<IndicatorDetailView />} />
+              <Route path="admin/setores" element={isPrivileged ? <AdminSetores /> : <Navigate to="/ind" replace />} />
+              <Route path="admin/cargos" element={isPrivileged ? <AdminCargos /> : <Navigate to="/ind" replace />} />
+              <Route path="admin/usuarios" element={isPrivileged ? <AdminUsuarios /> : <Navigate to="/ind" replace />} />
+              <Route path="admin/todos-indicadores" element={isDev ? <TeamView showAll /> : <Navigate to="/ind" replace />} />
+            </Route>
           </Routes>
           {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}
           {showOracle && <OracleChat />}
