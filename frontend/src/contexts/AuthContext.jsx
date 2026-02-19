@@ -219,6 +219,7 @@ export function AuthProvider({ children }) {
     canAccessFormularioPassagem: canAccessFormularioPassagem(),
     canManageDemandas: user?.canManageDemandas === true,
     canManageEstudosCustos: user?.canManageEstudosCustos === true,
+    canManageApoioProjetos: user?.canManageApoioProjetos === true,
     effectiveViews,
     canAccessView,
     fetchEffectiveViews,

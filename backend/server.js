@@ -17,9 +17,10 @@ import cors from 'cors';
 import session from 'express-session';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import NodeCache from 'node-cache';
 import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
-import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos } from './auth-config.js';
+import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
@@ -68,7 +69,7 @@ import {
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
   fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
   // Apoio de Projetos - Portfolio
-  fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc,
+  fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd,
   // Portfolio - Edicao inline
   fetchPortfolioEditOptions, updateProjectField
 } from './supabase.js';
@@ -96,6 +97,40 @@ const limiter = rateLimit({
   skip: (req) => req.path.startsWith('/auth/google'),
 });
 app.use('/api/', limiter);
+
+// ============================================================
+// Cache de queries BigQuery (node-cache)
+// Dados financeiros são atualizados 1x/dia pelas scheduled queries,
+// então cache de 15-60 min reduz ~90% das queries ao BigQuery.
+// ============================================================
+const bqCache = new NodeCache({ stdTTL: 900, checkperiod: 120, useClones: false });
+
+/**
+ * Middleware factory para cache de endpoints BigQuery.
+ * Intercepta res.json() para cachear respostas com sucesso.
+ * @param {number} ttlSeconds - TTL do cache em segundos
+ */
+function withBqCache(ttlSeconds) {
+  return (req, res, next) => {
+    const sortedQuery = Object.keys(req.query || {}).sort().reduce((acc, k) => { acc[k] = req.query[k]; return acc; }, {});
+    const key = `bq:${req.path}:${req.user?.email || 'anon'}:${JSON.stringify(sortedQuery)}`;
+    const cached = bqCache.get(key);
+    if (cached) {
+      console.log(`📦 Cache HIT: ${req.path} (${ttlSeconds}s TTL)`);
+      return res.json(cached);
+    }
+
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+      if (res.statusCode === 200 && body?.success !== false) {
+        bqCache.set(key, body, ttlSeconds);
+        console.log(`💾 Cache SET: ${req.path} (TTL: ${ttlSeconds}s)`);
+      }
+      return originalJson(body);
+    };
+    next();
+  };
+}
 
 // Configuração de sessão
 const isProduction = process.env.NODE_ENV === 'production';
@@ -174,7 +209,7 @@ app.get('/api/debug/modules', requireAuth, async (req, res) => {
   }
 
   try {
-    const userRole = getUserRole(req.user.email) || 'user';
+    const userRole = getUserRole(req.user) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
     const userOtus = await getUserOtusByEmail(req.user.email);
     const sectorId = userOtus?.setor_id || null;
@@ -286,8 +321,8 @@ function requireAuth(req, res, next) {
 function getLeaderDataFilter(req) {
   const role = req.user.role;
 
-  // dev/director/admin - acesso total sem filtro
-  if (['dev', 'director', 'admin'].includes(role)) {
+  // dev/ceo/director/admin - acesso total sem filtro
+  if (['dev', 'ceo', 'director', 'admin'].includes(role)) {
     return { leaderName: null, hasAccess: true };
   }
 
@@ -419,6 +454,14 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
     // Busca dados do usuário na tabela users_otus para obter setor_id e userId interno
     const userOtus = await getUserOtusByEmail(req.user.email);
 
+    // Sincroniza role e setor do banco para a sessão (caso tenha mudado no admin)
+    if (userOtus?.role && userOtus.role !== req.user.role) {
+      req.user.role = userOtus.role;
+    }
+    if (userOtus?.setor?.name) {
+      req.user.setor_name = userOtus.setor.name;
+    }
+
     const setorName = req.user.setor_name || null;
     res.json({
       success: true,
@@ -428,9 +471,10 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         name: req.user.name,
         picture: req.user.picture,
         role: req.user.role,
-        canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
+        canAccessFormularioPassagem: canAccessFormularioPassagem(req.user),
         canManageDemandas: canManageDemandas(req.user),
         canManageEstudosCustos: canManageEstudosCustos(req.user),
+        canManageApoioProjetos: canManageApoioProjetos(req.user),
         // Dados do users_otus para controle de acesso por setor/responsável
         userId: userOtus?.id || null, // ID interno na tabela users_otus
         setor_id: userOtus?.setor_id || null,
@@ -448,9 +492,10 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         name: req.user.name,
         picture: req.user.picture,
         role: req.user.role,
-        canAccessFormularioPassagem: canAccessFormularioPassagem(req.user.email),
+        canAccessFormularioPassagem: canAccessFormularioPassagem(req.user),
         canManageDemandas: canManageDemandas(req.user),
         canManageEstudosCustos: canManageEstudosCustos(req.user),
+        canManageApoioProjetos: canManageApoioProjetos(req.user),
         userId: null,
         setor_id: null,
         setor_name: req.user.setor_name || null,
@@ -591,7 +636,7 @@ app.get(
  * Retorna os dados do portfólio de projetos
  * Filtra por líder apenas quando ?leaderFilter=true (usado na vista Portfolio)
  */
-app.get('/api/portfolio', requireAuth, async (req, res) => {
+app.get('/api/portfolio', requireAuth, withBqCache(900), async (req, res) => {
   try {
     console.log('📊 Buscando dados do portfólio...');
 
@@ -638,7 +683,7 @@ app.get('/api/portfolio', requireAuth, async (req, res) => {
  */
 app.get('/api/portfolio/edit-options', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
     const data = await fetchPortfolioEditOptions();
@@ -656,7 +701,7 @@ app.get('/api/portfolio/edit-options', requireAuth, async (req, res) => {
  */
 app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -874,7 +919,7 @@ app.post('/api/portfolio/cobertura-disciplinas', requireAuth, async (req, res) =
  * Retorna dados consolidados de controle passivo (valor contratado vs receita recebida)
  * Combina portfólio com financeiro.entradas
  */
-app.get('/api/controle-passivo', requireAuth, async (req, res) => {
+app.get('/api/controle-passivo', requireAuth, withBqCache(1800), async (req, res) => {
   try {
     console.log('💰 Buscando dados do controle passivo...');
 
@@ -906,7 +951,7 @@ app.get('/api/controle-passivo', requireAuth, async (req, res) => {
  * Rota: GET /api/indicadores-vendas
  * Retorna dados de indicadores de vendas (portfolio Supabase + custos BigQuery)
  */
-app.get('/api/indicadores-vendas', requireAuth, async (req, res) => {
+app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, res) => {
   try {
     console.log('📊 Buscando dados de indicadores de vendas...');
 
@@ -990,9 +1035,28 @@ app.get('/api/indicadores-vendas', requireAuth, async (req, res) => {
  * Retorna lista de colaboradores ativos para conferência de acessos
  * Apenas diretoria/admin
  */
+
+// Cache management endpoints (admin only)
+app.get('/api/admin/cache/stats', requireAuth, (req, res) => {
+  if (!isPrivileged(req.user)) {
+    return res.status(403).json({ success: false, error: 'Acesso negado' });
+  }
+  const stats = bqCache.getStats();
+  res.json({ success: true, data: { ...stats, keys: bqCache.keys().length } });
+});
+
+app.post('/api/admin/cache/clear', requireAuth, (req, res) => {
+  if (!isPrivileged(req.user)) {
+    return res.status(403).json({ success: false, error: 'Acesso negado' });
+  }
+  bqCache.flushAll();
+  console.log('🗑️ Cache BigQuery limpo manualmente');
+  res.json({ success: true, message: 'Cache limpo com sucesso' });
+});
+
 app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -1037,7 +1101,7 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
       setor_id: row.setor?.id ?? null,
       telefone: row.phone ?? null,
       email: row.email ?? null,
-      nivel_acesso: getUserRole(row.email) === 'dev' ? 'dev' : (row.role || getUserRole(row.email) || 'sem_acesso'),
+      nivel_acesso: row.role || 'sem_acesso',
       construflow_id: row.construflow_user_id ?? null,
       discord_id: row.discord_user_id ?? null,
     }));
@@ -1062,7 +1126,7 @@ app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
  * Retorna os dados da Curva S (evolução de custos e receitas)
  * Suporta filtros: projectCode (query param)
  */
-app.get('/api/curva-s', requireAuth, async (req, res) => {
+app.get('/api/curva-s', requireAuth, withBqCache(1800), async (req, res) => {
   try {
     console.log('📈 Buscando dados da Curva S...');
     
@@ -1104,7 +1168,7 @@ app.get('/api/curva-s', requireAuth, async (req, res) => {
  * Retorna detalhamento de custos por colaborador para um projeto
  * Query param obrigatório: projectCode
  */
-app.get('/api/curva-s/colaboradores', requireAuth, async (req, res) => {
+app.get('/api/curva-s/colaboradores', requireAuth, withBqCache(900), async (req, res) => {
   try {
     const projectCode = req.query.projectCode;
     
@@ -1151,7 +1215,7 @@ app.get('/api/curva-s/colaboradores', requireAuth, async (req, res) => {
  * Retorna custos e horas por usuário enriquecidos com cargo (position) do Supabase
  * Usado para gráficos empilhados por cargo e tabela cargo→pessoa
  */
-app.get('/api/curva-s/custos-por-cargo', requireAuth, async (req, res) => {
+app.get('/api/curva-s/custos-por-cargo', requireAuth, withBqCache(900), async (req, res) => {
   try {
     // Filtro por líder: apenas líderes de Operação veem só seus projetos
     const { leaderName, hasAccess } = getLeaderDataFilter(req);
@@ -1219,9 +1283,9 @@ app.get('/api/curva-s/custos-por-cargo', requireAuth, async (req, res) => {
  * Reconciliação: compara totais da fonte financeira vs custos distribuídos, mês a mês
  * Apenas para usuários privilegiados (admin/director)
  */
-app.get('/api/curva-s/reconciliacao-custos', requireAuth, async (req, res) => {
+app.get('/api/curva-s/reconciliacao-custos', requireAuth, withBqCache(1800), async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso restrito a administradores' });
     }
 
@@ -1253,9 +1317,9 @@ app.get('/api/curva-s/reconciliacao-custos', requireAuth, async (req, res) => {
  * Rota: GET /api/curva-s/reconciliacao-custos/:mes
  * Drill-down: para um mês, compara custo-fonte vs distribuído por usuário
  */
-app.get('/api/curva-s/reconciliacao-custos/:mes', requireAuth, async (req, res) => {
+app.get('/api/curva-s/reconciliacao-custos/:mes', requireAuth, withBqCache(1800), async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso restrito a administradores' });
     }
 
@@ -1288,9 +1352,9 @@ app.get('/api/curva-s/reconciliacao-custos/:mes', requireAuth, async (req, res) 
  * Rota: GET /api/curva-s/reconciliacao-custos/:mes/:usuario
  * Drill-down: para um usuário num mês, mostra distribuição por projeto
  */
-app.get('/api/curva-s/reconciliacao-custos/:mes/:usuario', requireAuth, async (req, res) => {
+app.get('/api/curva-s/reconciliacao-custos/:mes/:usuario', requireAuth, withBqCache(1800), async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso restrito a administradores' });
     }
 
@@ -1322,7 +1386,7 @@ app.get('/api/curva-s/reconciliacao-custos/:mes/:usuario', requireAuth, async (r
  * Retorna os dados de cronograma (smartsheet_data_projetos) de um projeto específico
  * Filtra por smartsheet_id do portfólio
  */
-app.get('/api/projetos/cronograma', requireAuth, async (req, res) => {
+app.get('/api/projetos/cronograma', requireAuth, withBqCache(900), async (req, res) => {
   try {
     const smartsheetId = req.query.smartsheetId;
     const projectName = req.query.projectName; // Novo parâmetro para match normalizado
@@ -1507,7 +1571,7 @@ function aggregateNPS(npsRows, portRows) {
  * Sem filtro por líder - usado pelo setor de Tecnologia (Apoio de Projetos).
  * Query: weeksAhead (padrão: 2)
  */
-app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) => {
+app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, withBqCache(900), async (req, res) => {
   try {
     const weeksAhead = parseInt(req.query.weeksAhead) || 2;
 
@@ -1532,7 +1596,7 @@ app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, async (req, res) =>
  * Retorna dados do portfolio enriquecidos com plataforma_acd e controle_apoio
  * Sem filtro por lider - usado pelo setor de Tecnologia (Apoio de Projetos)
  */
-app.get('/api/apoio-projetos/portfolio', requireAuth, async (req, res) => {
+app.get('/api/apoio-projetos/portfolio', requireAuth, withBqCache(900), async (req, res) => {
   try {
     let portfolioData = [];
     try {
@@ -1572,7 +1636,7 @@ app.get('/api/apoio-projetos/portfolio', requireAuth, async (req, res) => {
  */
 app.put('/api/apoio-projetos/portfolio/:projectCode/controle', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!canManageApoioProjetos(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1605,7 +1669,7 @@ app.put('/api/apoio-projetos/portfolio/:projectCode/controle', requireAuth, asyn
  */
 app.put('/api/apoio-projetos/portfolio/:projectCode/link-ifc', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!canManageApoioProjetos(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1628,12 +1692,45 @@ app.put('/api/apoio-projetos/portfolio/:projectCode/link-ifc', requireAuth, asyn
 });
 
 /**
+ * Rota: PUT /api/apoio-projetos/portfolio/:projectCode/plataforma-acd
+ * Atualiza a plataforma ACD de um projeto
+ * Body: { plataforma_acd: "google_drive" | "bim360" | ... | null }
+ */
+app.put('/api/apoio-projetos/portfolio/:projectCode/plataforma-acd', requireAuth, async (req, res) => {
+  try {
+    if (!canManageApoioProjetos(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode } = req.params;
+    const { plataforma_acd } = req.body;
+
+    const validValues = ['google_drive', 'bim360', 'autodoc', 'construcode', 'onedrive', 'qicloud', 'construmanager', 'dropbox', null];
+    if (!validValues.includes(plataforma_acd)) {
+      return res.status(400).json({
+        success: false,
+        error: `Valor invalido. Use: ${validValues.filter(Boolean).join(', ')} ou null`
+      });
+    }
+
+    const result = await updatePlataformaAcd(projectCode, plataforma_acd);
+
+    await logAction(req, 'update', 'apoio-portfolio', projectCode, 'Plataforma ACD', { plataforma_acd });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar plataforma_acd:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * Rota: GET /api/cs/nps
  * NPS do setor de sucesso do cliente, vinculado a port_clientes.
  * Líderes veem apenas o time (Ultimo_Time); privilegiados veem todos.
  * Query: campanha, organizacao, cargo
  */
-app.get('/api/cs/nps', requireAuth, async (req, res) => {
+app.get('/api/cs/nps', requireAuth, withBqCache(3600), async (req, res) => {
   try {
     const campanha = req.query.campanha ?? '';
     const organizacao = req.query.organizacao ?? '';
@@ -1694,7 +1791,7 @@ app.get('/api/cs/nps', requireAuth, async (req, res) => {
  * Rota: GET /api/estudo-custos
  * Estudo de custos (estudo_custos_pbi). Todos os autenticados têm acesso.
  */
-app.get('/api/estudo-custos', requireAuth, async (req, res) => {
+app.get('/api/estudo-custos', requireAuth, withBqCache(1800), async (req, res) => {
   try {
     const data = await queryEstudoCustos();
     res.json({ success: true, data });
@@ -1866,7 +1963,7 @@ app.get('/api/times', requireAuth, async (req, res) => {
  */
 app.get('/api/operacao/teams', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1891,7 +1988,7 @@ app.get('/api/operacao/teams', requireAuth, async (req, res) => {
  */
 app.post('/api/operacao/teams', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1925,7 +2022,7 @@ app.post('/api/operacao/teams', requireAuth, async (req, res) => {
  */
 app.put('/api/operacao/teams/:id', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1962,7 +2059,7 @@ app.put('/api/operacao/teams/:id', requireAuth, async (req, res) => {
  */
 app.delete('/api/operacao/teams/:id', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -2005,7 +2102,7 @@ app.delete('/api/operacao/teams/:id', requireAuth, async (req, res) => {
  */
 app.put('/api/operacao/users/:id/team', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -2035,7 +2132,7 @@ app.put('/api/operacao/users/:id/team', requireAuth, async (req, res) => {
  * Sempre filtra por data (últimos 12 meses) para evitar carregamento lento.
  * Query: dataInicio, dataFim (YYYY-MM-DD, opcional) — senão usa último ano.
  */
-app.get('/api/horas', requireAuth, async (req, res) => {
+app.get('/api/horas', requireAuth, withBqCache(900), async (req, res) => {
   try {
     // Filtro por líder: apenas líderes de Operação veem só seus dados
     const { leaderName, hasAccess } = getLeaderDataFilter(req);
@@ -2078,7 +2175,7 @@ app.get('/api/horas', requireAuth, async (req, res) => {
  * Retorna os apontamentos (issues) de um projeto específico
  * Filtra por construflow_id do portfólio
  */
-app.get('/api/projetos/apontamentos', requireAuth, async (req, res) => {
+app.get('/api/projetos/apontamentos', requireAuth, withBqCache(900), async (req, res) => {
   try {
     const construflowId = req.query.construflowId;
     
@@ -2097,7 +2194,7 @@ app.get('/api/projetos/apontamentos', requireAuth, async (req, res) => {
     
     // Se o usuário for líder, valida se o projeto pertence a ele
     let leaderName = null;
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       leaderName = req.user.name || getLeaderNameFromEmail(req.user.email);
       if (!leaderName) {
         console.warn(`⚠️ Nome do líder não encontrado para: ${req.user.email}`);
@@ -2158,7 +2255,7 @@ setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEst
  */
 app.get('/api/admin/user-views', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2188,7 +2285,7 @@ app.get('/api/admin/user-views', requireAuth, async (req, res) => {
  */
 app.put('/api/admin/user-views', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2265,7 +2362,7 @@ app.get('/api/user/effective-views', requireAuth, async (req, res) => {
 
     const user = {
       email: req.user.email,
-      role: req.user.role || getUserRole(req.user.email),
+      role: req.user.role || getUserRole(req.user),
       sector_id: userInfo?.setor_id || null,
       position_id: userInfo?.cargo?.id || null,
     };
@@ -2298,7 +2395,7 @@ app.get('/api/user/effective-views', requireAuth, async (req, res) => {
  */
 app.get('/api/admin/views', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2326,7 +2423,7 @@ app.get('/api/admin/views', requireAuth, async (req, res) => {
  */
 app.post('/api/admin/views', requireAuth, async (req, res) => {
   try {
-    if (!isDev(req.user.email)) {
+    if (!isDev(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2374,7 +2471,7 @@ app.post('/api/admin/views', requireAuth, async (req, res) => {
  */
 app.delete('/api/admin/views/:id', requireAuth, async (req, res) => {
   try {
-    if (!isDev(req.user.email)) {
+    if (!isDev(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2413,7 +2510,7 @@ app.delete('/api/admin/views/:id', requireAuth, async (req, res) => {
  */
 app.get('/api/admin/access-defaults', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2448,7 +2545,7 @@ app.get('/api/admin/access-defaults', requireAuth, async (req, res) => {
  */
 app.post('/api/admin/access-defaults', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2495,7 +2592,7 @@ app.post('/api/admin/access-defaults', requireAuth, async (req, res) => {
  */
 app.put('/api/admin/access-defaults/:id', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2536,7 +2633,7 @@ app.put('/api/admin/access-defaults/:id', requireAuth, async (req, res) => {
  */
 app.delete('/api/admin/access-defaults/:id', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2575,7 +2672,7 @@ app.delete('/api/admin/access-defaults/:id', requireAuth, async (req, res) => {
  */
 app.put('/api/admin/user-view-override', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2623,7 +2720,7 @@ app.put('/api/admin/user-view-override', requireAuth, async (req, res) => {
  */
 app.delete('/api/admin/user-view-override', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2670,7 +2767,7 @@ app.delete('/api/admin/user-view-override', requireAuth, async (req, res) => {
  */
 app.get('/api/admin/user-view-overrides/:email', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2700,7 +2797,7 @@ app.get('/api/admin/user-view-overrides/:email', requireAuth, async (req, res) =
  */
 app.get('/api/admin/logs', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -2744,7 +2841,7 @@ app.get('/api/admin/logs', requireAuth, async (req, res) => {
  */
 app.get('/api/admin/logs/stats', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -4301,7 +4398,7 @@ app.get('/api/ind/sectors/:id', requireAuth, async (req, res) => {
  */
 app.post('/api/ind/sectors', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4325,7 +4422,7 @@ app.post('/api/ind/sectors', requireAuth, async (req, res) => {
  */
 app.put('/api/ind/sectors/:id', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4369,7 +4466,7 @@ app.put('/api/ind/sectors/:id/platform-access', requireAuth, async (req, res) =>
  */
 app.delete('/api/ind/sectors/:id', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4434,7 +4531,7 @@ app.get('/api/ind/positions/:id', requireAuth, async (req, res) => {
  */
 app.post('/api/ind/positions', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4458,7 +4555,7 @@ app.post('/api/ind/positions', requireAuth, async (req, res) => {
  */
 app.put('/api/ind/positions/:id', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4477,7 +4574,7 @@ app.put('/api/ind/positions/:id', requireAuth, async (req, res) => {
  */
 app.delete('/api/ind/positions/:id', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4512,7 +4609,7 @@ app.get('/api/ind/positions/:id/indicators', requireAuth, async (req, res) => {
  */
 app.post('/api/ind/positions/:id/indicators', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4542,7 +4639,7 @@ app.post('/api/ind/positions/:id/indicators', requireAuth, async (req, res) => {
  */
 app.put('/api/ind/positions/:posId/indicators/:indId', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4561,7 +4658,7 @@ app.put('/api/ind/positions/:posId/indicators/:indId', requireAuth, async (req, 
  */
 app.delete('/api/ind/positions/:posId/indicators/:indId', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4582,7 +4679,7 @@ app.delete('/api/ind/positions/:posId/indicators/:indId', requireAuth, async (re
  */
 app.post('/api/ind/positions/:id/sync-indicators', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4631,7 +4728,7 @@ app.get('/api/ind/indicators', requireAuth, async (req, res) => {
     };
 
     // Se não for privilegiado e não passou person_email, usa o email do usuário logado
-    if (!isPrivileged(req.user.email) && !filters.person_email) {
+    if (!isPrivileged(req.user) && !filters.person_email) {
       filters.person_email = req.user.email;
     }
 
@@ -4686,7 +4783,7 @@ app.get('/api/ind/indicators/:id', requireAuth, async (req, res) => {
     const indicador = await getIndicadorById(req.params.id);
 
     // Verifica permissão: apenas o dono, líder do setor ou admin pode ver
-    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
       // TODO: Verificar se é líder do setor
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
@@ -4728,7 +4825,7 @@ app.put('/api/ind/indicators/:id', requireAuth, async (req, res) => {
   try {
     // Busca o indicador para verificar permissão
     const existing = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user.email) && existing.person_email !== req.user.email) {
+    if (!isPrivileged(req.user) && existing.person_email !== req.user.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4772,7 +4869,7 @@ app.post('/api/ind/indicators/:id/check-ins', requireAuth, async (req, res) => {
 
     // Verifica permissão
     const indicador = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4798,7 +4895,7 @@ app.put('/api/ind/indicators/:id/check-ins/:checkInId', requireAuth, async (req,
   try {
     // Verifica permissão
     const indicador = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4825,7 +4922,7 @@ app.delete('/api/ind/check-ins/:checkInId', requireAuth, async (req, res) => {
 
     // Busca o indicador para verificar permissão
     const indicador = await getIndicadorById(checkIn.indicador_id);
-    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4869,7 +4966,7 @@ app.post('/api/ind/indicators/:id/recovery-plans', requireAuth, async (req, res)
 
     // Verifica permissão
     const indicador = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4895,7 +4992,7 @@ app.put('/api/ind/indicators/:id/recovery-plans/:planId', requireAuth, async (re
   try {
     // Verifica permissão
     const indicador = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user.email) && indicador.person_email !== req.user.email) {
+    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4917,7 +5014,7 @@ app.put('/api/ind/indicators/:id/recovery-plans/:planId', requireAuth, async (re
  */
 app.get('/api/ind/people', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -4950,7 +5047,7 @@ app.get('/api/ind/people/:id', requireAuth, async (req, res) => {
     const person = await getPersonById(req.params.id, filters);
 
     // Verifica permissão: próprio usuário, líder do setor ou admin
-    if (!isPrivileged(req.user.email) && person.email !== req.user.email) {
+    if (!isPrivileged(req.user) && person.email !== req.user.email) {
       // TODO: Verificar se é líder do setor
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
@@ -5075,7 +5172,7 @@ app.get('/api/ind/team', requireAuth, async (req, res) => {
  */
 app.get('/api/ind/admin/users', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5093,7 +5190,7 @@ app.get('/api/ind/admin/users', requireAuth, async (req, res) => {
  */
 app.put('/api/ind/admin/users/:id/position', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5113,7 +5210,7 @@ app.put('/api/ind/admin/users/:id/position', requireAuth, async (req, res) => {
  */
 app.put('/api/ind/admin/users/:id/sector', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5133,12 +5230,12 @@ app.put('/api/ind/admin/users/:id/sector', requireAuth, async (req, res) => {
  */
 app.put('/api/ind/admin/users/:id/role', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
     const { role } = req.body;
-    const validRoles = ['user', 'leader', 'admin', 'director', 'dev'];
+    const validRoles = ['user', 'leader', 'admin', 'director', 'ceo', 'dev'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ success: false, error: 'Role inválido' });
     }
@@ -5151,14 +5248,14 @@ app.put('/api/ind/admin/users/:id/role', requireAuth, async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
-    // Somente devs podem atribuir o role 'dev'
-    if (role === 'dev' && !isDev(req.user.email)) {
-      return res.status(403).json({ success: false, error: 'Somente desenvolvedores podem atribuir o papel Dev' });
+    // Somente devs podem atribuir roles dev e ceo
+    if ((role === 'dev' || role === 'ceo') && !isDev(req.user)) {
+      return res.status(403).json({ success: false, error: 'Somente desenvolvedores podem atribuir o papel Dev ou CEO' });
     }
 
-    // Somente devs podem alterar o role de quem já é dev
-    if (targetUser?.role === 'dev' && !isDev(req.user.email)) {
-      return res.status(403).json({ success: false, error: 'Somente desenvolvedores podem alterar o papel de outros desenvolvedores' });
+    // Somente devs podem alterar o role de quem já é dev ou ceo
+    if ((targetUser?.role === 'dev' || targetUser?.role === 'ceo') && !isDev(req.user)) {
+      return res.status(403).json({ success: false, error: 'Somente desenvolvedores podem alterar o papel de Dev ou CEO' });
     }
 
     const user = await updateUserRole(req.params.id, role);
@@ -5176,7 +5273,7 @@ app.put('/api/ind/admin/users/:id/role', requireAuth, async (req, res) => {
  */
 app.put('/api/ind/admin/users/:id/status', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5196,7 +5293,7 @@ app.put('/api/ind/admin/users/:id/status', requireAuth, async (req, res) => {
  */
 app.put('/api/ind/admin/users/:id/leader', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5216,7 +5313,7 @@ app.put('/api/ind/admin/users/:id/leader', requireAuth, async (req, res) => {
  */
 app.post('/api/ind/admin/users', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5262,7 +5359,7 @@ app.post('/api/ind/admin/users', requireAuth, async (req, res) => {
  */
 app.get('/api/ind/overview', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5290,7 +5387,7 @@ app.get('/api/ind/overview', requireAuth, async (req, res) => {
  */
 app.get('/api/ind/history', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user.email)) {
+    if (!isPrivileged(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5466,7 +5563,7 @@ app.get('/api/workspace-projects/:id', requireAuth, async (req, res) => {
  */
 app.post('/api/workspace-projects', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Apenas admins podem criar projetos' });
     }
 
@@ -5499,7 +5596,7 @@ app.post('/api/workspace-projects', requireAuth, async (req, res) => {
  */
 app.put('/api/workspace-projects/:id', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Apenas admins podem editar projetos' });
     }
 
@@ -5518,7 +5615,7 @@ app.put('/api/workspace-projects/:id', requireAuth, async (req, res) => {
  */
 app.delete('/api/workspace-projects/:id', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Apenas admins podem deletar projetos' });
     }
 
@@ -5666,7 +5763,7 @@ app.get('/api/workspace-projects/:id/members', requireAuth, async (req, res) => 
  */
 app.post('/api/workspace-projects/:id/members', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Apenas admins podem adicionar membros' });
     }
 
@@ -5696,7 +5793,7 @@ app.post('/api/workspace-projects/:id/members', requireAuth, async (req, res) =>
  */
 app.put('/api/project-members/:id', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Apenas admins podem editar membros' });
     }
 
@@ -5716,7 +5813,7 @@ app.put('/api/project-members/:id', requireAuth, async (req, res) => {
  */
 app.delete('/api/project-members/:id', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Apenas admins podem remover membros' });
     }
 
@@ -5813,7 +5910,7 @@ app.get('/api/home-modules', requireAuth, async (req, res) => {
  */
 app.put('/api/admin/home-modules/:id', requireAuth, async (req, res) => {
   try {
-    if (!isDev(req.user.email)) {
+    if (!isDev(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas desenvolvedores podem atualizar módulos',
@@ -5857,7 +5954,7 @@ app.put('/api/admin/home-modules/:id', requireAuth, async (req, res) => {
  */
 app.post('/api/admin/home-modules', requireAuth, async (req, res) => {
   try {
-    if (!isDev(req.user.email)) {
+    if (!isDev(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas desenvolvedores podem criar módulos',
@@ -5907,7 +6004,7 @@ app.post('/api/admin/home-modules', requireAuth, async (req, res) => {
  */
 app.delete('/api/admin/home-modules/:id', requireAuth, async (req, res) => {
   try {
-    if (!isDev(req.user.email)) {
+    if (!isDev(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas desenvolvedores podem remover módulos',
@@ -5943,7 +6040,7 @@ app.delete('/api/admin/home-modules/:id', requireAuth, async (req, res) => {
  */
 app.get('/api/modules', requireAuth, async (req, res) => {
   try {
-    const userRole = getUserRole(req.user.email) || 'user';
+    const userRole = getUserRole(req.user) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
     // Buscar setor do usuário para filtro por setor
     const userOtus = await getUserOtusByEmail(req.user.email);
@@ -5967,7 +6064,7 @@ app.get('/api/modules', requireAuth, async (req, res) => {
  */
 app.get('/api/user/accessible-areas', requireAuth, async (req, res) => {
   try {
-    const userRole = getUserRole(req.user.email) || 'user';
+    const userRole = getUserRole(req.user) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
     const userOtus = await getUserOtusByEmail(req.user.email);
     const sectorId = userOtus?.setor_id || null;
@@ -5983,7 +6080,7 @@ app.get('/api/user/accessible-areas', requireAuth, async (req, res) => {
 
 app.get('/api/modules/home', requireAuth, async (req, res) => {
   try {
-    const userRole = getUserRole(req.user.email) || 'user';
+    const userRole = getUserRole(req.user) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
     // Buscar setor do usuário para filtro por setor
     const userOtus = await getUserOtusByEmail(req.user.email);
@@ -6002,7 +6099,7 @@ app.get('/api/modules/home', requireAuth, async (req, res) => {
  */
 app.get('/api/admin/modules', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -6022,7 +6119,7 @@ app.get('/api/admin/modules', requireAuth, async (req, res) => {
  */
 app.get('/api/admin/modules/access-matrix', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -6042,7 +6139,7 @@ app.get('/api/admin/modules/access-matrix', requireAuth, async (req, res) => {
  */
 app.put('/api/admin/modules/:id', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -6089,7 +6186,7 @@ app.put('/api/admin/modules/:id', requireAuth, async (req, res) => {
  */
 app.post('/api/admin/modules', requireAuth, async (req, res) => {
   try {
-    if (!isDev(req.user.email)) {
+    if (!isDev(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas desenvolvedores podem criar módulos',
@@ -6141,7 +6238,7 @@ app.post('/api/admin/modules', requireAuth, async (req, res) => {
  */
 app.delete('/api/admin/modules/:id', requireAuth, async (req, res) => {
   try {
-    if (!isDev(req.user.email)) {
+    if (!isDev(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Apenas desenvolvedores podem remover módulos',
@@ -6173,7 +6270,7 @@ app.delete('/api/admin/modules/:id', requireAuth, async (req, res) => {
  */
 app.get('/api/admin/module-overrides', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -6193,7 +6290,7 @@ app.get('/api/admin/module-overrides', requireAuth, async (req, res) => {
  */
 app.post('/api/admin/module-overrides', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',
@@ -6248,7 +6345,7 @@ app.post('/api/admin/module-overrides', requireAuth, async (req, res) => {
  */
 app.delete('/api/admin/module-overrides/:id', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user.email)) {
+    if (!hasFullAccess(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado',

@@ -24,6 +24,19 @@ const CONTROLE_OPTIONS = [
   { value: 'Dispensado', label: 'Dispensado', color: '#f59e0b' },
 ];
 
+// Opcoes de plataforma ACD (repositorio de arquivos)
+const ACD_OPTIONS = [
+  { value: null, label: '-' },
+  { value: 'google_drive', label: 'Google Drive' },
+  { value: 'bim360', label: 'BIM360' },
+  { value: 'autodoc', label: 'Autodoc' },
+  { value: 'construcode', label: 'Construcode' },
+  { value: 'onedrive', label: 'OneDrive' },
+  { value: 'qicloud', label: 'QICloud' },
+  { value: 'construmanager', label: 'Construmanager' },
+  { value: 'dropbox', label: 'DropBox' },
+];
+
 function isEligibleStatus(status) {
   if (!status) return false;
   return ELIGIBLE_STATUSES.includes(status.toLowerCase().trim());
@@ -92,7 +105,7 @@ const Icons = {
 };
 
 export default function ApoioPortfolioView() {
-  const { hasFullAccess } = useAuth();
+  const { canManageApoioProjetos } = useAuth();
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -252,6 +265,32 @@ export default function ApoioPortfolioView() {
       setData(prev => prev.map(row =>
         row.project_code_norm === projectCode
           ? { ...row, controle_apoio: oldValue }
+          : row
+      ));
+      alert('Erro ao atualizar: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Handler de edicao da plataforma ACD
+  const handleAcdChange = async (projectCode, newValue, oldValue) => {
+    const value = newValue === '' ? null : newValue;
+
+    setData(prev => prev.map(row =>
+      row.project_code_norm === projectCode
+        ? { ...row, plataforma_acd: value }
+        : row
+    ));
+
+    try {
+      await axios.put(
+        `${API_URL}/api/apoio-projetos/portfolio/${projectCode}/plataforma-acd`,
+        { plataforma_acd: value },
+        { withCredentials: true }
+      );
+    } catch (err) {
+      setData(prev => prev.map(row =>
+        row.project_code_norm === projectCode
+          ? { ...row, plataforma_acd: oldValue }
           : row
       ));
       alert('Erro ao atualizar: ' + (err.response?.data?.error || err.message));
@@ -528,7 +567,27 @@ export default function ApoioPortfolioView() {
                   </td>
                   <td>{row.lider || '-'}</td>
                   <td>{row.nome_time || '-'}</td>
-                  <td>{row.plataforma_acd || '-'}</td>
+                  <td>
+                    {canManageApoioProjetos ? (
+                      <select
+                        className="apoio-controle-select"
+                        value={row.plataforma_acd || ''}
+                        onChange={(e) => handleAcdChange(
+                          row.project_code_norm,
+                          e.target.value,
+                          row.plataforma_acd
+                        )}
+                      >
+                        {ACD_OPTIONS.map(opt => (
+                          <option key={opt.label} value={opt.value || ''}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{ACD_OPTIONS.find(o => o.value === row.plataforma_acd)?.label || row.plataforma_acd || '-'}</span>
+                    )}
+                  </td>
                   <td className="apoio-ifc-cell">
                     {editingIfcCode === row.project_code_norm ? (
                       <div className="apoio-ifc-edit">
@@ -570,7 +629,7 @@ export default function ApoioPortfolioView() {
                         >
                           <Icons.Folder />
                         </a>
-                        {hasFullAccess && (
+                        {canManageApoioProjetos && (
                           <>
                             <button
                               className="apoio-ifc-btn apoio-ifc-btn--edit"
@@ -589,7 +648,7 @@ export default function ApoioPortfolioView() {
                           </>
                         )}
                       </div>
-                    ) : hasFullAccess ? (
+                    ) : canManageApoioProjetos ? (
                       <button
                         className="apoio-ifc-btn apoio-ifc-btn--add"
                         onClick={() => startEditingIfc(row.project_code_norm, '')}
@@ -602,7 +661,7 @@ export default function ApoioPortfolioView() {
                     )}
                   </td>
                   <td>
-                    {hasFullAccess ? (
+                    {canManageApoioProjetos ? (
                       <select
                         className="apoio-controle-select"
                         value={row.controle_apoio || ''}

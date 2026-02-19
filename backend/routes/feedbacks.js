@@ -178,7 +178,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    */
   router.put('/:id/status', requireAuth, async (req, res) => {
     try {
-      if (!isPrivileged(req.user.email)) {
+      if (!isPrivileged(req.user)) {
         return res.status(403).json({
           success: false,
           error: 'Acesso negado',
@@ -228,7 +228,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    */
   router.put('/:id/parecer', requireAuth, async (req, res) => {
     try {
-      if (!isPrivileged(req.user.email)) {
+      if (!isPrivileged(req.user)) {
         return res.status(403).json({
           success: false,
           error: 'Acesso negado',
@@ -285,7 +285,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    */
   router.put('/:id', requireAuth, async (req, res) => {
     try {
-      if (!isPrivileged(req.user.email)) {
+      if (!isPrivileged(req.user)) {
         return res.status(403).json({
           success: false,
           error: 'Acesso negado',

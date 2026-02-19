@@ -4205,7 +4205,7 @@ export async function getUserOtusByEmail(email) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(USERS_OTUS_TABLE)
-    .select('id, setor_id, position_id, name')
+    .select('id, setor_id, position_id, name, role, setor:setor_id(id, name)')
     .eq('email', email)
     .single();
 
@@ -5202,6 +5202,40 @@ export async function updateLinkIfc(projectCode, linkIfc) {
 
   if (error) {
     throw new Error(`Erro ao atualizar link_ifc: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza o campo plataforma_acd em project_features
+ * @param {string} projectCode - Codigo do projeto (project_code)
+ * @param {string|null} plataformaAcd - Valor da plataforma ACD
+ */
+export async function updatePlataformaAcd(projectCode, plataformaAcd) {
+  const supabase = getSupabaseClient();
+
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('project_code', projectCode)
+    .single();
+
+  if (projectError || !project) {
+    throw new Error(`Projeto nao encontrado: ${projectCode}`);
+  }
+
+  const { data, error } = await supabase
+    .from('project_features')
+    .upsert(
+      { project_id: project.id, plataforma_acd: plataformaAcd },
+      { onConflict: 'project_id' }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar plataforma_acd: ${error.message}`);
   }
 
   return data;

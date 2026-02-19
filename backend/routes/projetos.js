@@ -35,7 +35,7 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction) {
 
   // Middleware de permissão do formulário
   function requireFormAccess(req, res, next) {
-    if (!canAccessFormularioPassagem(req.user.email)) {
+    if (!canAccessFormularioPassagem(req.user)) {
       return res.status(403).json({
         success: false,
         error: 'Acesso negado ao formulário de passagem',

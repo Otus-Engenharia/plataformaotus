@@ -17,10 +17,11 @@ import '../styles/OperacaoView.css';
 // === CONSTANTES ===
 const ACCESS_LABELS = {
   dev: 'Dev',
-  director: 'Diretoria',
+  ceo: 'CEO',
+  director: 'Director',
   admin: 'Admin',
-  leader: 'Lider',
-  user: 'Usuario',
+  leader: 'Líder',
+  user: 'Usuário',
   sem_acesso: 'Sem acesso',
 };
 
@@ -889,10 +890,14 @@ function OperacaoView() {
                 <label className="form-label">Papel de Acesso</label>
                 <div className="role-selector">
                   {[
-                    { value: 'user', label: 'Usuario', desc: 'Acesso basico' },
-                    { value: 'leader', label: 'Lider', desc: 'Gerencia equipe' },
+                    ...(isDev ? [
+                      { value: 'dev', label: 'Dev', desc: 'Desenvolvimento + acesso total' },
+                      { value: 'ceo', label: 'CEO', desc: 'Diretoria executiva' },
+                    ] : []),
+                    { value: 'director', label: 'Director', desc: 'Acesso total (diretoria)' },
                     { value: 'admin', label: 'Admin', desc: 'Acesso total' },
-                    ...(isDev ? [{ value: 'dev', label: 'Dev', desc: 'Desenvolvedor' }] : [])
+                    { value: 'leader', label: 'Líder', desc: 'Gerencia equipe' },
+                    { value: 'user', label: 'Usuário', desc: 'Acesso básico' },
                   ].map(opt => (
                     <label
                       key={opt.value}
@@ -1056,9 +1061,14 @@ function OperacaoView() {
                 <label className="form-label">Nivel de Acesso</label>
                 <div className="role-selector">
                   {[
-                    { value: 'user', label: 'Usuario', desc: 'Acesso basico' },
-                    { value: 'leader', label: 'Lider', desc: 'Gerencia equipe' },
+                    ...(isDev ? [
+                      { value: 'dev', label: 'Dev', desc: 'Desenvolvimento + acesso total' },
+                      { value: 'ceo', label: 'CEO', desc: 'Diretoria executiva' },
+                    ] : []),
+                    { value: 'director', label: 'Director', desc: 'Acesso total (diretoria)' },
                     { value: 'admin', label: 'Admin', desc: 'Acesso total' },
+                    { value: 'leader', label: 'Líder', desc: 'Gerencia equipe' },
+                    { value: 'user', label: 'Usuário', desc: 'Acesso básico' },
                   ].map(opt => (
                     <label
                       key={opt.value}

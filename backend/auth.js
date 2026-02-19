@@ -155,13 +155,13 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
           return done(null, user);
         }
 
-        // Fallback: verifica no auth-config.js (para compatibilidade)
+        // Fallback: verifica no auth-config.js (apenas dev-mode test users)
         if (!hasAccessLegacy(email)) {
-          return done(new Error('Acesso negado. Entre em contato com o administrador.'), null);
+          return done(new Error('Acesso negado. Cadastre o usuário na plataforma (Administração > Usuários).'), null);
         }
 
         if (!isPrivilegedLegacy(email)) {
-          return done(new Error('Acesso restrito. A plataforma está disponível apenas para líderes, admins e diretores.'), null);
+          return done(new Error('Acesso restrito. Cadastre o usuário com um papel adequado na plataforma.'), null);
         }
 
         // Retorna informações do usuário do auth-config

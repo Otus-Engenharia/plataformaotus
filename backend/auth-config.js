@@ -1,34 +1,18 @@
 /**
  * Configuração de Usuários e Roles
  *
- * Define quais usuários têm acesso e seus respectivos roles:
- * - 'dev': Acesso total + permissões especiais de desenvolvedor (hardcoded)
- * - 'director': Acesso total a todos os projetos
- * - 'admin': Acesso total a todos os projetos
- * - 'leader': Acesso apenas aos projetos onde é líder
- * - 'user': Acesso básico (indicadores próprios)
+ * Hierarquia: dev > ceo > director > admin > leader > user
  *
- * IMPORTANTE: Use o email do Google Account do usuário
+ * FONTE PRIMÁRIA: tabela users_otus no Supabase (gerenciada pela UI de admin)
+ * FALLBACK: USER_ROLES abaixo (apenas devs hardcoded e usuários de teste)
  *
- * Hierarquia: dev > director > admin > leader > user
+ * Todas as funções deste arquivo aceitam tanto um email (string) quanto
+ * um user object (com .role e .email) — o user object tem prioridade.
  */
 
 export const USER_ROLES = {
-  // DEV - Acesso total + permissões especiais (hardcoded, não gerenciável pela UI)
-  'pedro.kupka@otusengenharia.com': 'dev',
-  'felipe.simoni@otusengenharia.com': 'dev',
-
-  // Acesso total (Diretora e equipe de gestão)
-  'carla.bedin@otusengenharia.com': 'director',
-  'arthur.oliveira@otusengenharia.com': 'director',
-  'ana.reisdorfer@otusengenharia.com': 'admin',
-
-  // Acesso de líder - apenas aos seus projetos
-  'anna.bastos@otusengenharia.com': 'leader',
-  'alicia.paim@otusengenharia.com': 'leader',
-  'estevao.goulart@otusengenharia.com': 'leader',
-
-  // Dev mode - usuários de teste (para verificação local)
+  // Dev mode - usuários de teste (para verificação local apenas)
+  // Todos os usuários reais são gerenciados pela tabela users_otus no Supabase
   'dev-dev@otus.dev': 'dev',
   'dev-director@otus.dev': 'director',
   'dev-admin@otus.dev': 'admin',
@@ -97,22 +81,33 @@ export function getLeaderNameFromEmail(email) {
 }
 
 /**
- * Verifica se um email tem acesso ao sistema
- * @param {string} email - Email do usuário
- * @returns {boolean} - true se o usuário tem acesso
+ * Verifica se um usuário tem acesso ao sistema
+ * @param {string|Object} emailOrUser - Email ou user object (com .role)
+ * @returns {boolean}
  */
-export function hasAccess(email) {
-  return email && USER_ROLES.hasOwnProperty(email.toLowerCase());
+export function hasAccess(emailOrUser) {
+  if (!emailOrUser) return false;
+  if (typeof emailOrUser === 'object') {
+    return !!emailOrUser.role;
+  }
+  return USER_ROLES.hasOwnProperty(emailOrUser.toLowerCase());
 }
 
 /**
  * Obtém o role de um usuário
- * @param {string} email - Email do usuário
- * @returns {string|null} - 'director', 'admin', 'leader' ou null
+ * @param {string|Object} emailOrUser - Email ou user object (com .role)
+ * @returns {string|null}
  */
-export function getUserRole(email) {
+export function getUserRole(emailOrUser) {
+  if (!emailOrUser) return null;
+  // User object (do banco, via Passport) — fonte primária
+  if (typeof emailOrUser === 'object' && emailOrUser.role) {
+    return emailOrUser.role;
+  }
+  // Fallback: email string → hardcoded USER_ROLES
+  const email = typeof emailOrUser === 'string' ? emailOrUser.toLowerCase() : null;
   if (!email) return null;
-  return USER_ROLES[email.toLowerCase()] || null;
+  return USER_ROLES[email] || null;
 }
 
 /**
@@ -150,7 +145,7 @@ export function isAdmin(email) {
  */
 export function isPrivileged(email) {
   const role = getUserRole(email);
-  return role === 'dev' || role === 'director' || role === 'admin' || role === 'leader';
+  return role === 'dev' || role === 'ceo' || role === 'director' || role === 'admin' || role === 'leader';
 }
 
 /**
@@ -184,11 +179,12 @@ export function isVendas(email) {
 /**
  * Verifica se um usuário pode acessar o Formulário de Passagem
  * (Dev, Diretores, Admin, Líderes e Vendas)
- * @param {string} email - Email do usuário
+ * @param {string|Object} emailOrUser - Email ou user object
  * @returns {boolean}
  */
-export function canAccessFormularioPassagem(email) {
-  return isPrivileged(email) || isVendas(email);
+export function canAccessFormularioPassagem(emailOrUser) {
+  const email = typeof emailOrUser === 'object' ? emailOrUser?.email : emailOrUser;
+  return isPrivileged(emailOrUser) || isVendas(email);
 }
 
 /**
@@ -199,7 +195,7 @@ export function canAccessFormularioPassagem(email) {
  */
 export function hasFullAccess(email) {
   const role = getUserRole(email);
-  return role === 'dev' || role === 'director' || role === 'admin';
+  return role === 'dev' || role === 'ceo' || role === 'director' || role === 'admin';
 }
 
 /**
@@ -215,7 +211,7 @@ const DEMANDAS_MANAGER_SECTORS = ['Tecnologia'];
  */
 export function canManageDemandas(user) {
   if (!user) return false;
-  if (isPrivileged(user.email)) return true;
+  if (isPrivileged(user)) return true;
   if (user.setor_name && DEMANDAS_MANAGER_SECTORS.includes(user.setor_name)) return true;
   return false;
 }
@@ -233,7 +229,25 @@ const ESTUDOS_CUSTOS_MANAGER_SECTORS = ['CS'];
  */
 export function canManageEstudosCustos(user) {
   if (!user) return false;
-  if (isPrivileged(user.email)) return true;
+  if (isPrivileged(user)) return true;
   if (user.setor_name && ESTUDOS_CUSTOS_MANAGER_SECTORS.includes(user.setor_name)) return true;
+  return false;
+}
+
+/**
+ * Setores que podem gerenciar o Apoio de Projetos (editar ACD, IFC, Controle)
+ */
+const APOIO_PROJETOS_MANAGER_SECTORS = ['Tecnologia'];
+
+/**
+ * Verifica se um usuario pode gerenciar dados do Apoio de Projetos
+ * (Privilegiados ou membros do setor Tecnologia)
+ * @param {Object} user - Objeto do usuario com email e setor_name
+ * @returns {boolean}
+ */
+export function canManageApoioProjetos(user) {
+  if (!user) return false;
+  if (isPrivileged(user)) return true;
+  if (user.setor_name && APOIO_PROJETOS_MANAGER_SECTORS.includes(user.setor_name)) return true;
   return false;
 }
