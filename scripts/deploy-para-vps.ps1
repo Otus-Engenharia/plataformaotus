@@ -12,6 +12,24 @@ $user = "root"
 $projectPath = "/docker/plataformaotus"
 $base = $PSScriptRoot + "\.."
 
+# ============================================================================
+# VALIDAÇÃO: Garantir que estamos no branch main
+# ============================================================================
+cd $base
+$currentBranch = git branch --show-current
+if ($currentBranch -ne "main") {
+    Write-Host "ERRO: Deploy só pode ser feito a partir do branch 'main'!" -ForegroundColor Red
+    Write-Host "Branch atual: $currentBranch" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Para fazer deploy, primeiro faça merge de develop para main:" -ForegroundColor Yellow
+    Write-Host "  git checkout main" -ForegroundColor Gray
+    Write-Host "  git pull origin main" -ForegroundColor Gray
+    Write-Host "  git merge --no-ff develop" -ForegroundColor Gray
+    Write-Host "  git push origin main" -ForegroundColor Gray
+    Write-Host ""
+    exit 1
+}
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  DEPLOY PARA VPS HOSTINGER" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan

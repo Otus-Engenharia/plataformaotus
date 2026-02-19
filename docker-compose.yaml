@@ -3,7 +3,7 @@
 # =============================================================================
 # Projeto Docker separado. Não altera o projeto "automacoes" (n8n, waha, nginx).
 # Porta 3001: só esta aplicação. Os outros continuam em 5678, 3000, 80/443.
-# Hostinger MCP procura por docker-compose.yaml (branch master).
+# Hostinger MCP procura por docker-compose.yaml (branch main).
 # =============================================================================
 
 networks:
