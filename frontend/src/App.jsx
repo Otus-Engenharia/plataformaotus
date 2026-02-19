@@ -639,16 +639,16 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.dashboard}</span>
         <span className="nav-text">Meus Indicadores</span>
       </Link>
-      <Link
-        to="/ind/equipe"
-        className={`nav-link nav-link-modern ${location.pathname === '/ind/equipe' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Minha Equipe')}
-      >
-        <span className="nav-icon">{icons.team}</span>
-        <span className="nav-text">Minha Equipe</span>
-      </Link>
       {isPrivileged && (
         <>
+          <Link
+            to="/ind/equipe"
+            className={`nav-link nav-link-modern ${location.pathname === '/ind/equipe' ? 'nav-link-active' : ''}`}
+            title={linkTitle('Minha Equipe')}
+          >
+            <span className="nav-icon">{icons.team}</span>
+            <span className="nav-text">Minha Equipe</span>
+          </Link>
           <Link
             to="/ind/visao-geral"
             className={`nav-link nav-link-modern ${location.pathname === '/ind/visao-geral' ? 'nav-link-active' : ''}`}
@@ -1377,9 +1377,11 @@ function AppContent() {
               path="/ind/equipe"
               element={
                 <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <TeamView />
-                  </Suspense>
+                  {isPrivileged ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <TeamView />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />

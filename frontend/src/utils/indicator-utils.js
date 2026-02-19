@@ -192,6 +192,41 @@ export function getCycleMonthRange(cycle) {
 }
 
 /**
+ * Verifica se um indicador tem meses ativos dentro de um ciclo
+ * Usado para esconder indicadores semestrais/anuais em trimestres sem medição
+ * @param {Object} indicador - Indicador com frequencia, active_quarters, mes_inicio
+ * @param {string} ciclo - Ciclo selecionado (q1, q2, q3, q4, anual)
+ * @returns {boolean} true se há pelo menos um mês ativo no ciclo
+ */
+export function hasActiveMonthsInCycle(indicador, ciclo) {
+  if (ciclo === 'anual') return true;
+
+  const { start, end } = getCycleMonthRange(ciclo);
+  const frequencia = indicador.frequencia || 'mensal';
+  const mesInicio = indicador.mes_inicio || 1;
+  const aq = indicador.active_quarters || { q1: true, q2: true, q3: true, q4: true };
+
+  const FREQ_MONTHS = {
+    mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    trimestral: [3, 6, 9, 12],
+    semestral: [6, 12],
+    anual: [12],
+  };
+  const visibleMonths = FREQ_MONTHS[frequencia] || FREQ_MONTHS.mensal;
+
+  for (let m = start; m <= end; m++) {
+    if (m < mesInicio) continue;
+    if (!visibleMonths.includes(m)) continue;
+    if (m <= 3 && !aq.q1) continue;
+    if (m > 3 && m <= 6 && !aq.q2) continue;
+    if (m > 6 && m <= 9 && !aq.q3) continue;
+    if (m > 9 && !aq.q4) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
  * Retorna o ciclo atual baseado na data
  * @param {Date} date - Data (default: hoje)
  * @returns {'q1'|'q2'|'q3'|'q4'} Ciclo atual

@@ -14,6 +14,7 @@ import {
   getCurrentYear,
   getCycleLabel,
   getCycleMonthRange,
+  hasActiveMonthsInCycle,
   parseAcoes,
 } from '../../utils/indicator-utils';
 import ScoreZoneGauge, { ScoreRing } from '../../components/indicadores/ScoreZoneGauge';
@@ -427,12 +428,19 @@ export default function DashboardIndicadores() {
   };
 
   // ── Computed values ──
-  const scoreGeral = calculatePersonScore(indicadores) || 0;
+  // Filtrar indicadores que têm meses ativos no ciclo selecionado
+  // Ex: indicador semestral (meses 6,12) não aparece em Q1 (meses 1-3)
+  const indicadoresNoCiclo = useMemo(
+    () => indicadores.filter(ind => hasActiveMonthsInCycle(ind, ciclo)),
+    [indicadores, ciclo]
+  );
+
+  const scoreGeral = calculatePersonScore(indicadoresNoCiclo) || 0;
   const currentMonth = new Date().getMonth() + 1;
 
   const accumulatedMap = useMemo(() => {
     const map = {};
-    for (const ind of indicadores) {
+    for (const ind of indicadoresNoCiclo) {
       const yearCheckIns = (ind.check_ins || []).filter(ci => ci.ano === ano);
       const acc = calculateAccumulatedProgress(ind, yearCheckIns, currentMonth);
       const isAutoCalc = ind.auto_calculate !== false;
@@ -444,12 +452,12 @@ export default function DashboardIndicadores() {
       map[ind.id] = { realizado, planejado, score };
     }
     return map;
-  }, [indicadores, ano, currentMonth]);
+  }, [indicadoresNoCiclo, ano, currentMonth]);
 
-  const indicadoresEmRisco = indicadores.filter(
+  const indicadoresEmRisco = indicadoresNoCiclo.filter(
     ind => (accumulatedMap[ind.id]?.score || 0) < 100
   );
-  const indicadoresFiltrados = filtroEmRisco ? indicadoresEmRisco : indicadores;
+  const indicadoresFiltrados = filtroEmRisco ? indicadoresEmRisco : indicadoresNoCiclo;
 
   const usedTemplateIds = new Set(indicadores.map(i => i.template_id).filter(Boolean));
   const availableTemplates = templates.filter(t => !usedTemplateIds.has(t.id));
@@ -543,7 +551,7 @@ export default function DashboardIndicadores() {
             </div>
             <div className="farol-card__summary-badges">
               <span className="farol-badge farol-badge--subtitle">
-                Resultado ponderado de {indicadores.length} indicador{indicadores.length !== 1 ? 'es' : ''}
+                Resultado ponderado de {indicadoresNoCiclo.length} indicador{indicadoresNoCiclo.length !== 1 ? 'es' : ''}
               </span>
             </div>
           </div>
@@ -581,7 +589,7 @@ export default function DashboardIndicadores() {
           </div>
         </div>
 
-        {indicadores.length === 0 ? (
+        {indicadoresNoCiclo.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state__icon">
               <svg viewBox="0 0 24 24" width="64" height="64">

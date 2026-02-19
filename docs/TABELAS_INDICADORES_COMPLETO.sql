@@ -73,7 +73,7 @@ DROP TYPE IF EXISTS public.consolidation_type CASCADE;
 -- 1. ENUMS
 -- ============================================================
 CREATE TYPE public.app_role AS ENUM ('admin', 'leader');
-CREATE TYPE public.metric_type AS ENUM ('number', 'percentage', 'boolean', 'currency');
+CREATE TYPE public.metric_type AS ENUM ('number', 'integer', 'percentage', 'boolean', 'currency');
 CREATE TYPE public.cycle_type AS ENUM ('annual', 'q1', 'q2', 'q3', 'q4');
 CREATE TYPE public.kr_status AS ENUM ('on_track', 'at_risk', 'delayed', 'completed');
 CREATE TYPE public.plan_status AS ENUM ('pending', 'in_progress', 'completed', 'not_achieved');

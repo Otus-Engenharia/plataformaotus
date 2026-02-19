@@ -2028,7 +2028,8 @@ export async function createIndicadorFromTemplate(templateId, personEmail, ciclo
       meta: template.default_target,
       unidade: template.metric_type === 'percentage' ? '%' :
                template.metric_type === 'currency' ? 'R$' :
-               template.metric_type === 'boolean' ? 'sim/não' : 'un',
+               template.metric_type === 'boolean' ? 'sim/não' :
+               template.metric_type === 'integer' ? 'un' : 'un',
       categoria: 'pessoas',
       periodo: ciclo === 'anual' ? 'anual' : 'trimestral',
       ciclo,
@@ -2087,7 +2088,7 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
     .from(USERS_OTUS_TABLE)
     .select('id, email, name')
     .eq('position_id', positionId)
-    .eq('is_active', true);
+    .eq('status', 'ativo');
 
   if (leaderId) {
     query = query.eq('leader_id', leaderId);
@@ -2102,6 +2103,8 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
   if (!users || users.length === 0) {
     return { created: 0, skipped: 0, message: 'Nenhum usuario encontrado com este cargo' };
   }
+
+  console.log(`[sync] Cargo ${positionId} - Encontrados ${users.length} usuarios: ${users.map(u => u.name).join(', ')}`);
 
   // 3. Para cada usuario, verifica quais indicadores faltam e cria
   let created = 0;
@@ -2143,7 +2146,8 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
           meta: template.default_target,
           unidade: template.metric_type === 'percentage' ? '%' :
                    template.metric_type === 'currency' ? 'R$' :
-                   template.metric_type === 'boolean' ? 'sim/não' : 'un',
+                   template.metric_type === 'boolean' ? 'sim/não' :
+                   template.metric_type === 'integer' ? 'un' : 'un',
           categoria: 'pessoas',
           periodo: ciclo === 'anual' ? 'anual' : 'trimestral',
           ciclo,
@@ -2519,11 +2523,14 @@ export async function fetchPeopleWithScores(filters = {}) {
     (users || []).map(async (user) => {
       if (!user.email) return { ...user, score: null, indicadoresCount: 0 };
 
-      const indicadores = await fetchIndicadoresIndividuais({
+      const allIndicadores = await fetchIndicadoresIndividuais({
         person_email: user.email,
         ciclo: filters.ciclo,
         ano: filters.ano,
       });
+
+      // Filtrar indicadores que têm meses ativos no ciclo selecionado
+      const indicadores = allIndicadores.filter(ind => hasActiveMonthsInCycle(ind, filters.ciclo));
 
       const score = calculatePersonScore(indicadores);
 
@@ -2580,11 +2587,14 @@ export async function getPersonById(personId, filters = {}) {
     ano: filters.ano,
   });
 
-  // Busca check-ins para cada indicador
+  // Busca check-ins e recovery plans para cada indicador
   const indicadoresWithCheckIns = await Promise.all(
     indicadores.map(async (ind) => {
-      const checkIns = await fetchCheckIns(ind.id);
-      return { ...ind, checkIns };
+      const [checkIns, recoveryPlans] = await Promise.all([
+        fetchCheckIns(ind.id),
+        fetchRecoveryPlans(ind.id)
+      ]);
+      return { ...ind, check_ins: checkIns, recovery_plans: recoveryPlans };
     })
   );
 
@@ -2616,6 +2626,37 @@ export async function fetchTeam(sectorId, filters = {}) {
  * @param {Array} indicadores - Lista de indicadores
  * @returns {number|null} - Score ponderado (0-120) ou null se não houver indicadores
  */
+
+/**
+ * Verifica se um indicador tem meses ativos dentro de um ciclo
+ * Ex: indicador semestral (meses 6,12) não aparece em Q1 (meses 1-3)
+ */
+function hasActiveMonthsInCycle(indicador, ciclo) {
+  if (!ciclo || ciclo === 'anual') return true;
+  const ranges = { q1: [1, 3], q2: [4, 6], q3: [7, 9], q4: [10, 12] };
+  const [start, end] = ranges[ciclo] || [1, 12];
+  const frequencia = indicador.frequencia || 'mensal';
+  const mesInicio = indicador.mes_inicio || 1;
+  const aq = indicador.active_quarters || { q1: true, q2: true, q3: true, q4: true };
+  const FREQ_MONTHS = {
+    mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    trimestral: [3, 6, 9, 12],
+    semestral: [6, 12],
+    anual: [12],
+  };
+  const visibleMonths = FREQ_MONTHS[frequencia] || FREQ_MONTHS.mensal;
+  for (let m = start; m <= end; m++) {
+    if (m < mesInicio) continue;
+    if (!visibleMonths.includes(m)) continue;
+    if (m <= 3 && !aq.q1) continue;
+    if (m > 3 && m <= 6 && !aq.q2) continue;
+    if (m > 6 && m <= 9 && !aq.q3) continue;
+    if (m > 9 && !aq.q4) continue;
+    return true;
+  }
+  return false;
+}
+
 function calculatePersonScore(indicadores) {
   if (!indicadores || indicadores.length === 0) return null;
 

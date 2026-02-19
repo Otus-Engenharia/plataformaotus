@@ -6,15 +6,13 @@ const METRIC_TYPES = [
   { value: 'number', label: 'Número' },
   { value: 'integer', label: 'Número Inteiro' },
   { value: 'percentage', label: 'Percentual' },
-  { value: 'currency', label: 'Moeda (R$)' },
-  { value: 'boolean', label: 'Sim/Não' }
+  { value: 'currency', label: 'Moeda (R$)' }
 ];
 
 const CONSOLIDATION_TYPES = [
   { value: 'sum', label: 'Soma' },
   { value: 'average', label: 'Média' },
-  { value: 'last_value', label: 'Último Valor' },
-  { value: 'manual', label: 'Manual' }
+  { value: 'last_value', label: 'Último Valor' }
 ];
 
 const QUARTER_GROUPS = [
