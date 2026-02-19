@@ -12,6 +12,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/HomeView.css';
 
 // Mapeamento de icon_name para componentes SVG
@@ -88,6 +89,7 @@ const ICON_MAP = {
 
 function HomeView() {
   const navigate = useNavigate();
+  const { canAccessArea } = useAuth();
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +97,6 @@ function HomeView() {
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        // Novo endpoint que já aplica filtros de permissão
         const response = await axios.get(`${API_URL}/api/modules/home`, {
           withCredentials: true,
         });
@@ -104,17 +105,7 @@ function HomeView() {
         }
       } catch (error) {
         console.error('Erro ao buscar módulos da Home:', error);
-        // Fallback para endpoint antigo em caso de erro
-        try {
-          const fallbackResponse = await axios.get(`${API_URL}/api/home-modules`, {
-            withCredentials: true,
-          });
-          if (fallbackResponse.data?.success) {
-            setModules(fallbackResponse.data.data || []);
-          }
-        } catch {
-          setModules([]);
-        }
+        setModules([]);
       } finally {
         setLoading(false);
       }
@@ -123,17 +114,19 @@ function HomeView() {
     fetchModules();
   }, []);
 
-  // Mapear módulos para o formato de renderização
+  // Mapear módulos para o formato de renderização, filtrando por área acessível
   const options = useMemo(() => {
-    return modules.map(module => ({
-      id: module.id,
-      title: module.name,
-      description: module.description,
-      icon: ICON_MAP[module.icon_name] || ICON_MAP.default,
-      path: module.path,
-      color: module.color,
-    }));
-  }, [modules]);
+    return modules
+      .filter(module => canAccessArea(module.area))
+      .map(module => ({
+        id: module.id,
+        title: module.name,
+        description: module.description,
+        icon: ICON_MAP[module.icon_name] || ICON_MAP.default,
+        path: module.path,
+        color: module.color,
+      }));
+  }, [modules, canAccessArea]);
 
   const handleOptionClick = (option) => {
     navigate(option.path);
