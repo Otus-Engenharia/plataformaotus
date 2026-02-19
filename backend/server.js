@@ -6175,12 +6175,13 @@ app.delete('/api/admin/home-modules/:id', requireAuth, async (req, res) => {
  */
 app.get('/api/modules', requireAuth, async (req, res) => {
   try {
-    const userRole = getUserRole(req.user) || 'user';
+    const effectiveUser = getEffectiveUser(req);
+    const userRole = effectiveUser.role || getUserRole(effectiveUser) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
     // Buscar setor do usuário para filtro por setor
-    const userOtus = await getUserOtusByEmail(req.user.email);
+    const userOtus = await getUserOtusByEmail(effectiveUser.email);
     const sectorId = userOtus?.setor_id || null;
-    const modules = await fetchModulesForUser(req.user.email, accessLevel, sectorId);
+    const modules = await fetchModulesForUser(effectiveUser.email, accessLevel, sectorId);
     res.json({ success: true, data: modules });
   } catch (error) {
     console.error('❌ Erro ao buscar módulos:', error);
