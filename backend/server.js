@@ -349,6 +349,16 @@ function getLeaderDataFilter(req) {
 }
 
 /**
+ * Retorna o usuário efetivo para controle de acesso.
+ * Se impersonação ativa, retorna dados do usuário impersonado.
+ * @param {Object} req - Express request
+ * @returns {{ email: string, role: string, name: string, setor_name: string|null }}
+ */
+function getEffectiveUser(req) {
+  return req.session?.impersonating || req.user;
+}
+
+/**
  * Middleware de logging
  * Registra ações dos usuários automaticamente
  */
@@ -2482,11 +2492,12 @@ app.get('/api/user/my-views', requireAuth, async (req, res) => {
  */
 app.get('/api/user/effective-views', requireAuth, async (req, res) => {
   try {
-    const userInfo = await getUserByEmail(req.user.email);
+    const effectiveUser = getEffectiveUser(req);
+    const userInfo = await getUserByEmail(effectiveUser.email);
 
     const user = {
-      email: req.user.email,
-      role: req.user.role || getUserRole(req.user),
+      email: effectiveUser.email,
+      role: effectiveUser.role || getUserRole(effectiveUser),
       sector_id: userInfo?.setor_id || null,
       position_id: userInfo?.cargo?.id || null,
     };
@@ -6188,11 +6199,12 @@ app.get('/api/modules', requireAuth, async (req, res) => {
  */
 app.get('/api/user/accessible-areas', requireAuth, async (req, res) => {
   try {
-    const userRole = getUserRole(req.user) || 'user';
+    const effectiveUser = getEffectiveUser(req);
+    const userRole = effectiveUser.role || getUserRole(effectiveUser) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
-    const userOtus = await getUserOtusByEmail(req.user.email);
+    const userOtus = await getUserOtusByEmail(effectiveUser.email);
     const sectorId = userOtus?.setor_id || null;
-    const modules = await fetchModulesForUser(req.user.email, accessLevel, sectorId);
+    const modules = await fetchModulesForUser(effectiveUser.email, accessLevel, sectorId);
     // Extrair áreas únicas dos módulos acessíveis
     const areas = [...new Set(modules.map(m => m.area).filter(Boolean))];
     res.json({ success: true, areas });
@@ -6204,12 +6216,13 @@ app.get('/api/user/accessible-areas', requireAuth, async (req, res) => {
 
 app.get('/api/modules/home', requireAuth, async (req, res) => {
   try {
-    const userRole = getUserRole(req.user) || 'user';
+    const effectiveUser = getEffectiveUser(req);
+    const userRole = effectiveUser.role || getUserRole(effectiveUser) || 'user';
     const accessLevel = getUserAccessLevel(userRole);
     // Buscar setor do usuário para filtro por setor
-    const userOtus = await getUserOtusByEmail(req.user.email);
+    const userOtus = await getUserOtusByEmail(effectiveUser.email);
     const sectorId = userOtus?.setor_id || null;
-    const modules = await fetchHomeModulesForUser(req.user.email, accessLevel, sectorId);
+    const modules = await fetchHomeModulesForUser(effectiveUser.email, accessLevel, sectorId);
     res.json({ success: true, data: modules });
   } catch (error) {
     console.error('❌ Erro ao buscar módulos da home:', error);

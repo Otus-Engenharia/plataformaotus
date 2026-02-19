@@ -173,64 +173,49 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Verifica se o usuário é desenvolvedor (acesso total)
+   * Retorna o role efetivo considerando impersonação ativa.
+   * Se impersonando, usa o role do usuário impersonado.
    */
-  const isDev = () => {
-    return user?.role === 'dev';
-  };
+  const getEffectiveRole = useCallback(() => {
+    if (impersonation?.active) return impersonation.target.role;
+    return user?.role;
+  }, [impersonation, user]);
 
-  /**
-   * Verifica se o usuário é diretora
-   */
-  const isDirector = () => {
-    return user?.role === 'director';
-  };
+  const isDev = () => getEffectiveRole() === 'dev';
 
-  /**
-   * Verifica se o usuário é admin
-   */
-  const isAdmin = () => {
-    return user?.role === 'admin';
-  };
+  const isDirector = () => getEffectiveRole() === 'director';
 
-  /**
-   * Verifica se o usuário é dev, diretora, admin ou líder
-   */
+  const isAdmin = () => getEffectiveRole() === 'admin';
+
   const isPrivileged = () => {
-    return user?.role === 'dev' || user?.role === 'director' || user?.role === 'admin' || user?.role === 'leader';
+    const role = getEffectiveRole();
+    return role === 'dev' || role === 'director' || role === 'admin' || role === 'leader';
   };
 
-  /**
-   * Verifica se o usuário tem acesso total (dev, director ou admin)
-   */
   const hasFullAccess = () => {
-    return user?.role === 'dev' || user?.role === 'director' || user?.role === 'admin';
+    const role = getEffectiveRole();
+    return role === 'dev' || role === 'director' || role === 'admin';
   };
 
-  /**
-   * Verifica se o usuário é líder
-   */
-  const isLeader = () => {
-    return user?.role === 'leader';
-  };
+  const isLeader = () => getEffectiveRole() === 'leader';
 
   /**
    * Verifica se o usuário pode acessar uma vista específica
    * Devs têm acesso total; outros verificam effectiveViews
    */
   const canAccessView = useCallback((viewId) => {
-    if (user?.role === 'dev') return true;
+    if (user?.role === 'dev' && !impersonation?.active) return true;
     return effectiveViews.includes(viewId);
-  }, [user, effectiveViews]);
+  }, [user, effectiveViews, impersonation]);
 
   /**
    * Verifica se o usuário pode acessar uma área do sistema
    * Baseado nos módulos configurados em Permissões (Matriz por Setor)
    */
   const canAccessArea = useCallback((area) => {
-    if (user?.role === 'dev') return true;
+    if (user?.role === 'dev' && !impersonation?.active) return true;
     return accessibleAreas.includes(area);
-  }, [user, accessibleAreas]);
+  }, [user, accessibleAreas, impersonation]);
 
   /**
    * Verifica se o usuário pode acessar Formulário de Passagem
@@ -254,6 +239,7 @@ export function AuthProvider({ children }) {
     error,
     isAuthenticated: !!user,
     isDev: isDev(),
+    isRealDev: user?.role === 'dev',
     isDirector: isDirector(),
     isAdmin: isAdmin(),
     isPrivileged: isPrivileged(),
