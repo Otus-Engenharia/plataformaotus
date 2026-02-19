@@ -10,7 +10,7 @@ import axios from 'axios';
 import { API_URL } from '../api';
 
 export default function DevImpersonationPanel({ collapsed }) {
-  const { isDev, impersonation, startImpersonation, stopImpersonation } = useAuth();
+  const { isRealDev, impersonation, startImpersonation, stopImpersonation } = useAuth();
   const [enabled, setEnabled] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -63,7 +63,7 @@ export default function DevImpersonationPanel({ collapsed }) {
     }
   };
 
-  if (!isDev || collapsed) return null;
+  if (!isRealDev || collapsed) return null;
 
   // Agrupar usuários por setor
   const grouped = users.reduce((acc, user) => {
