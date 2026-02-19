@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
 import { PortfolioProvider } from './contexts/PortfolioContext';
 import axios from 'axios';
+import DevImpersonationPanel from './components/DevImpersonationPanel';
 import IndicadoresLiderancaView from './components/IndicadoresLiderancaView';
 import ProjetosView from './components/ProjetosView';
 import ConfiguracoesView from './components/ConfiguracoesView';
@@ -209,7 +210,7 @@ const icons = {
 
 function Sidebar({ collapsed, onToggle, area }) {
   const location = useLocation();
-  const { user, logout, isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, canAccessFormularioPassagem } = useAuth();
+  const { user, logout, isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, canAccessFormularioPassagem, impersonation } = useAuth();
   const linkTitle = (label) => (collapsed ? label : undefined);
 
   // State para setores (carregados dinamicamente para OKRs e Workspace)
@@ -861,16 +862,28 @@ function Sidebar({ collapsed, onToggle, area }) {
       </div>
       {user && (
         <div className="sidebar-footer">
+          <DevImpersonationPanel collapsed={collapsed} />
           <div className="sidebar-user">
             {user.picture && (
               <img src={user.picture} alt={user.name} className="nav-user-avatar" />
             )}
             {!collapsed && (
               <div className="sidebar-user-info">
-                <span className="nav-user-name">{getShortName(user.name)}</span>
-                {isDev && <span className="nav-user-badge">Dev</span>}
-                {!isDev && isDirector && <span className="nav-user-badge">Diretora</span>}
-                {!isDev && !isDirector && isAdmin && <span className="nav-user-badge">Admin</span>}
+                <span className="nav-user-name">
+                  {impersonation?.active
+                    ? getShortName(impersonation.target.name)
+                    : getShortName(user.name)}
+                </span>
+                {impersonation?.active
+                  ? <span className="nav-user-badge nav-badge-impersonating">Impersonando</span>
+                  : (
+                    <>
+                      {isDev && <span className="nav-user-badge">Dev</span>}
+                      {!isDev && isDirector && <span className="nav-user-badge">Diretora</span>}
+                      {!isDev && !isDirector && isAdmin && <span className="nav-user-badge">Admin</span>}
+                    </>
+                  )
+                }
               </div>
             )}
           </div>

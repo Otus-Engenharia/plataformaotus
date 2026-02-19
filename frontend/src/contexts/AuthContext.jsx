@@ -1,6 +1,6 @@
 /**
  * Contexto de Autenticação
- * 
+ *
  * Gerencia o estado de autenticação do usuário
  */
 
@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
   const [devMode, setDevMode] = useState({ enabled: false, availableUsers: [] });
   const [effectiveViews, setEffectiveViews] = useState([]);
   const [accessibleAreas, setAccessibleAreas] = useState([]);
+  const [impersonation, setImpersonation] = useState(null);
 
   /**
    * Verifica se o dev mode está habilitado
@@ -74,17 +75,25 @@ export function AuthProvider({ children }) {
       if (response.data.success) {
         setUser(response.data.user);
         setError(null);
+        // Hydrate impersonation state from user response
+        if (response.data.user?.impersonation?.active) {
+          setImpersonation(response.data.user.impersonation);
+        } else {
+          setImpersonation(null);
+        }
         // Buscar vistas efetivas e áreas acessíveis após autenticação
         await Promise.all([fetchEffectiveViews(), fetchAccessibleAreas()]);
       } else {
         setUser(null);
         setEffectiveViews([]);
         setAccessibleAreas([]);
+        setImpersonation(null);
       }
     } catch (err) {
       setUser(null);
       setEffectiveViews([]);
       setAccessibleAreas([]);
+      setImpersonation(null);
       if (err.response?.status !== 401) {
         // 401 é esperado quando não está autenticado
         setError('Erro ao verificar autenticação');
@@ -114,17 +123,51 @@ export function AuthProvider({ children }) {
   };
 
   /**
+   * Ativa impersonação de um usuário (apenas para devs)
+   */
+  const startImpersonation = async (userId) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/dev-impersonate`, { userId });
+      if (response.data.success) {
+        // Reload para garantir que todos os dados sejam re-buscados
+        window.location.reload();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Erro ao impersonar:', err);
+      return false;
+    }
+  };
+
+  /**
+   * Desativa impersonação
+   */
+  const stopImpersonation = async () => {
+    try {
+      await axios.delete(`${API_URL}/api/auth/dev-impersonate`);
+      window.location.reload();
+      return true;
+    } catch (err) {
+      console.error('Erro ao parar impersonação:', err);
+      return false;
+    }
+  };
+
+  /**
    * Faz logout do usuário
    */
   const logout = async () => {
     try {
       await axios.post(`${API_URL}/api/auth/logout`);
       setUser(null);
+      setImpersonation(null);
       window.location.href = '/login';
     } catch (err) {
       console.error('Erro ao fazer logout:', err);
       // Mesmo com erro, limpa o estado local
       setUser(null);
+      setImpersonation(null);
       window.location.href = '/login';
     }
   };
@@ -229,6 +272,9 @@ export function AuthProvider({ children }) {
     checkAuth,
     devMode,
     devLogin,
+    impersonation,
+    startImpersonation,
+    stopImpersonation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

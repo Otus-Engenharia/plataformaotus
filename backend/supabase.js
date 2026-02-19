@@ -4255,6 +4255,23 @@ export async function getUserOtusByEmail(email) {
 }
 
 /**
+ * Busca dados do usuário pelo ID (incluindo setor)
+ * @param {string} userId - ID do usuário (UUID)
+ * @returns {Promise<Object|null>}
+ */
+export async function getUserOtusById(userId) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .select('id, name, email, role, setor:setor_id(id, name)')
+    .eq('id', userId)
+    .single();
+
+  if (error) return null;
+  return data;
+}
+
+/**
  * Busca matriz de acesso (módulos vs níveis)
  * @returns {Promise<Object>}
  */

@@ -54,7 +54,7 @@ import {
   fetchHomeModules, updateHomeModule, createHomeModule, deleteHomeModule,
   // Unified Modules System
   ACCESS_LEVELS, ACCESS_LEVEL_LABELS, ACCESS_LEVEL_COLORS, getUserAccessLevel,
-  fetchAllModules, fetchModulesForUser, fetchHomeModulesForUser, getUserOtusByEmail,
+  fetchAllModules, fetchModulesForUser, fetchHomeModulesForUser, getUserOtusByEmail, getUserOtusById,
   updateModuleUnified, createModuleUnified, deleteModuleUnified,
   getAccessMatrix, fetchModuleOverrides, createModuleOverride, deleteModuleOverride,
   // Equipe do projeto
@@ -319,7 +319,9 @@ function requireAuth(req, res, next) {
  * @returns {{ leaderName: string|null, hasAccess: boolean }}
  */
 function getLeaderDataFilter(req) {
-  const role = req.user.role;
+  // Se impersonação ativa, usar dados do usuário impersonado
+  const effectiveUser = req.session?.impersonating || req.user;
+  const role = effectiveUser.role;
 
   // dev/ceo/director/admin - acesso total sem filtro
   if (['dev', 'ceo', 'director', 'admin'].includes(role)) {
@@ -328,8 +330,8 @@ function getLeaderDataFilter(req) {
 
   // leader - apenas Operação tem filtro por líder
   if (role === 'leader') {
-    if (req.user.setor_name === 'Operação') {
-      const leaderName = req.user.name || getLeaderNameFromEmail(req.user.email);
+    if (effectiveUser.setor_name === 'Operação') {
+      const leaderName = effectiveUser.name || getLeaderNameFromEmail(effectiveUser.email);
       return { leaderName, hasAccess: true };
     }
     // Líderes de outros setores veem tudo
@@ -337,7 +339,7 @@ function getLeaderDataFilter(req) {
   }
 
   // Fallback legado: tenta mapping do auth-config
-  const legacyName = getLeaderNameFromEmail(req.user.email);
+  const legacyName = getLeaderNameFromEmail(effectiveUser.email);
   if (legacyName) {
     return { leaderName: legacyName, hasAccess: true };
   }
@@ -446,6 +448,116 @@ app.post('/api/auth/dev-login', (req, res) => {
 });
 
 /**
+ * Rota: POST /api/auth/dev-impersonate
+ * Ativa impersonação de um usuário real (apenas para devs)
+ */
+app.post('/api/auth/dev-impersonate', requireAuth, async (req, res) => {
+  // Usa o role original (não o impersonado) para verificação de segurança
+  const realRole = req.session?.impersonating
+    ? req.session.realUser?.role
+    : req.user.role;
+
+  if (realRole !== 'dev') {
+    return res.status(403).json({
+      success: false,
+      error: 'Apenas desenvolvedores podem usar impersonação'
+    });
+  }
+
+  const { userId } = req.body;
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      error: 'userId é obrigatório'
+    });
+  }
+
+  try {
+    const target = await getUserOtusById(userId);
+    if (!target) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    // Preserva o usuário real na sessão (para poder restaurar)
+    if (!req.session.realUser) {
+      req.session.realUser = {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        role: req.user.role,
+        picture: req.user.picture,
+        setor_name: req.user.setor_name,
+      };
+    }
+
+    // Armazena dados de impersonação
+    req.session.impersonating = {
+      id: target.id,
+      email: target.email,
+      name: target.name,
+      role: target.role,
+      setor_name: target.setor?.name || null,
+    };
+
+    req.session.save((err) => {
+      if (err) {
+        return res.status(500).json({ success: false, error: 'Erro ao salvar sessão' });
+      }
+      logAction(req, 'dev_impersonate', 'auth', target.id, target.name,
+        `Impersonando: ${target.name} (${target.role})`);
+      res.json({
+        success: true,
+        impersonating: req.session.impersonating,
+        realUser: req.session.realUser,
+      });
+    });
+  } catch (err) {
+    console.error('Erro ao impersonar:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/auth/dev-impersonate
+ * Desativa impersonação, restaura sessão original
+ */
+app.delete('/api/auth/dev-impersonate', requireAuth, (req, res) => {
+  if (!req.session.impersonating) {
+    return res.json({ success: true, message: 'Nenhuma impersonação ativa' });
+  }
+
+  const impersonatedName = req.session.impersonating.name;
+  delete req.session.impersonating;
+  delete req.session.realUser;
+
+  req.session.save((err) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: 'Erro ao salvar sessão' });
+    }
+    res.json({ success: true, message: `Impersonação de ${impersonatedName} desativada` });
+  });
+});
+
+/**
+ * Rota: GET /api/auth/dev-impersonate
+ * Retorna status atual da impersonação
+ */
+app.get('/api/auth/dev-impersonate', requireAuth, (req, res) => {
+  if (req.session.impersonating && req.session.realUser) {
+    return res.json({
+      success: true,
+      active: true,
+      impersonating: req.session.impersonating,
+      realUser: req.session.realUser,
+    });
+  }
+  res.json({ success: true, active: false });
+});
+
+/**
  * Rota: GET /api/auth/user
  * Retorna informações do usuário logado
  */
@@ -479,6 +591,12 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         userId: userOtus?.id || null, // ID interno na tabela users_otus
         setor_id: userOtus?.setor_id || null,
         setor_name: setorName,
+        // Dados de impersonação (apenas para devs)
+        impersonation: req.session?.impersonating ? {
+          active: true,
+          target: req.session.impersonating,
+          realUser: req.session.realUser,
+        } : null,
       }
     });
   } catch (error) {
@@ -542,6 +660,12 @@ app.post('/api/auth/logout', async (req, res) => {
   // Limpa sessão dev se existir
   if (req.session?.devUser) {
     delete req.session.devUser;
+  }
+
+  // Limpa impersonação se existir
+  if (req.session?.impersonating) {
+    delete req.session.impersonating;
+    delete req.session.realUser;
   }
 
   req.logout((err) => {
