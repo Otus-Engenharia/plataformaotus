@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  calculatePersonScore,
   calculateIndicatorScore,
   calculateAccumulatedProgress,
   filterAtRiskIndicators,
@@ -461,7 +460,6 @@ export default function DashboardIndicadores() {
     [indicadores, ciclo]
   );
 
-  const scoreGeral = calculatePersonScore(indicadoresNoCiclo) || 0;
   const currentMonth = new Date().getMonth() + 1;
 
   const accumulatedMap = useMemo(() => {
@@ -486,6 +484,21 @@ export default function DashboardIndicadores() {
     const acc = accumulatedMap[ind.id];
     return acc && (acc.planejado > 0 || ind.auto_calculate === false);
   });
+
+  // Score geral baseado nos scores acumulados (respeita "sem dados")
+  const scoreGeral = useMemo(() => {
+    let totalWeight = 0;
+    let weightedSum = 0;
+    for (const ind of indicadoresVisiveis) {
+      const peso = ind.peso ?? 1;
+      if (peso === 0) continue;
+      const s = accumulatedMap[ind.id]?.score;
+      if (s === null || s === undefined) continue;
+      totalWeight += peso;
+      weightedSum += s * peso;
+    }
+    return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) / 100 : 0;
+  }, [indicadoresVisiveis, accumulatedMap]);
 
   const indicadoresEmRisco = indicadoresVisiveis.filter(ind => {
     const s = accumulatedMap[ind.id]?.score;
