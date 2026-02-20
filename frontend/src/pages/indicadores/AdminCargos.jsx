@@ -172,12 +172,16 @@ export default function AdminCargos() {
       if (data.success) {
         const r = data.data;
         const detailNames = r.details?.map(d => `  ✓ ${d.user} → ${d.indicator}`).join('\n') || '';
+        const errorLines = r.errors?.length
+          ? `\n\n❌ Erros (${r.errors.length}):\n${r.errors.slice(0, 5).map(e => `  ✗ ${e.user} → ${e.indicator}: ${e.error}`).join('\n')}${r.errors.length > 5 ? `\n  ... e mais ${r.errors.length - 5} erros` : ''}`
+          : '';
         alert(
           `Sincronização concluída!\n\n` +
           `👥 ${r.usersProcessed} usuários encontrados com este cargo\n` +
           `📊 ${r.created} indicadores criados\n` +
           `⏭️ ${r.skipped} já existentes\n` +
           (detailNames ? `\nDetalhes:\n${detailNames}` : '') +
+          errorLines +
           (r.usersProcessed === 0 ? '\n\n⚠️ Nenhum usuário encontrado! Verifique se os membros da equipe têm este cargo atribuído em Admin > Usuários.' : '')
         );
       }

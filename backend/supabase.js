@@ -2106,10 +2106,18 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
 
   console.log(`[sync] Cargo ${positionId} - Encontrados ${users.length} usuarios: ${users.map(u => u.name).join(', ')}`);
 
-  // 3. Para cada usuario, verifica quais indicadores faltam e cria
+  // 3. Busca info do cargo para o setor (1 query, fora dos loops)
+  const { data: position } = await supabase
+    .from('positions')
+    .select('sector_id')
+    .eq('id', positionId)
+    .single();
+
+  // 4. Para cada usuario, verifica quais indicadores faltam e cria
   let created = 0;
   let skipped = 0;
   const details = [];
+  const errors = [];
 
   for (const user of users) {
     // Busca indicadores existentes do usuario para este ciclo/ano
@@ -2129,14 +2137,7 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
         continue;
       }
 
-      // Busca info do cargo para o setor
-      const { data: position } = await supabase
-        .from('positions')
-        .select('sector_id')
-        .eq('id', positionId)
-        .single();
-
-      // Cria o indicador
+      // Cria o indicador (campos alinhados com createIndicadorFromTemplate)
       const { error: createError } = await supabase
         .from(INDICADORES_TABLE)
         .insert({
@@ -2162,16 +2163,13 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
           is_inverse: template.is_inverse || false,
           consolidation_type: template.consolidation_type || 'last_value',
           metric_type: template.metric_type || 'number',
-          auto_calculate: template.auto_calculate !== false,
           monthly_targets: template.monthly_targets || {},
           active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
-          mes_inicio: template.mes_inicio || 1,
-          frequencia: template.frequencia || 'mensal',
-          setor_apuracao_id: template.setor_apuracao_id || null,
         });
 
       if (createError) {
         console.error(`Erro ao criar indicador para ${user.email}:`, createError);
+        errors.push({ user: user.name, indicator: template.title, error: createError.message });
       } else {
         created++;
         details.push({ user: user.name, indicator: template.title });
@@ -2185,6 +2183,7 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
     usersProcessed: users.length,
     templatesCount: templates.length,
     details,
+    errors,
     message: `${created} indicadores criados, ${skipped} ja existentes`
   };
 }
