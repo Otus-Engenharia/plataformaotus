@@ -1924,7 +1924,12 @@ export async function fetchIndicadoresIndividuais(filters = {}) {
   }
 
   if (filters.ciclo) {
-    query = query.eq('ciclo', filters.ciclo);
+    // Indicadores anuais devem aparecer em qualquer quarter selecionado
+    if (['q1', 'q2', 'q3', 'q4'].includes(filters.ciclo)) {
+      query = query.in('ciclo', [filters.ciclo, 'anual']);
+    } else {
+      query = query.eq('ciclo', filters.ciclo);
+    }
   }
 
   if (filters.ano) {
@@ -2632,6 +2637,11 @@ export async function fetchTeam(sectorId, filters = {}) {
  */
 function hasActiveMonthsInCycle(indicador, ciclo) {
   if (!ciclo || ciclo === 'anual') return true;
+  // Indicadores anuais aparecem em todos os quarters (respeitando active_quarters)
+  if (indicador.ciclo === 'anual') {
+    const aq = indicador.active_quarters || { q1: true, q2: true, q3: true, q4: true };
+    return aq[ciclo] !== false;
+  }
   const ranges = { q1: [1, 3], q2: [4, 6], q3: [7, 9], q4: [10, 12] };
   const [start, end] = ranges[ciclo] || [1, 12];
   const frequencia = indicador.frequencia || 'mensal';
