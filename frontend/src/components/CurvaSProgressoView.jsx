@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import WeightConfigPanel from './curva-s-progresso/WeightConfigPanel';
 import ProgressKpiCards from './curva-s-progresso/ProgressKpiCards';
 import WeightSummaryTable from './curva-s-progresso/WeightSummaryTable';
+import ProgressChart from './curva-s-progresso/ProgressChart';
 import '../styles/CurvaSProgressoView.css';
 
 function CurvaSProgressoView({ selectedProjectId, portfolio }) {
@@ -20,9 +21,11 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   const [progress, setProgress] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [phaseBreakdown, setPhaseBreakdown] = useState([]);
+  const [timeseries, setTimeseries] = useState([]);
+  const [timeseriesLoading, setTimeseriesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('pesos'); // 'pesos' | 'tarefas'
+  const [activeTab, setActiveTab] = useState('grafico'); // 'grafico' | 'pesos' | 'tarefas'
 
   // Buscar dados do projeto selecionado no portfolio
   const selectedProject = portfolio?.find(p =>
@@ -81,6 +84,30 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     }
   }, [projectCode, smartsheetId, projectName, projectId]);
 
+  // Buscar série temporal para o gráfico
+  const fetchTimeseries = useCallback(async () => {
+    if (!projectCode || (!smartsheetId && !projectName)) return;
+    setTimeseriesLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (smartsheetId) params.set('smartsheetId', smartsheetId);
+      if (projectName) params.set('projectName', projectName);
+      if (projectId) params.set('projectId', projectId);
+
+      const res = await axios.get(
+        `${API_URL}/api/curva-s-progresso/project/${encodeURIComponent(projectCode)}/timeseries?${params}`,
+        { withCredentials: true }
+      );
+      if (res.data.success) {
+        setTimeseries(res.data.data.timeseries || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar série temporal:', err);
+    } finally {
+      setTimeseriesLoading(false);
+    }
+  }, [projectCode, smartsheetId, projectName, projectId]);
+
   useEffect(() => {
     fetchWeights();
   }, [fetchWeights]);
@@ -88,6 +115,10 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   useEffect(() => {
     fetchProgress();
   }, [fetchProgress]);
+
+  useEffect(() => {
+    fetchTimeseries();
+  }, [fetchTimeseries]);
 
   // Handler para salvar pesos customizados
   const handleSaveWeights = async (weightData) => {
@@ -100,6 +131,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       if (res.data.success) {
         await fetchWeights();
         await fetchProgress();
+        await fetchTimeseries();
       }
     } catch (err) {
       console.error('Erro ao salvar pesos:', err);
@@ -116,6 +148,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       );
       await fetchWeights();
       await fetchProgress();
+      await fetchTimeseries();
     } catch (err) {
       console.error('Erro ao resetar pesos:', err);
     }
@@ -136,6 +169,12 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
 
       {/* Tabs internas */}
       <div className="curva-s-tabs">
+        <button
+          className={`curva-s-tab ${activeTab === 'grafico' ? 'active' : ''}`}
+          onClick={() => setActiveTab('grafico')}
+        >
+          Gráfico
+        </button>
         <button
           className={`curva-s-tab ${activeTab === 'pesos' ? 'active' : ''}`}
           onClick={() => setActiveTab('pesos')}
@@ -158,6 +197,18 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
 
       {/* Conteúdo baseado na tab ativa */}
       <div className="curva-s-content">
+        {activeTab === 'grafico' && (
+          <div className="curva-s-chart-layout">
+            <ProgressChart timeseries={timeseries} loading={timeseriesLoading} />
+            <div className="curva-s-chart-sidebar">
+              <WeightSummaryTable
+                phaseBreakdown={phaseBreakdown}
+                progress={progress}
+              />
+            </div>
+          </div>
+        )}
+
         {activeTab === 'pesos' && (
           <div className="curva-s-pesos-layout">
             <div className="curva-s-pesos-config">

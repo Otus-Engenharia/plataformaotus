@@ -437,6 +437,83 @@
   color: #666;
 }
 
+/* Progress Chart */
+.progress-chart-container {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.progress-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.progress-chart-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.progress-chart-legend-info {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: #666;
+}
+
+.legend-realizado::before,
+.legend-projecao::before {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 2px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.legend-realizado::before {
+  background: #d4a800;
+}
+
+.legend-projecao::before {
+  background: #d4a800;
+  border-top: 2px dashed #d4a800;
+  height: 0;
+}
+
+.progress-chart-wrapper {
+  padding: 12px 16px;
+  height: 360px;
+}
+
+.progress-chart-loading,
+.progress-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: #666;
+  font-size: 13px;
+}
+
+/* Chart Layout */
+.curva-s-chart-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.curva-s-chart-sidebar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .progress-kpi-cards {
@@ -444,6 +521,10 @@
   }
 
   .curva-s-pesos-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .curva-s-chart-sidebar {
     grid-template-columns: 1fr;
   }
 }
