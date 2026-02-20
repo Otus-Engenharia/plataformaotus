@@ -16,6 +16,7 @@ import {
 } from '../../utils/indicator-utils';
 import ScoreZoneGauge, { ScoreRing } from '../../components/indicadores/ScoreZoneGauge';
 import MiniSparkline from '../../components/indicadores/dashboard/MiniSparkline';
+import WeightManagerDialog from '../../components/indicadores/dialogs/WeightManagerDialog';
 import './DashboardIndicadores.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -255,6 +256,7 @@ export default function PersonDetailView() {
   const [ciclo, setCiclo] = useState(getCurrentCycle());
   const [ano, setAno] = useState(getCurrentYear());
   const [filtroEmRisco, setFiltroEmRisco] = useState(false);
+  const [showWeightManager, setShowWeightManager] = useState(false);
 
   useEffect(() => {
     fetchPerson();
@@ -278,6 +280,27 @@ export default function PersonDetailView() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveWeights = async (updatedWeights) => {
+    for (const { id, peso } of updatedWeights) {
+      await fetch(`${API_URL}/api/ind/indicators/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ peso })
+      });
+    }
+    setShowWeightManager(false);
+    fetchPerson();
+  };
+
+  const handleDeleteIndicator = async (indicadorId) => {
+    await fetch(`${API_URL}/api/indicadores/${indicadorId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    fetchPerson();
   };
 
   // Filtrar indicadores que têm meses ativos no ciclo selecionado
@@ -432,6 +455,14 @@ export default function PersonDetailView() {
                 <span className="filter-chip__badge">{indicadoresEmRisco.length}</span>
               </button>
             )}
+            {isPrivileged && indicadoresNoCiclo.length > 0 && (
+              <button className="btn btn--outline" onClick={() => setShowWeightManager(true)}>
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm1-11h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/>
+                </svg>
+                Pesos
+              </button>
+            )}
           </div>
         </div>
 
@@ -462,6 +493,15 @@ export default function PersonDetailView() {
           </div>
         )}
       </section>
+
+      {showWeightManager && (
+        <WeightManagerDialog
+          indicadores={indicadoresNoCiclo}
+          onClose={() => setShowWeightManager(false)}
+          onSave={handleSaveWeights}
+          onDelete={handleDeleteIndicator}
+        />
+      )}
     </div>
   );
 }

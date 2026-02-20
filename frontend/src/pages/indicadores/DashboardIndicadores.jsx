@@ -20,6 +20,7 @@ import {
 import ScoreZoneGauge, { ScoreRing } from '../../components/indicadores/ScoreZoneGauge';
 import MiniSparkline from '../../components/indicadores/dashboard/MiniSparkline';
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
+import WeightManagerDialog from '../../components/indicadores/dialogs/WeightManagerDialog';
 import './DashboardIndicadores.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -349,7 +350,7 @@ function AttentionSection({ indicadores }) {
 // Main Dashboard Component
 // ════════════════════════════════════════════════════════════
 export default function DashboardIndicadores() {
-  const { user } = useAuth();
+  const { user, isPrivileged } = useAuth();
   const [indicadores, setIndicadores] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -360,6 +361,7 @@ export default function DashboardIndicadores() {
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [filtroEmRisco, setFiltroEmRisco] = useState(false);
+  const [showWeightManager, setShowWeightManager] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -427,9 +429,28 @@ export default function DashboardIndicadores() {
     }
   };
 
+  const handleSaveWeights = async (updatedWeights) => {
+    for (const { id, peso } of updatedWeights) {
+      await fetch(`${API_URL}/api/ind/indicators/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ peso })
+      });
+    }
+    setShowWeightManager(false);
+    fetchData();
+  };
+
+  const handleDeleteIndicator = async (indicadorId) => {
+    await fetch(`${API_URL}/api/indicadores/${indicadorId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    fetchData();
+  };
+
   // ── Computed values ──
-  // Filtrar indicadores que têm meses ativos no ciclo selecionado
-  // Ex: indicador semestral (meses 6,12) não aparece em Q1 (meses 1-3)
   const indicadoresNoCiclo = useMemo(
     () => indicadores.filter(ind => hasActiveMonthsInCycle(ind, ciclo)),
     [indicadores, ciclo]
@@ -578,6 +599,14 @@ export default function DashboardIndicadores() {
                 <span className="filter-chip__badge">{indicadoresEmRisco.length}</span>
               </button>
             )}
+            {isPrivileged && indicadoresNoCiclo.length > 0 && (
+              <button className="btn btn--outline" onClick={() => setShowWeightManager(true)}>
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm1-11h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/>
+                </svg>
+                Pesos
+              </button>
+            )}
             {availableTemplates.length > 0 && (
               <button className="btn btn--outline" onClick={() => setShowAddDialog(true)}>
                 <svg viewBox="0 0 24 24" width="16" height="16">
@@ -677,6 +706,15 @@ export default function DashboardIndicadores() {
             </div>
           </div>
         </div>
+      )}
+
+      {showWeightManager && (
+        <WeightManagerDialog
+          indicadores={indicadoresNoCiclo}
+          onClose={() => setShowWeightManager(false)}
+          onSave={handleSaveWeights}
+          onDelete={handleDeleteIndicator}
+        />
       )}
     </div>
   );
