@@ -533,7 +533,7 @@ export function calculateKRProgress(kr, checkIns = []) {
  * @returns {{ planejado: number, realizado: number, scoreAcumulado: number }}
  */
 export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMonth) {
-  if (!indicador) return { planejado: 0, realizado: 0, scoreAcumulado: 0 };
+  if (!indicador) return { planejado: 0, realizado: 0, scoreAcumulado: null, hasData: false };
 
   const { start, end } = getCycleMonthRange(indicador.ciclo || 'anual');
   const consolidationType = indicador.consolidation_type || 'last_value';
@@ -542,7 +542,8 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
   // Calcular "Acumulado Planejado" ate o mes atual
   let planejado = 0;
   for (let m = start; m <= Math.min(currentMonth, end); m++) {
-    const target = parseFloat(monthlyTargets[m]) || parseFloat(indicador.meta) || 0;
+    const mt = monthlyTargets[m];
+    const target = mt != null ? parseFloat(mt) : (parseFloat(indicador.meta) || 0);
     if (consolidationType === 'sum') {
       planejado += target;
     } else {
@@ -569,7 +570,9 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
   }
 
   // Score acumulado com thresholds proporcionais
-  const scoreAcumulado = planejado > 0
+  // Retorna null quando não há check-ins (sem dados) para distinguir de "zerado" (valor 0 real)
+  const hasData = relevantCheckIns.length > 0;
+  const scoreAcumulado = planejado > 0 && hasData
     ? calculateIndicatorScore(
         realizado,
         planejado * 0.8,
@@ -577,9 +580,9 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
         planejado * 1.2,
         indicador.is_inverse
       )
-    : 0;
+    : null;
 
-  return { planejado, realizado, scoreAcumulado };
+  return { planejado, realizado, scoreAcumulado, hasData };
 }
 
 /**
