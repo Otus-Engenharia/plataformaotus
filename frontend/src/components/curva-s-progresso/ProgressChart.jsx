@@ -1,6 +1,6 @@
 /**
  * Componente: Gráfico Curva S de Progresso Físico
- * Exibe curva "Atual" (realizado + projeção) com Chart.js
+ * Exibe múltiplas curvas: Executado, Projeção Atual e Reprogramações mensais (snapshots)
  */
 
 import React, { useMemo } from 'react';
@@ -16,6 +16,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { getSnapshotColor } from './snapshotColors';
 
 ChartJS.register(
   CategoryScale,
@@ -28,78 +29,95 @@ ChartJS.register(
   Filler
 );
 
-function ProgressChart({ timeseries, loading }) {
+function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecutado, loading }) {
   const chartData = useMemo(() => {
     if (!timeseries || timeseries.length === 0) return null;
 
-    // Separar dados realizados vs projetados
     const labels = timeseries.map(t => t.month);
-    const realizado = [];
-    const projecao = [];
-    let lastPastIndex = -1;
+    const datasets = [];
 
-    for (let i = 0; i < timeseries.length; i++) {
-      const t = timeseries[i];
-      if (t.is_past) {
-        realizado.push(t.cumulative_progress);
-        projecao.push(null);
-        lastPastIndex = i;
-      } else {
-        realizado.push(null);
-        projecao.push(t.cumulative_progress);
+    // 1. Curvas de snapshots (reprogramações) - renderizar primeiro (fundo)
+    if (snapshotCurves && snapshotCurves.length > 0) {
+      const visible = snapshotCurves.filter(sc =>
+        !visibleSnapshots || visibleSnapshots.has(sc.snapshot_date)
+      );
+
+      visible.forEach((sc, idx) => {
+        const data = labels.map(label => {
+          const point = sc.timeseries.find(t => t.month === label);
+          return point ? point.cumulative_progress : null;
+        });
+
+        const color = getSnapshotColor(idx, visible.length);
+
+        datasets.push({
+          label: `Reprog. ${sc.label}`,
+          data,
+          borderColor: color,
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          tension: 0.3,
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          pointBackgroundColor: color,
+          spanGaps: true,
+        });
+      });
+    }
+
+    // 2. Executado (linha grossa dourada) - dados realizados
+    if (showExecutado !== false) {
+      const realizado = timeseries.map(t => t.is_past ? t.cumulative_progress : null);
+      const lastPastIndex = timeseries.reduce((acc, t, i) => t.is_past ? i : acc, -1);
+
+      datasets.push({
+        label: 'Executado',
+        data: realizado,
+        borderColor: '#F59E0B',
+        backgroundColor: 'rgba(245, 158, 11, 0.06)',
+        borderWidth: 3,
+        tension: 0.3,
+        fill: true,
+        pointRadius: 3,
+        pointBackgroundColor: '#F59E0B',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1,
+        spanGaps: false,
+      });
+
+      // 3. Projeção Atual (tracejada dourada)
+      const projecao = timeseries.map(t => t.is_past ? null : t.cumulative_progress);
+
+      // Conectar as duas curvas no ponto de transição
+      if (lastPastIndex >= 0 && lastPastIndex < timeseries.length - 1) {
+        projecao[lastPastIndex] = realizado[lastPastIndex];
       }
+
+      datasets.push({
+        label: 'Projeção Atual',
+        data: projecao,
+        borderColor: '#F59E0B',
+        backgroundColor: 'rgba(245, 158, 11, 0.03)',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        tension: 0.3,
+        fill: true,
+        pointRadius: 2,
+        pointBackgroundColor: '#F59E0B',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1,
+        spanGaps: false,
+      });
     }
 
-    // Conectar as duas curvas no ponto de transição
-    if (lastPastIndex >= 0 && lastPastIndex < timeseries.length - 1) {
-      projecao[lastPastIndex] = realizado[lastPastIndex];
-    }
-
-    return {
-      labels,
-      datasets: [
-        {
-          label: 'Realizado',
-          data: realizado,
-          borderColor: '#d4a800',
-          backgroundColor: 'rgba(212, 168, 0, 0.08)',
-          borderWidth: 3,
-          tension: 0.3,
-          fill: true,
-          pointRadius: 3,
-          pointBackgroundColor: '#d4a800',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1,
-          spanGaps: false,
-        },
-        {
-          label: 'Projeção',
-          data: projecao,
-          borderColor: '#d4a800',
-          backgroundColor: 'rgba(212, 168, 0, 0.03)',
-          borderWidth: 2,
-          borderDash: [6, 4],
-          tension: 0.3,
-          fill: true,
-          pointRadius: 2,
-          pointBackgroundColor: '#d4a800',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1,
-          spanGaps: false,
-        },
-      ],
-      lastPastIndex,
-    };
-  }, [timeseries]);
+    return { labels, datasets };
+  }, [timeseries, snapshotCurves, visibleSnapshots, showExecutado]);
 
   const options = useMemo(() => {
     if (!timeseries || timeseries.length === 0) return {};
 
-    // Encontrar index do "hoje"
-    let todayIndex = -1;
-    for (let i = 0; i < timeseries.length; i++) {
-      if (timeseries[i].is_past) todayIndex = i;
-    }
+    const todayIndex = timeseries.reduce((acc, t, i) => t.is_past ? i : acc, -1);
 
     return {
       responsive: true,
@@ -110,13 +128,7 @@ function ProgressChart({ timeseries, loading }) {
       },
       plugins: {
         legend: {
-          position: 'top',
-          labels: {
-            usePointStyle: true,
-            pointStyle: 'line',
-            padding: 16,
-            font: { size: 12 },
-          },
+          display: false, // Legenda custom abaixo do gráfico
         },
         tooltip: {
           backgroundColor: 'rgba(26, 26, 26, 0.95)',
@@ -128,27 +140,13 @@ function ProgressChart({ timeseries, loading }) {
               if (context.parsed.y == null) return null;
               return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}%`;
             },
-            afterBody: (contexts) => {
-              const idx = contexts[0]?.dataIndex;
-              if (idx == null || !timeseries[idx]) return '';
-              const t = timeseries[idx];
-              if (t.monthly_increment > 0) {
-                return `Incremento: +${t.monthly_increment.toFixed(2)}%`;
-              }
-              return '';
-            },
           },
         },
-        // Vertical "Hoje" line plugin
-        todayLine: {
-          todayIndex,
-        },
+        todayLine: { todayIndex },
       },
       scales: {
         x: {
-          grid: {
-            color: 'rgba(0,0,0,0.04)',
-          },
+          grid: { color: 'rgba(0,0,0,0.04)' },
           ticks: {
             font: { size: 11 },
             maxRotation: 45,
@@ -158,9 +156,7 @@ function ProgressChart({ timeseries, loading }) {
         y: {
           beginAtZero: true,
           max: 100,
-          grid: {
-            color: 'rgba(0,0,0,0.06)',
-          },
+          grid: { color: 'rgba(0,0,0,0.06)' },
           ticks: {
             font: { size: 11 },
             callback: (value) => `${value}%`,
@@ -178,10 +174,15 @@ function ProgressChart({ timeseries, loading }) {
       const todayIndex = chart.options.plugins.todayLine?.todayIndex;
       if (todayIndex == null || todayIndex < 0) return;
 
-      const meta = chart.getDatasetMeta(0);
-      if (!meta.data[todayIndex]) return;
+      let x = null;
+      for (const meta of chart.getSortedVisibleDatasetMetas()) {
+        if (meta.data[todayIndex]) {
+          x = meta.data[todayIndex].x;
+          break;
+        }
+      }
+      if (x == null) return;
 
-      const x = meta.data[todayIndex].x;
       const { top, bottom } = chart.chartArea;
       const ctx = chart.ctx;
 
@@ -194,7 +195,6 @@ function ProgressChart({ timeseries, loading }) {
       ctx.lineTo(x, bottom);
       ctx.stroke();
 
-      // Label "Hoje"
       ctx.setLineDash([]);
       ctx.fillStyle = 'rgba(26, 26, 26, 0.7)';
       ctx.font = '10px sans-serif';
@@ -224,10 +224,6 @@ function ProgressChart({ timeseries, loading }) {
     <div className="progress-chart-container">
       <div className="progress-chart-header">
         <h4>Curva S - Progresso Físico</h4>
-        <div className="progress-chart-legend-info">
-          <span className="legend-realizado">Realizado</span>
-          <span className="legend-projecao">Projeção</span>
-        </div>
       </div>
       <div className="progress-chart-wrapper">
         <Line
@@ -235,6 +231,33 @@ function ProgressChart({ timeseries, loading }) {
           options={options}
           plugins={[todayLinePlugin]}
         />
+      </div>
+      <div className="progress-chart-legend">
+        {chartData.datasets.map((ds, i) => (
+          <span key={i} className="legend-item">
+            <span
+              className="legend-color"
+              style={ds.borderDash
+                ? {
+                    display: 'inline-block',
+                    width: '20px',
+                    height: '2px',
+                    borderTop: `2px dashed ${ds.borderColor}`,
+                    backgroundColor: 'transparent',
+                    verticalAlign: 'middle',
+                  }
+                : {
+                    display: 'inline-block',
+                    width: '20px',
+                    height: ds.borderWidth >= 3 ? '3px' : '2px',
+                    backgroundColor: ds.borderColor,
+                    verticalAlign: 'middle',
+                  }
+              }
+            />
+            <span className="legend-label">{ds.label}</span>
+          </span>
+        ))}
       </div>
     </div>
   );

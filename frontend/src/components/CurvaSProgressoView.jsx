@@ -13,6 +13,7 @@ import WeightConfigPanel from './curva-s-progresso/WeightConfigPanel';
 import ProgressKpiCards from './curva-s-progresso/ProgressKpiCards';
 import WeightSummaryTable from './curva-s-progresso/WeightSummaryTable';
 import ProgressChart from './curva-s-progresso/ProgressChart';
+import { getSnapshotColor } from './curva-s-progresso/snapshotColors';
 import '../styles/CurvaSProgressoView.css';
 
 function CurvaSProgressoView({ selectedProjectId, portfolio }) {
@@ -22,10 +23,15 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   const [tasks, setTasks] = useState([]);
   const [phaseBreakdown, setPhaseBreakdown] = useState([]);
   const [timeseries, setTimeseries] = useState([]);
+  const [snapshotCurves, setSnapshotCurves] = useState([]);
   const [timeseriesLoading, setTimeseriesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('grafico'); // 'grafico' | 'pesos' | 'tarefas'
+  const [activeTab, setActiveTab] = useState('grafico');
+
+  // Filtros de visibilidade das curvas
+  const [showExecutado, setShowExecutado] = useState(true);
+  const [visibleSnapshots, setVisibleSnapshots] = useState(null); // null = todos visíveis
 
   // Buscar dados do projeto selecionado no portfolio
   const selectedProject = portfolio?.find(p =>
@@ -100,6 +106,10 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       );
       if (res.data.success) {
         setTimeseries(res.data.data.timeseries || []);
+        setSnapshotCurves(res.data.data.snapshot_curves || []);
+        // Resetar filtros quando mudar de projeto
+        setVisibleSnapshots(null);
+        setShowExecutado(true);
       }
     } catch (err) {
       console.error('Erro ao buscar série temporal:', err);
@@ -154,6 +164,23 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     }
   };
 
+  // Toggle de visibilidade de snapshot
+  const toggleSnapshot = (snapshotDate) => {
+    setVisibleSnapshots(prev => {
+      const current = prev || new Set(snapshotCurves.map(sc => sc.snapshot_date));
+      const next = new Set(current);
+      if (next.has(snapshotDate)) {
+        next.delete(snapshotDate);
+      } else {
+        next.add(snapshotDate);
+      }
+      return next;
+    });
+  };
+
+  const selectAllSnapshots = () => setVisibleSnapshots(null);
+  const clearAllSnapshots = () => setVisibleSnapshots(new Set());
+
   if (!selectedProjectId) {
     return (
       <div className="curva-s-progresso-empty">
@@ -207,7 +234,27 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       <div className="curva-s-content">
         {activeTab === 'grafico' && (
           <div className="curva-s-chart-layout">
-            <ProgressChart timeseries={timeseries} loading={timeseriesLoading} />
+            <div className="curva-s-chart-main">
+              {/* Filtros de curvas */}
+              {snapshotCurves.length > 0 && (
+                <CurveFilters
+                  snapshotCurves={snapshotCurves}
+                  visibleSnapshots={visibleSnapshots}
+                  showExecutado={showExecutado}
+                  onToggleExecutado={() => setShowExecutado(prev => !prev)}
+                  onToggleSnapshot={toggleSnapshot}
+                  onSelectAll={selectAllSnapshots}
+                  onClearAll={clearAllSnapshots}
+                />
+              )}
+              <ProgressChart
+                timeseries={timeseries}
+                snapshotCurves={snapshotCurves}
+                visibleSnapshots={visibleSnapshots}
+                showExecutado={showExecutado}
+                loading={timeseriesLoading}
+              />
+            </div>
             <div className="curva-s-chart-sidebar">
               <WeightSummaryTable
                 phaseBreakdown={phaseBreakdown}
@@ -246,9 +293,58 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   );
 }
 
-// Tabela de tarefas inline para simplicidade
+// Barra de filtros de curvas
+function CurveFilters({
+  snapshotCurves,
+  visibleSnapshots,
+  showExecutado,
+  onToggleExecutado,
+  onToggleSnapshot,
+  onSelectAll,
+  onClearAll,
+}) {
+  const isSnapshotVisible = (date) =>
+    !visibleSnapshots || visibleSnapshots.has(date);
+
+  return (
+    <div className="curve-filters">
+      <div className="curve-filters-group">
+        <button
+          className={`curve-filter-btn executado ${showExecutado ? 'active' : ''}`}
+          onClick={onToggleExecutado}
+        >
+          <span className="curve-filter-color" style={{ backgroundColor: '#F59E0B' }} />
+          Executado
+        </button>
+      </div>
+
+      <div className="curve-filters-separator" />
+
+      <div className="curve-filters-group">
+        <span className="curve-filters-label">Reprogramados:</span>
+        {snapshotCurves.map((sc, idx) => (
+          <button
+            key={sc.snapshot_date}
+            className={`curve-filter-btn snapshot ${isSnapshotVisible(sc.snapshot_date) ? 'active' : ''}`}
+            onClick={() => onToggleSnapshot(sc.snapshot_date)}
+          >
+            <span
+              className="curve-filter-color"
+              style={{ backgroundColor: getSnapshotColor(idx, snapshotCurves.length) }}
+            />
+            {sc.label}
+          </button>
+        ))}
+        <button className="curve-filter-action" onClick={onSelectAll}>Todos</button>
+        <button className="curve-filter-action" onClick={onClearAll}>Limpar</button>
+      </div>
+    </div>
+  );
+}
+
+// Tabela de tarefas inline
 function TaskWeightTable({ tasks, loading }) {
-  const [filter, setFilter] = useState('all'); // 'all' | 'active' | 'excluded'
+  const [filter, setFilter] = useState('all');
 
   const filteredTasks = tasks.filter(t => {
     if (filter === 'active') return t.peso_no_projeto > 0;
