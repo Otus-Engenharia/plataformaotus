@@ -165,10 +165,36 @@ class WeightCalculationService {
       });
     }
 
+    // 6. Calcular IDP (Índice de Desempenho de Prazo)
+    // IDP = progresso real / progresso planejado até hoje
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    let plannedProgress = 0;
+    for (const task of taskResults) {
+      if (task.peso_no_projeto <= 0) continue;
+      const termino = task.data_termino ? new Date(task.data_termino) : null;
+      if (termino && termino <= today) {
+        plannedProgress += task.peso_no_projeto;
+      }
+    }
+    plannedProgress = Math.round(plannedProgress * 100) / 100;
+
+    const idp = plannedProgress > 0
+      ? Math.round((totalProgress / plannedProgress) * 100) / 100
+      : null; // null = sem dados planejados até hoje
+
+    const desvio = plannedProgress > 0
+      ? Math.round((totalProgress - plannedProgress) * 100) / 100
+      : null;
+
     return {
       tasks: taskResults,
       progress: {
         total_progress: Math.round(totalProgress * 100) / 100,
+        planned_progress: plannedProgress,
+        idp,
+        desvio,
         total_tasks: enrichedTasks.length,
         active_tasks: activeTasks.length,
         excluded_tasks: excludedTasks.length,

@@ -47,6 +47,9 @@ class CalculateProgress {
         tasks: [],
         progress: {
           total_progress: 0,
+          planned_progress: 0,
+          idp: null,
+          desvio: null,
           total_tasks: 0,
           active_tasks: 0,
           excluded_tasks: 0,

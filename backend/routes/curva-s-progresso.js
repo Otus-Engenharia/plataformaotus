@@ -28,7 +28,7 @@ function getRepository() {
   return curvaSRepository;
 }
 
-function createRoutes(requireAuth, isPrivileged, logAction) {
+function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
   const repository = getRepository();
 
   /**
@@ -173,7 +173,9 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    * GET /api/curva-s-progresso/project/:projectCode/progress
    * Calcula o progresso atual do projeto com breakdown por tarefa e fase
    */
-  router.get('/project/:projectCode/progress', requireAuth, async (req, res) => {
+  const cacheMiddleware = withBqCache ? withBqCache(900) : (req, res, next) => next();
+
+  router.get('/project/:projectCode/progress', requireAuth, cacheMiddleware, async (req, res) => {
     try {
       const { projectCode } = req.params;
       const { smartsheetId, projectName, projectId } = req.query;
@@ -212,7 +214,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    * GET /api/curva-s-progresso/project/:projectCode/tasks
    * Retorna breakdown detalhado de tarefas com seus pesos
    */
-  router.get('/project/:projectCode/tasks', requireAuth, async (req, res) => {
+  router.get('/project/:projectCode/tasks', requireAuth, cacheMiddleware, async (req, res) => {
     try {
       const { projectCode } = req.params;
       const { smartsheetId, projectName, projectId } = req.query;
@@ -258,7 +260,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    * GET /api/curva-s-progresso/project/:projectCode/timeseries
    * Retorna série temporal mensal para o gráfico da Curva S
    */
-  router.get('/project/:projectCode/timeseries', requireAuth, async (req, res) => {
+  router.get('/project/:projectCode/timeseries', requireAuth, cacheMiddleware, async (req, res) => {
     try {
       const { projectCode } = req.params;
       const { smartsheetId, projectName, projectId, startDate, endDate } = req.query;

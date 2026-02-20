@@ -162,6 +162,14 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     );
   }
 
+  if (!smartsheetId && !projectName) {
+    return (
+      <div className="curva-s-progresso-empty">
+        <p>Este projeto não possui SmartSheet vinculado. A Curva S requer dados do cronograma.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="curva-s-progresso-container">
       {/* KPI Cards */}

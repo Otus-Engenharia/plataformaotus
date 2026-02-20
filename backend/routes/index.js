@@ -19,7 +19,7 @@ import { createRoutes as createCurvaSProgressoRoutes } from './curva-s-progresso
  * @param {Function} middleware.isPrivileged - Função para verificar privilégios
  * @param {Function} middleware.logAction - Função para registrar ações
  */
-export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction }) {
+export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache }) {
   // Rotas de Feedbacks (DDD)
   const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/feedbacks', feedbackRoutes);
@@ -41,7 +41,7 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   app.use('/api/agenda/tasks', agendaRoutes);
 
   // Rotas de Curva S Progresso (DDD)
-  const curvaSProgressoRoutes = createCurvaSProgressoRoutes(requireAuth, isPrivileged, logAction);
+  const curvaSProgressoRoutes = createCurvaSProgressoRoutes(requireAuth, isPrivileged, logAction, withBqCache);
   app.use('/api/curva-s-progresso', curvaSProgressoRoutes);
 
   console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso');
