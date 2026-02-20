@@ -1549,6 +1549,458 @@
 }
 
 /* ========================================
+   View Recovery Plan Dialog — Redesign
+   ======================================== */
+
+.vrp-dialog {
+  max-width: 580px;
+}
+
+/* Header */
+.vrp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(26, 26, 26, 0.08);
+}
+
+.vrp-header__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vrp-header__right {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.vrp-reference-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #525252;
+  background: rgba(26, 26, 26, 0.04);
+  border-radius: 6px;
+}
+
+.vrp-reference-badge svg {
+  color: #737373;
+}
+
+.vrp-status-select {
+  padding: 0.3rem 1.5rem 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 2px solid;
+  border-radius: 6px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24'%3E%3Cpath fill='%23737373' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.375rem center;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.vrp-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #a3a3a3;
+  transition: all 0.2s ease;
+}
+
+.vrp-icon-btn:hover {
+  background: rgba(26, 26, 26, 0.06);
+  color: #525252;
+}
+
+.vrp-icon-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Delete Confirmation */
+.vrp-delete-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: rgba(239, 68, 68, 0.06);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+  animation: dialog-appear 0.15s ease;
+}
+
+.vrp-delete-confirm__icon {
+  flex-shrink: 0;
+  color: #ef4444;
+  margin-top: 0.125rem;
+}
+
+.vrp-delete-confirm__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vrp-delete-confirm__text strong {
+  font-size: 0.875rem;
+  color: #1a1a1a;
+}
+
+.vrp-delete-confirm__text span {
+  font-size: 0.75rem;
+  color: #737373;
+  line-height: 1.4;
+}
+
+.vrp-delete-confirm__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.vrp-delete-confirm__actions .btn-secondary {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.vrp-delete-confirm__actions .btn-danger {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  border-radius: 6px;
+}
+
+/* Body */
+.vrp-body {
+  padding: 1.25rem;
+}
+
+/* Prazo row */
+.vrp-prazo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: #737373;
+}
+
+.vrp-prazo-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: #737373;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.vrp-prazo-text:hover {
+  background: rgba(26, 26, 26, 0.04);
+}
+
+.vrp-edit-hint {
+  color: #d4d4d4;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.vrp-prazo-text:hover .vrp-edit-hint,
+.vrp-description-view:hover .vrp-edit-hint {
+  color: #f59e0b;
+}
+
+.vrp-date-input {
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid rgba(26, 26, 26, 0.15);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.vrp-date-input:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
+}
+
+/* Inline edit controls */
+.vrp-inline-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.vrp-inline-edit--row {
+  flex-direction: row;
+}
+
+.vrp-inline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vrp-inline-btn--save {
+  width: 28px;
+  height: 28px;
+  color: #22c55e;
+}
+
+.vrp-inline-btn--save:hover {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.vrp-inline-btn--cancel {
+  width: 28px;
+  height: 28px;
+  color: #a3a3a3;
+}
+
+.vrp-inline-btn--cancel:hover {
+  background: rgba(26, 26, 26, 0.06);
+  color: #737373;
+}
+
+/* Text-style inline buttons (for description/activity editing) */
+.vrp-inline-btn--save-text,
+.vrp-inline-btn--cancel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.625rem;
+  width: auto;
+  height: auto;
+}
+
+.vrp-inline-btn--save-text {
+  color: #1a1a1a;
+  background: linear-gradient(135deg, #ffdd00 0%, #ffc700 100%);
+  border-radius: 6px;
+}
+
+.vrp-inline-btn--save-text:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.vrp-inline-btn--save-text:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Description section */
+.vrp-description-section {
+  margin-bottom: 1rem;
+}
+
+.vrp-description-view {
+  position: relative;
+  padding: 0.875rem 1rem;
+  background: rgba(26, 26, 26, 0.02);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vrp-description-view:hover {
+  border-color: rgba(255, 221, 0, 0.3);
+  background: rgba(255, 221, 0, 0.03);
+}
+
+.vrp-description-view .vrp-edit-hint {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+.vrp-description-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vrp-description-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  border: 2px solid rgba(255, 221, 0, 0.4);
+  border-radius: 10px;
+  background: #fff;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.vrp-description-textarea:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.15);
+}
+
+.vrp-description-edit__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+/* Progress bar */
+.vrp-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.vrp-progress__bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(26, 26, 26, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.vrp-progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 4px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vrp-progress__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #737373;
+  white-space: nowrap;
+}
+
+/* Activity editing state */
+.activity-item--editing {
+  border-color: rgba(255, 221, 0, 0.4);
+  background: rgba(255, 221, 0, 0.03);
+}
+
+.vrp-activity-edit {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.vrp-activity-edit__input {
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.875rem;
+  border: 1px solid rgba(255, 221, 0, 0.4);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.vrp-activity-edit__input:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.15);
+}
+
+.vrp-activity-edit__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.vrp-activity-edit__select {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid rgba(26, 26, 26, 0.15);
+  border-radius: 6px;
+  background: #fff;
+  min-width: 0;
+}
+
+.vrp-activity-edit__select:focus {
+  outline: none;
+  border-color: #ffdd00;
+}
+
+.vrp-activity-edit__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+/* Activity action buttons */
+.vrp-activity-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.activity-item:hover .vrp-activity-actions {
+  opacity: 1;
+}
+
+.activity-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .vrp-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .vrp-header__left {
+    flex-wrap: wrap;
+  }
+
+  .vrp-delete-confirm {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .vrp-delete-confirm__actions {
+    align-self: flex-end;
+  }
+
+  .vrp-activity-actions {
+    opacity: 1;
+  }
+
+  .vrp-activity-edit__row {
+    flex-direction: column;
+  }
+}
+
+/* ========================================
    Quarter Toggles
    ======================================== */
 
