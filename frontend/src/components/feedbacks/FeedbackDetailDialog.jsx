@@ -43,26 +43,47 @@ function getInitials(name, email) {
  */
 function getPageName(url) {
   if (!url) return null;
+  const PAGE_NAMES = {
+    'home': 'Home',
+    'portfolio': 'Portfolio',
+    'curva-s': 'Curva S',
+    'cronograma': 'Cronograma',
+    'cs': 'Customer Success',
+    'custos': 'Custos',
+    'horas': 'Horas',
+    'equipe': 'Equipe',
+    'indicadores': 'Indicadores',
+    'feedbacks': 'Feedbacks',
+    'okrs': 'OKRs',
+    'apontamentos': 'Apontamentos',
+    'projetos': 'Projetos',
+    'operacao': 'Operação',
+    'admin': 'Admin',
+    'contatos': 'Contatos',
+    'agenda': 'Agenda',
+    'demandas-apoio': 'Demandas Apoio',
+    'baselines': 'Baselines',
+    'indicadores-vendas': 'Indicadores Vendas',
+    'alocacao-times': 'Alocação de Times',
+    'gantt': 'Gantt Modelagem',
+    'workspace': 'Workspace',
+    'ind': 'Indicadores Individuais',
+    'estudos-custos': 'Estudos de Custos',
+    'formulario-passagem': 'Formulário de Passagem',
+    'controle-passivo': 'Controle Passivo',
+    'lideres-projeto': 'Líderes de Projeto',
+    'apoio-projetos': 'Apoio de Projetos',
+    'gestao-tarefas': 'Gestão de Tarefas',
+    'configuracoes': 'Configurações',
+    'admin-financeiro': 'Admin & Financeiro',
+  };
+  // Chave simples (novo formato do dropdown)
+  if (PAGE_NAMES[url]) return PAGE_NAMES[url];
+  // URL completa (formato antigo)
   try {
     const parsed = new URL(url);
     const path = parsed.pathname.replace(/^\//, '').replace(/\/$/, '');
     if (!path) return 'Home';
-    const PAGE_NAMES = {
-      'portfolio': 'Portfolio',
-      'curva-s': 'Curva S',
-      'cronograma': 'Cronograma',
-      'cs': 'Customer Success',
-      'custos': 'Custos',
-      'horas': 'Horas',
-      'equipe': 'Equipe',
-      'indicadores': 'Indicadores',
-      'feedbacks': 'Feedbacks',
-      'okrs': 'OKRs',
-      'apontamentos': 'Apontamentos',
-      'projetos': 'Projetos',
-      'operacao': 'Operação',
-      'admin': 'Admin',
-    };
     const firstSegment = path.split('/')[0];
     return PAGE_NAMES[firstSegment] || firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
   } catch {
