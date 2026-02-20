@@ -2843,7 +2843,7 @@ export async function updateUserStatus(userId, isActive) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(USERS_OTUS_TABLE)
-    .update({ is_active: isActive })
+    .update({ is_active: isActive, status: isActive ? 'ativo' : 'inativo' })
     .eq('id', userId)
     .select()
     .single();
