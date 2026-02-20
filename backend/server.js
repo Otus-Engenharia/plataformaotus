@@ -6205,9 +6205,14 @@ app.get('/api/user/accessible-areas', requireAuth, async (req, res) => {
     const accessLevel = getUserAccessLevel(userRole);
     const userOtus = await getUserOtusByEmail(effectiveUser.email);
     const sectorId = userOtus?.setor_id || null;
+    console.log('[accessible-areas] effectiveUser:', effectiveUser.email, 'role:', userRole, 'level:', accessLevel, 'sector:', sectorId);
+
     const modules = await fetchModulesForUser(effectiveUser.email, accessLevel, sectorId);
     // Extrair áreas únicas dos módulos acessíveis
     const areas = [...new Set(modules.map(m => m.area).filter(Boolean))];
+
+    console.log('[accessible-areas] areas:', areas.join(', '));
+
     res.json({ success: true, areas });
   } catch (error) {
     console.error('❌ Erro ao buscar áreas acessíveis:', error);
@@ -6223,7 +6228,12 @@ app.get('/api/modules/home', requireAuth, async (req, res) => {
     // Buscar setor do usuário para filtro por setor
     const userOtus = await getUserOtusByEmail(effectiveUser.email);
     const sectorId = userOtus?.setor_id || null;
+    console.log('[modules/home] effectiveUser:', effectiveUser.email, 'role:', userRole, 'level:', accessLevel, 'sector:', sectorId);
+
     const modules = await fetchHomeModulesForUser(effectiveUser.email, accessLevel, sectorId);
+
+    console.log('[modules/home] modules returned:', modules.map(m => `${m.name}(${m.area})`).join(', '));
+
     res.json({ success: true, data: modules });
   } catch (error) {
     console.error('❌ Erro ao buscar módulos da home:', error);

@@ -548,11 +548,11 @@ function PermissoesView() {
             <div className="matrix-legend">
               <span className="legend-item granted">
                 <span className="legend-dot granted"></span>
-                Setor tem acesso especial
+                Setor tem acesso ao módulo
               </span>
               <span className="legend-item denied">
                 <span className="legend-dot denied"></span>
-                Sem override (usa permissão padrão)
+                Setor não tem acesso
               </span>
             </div>
 
@@ -608,8 +608,8 @@ function PermissoesView() {
                                   className={`access-cell ${hasOverride ? 'granted current' : 'denied'}`}
                                   onClick={() => toggleSectorAccess(module.id, sector.id)}
                                   title={hasOverride
-                                    ? `${sector.name} tem acesso especial. Clique para remover.`
-                                    : `Clique para dar acesso especial ao setor ${sector.name}`}
+                                    ? `${sector.name} tem acesso. Clique para remover.`
+                                    : `Clique para dar acesso ao setor ${sector.name}`}
                                 >
                                   <span className={`access-dot ${hasOverride ? 'granted' : 'denied'}`}>
                                     {hasOverride ? <Icons.Check /> : <Icons.X />}
@@ -627,8 +627,8 @@ function PermissoesView() {
             )}
 
             <div className="matrix-help">
-              <p><strong>Como usar:</strong> Clique em uma célula para conceder acesso especial ao setor para aquele módulo.</p>
-              <p>Isso cria uma exceção que permite o acesso independente do papel do usuário (desde que ele pertença ao setor).</p>
+              <p><strong>Como usar:</strong> Clique em uma célula para liberar o acesso do setor ao módulo.</p>
+              <p>O usuário precisa de AMBAS as liberações: cargo (Matriz de Acesso) E setor (esta matriz).</p>
             </div>
           </div>
         )}

@@ -4138,29 +4138,32 @@ export async function fetchModulesForUser(email, accessLevel, sectorId = null) {
     sectorOverrides = sectorData || [];
   }
 
-  // Construir mapa de overrides com prioridade: user_email > sector_id
-  const overrideMap = {};
-
-  // Primeiro, aplicar overrides por setor (menor prioridade)
-  sectorOverrides.forEach(o => {
-    if (!o.user_email) { // Apenas overrides de setor puro
-      overrideMap[o.module_id] = o.grant_access;
-    }
-  });
-
-  // Depois, aplicar overrides por usuário (maior prioridade)
+  // Mapa de user overrides (maior prioridade)
+  const userOverrideMap = {};
   (userOverrides || []).forEach(o => {
-    overrideMap[o.module_id] = o.grant_access;
+    userOverrideMap[o.module_id] = o.grant_access;
   });
 
-  // Filtrar módulos baseado em nível de acesso e overrides
+  // Mapa de sector overrides (somente overrides puros de setor, sem user_email)
+  const sectorGrantMap = {};
+  sectorOverrides.filter(o => !o.user_email).forEach(o => {
+    sectorGrantMap[o.module_id] = o.grant_access;
+  });
+
+  // Filtrar módulos: AMBAS as liberações necessárias (CARGO + SETOR)
   return (modules || []).filter(module => {
-    // Verificar override explícito primeiro
-    if (overrideMap[module.id] !== undefined) {
-      return overrideMap[module.id];
+    // 1. User override tem maior prioridade
+    if (userOverrideMap[module.id] !== undefined) {
+      return userOverrideMap[module.id];
     }
-    // Caso contrário, usar nível de acesso
-    return accessLevel <= module.min_access_level;
+
+    // 2. Dev bypass (acesso total)
+    if (accessLevel <= 1) return true;
+
+    // 3. AMBAS as liberações necessárias: CARGO + SETOR
+    const cargoPermite = accessLevel <= module.min_access_level;
+    const setorPermite = sectorGrantMap[module.id] === true;
+    return cargoPermite && setorPermite;
   });
 }
 
