@@ -8,6 +8,26 @@ import './FeedbackKanbanView.css';
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 /**
+ * Tipos ocultos na vista da equipe (visíveis apenas na vista admin)
+ */
+const HIDDEN_TYPES = new Set(['bug', 'erro', 'outro']);
+
+/**
+ * Páginas da plataforma para seleção no feedback tipo Plataforma
+ */
+const PLATFORM_PAGES = [
+  { value: 'lideres-projeto', label: 'Líderes de Projeto' },
+  { value: 'cs', label: 'CS' },
+  { value: 'apoio-projetos', label: 'Apoio de Projetos' },
+  { value: 'projetos', label: 'Projetos' },
+  { value: 'indicadores', label: 'Indicadores' },
+  { value: 'okrs', label: 'OKRs' },
+  { value: 'gestao-tarefas', label: 'Gestão de Tarefas' },
+  { value: 'configuracoes', label: 'Configurações' },
+  { value: 'admin-financeiro', label: 'Admin & Financeiro' },
+];
+
+/**
  * Agrupamento de status para as colunas do Kanban
  */
 const KANBAN_COLUMNS = [
@@ -55,7 +75,8 @@ export default function FeedbackKanbanView() {
     type: 'feedback_processo',
     titulo: '',
     feedback_text: '',
-    screenshot_url: null
+    screenshot_url: null,
+    page_url: null
   });
   const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -124,7 +145,7 @@ export default function FeedbackKanbanView() {
       }
 
       // Reset form and refresh
-      setFormData({ type: 'feedback_processo', titulo: '', feedback_text: '', screenshot_url: null });
+      setFormData({ type: 'feedback_processo', titulo: '', feedback_text: '', screenshot_url: null, page_url: null });
       setScreenshotPreview(null);
       setShowCreateForm(false);
       fetchFeedbacks();
@@ -151,10 +172,12 @@ export default function FeedbackKanbanView() {
     fetchFeedbacks();
   };
 
-  // Filter feedbacks
+  // Filter feedbacks - excluir tipos ocultos (bug, erro, outro)
+  const visibleFeedbacks = feedbacks.filter(f => !HIDDEN_TYPES.has(f.type));
+
   let filteredFeedbacks = filter === 'meus'
-    ? feedbacks.filter(f => f.author_email === user?.email)
-    : feedbacks;
+    ? visibleFeedbacks.filter(f => f.author_email === user?.email)
+    : visibleFeedbacks;
 
   // Apply category filter
   if (categoryFilter) {
@@ -182,10 +205,10 @@ export default function FeedbackKanbanView() {
     }
   }, [feedbacks]);
 
-  // Stats
+  // Stats (contam apenas feedbacks visíveis)
   const stats = {
-    total: feedbacks.length,
-    meus: feedbacks.filter(f => f.author_email === user?.email).length
+    total: visibleFeedbacks.length,
+    meus: visibleFeedbacks.filter(f => f.author_email === user?.email).length
   };
 
   if (loading) {
@@ -338,23 +361,52 @@ export default function FeedbackKanbanView() {
             </div>
 
             <form className="feedback-dialog__form" onSubmit={handleCreateFeedback}>
-              {/* Type Selection */}
+              {/* Type Selection - apenas Processo e Plataforma */}
               <div className="feedback-dialog__field">
                 <label className="feedback-dialog__label">Tipo</label>
-                <div className="feedback-dialog__type-grid">
-                  {Object.entries(TYPE_CONFIG).map(([value, config]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={`feedback-dialog__type-btn ${formData.type === value ? 'feedback-dialog__type-btn--active' : ''}`}
-                      onClick={() => setFormData(prev => ({ ...prev, type: value }))}
-                    >
-                      <span className="feedback-dialog__type-icon">{config.icon}</span>
-                      <span className="feedback-dialog__type-label">{config.label}</span>
-                    </button>
-                  ))}
+                <div className="feedback-dialog__type-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                  {Object.entries(TYPE_CONFIG)
+                    .filter(([value]) => !HIDDEN_TYPES.has(value))
+                    .map(([value, config]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`feedback-dialog__type-btn ${formData.type === value ? 'feedback-dialog__type-btn--active' : ''}`}
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          type: value,
+                          page_url: value === 'feedback_plataforma' ? prev.page_url : null
+                        }))}
+                      >
+                        <span className="feedback-dialog__type-icon">{config.icon}</span>
+                        <span className="feedback-dialog__type-label">{config.label}</span>
+                      </button>
+                    ))}
                 </div>
               </div>
+
+              {/* Page Selection - apenas para tipo Plataforma */}
+              {formData.type === 'feedback_plataforma' && (
+                <div className="feedback-dialog__field">
+                  <label className="feedback-dialog__label" htmlFor="feedback-page">
+                    Página da plataforma
+                  </label>
+                  <select
+                    id="feedback-page"
+                    className="feedback-dialog__input"
+                    value={formData.page_url || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      page_url: e.target.value || null
+                    }))}
+                  >
+                    <option value="">Selecione a página...</option>
+                    {PLATFORM_PAGES.map(page => (
+                      <option key={page.value} value={page.value}>{page.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Title */}
               <div className="feedback-dialog__field">
