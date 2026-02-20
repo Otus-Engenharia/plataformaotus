@@ -1461,3 +1461,249 @@
     font-size: 1rem;
   }
 }
+
+/* ════════════════════════════════════════
+   Weight Manager Dialog
+   ════════════════════════════════════════ */
+
+.weight-manager {
+  max-width: 520px;
+}
+
+.weight-manager__body {
+  padding: 1.25rem 1.5rem;
+}
+
+.weight-manager__progress-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.weight-manager__progress-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.weight-manager__progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.weight-manager__progress-fill--complete {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.weight-manager__progress-fill--warning {
+  background: linear-gradient(90deg, #eab308, #d4a800);
+}
+
+.weight-manager__progress-fill--exceeded {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.weight-manager__progress-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.weight-manager__progress-label--complete {
+  color: #16a34a;
+}
+
+.weight-manager__progress-label--warning {
+  color: #a16207;
+}
+
+.weight-manager__progress-label--exceeded {
+  color: #dc2626;
+}
+
+.weight-manager__hint {
+  font-size: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.weight-manager__hint--warning {
+  color: #a16207;
+}
+
+.weight-manager__hint--exceeded {
+  color: #dc2626;
+}
+
+.weight-manager__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.weight-manager__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+
+.weight-manager__item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.weight-manager__item-name {
+  flex: 1;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weight-manager__item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.weight-manager__input {
+  width: 56px;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+  background: #fff;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.15s ease;
+}
+
+.weight-manager__input:focus {
+  outline: none;
+  border-color: #1a1a1a;
+  box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.1);
+}
+
+.weight-manager__pct {
+  font-size: 0.75rem;
+  color: #737373;
+  font-weight: 500;
+}
+
+.weight-manager__delete-btn {
+  background: none;
+  border: none;
+  color: #a3a3a3;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.weight-manager__delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.weight-manager__confirm-delete {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.weight-manager__confirm-yes,
+.weight-manager__confirm-no {
+  padding: 0.2rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.weight-manager__confirm-yes {
+  background: #ef4444;
+  color: #fff;
+}
+
+.weight-manager__confirm-yes:hover {
+  background: #dc2626;
+}
+
+.weight-manager__confirm-no {
+  background: rgba(0, 0, 0, 0.08);
+  color: #525252;
+}
+
+.weight-manager__confirm-no:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.weight-manager__empty {
+  text-align: center;
+  color: #737373;
+  font-size: 0.8125rem;
+  padding: 2rem 0;
+}
+
+.weight-manager__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(26, 26, 26, 0.1);
+}
+
+.weight-manager__footer .btn--ghost {
+  background: none;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #525252;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.weight-manager__footer .btn--ghost:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.weight-manager__footer .btn--primary {
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.weight-manager__footer .btn--primary:hover {
+  opacity: 0.9;
+}
+
+.weight-manager__footer .btn--primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
