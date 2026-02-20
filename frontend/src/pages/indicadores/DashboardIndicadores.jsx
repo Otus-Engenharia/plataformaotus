@@ -15,6 +15,7 @@ import {
   getCycleLabel,
   getCycleMonthRange,
   hasActiveMonthsInCycle,
+  isMeasurementMonth,
   parseAcoes,
 } from '../../utils/indicator-utils';
 import ScoreZoneGauge, { ScoreRing } from '../../components/indicadores/ScoreZoneGauge';
@@ -32,8 +33,10 @@ const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Se
  */
 function getIndicatorMonthlyData(indicador, ciclo, ano) {
   const { start, end } = getCycleMonthRange(ciclo);
+  const freq = indicador.frequencia || 'mensal';
   const months = [];
   for (let m = start; m <= end; m++) {
+    if (!isMeasurementMonth(m, freq)) continue;
     const checkIn = (indicador.check_ins || []).find(ci => ci.mes === m && ci.ano === ano);
     const mt = indicador.monthly_targets?.[m];
     const target = mt != null ? parseFloat(mt) : (parseFloat(indicador.meta) || 0);

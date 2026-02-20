@@ -6,7 +6,8 @@ import {
   calculateAccumulatedProgress,
   formatValue,
   getMonthsForCycle,
-  getCycleMonthRange
+  getCycleMonthRange,
+  isMeasurementMonth
 } from '../../utils/indicator-utils';
 import ScoreZoneGauge from '../../components/indicadores/ScoreZoneGauge';
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
@@ -510,6 +511,11 @@ export default function IndicatorDetailView() {
     if (selectedQuarter && (indicador?.ciclo === 'anual' || indicador?.ciclo === 'trimestral')) {
       const { start, end } = getCycleMonthRange(selectedQuarter);
       months = months.filter(m => m.value >= start && m.value <= end);
+    }
+    // Filtrar apenas meses de medição para a frequência (ex: semestral → só Jun e Dez)
+    const freq = indicador?.frequencia || 'mensal';
+    if (freq !== 'mensal') {
+      months = months.filter(m => isMeasurementMonth(m.value, freq));
     }
     const yearCheckIns = checkIns.filter(c => c.ano === selectedYear);
 
