@@ -6,7 +6,7 @@
  */
 
 import { WeightConfiguration } from '../../../domain/curva-s-progresso/entities/WeightConfiguration.js';
-import { WeightCalculationService } from '../../../domain/curva-s-progresso/services/WeightCalculationService.js';
+import { WeightCalculationService, parseBqDate } from '../../../domain/curva-s-progresso/services/WeightCalculationService.js';
 
 class GetProgressTimeSeries {
   #repository;
@@ -82,6 +82,10 @@ class GetProgressTimeSeries {
     let projectStart = startDate || this.#deriveStartDate(tasks);
     let projectEnd = endDate || this.#deriveEndDate(tasks);
 
+    console.log(`[GetProgressTimeSeries] tasks: ${tasks.length}, ` +
+      `projectStart: ${projectStart}, projectEnd: ${projectEnd}, ` +
+      `sampleDate: ${JSON.stringify(tasks[0]?.DataDeTermino)}`);
+
     // Expandir range com datas dos snapshots
     if (snapshotData.snapshots.size > 0) {
       for (const [, snapshotTasks] of snapshotData.snapshots) {
@@ -144,7 +148,8 @@ class GetProgressTimeSeries {
   #deriveStartDate(tasks) {
     let earliest = null;
     for (const t of tasks) {
-      const d = t.DataDeInicio ? new Date(t.DataDeInicio) : null;
+      const raw = parseBqDate(t.DataDeInicio);
+      const d = raw ? new Date(raw) : null;
       if (d && !isNaN(d.getTime()) && (!earliest || d < earliest)) {
         earliest = d;
       }
@@ -155,7 +160,8 @@ class GetProgressTimeSeries {
   #deriveEndDate(tasks) {
     let latest = null;
     for (const t of tasks) {
-      const d = t.DataDeTermino ? new Date(t.DataDeTermino) : null;
+      const raw = parseBqDate(t.DataDeTermino);
+      const d = raw ? new Date(raw) : null;
       if (d && !isNaN(d.getTime()) && (!latest || d > latest)) {
         latest = d;
       }

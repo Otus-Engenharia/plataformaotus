@@ -17,6 +17,18 @@
 
 import { ActivityType } from '../value-objects/ActivityType.js';
 
+/**
+ * Converte valor de data do BigQuery para string ISO.
+ * BigQuery v7 retorna DATE como { value: 'YYYY-MM-DD' }.
+ */
+function parseBqDate(val) {
+  if (!val) return null;
+  const raw = typeof val === 'object' && val.value != null ? val.value : val;
+  const str = String(raw).trim();
+  if (!str) return null;
+  return str;
+}
+
 // Status que indicam tarefa concluída
 const COMPLETED_STATUSES = [
   'concluída', 'concluida', 'completa', 'complete', 'done',
@@ -86,13 +98,32 @@ class WeightCalculationService {
       phaseTotals.set(group.fase, current + group.combined_factor);
     }
 
+    // 3.5. Verificar se fases do projeto encontram match na configuração
+    const phaseNames = [...new Set(activeTasks.map(t => t.fase_nome))].filter(Boolean);
+    const matchingPhases = phaseNames.filter(name => weightConfig.getPhaseWeight(name));
+    const noPhaseMatch = phaseNames.length > 0 && matchingPhases.length === 0;
+
+    if (noPhaseMatch) {
+      console.warn(`[WeightCalculationService] Nenhuma fase do projeto encontra match na configuração.`);
+      console.warn(`  Fases do projeto: ${phaseNames.join(', ')}`);
+      console.warn(`  Fases configuradas: ${weightConfig.phaseWeights.map(p => p.phaseName).join(', ')}`);
+      console.warn(`  Usando distribuição igual automática.`);
+    }
+
     // 4. Calcular peso por tarefa
     const taskResults = [];
     let totalProgress = 0;
 
     for (const group of groups.values()) {
       const phaseWeight = weightConfig.getPhaseWeight(group.fase);
-      const phasePercent = phaseWeight ? phaseWeight.percent : 0;
+      let phasePercent;
+      if (phaseWeight) {
+        phasePercent = phaseWeight.percent;
+      } else if (noPhaseMatch) {
+        phasePercent = 100 / phaseNames.length;
+      } else {
+        phasePercent = 0;
+      }
       const phaseTotal = phaseTotals.get(group.fase) || 1;
 
       const pesoNaFase = phaseTotal > 0
@@ -113,8 +144,8 @@ class WeightCalculationService {
           activity_type: group.activityType,
           status: task.Status,
           is_complete: task.is_complete,
-          data_inicio: task.DataDeInicio,
-          data_termino: task.DataDeTermino,
+          data_inicio: parseBqDate(task.DataDeInicio),
+          data_termino: parseBqDate(task.DataDeTermino),
           peso_na_fase: Math.round(pesoNaFase * 100) / 100,
           peso_no_projeto: Math.round(pesoPorTarefa * 10000) / 10000,
         };
@@ -137,8 +168,8 @@ class WeightCalculationService {
         activity_type: null,
         status: task.Status,
         is_complete: task.is_complete,
-        data_inicio: task.DataDeInicio,
-        data_termino: task.DataDeTermino,
+        data_inicio: parseBqDate(task.DataDeInicio),
+        data_termino: parseBqDate(task.DataDeTermino),
         peso_na_fase: 0,
         peso_no_projeto: 0,
       });
@@ -149,7 +180,11 @@ class WeightCalculationService {
 
     // 5. Breakdown por fase
     const phaseBreakdown = [];
-    for (const pw of weightConfig.phaseWeights) {
+    const breakdownPhases = noPhaseMatch
+      ? phaseNames.map(name => ({ phaseName: name, percent: 100 / phaseNames.length }))
+      : weightConfig.phaseWeights.map(pw => ({ phaseName: pw.phaseName, percent: pw.percent }));
+
+    for (const pw of breakdownPhases) {
       const phaseTasks = taskResults.filter(t => t.fase === pw.phaseName && t.peso_no_projeto > 0);
       const phaseProgress = phaseTasks
         .filter(t => t.is_complete)
@@ -158,7 +193,7 @@ class WeightCalculationService {
 
       phaseBreakdown.push({
         phase_name: pw.phaseName,
-        weight_percent: pw.percent,
+        weight_percent: Math.round(pw.percent * 100) / 100,
         total_tasks: phaseTasks.length,
         completed_tasks: phaseTasks.filter(t => t.is_complete).length,
         phase_progress: Math.round(phaseProgress * 10000) / 10000,
@@ -324,4 +359,4 @@ class WeightCalculationService {
   }
 }
 
-export { WeightCalculationService, isTaskComplete };
+export { WeightCalculationService, isTaskComplete, parseBqDate };
