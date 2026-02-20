@@ -14,7 +14,7 @@ import {
   CalculateProgress,
   GetProgressTimeSeries,
 } from '../application/use-cases/curva-s-progresso/index.js';
-import { queryCurvaSProgressoTasks } from '../bigquery.js';
+import { queryCurvaSProgressoTasks, queryCurvaSSnapshotTasks } from '../bigquery.js';
 import { fetchDisciplineMappings } from '../supabase.js';
 
 const router = express.Router();
@@ -275,7 +275,8 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
       const getTimeSeries = new GetProgressTimeSeries(
         repository,
         queryCurvaSProgressoTasks,
-        fetchDisciplineMappings
+        fetchDisciplineMappings,
+        queryCurvaSSnapshotTasks
       );
 
       const data = await getTimeSeries.execute({

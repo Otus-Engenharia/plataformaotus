@@ -437,6 +437,128 @@
   color: #666;
 }
 
+/* Curve Filters */
+.curve-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.curve-filters-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.curve-filters-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-right: 4px;
+}
+
+.curve-filters-separator {
+  width: 1px;
+  height: 20px;
+  background: #d1d5db;
+  margin: 0 4px;
+}
+
+.curve-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  color: #888;
+  transition: all 0.15s;
+}
+
+.curve-filter-btn.active {
+  color: #1a1a1a;
+  border-color: #999;
+  background: #fff;
+}
+
+.curve-filter-btn:not(.active) {
+  opacity: 0.5;
+}
+
+.curve-filter-btn:hover {
+  border-color: #666;
+}
+
+.curve-filter-btn.executado.active {
+  border-color: #F59E0B;
+  background: #fffbeb;
+}
+
+.curve-filter-btn.snapshot.active {
+  border-color: #3B82F6;
+  background: #eff6ff;
+}
+
+.curve-filter-color {
+  display: inline-block;
+  width: 12px;
+  height: 3px;
+  border-radius: 1px;
+}
+
+.curve-filter-action {
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  font-size: 10px;
+  cursor: pointer;
+  color: #3B82F6;
+  text-decoration: underline;
+}
+
+.curve-filter-action:hover {
+  color: #1D4ED8;
+}
+
+/* Progress Chart Legend */
+.progress-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 16px 12px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #666;
+}
+
+.legend-color {
+  display: inline-block;
+  width: 16px;
+  border-radius: 1px;
+}
+
+.legend-label {
+  white-space: nowrap;
+}
+
 /* Progress Chart */
 .progress-chart-container {
   background: #fff;
@@ -506,6 +628,11 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+}
+
+.curva-s-chart-main {
+  display: flex;
+  flex-direction: column;
 }
 
 .curva-s-chart-sidebar {
