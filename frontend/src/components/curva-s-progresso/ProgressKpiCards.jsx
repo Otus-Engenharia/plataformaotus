@@ -71,8 +71,10 @@ function ProgressKpiCards({ progress, loading }) {
       </div>
       <div className="kpi-card">
         <div className="kpi-label">Tarefas</div>
-        <div className="kpi-value">{activeTasks}</div>
-        <div className="kpi-detail">{excludedTasks > 0 ? `${excludedTasks} sem etapa` : `de ${totalTasks} total`}</div>
+        <div className="kpi-value">{totalTasks}</div>
+        <div className="kpi-detail">
+          {activeTasks} com peso{excludedTasks > 0 ? ` · ${excludedTasks} sem etapa` : ''}
+        </div>
       </div>
     </div>
   );
