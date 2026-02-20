@@ -1,0 +1,5 @@
+/**
+ * Entidades do domínio de Curva S Progresso
+ */
+
+export { WeightConfiguration } from './WeightConfiguration.js';

@@ -13,6 +13,7 @@ import PortfolioProjetoView from './PortfolioProjetoView';
 import FerramentasView from './FerramentasView';
 import CronogramaView from './CronogramaView';
 import EquipeView from './EquipeView';
+import CurvaSProgressoView from './CurvaSProgressoView';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/ProjetosView.css';
@@ -107,6 +108,11 @@ const SUBVIEWS = {
     id: 'equipe',
     name: 'Equipe',
     component: EquipeView,
+  },
+  curvaSProgresso: {
+    id: 'curvaSProgresso',
+    name: 'Curva S',
+    component: CurvaSProgressoView,
   },
 };
 
@@ -369,6 +375,11 @@ function ProjetosView() {
               portfolio={portfolio}
             />
           ) : activeSubview === 'equipe' ? (
+            <SubviewComponent
+              selectedProjectId={selectedProjectId}
+              portfolio={portfolio}
+            />
+          ) : activeSubview === 'curvaSProgresso' ? (
             <SubviewComponent
               selectedProjectId={selectedProjectId}
               portfolio={portfolio}
