@@ -701,8 +701,8 @@ function PortfolioView() {
               )}
             </div>
 
-            {/* Filtro de Lider - apenas para diretora/admin */}
-            {isPrivileged && (
+            {/* Filtro de Lider - apenas para diretora/admin/ceo */}
+            {hasFullAccess && (
               <div className="multi-select-wrapper">
                 <button
                   type="button"
