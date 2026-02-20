@@ -555,9 +555,10 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
   const consolidationType = indicador.consolidation_type || 'last_value';
   const monthlyTargets = indicador.monthly_targets || {};
 
-  // Calcular "Acumulado Planejado" ate o mes atual
+  // Calcular "Acumulado Planejado" ate o mes atual (ou inicio do ciclo se futuro)
+  const effectiveMonth = Math.max(currentMonth, start);
   let planejado = 0;
-  for (let m = start; m <= Math.min(currentMonth, end); m++) {
+  for (let m = start; m <= Math.min(effectiveMonth, end); m++) {
     const mt = monthlyTargets[m];
     const target = mt != null ? parseFloat(mt) : (parseFloat(indicador.meta) || 0);
     if (consolidationType === 'sum') {
