@@ -21,6 +21,7 @@ import { ActivityType } from '../value-objects/ActivityType.js';
 const COMPLETED_STATUSES = [
   'concluída', 'concluida', 'completa', 'complete', 'done',
   '100%', 'finalizado', 'finalizada', 'entregue',
+  'feito',
 ];
 
 function isTaskComplete(status) {
@@ -205,23 +206,15 @@ class WeightCalculationService {
   }
 
   /**
-   * Calcula série temporal mensal para o gráfico da Curva S.
-   * Para cada mês, calcula o peso acumulado das tarefas com DataDeTermino <= fim do mês.
-   *
-   * @param {Object} params
-   * @param {Array} params.taskResults - Resultado do calculate() com peso_no_projeto
-   * @param {string} params.startDate - Data início do projeto (YYYY-MM-DD)
-   * @param {string} params.endDate - Data fim do projeto (YYYY-MM-DD)
-   * @returns {Array} [{month: 'Jan/25', cumulative_progress: 15.5, monthly_increment: 3.2}, ...]
+   * Gera lista de meses entre startDate e endDate.
+   * @returns {Array} [{year, month, label, endOfMonth}]
    */
-  static calculateTimeSeries({ taskResults, startDate, endDate }) {
+  static generateMonthlyRange(startDate, endDate) {
     if (!startDate || !endDate) return [];
-
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
 
-    // Gerar lista de meses
     const months = [];
     const current = new Date(start.getFullYear(), start.getMonth(), 1);
     const endMonth = new Date(end.getFullYear(), end.getMonth() + 1, 0);
@@ -229,39 +222,49 @@ class WeightCalculationService {
     while (current <= endMonth) {
       months.push({
         year: current.getFullYear(),
-        month: current.getMonth(), // 0-based
+        month: current.getMonth(),
         label: `${current.toLocaleString('pt-BR', { month: 'short' })}/${String(current.getFullYear()).slice(2)}`,
         endOfMonth: new Date(current.getFullYear(), current.getMonth() + 1, 0),
       });
       current.setMonth(current.getMonth() + 1);
     }
+    return months;
+  }
+
+  /**
+   * Calcula série temporal mensal para o gráfico da Curva S.
+   * Para cada mês, calcula o peso acumulado das tarefas com DataDeTermino <= fim do mês.
+   * Meses passados consideram apenas tarefas concluídas; meses futuros consideram todas.
+   *
+   * @param {Object} params
+   * @param {Array} params.taskResults - Resultado do calculate() com peso_no_projeto
+   * @param {string} params.startDate - Data início do projeto (YYYY-MM-DD)
+   * @param {string} params.endDate - Data fim do projeto (YYYY-MM-DD)
+   * @returns {Array} [{month, cumulative_progress, monthly_increment, is_past}, ...]
+   */
+  static calculateTimeSeries({ taskResults, startDate, endDate }) {
+    const months = this.generateMonthlyRange(startDate, endDate);
+    if (months.length === 0) return [];
 
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
-    // Filtrar apenas tarefas com peso > 0
     const activeTasks = taskResults.filter(t => t.peso_no_projeto > 0);
 
-    // Para cada mês, calcular progresso acumulado
     const timeSeries = [];
     let previousCumulative = 0;
 
     for (const m of months) {
-      // Curva "Atual": tarefas concluídas + projeção futura
-      // - Até hoje: baseado em Status (is_complete)
-      // - Após hoje: baseado em DataDeTermino planejada
       let cumulativeProgress = 0;
 
       for (const task of activeTasks) {
         const termino = task.data_termino ? new Date(task.data_termino) : null;
 
         if (m.endOfMonth <= today) {
-          // Mês no passado ou atual: usar status real
           if (task.is_complete && termino && termino <= m.endOfMonth) {
             cumulativeProgress += task.peso_no_projeto;
           }
         } else {
-          // Mês futuro: projetar baseado na data de término planejada
           if (termino && termino <= m.endOfMonth) {
             cumulativeProgress += task.peso_no_projeto;
           }
@@ -276,6 +279,43 @@ class WeightCalculationService {
         cumulative_progress: Math.round(cumulativeProgress * 100) / 100,
         monthly_increment: Math.round(monthlyIncrement * 100) / 100,
         is_past: m.endOfMonth <= today,
+      });
+      previousCumulative = cumulativeProgress;
+    }
+
+    return timeSeries;
+  }
+
+  /**
+   * Calcula série temporal planejada (ignora status, usa apenas DataDeTermino).
+   * Usada para curvas de snapshots/reprogramações.
+   */
+  static calculatePlannedTimeSeries({ taskResults, startDate, endDate }) {
+    const months = this.generateMonthlyRange(startDate, endDate);
+    if (months.length === 0) return [];
+
+    const activeTasks = taskResults.filter(t => t.peso_no_projeto > 0);
+
+    const timeSeries = [];
+    let previousCumulative = 0;
+
+    for (const m of months) {
+      let cumulativeProgress = 0;
+
+      for (const task of activeTasks) {
+        const termino = task.data_termino ? new Date(task.data_termino) : null;
+        if (termino && termino <= m.endOfMonth) {
+          cumulativeProgress += task.peso_no_projeto;
+        }
+      }
+
+      const monthlyIncrement = cumulativeProgress - previousCumulative;
+      timeSeries.push({
+        month: m.label,
+        year: m.year,
+        month_number: m.month + 1,
+        cumulative_progress: Math.round(cumulativeProgress * 100) / 100,
+        monthly_increment: Math.round(monthlyIncrement * 100) / 100,
       });
       previousCumulative = cumulativeProgress;
     }

@@ -2308,6 +2308,91 @@ export async function queryCurvaSProgressoTasks(smartsheetId, projectName = null
   }
 }
 
+export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null) {
+  const snapshotProject = 'dadosindicadores';
+  const snapshotDataset = 'smartsheet_atrasos';
+  const snapshotTable = 'smartsheet_snapshot';
+
+  const baseQuery = `
+    WITH tasks_with_hierarchy AS (
+      SELECT
+        ID_Projeto,
+        NomeDaPlanilha,
+        NomeDaTarefa,
+        Disciplina,
+        Level,
+        Status,
+        DataDeInicio,
+        DataDeTermino,
+        rowNumber,
+        snapshot_date,
+        LAST_VALUE(IF(CAST(Level AS INT64) = 2, NomeDaTarefa, NULL) IGNORE NULLS)
+          OVER (
+            PARTITION BY snapshot_date, ID_Projeto
+            ORDER BY CAST(rowNumber AS INT64)
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) AS fase_nome
+      FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\`
+      WHERE {{WHERE_CLAUSE}}
+        AND NomeDaPlanilha NOT LIKE '%(Backup%'
+        AND NomeDaPlanilha NOT LIKE '%Cópia%'
+        AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+        AND NomeDaPlanilha NOT LIKE '%Copy%'
+    )
+    SELECT
+      ID_Projeto,
+      NomeDaPlanilha,
+      NomeDaTarefa,
+      Disciplina,
+      Status,
+      DataDeInicio,
+      DataDeTermino,
+      rowNumber,
+      fase_nome,
+      snapshot_date
+    FROM tasks_with_hierarchy
+    WHERE CAST(Level AS INT64) = 5
+      AND Disciplina IS NOT NULL
+      AND TRIM(Disciplina) != ''
+    ORDER BY snapshot_date, CAST(rowNumber AS INT64)
+  `;
+
+  try {
+    let rows = [];
+
+    if (smartsheetId) {
+      const escapedId = String(smartsheetId).replace(/'/g, "''");
+      const query = baseQuery.replace('{{WHERE_CLAUSE}}', `ID_Projeto = '${escapedId}'`);
+      rows = await executeQuery(query);
+    }
+
+    if (rows.length === 0 && projectName) {
+      const escapedName = String(projectName).replace(/'/g, "''");
+      const whereClause = `LOWER(REGEXP_REPLACE(
+        REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+        r'[^a-zA-Z0-9]', ''
+      )) LIKE CONCAT('%', LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', '')), '%')`;
+      const query = baseQuery.replace('{{WHERE_CLAUSE}}', whereClause);
+      rows = await executeQuery(query);
+    }
+
+    // Agrupar por snapshot_date
+    const snapshots = new Map();
+    for (const row of rows) {
+      const date = row.snapshot_date ? String(row.snapshot_date).split('T')[0] : null;
+      if (!date) continue;
+      if (!snapshots.has(date)) snapshots.set(date, []);
+      snapshots.get(date).push(row);
+    }
+
+    console.log(`✅ [queryCurvaSSnapshotTasks] ${rows.length} tarefas em ${snapshots.size} snapshots`);
+    return { rows, snapshots };
+  } catch (error) {
+    console.error('❌ Erro ao buscar snapshots para Curva S:', error.message);
+    return { rows: [], snapshots: new Map() };
+  }
+}
+
 export async function queryHorasRaw(leaderName, opts = {}) {
   if (!bigquery) throw new Error('Cliente BigQuery não inicializado');
 
