@@ -485,17 +485,16 @@ export default function DashboardIndicadores() {
     return acc && (acc.planejado > 0 || ind.auto_calculate === false);
   });
 
-  // Score geral baseado nos scores acumulados (respeita "sem dados")
+  // FAROL = Σ(score × peso) / Σ(peso) — indicadores sem dados contribuem score 0
   const scoreGeral = useMemo(() => {
     let totalWeight = 0;
     let weightedSum = 0;
     for (const ind of indicadoresVisiveis) {
       const peso = ind.peso ?? 1;
       if (peso === 0) continue;
-      const s = accumulatedMap[ind.id]?.score;
-      if (s === null || s === undefined) continue;
       totalWeight += peso;
-      weightedSum += s * peso;
+      const s = accumulatedMap[ind.id]?.score;
+      weightedSum += (s ?? 0) * peso;
     }
     return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) / 100 : 0;
   }, [indicadoresVisiveis, accumulatedMap]);
