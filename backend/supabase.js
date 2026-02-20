@@ -2480,6 +2480,22 @@ export async function updateRecoveryPlan(planId, planData) {
   return data;
 }
 
+/**
+ * Exclui um plano de recuperação
+ * @param {string} planId - ID do plano
+ */
+export async function deleteRecoveryPlan(planId) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from(RECOVERY_PLANS_TABLE)
+    .delete()
+    .eq('id', planId);
+
+  if (error) {
+    throw new Error(`Erro ao excluir plano de recuperação: ${error.message}`);
+  }
+}
+
 // --- PESSOAS / EQUIPE ---
 
 /**
