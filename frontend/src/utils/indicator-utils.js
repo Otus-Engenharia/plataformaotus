@@ -217,6 +217,11 @@ export function isMeasurementMonth(month, frequencia = 'mensal') {
  */
 export function hasActiveMonthsInCycle(indicador, ciclo) {
   if (ciclo === 'anual') return true;
+  // Indicadores anuais aparecem em todos os quarters (respeitando active_quarters)
+  if (indicador.ciclo === 'anual') {
+    const aq = indicador.active_quarters || { q1: true, q2: true, q3: true, q4: true };
+    return aq[ciclo] !== false;
+  }
 
   const { start, end } = getCycleMonthRange(ciclo);
   const frequencia = indicador.frequencia || 'mensal';
