@@ -2216,6 +2216,98 @@ export async function queryDisciplinesCrossReferenceBatch(projects) {
   return { smartsheetByProject, construflowByProject };
 }
 
+/**
+ * Busca tarefas Level 5 para cálculo da Curva S de progresso físico.
+ * Deriva a Fase (Level 2 parent) usando window function sobre rowNumber.
+ *
+ * @param {string} smartsheetId - ID do projeto no SmartSheet
+ * @param {string} projectName - Nome do projeto (fallback para match normalizado)
+ * @returns {Array} Tarefas Level 5 com fase_nome, Disciplina, Status, datas
+ */
+export async function queryCurvaSProgressoTasks(smartsheetId, projectName = null) {
+  const smartsheetProjectId = 'dadosindicadores';
+  const smartsheetDataset = 'smartsheet';
+  const smartsheetTable = 'smartsheet_data_projetos';
+
+  const baseQuery = `
+    WITH tasks_with_hierarchy AS (
+      SELECT
+        ID_Projeto,
+        NomeDaPlanilha,
+        NomeDaTarefa,
+        Disciplina,
+        Level,
+        Status,
+        DataDeInicio,
+        DataDeTermino,
+        DataDeInicioBaselineOtus,
+        DataDeFimBaselineOtus,
+        VarianciaBaselineOtus,
+        rowNumber,
+        Duracao,
+        LAST_VALUE(IF(CAST(Level AS INT64) = 2, NomeDaTarefa, NULL) IGNORE NULLS)
+          OVER (
+            PARTITION BY ID_Projeto
+            ORDER BY CAST(rowNumber AS INT64)
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) AS fase_nome
+      FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
+      WHERE {{WHERE_CLAUSE}}
+        AND NomeDaPlanilha NOT LIKE '%(Backup%'
+        AND NomeDaPlanilha NOT LIKE '%Cópia%'
+        AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+        AND NomeDaPlanilha NOT LIKE '%Copy%'
+    )
+    SELECT
+      ID_Projeto,
+      NomeDaPlanilha,
+      NomeDaTarefa,
+      Disciplina,
+      Status,
+      DataDeInicio,
+      DataDeTermino,
+      DataDeInicioBaselineOtus,
+      DataDeFimBaselineOtus,
+      VarianciaBaselineOtus,
+      rowNumber,
+      Duracao,
+      fase_nome
+    FROM tasks_with_hierarchy
+    WHERE CAST(Level AS INT64) = 5
+      AND Disciplina IS NOT NULL
+      AND TRIM(Disciplina) != ''
+    ORDER BY CAST(rowNumber AS INT64)
+  `;
+
+  try {
+    let rows = [];
+
+    // Estratégia 1: Buscar por smartsheetId
+    if (smartsheetId) {
+      const escapedId = String(smartsheetId).replace(/'/g, "''");
+      const query = baseQuery.replace('{{WHERE_CLAUSE}}', `ID_Projeto = '${escapedId}'`);
+      rows = await executeQuery(query);
+    }
+
+    // Estratégia 2: Match normalizado pelo nome
+    if (rows.length === 0 && projectName) {
+      const escapedName = String(projectName).replace(/'/g, "''");
+      const whereClause = `LOWER(REGEXP_REPLACE(
+        REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+        r'[^a-zA-Z0-9]', ''
+      )) LIKE CONCAT('%', LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', '')), '%')`;
+      const query = baseQuery.replace('{{WHERE_CLAUSE}}', whereClause);
+      rows = await executeQuery(query);
+    }
+
+    console.log(`✅ [queryCurvaSProgressoTasks] ${rows.length} tarefas Level 5 encontradas`);
+    return rows;
+  } catch (error) {
+    console.error('❌ Erro ao buscar tarefas para Curva S:', error.message);
+    throw new Error(`Erro ao buscar tarefas para Curva S: ${error.message}`);
+  }
+}
+
 export async function queryHorasRaw(leaderName, opts = {}) {
   if (!bigquery) throw new Error('Cliente BigQuery não inicializado');
 

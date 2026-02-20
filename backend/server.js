@@ -2380,7 +2380,7 @@ app.get('/api/projetos/apontamentos', requireAuth, withBqCache(900), async (req,
 // Migrado para arquitetura Domain Driven Design
 // Ver: backend/routes/feedbacks.js
 // ============================================
-setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction });
+setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache });
 
 /**
  * Rota: GET /api/admin/user-views
