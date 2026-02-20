@@ -189,12 +189,12 @@ export function AuthProvider({ children }) {
 
   const isPrivileged = () => {
     const role = getEffectiveRole();
-    return role === 'dev' || role === 'director' || role === 'admin' || role === 'leader';
+    return role === 'dev' || role === 'ceo' || role === 'director' || role === 'admin' || role === 'leader';
   };
 
   const hasFullAccess = () => {
     const role = getEffectiveRole();
-    return role === 'dev' || role === 'director' || role === 'admin';
+    return role === 'dev' || role === 'ceo' || role === 'director' || role === 'admin';
   };
 
   const isLeader = () => getEffectiveRole() === 'leader';
