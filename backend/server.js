@@ -4862,9 +4862,10 @@ app.get('/api/ind/indicators', requireAuth, async (req, res) => {
       setor_id: req.query.setor_id || null,
     };
 
-    // Se não for privilegiado e não passou person_email, usa o email do usuário logado
-    if (!isPrivileged(req.user) && !filters.person_email) {
-      filters.person_email = req.user.email;
+    // Se não for privilegiado e não passou person_email, usa o email do usuário efetivo
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && !filters.person_email) {
+      filters.person_email = effectiveUser.email;
     }
 
     const indicadores = await fetchIndicadoresIndividuais(filters);
@@ -4884,7 +4885,7 @@ app.get('/api/ind/indicators', requireAuth, async (req, res) => {
 app.get('/api/ind/indicators/my', requireAuth, async (req, res) => {
   try {
     const filters = {
-      person_email: req.user.email,
+      person_email: getEffectiveUser(req).email,
       ciclo: req.query.ciclo || null,
       ano: req.query.ano ? parseInt(req.query.ano, 10) : new Date().getFullYear(),
     };
@@ -4918,7 +4919,8 @@ app.get('/api/ind/indicators/:id', requireAuth, async (req, res) => {
     const indicador = await getIndicadorById(req.params.id);
 
     // Verifica permissão: apenas o dono, líder do setor ou admin pode ver
-    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && indicador.person_email !== effectiveUser.email) {
       // TODO: Verificar se é líder do setor
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
@@ -4943,7 +4945,7 @@ app.post('/api/ind/indicators', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'template_id, ciclo e ano são obrigatórios' });
     }
 
-    const indicador = await createIndicadorFromTemplate(template_id, req.user.email, ciclo, ano);
+    const indicador = await createIndicadorFromTemplate(template_id, getEffectiveUser(req).email, ciclo, ano);
     await logAction(req, 'create', 'ind_indicator', indicador.id, `Indicador criado: ${indicador.nome}`);
     res.json({ success: true, data: indicador });
   } catch (error) {
@@ -4960,7 +4962,8 @@ app.put('/api/ind/indicators/:id', requireAuth, async (req, res) => {
   try {
     // Busca o indicador para verificar permissão
     const existing = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user) && existing.person_email !== req.user.email) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && existing.person_email !== effectiveUser.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5004,7 +5007,8 @@ app.post('/api/ind/indicators/:id/check-ins', requireAuth, async (req, res) => {
 
     // Verifica permissão
     const indicador = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && indicador.person_email !== effectiveUser.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5030,7 +5034,8 @@ app.put('/api/ind/indicators/:id/check-ins/:checkInId', requireAuth, async (req,
   try {
     // Verifica permissão
     const indicador = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && indicador.person_email !== effectiveUser.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5057,7 +5062,8 @@ app.delete('/api/ind/check-ins/:checkInId', requireAuth, async (req, res) => {
 
     // Busca o indicador para verificar permissão
     const indicador = await getIndicadorById(checkIn.indicador_id);
-    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && indicador.person_email !== effectiveUser.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5101,7 +5107,8 @@ app.post('/api/ind/indicators/:id/recovery-plans', requireAuth, async (req, res)
 
     // Verifica permissão
     const indicador = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && indicador.person_email !== effectiveUser.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5127,7 +5134,8 @@ app.put('/api/ind/indicators/:id/recovery-plans/:planId', requireAuth, async (re
   try {
     // Verifica permissão
     const indicador = await getIndicadorById(req.params.id);
-    if (!isPrivileged(req.user) && indicador.person_email !== req.user.email) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && indicador.person_email !== effectiveUser.email) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5149,7 +5157,7 @@ app.put('/api/ind/indicators/:id/recovery-plans/:planId', requireAuth, async (re
  */
 app.get('/api/ind/people', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user)) {
+    if (!isPrivileged(getEffectiveUser(req))) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5182,7 +5190,8 @@ app.get('/api/ind/people/:id', requireAuth, async (req, res) => {
     const person = await getPersonById(req.params.id, filters);
 
     // Verifica permissão: próprio usuário, líder do setor ou admin
-    if (!isPrivileged(req.user) && person.email !== req.user.email) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && person.email !== effectiveUser.email) {
       // TODO: Verificar se é líder do setor
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
@@ -5203,9 +5212,10 @@ app.get('/api/ind/people/:id', requireAuth, async (req, res) => {
  */
 app.get('/api/ind/team', requireAuth, async (req, res) => {
   try {
-    const userEmail = req.user.email;
+    const effectiveUser = getEffectiveUser(req);
+    const userEmail = effectiveUser.email;
     const realEmail = getRealEmailForIndicadores(userEmail);
-    const userRole = getUserRole(userEmail);
+    const userRole = getUserRole(effectiveUser);
     const isFullAccess = userRole === 'admin' || userRole === 'director' || userRole === 'dev';
     const showAll = req.query.all === 'true' && userRole === 'dev';
 
@@ -5494,7 +5504,7 @@ app.post('/api/ind/admin/users', requireAuth, async (req, res) => {
  */
 app.get('/api/ind/overview', requireAuth, async (req, res) => {
   try {
-    if (!isPrivileged(req.user)) {
+    if (!isPrivileged(getEffectiveUser(req))) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -5547,7 +5557,7 @@ app.get('/api/ind/history', requireAuth, async (req, res) => {
 app.get('/api/ind/my-history', requireAuth, async (req, res) => {
   try {
     const supabase = getSupabaseClient();
-    const userEmail = req.user.email;
+    const userEmail = getEffectiveUser(req).email;
     const yearsParam = req.query.years || `${new Date().getFullYear()},${new Date().getFullYear() - 1}`;
     const years = yearsParam.split(',').map(Number);
 
@@ -5601,6 +5611,7 @@ app.get('/api/ind/my-history', requireAuth, async (req, res) => {
 app.get('/api/ind/my-templates', requireAuth, async (req, res) => {
   try {
     const supabase = getSupabaseClient();
+    const effectiveEmail = getEffectiveUser(req).email;
     let positionId = req.query.position_id;
 
     // Se não foi especificado position_id, busca do usuário
@@ -5608,7 +5619,7 @@ app.get('/api/ind/my-templates', requireAuth, async (req, res) => {
       const { data: user, error: userError } = await supabase
         .from('users_otus')
         .select('position_id')
-        .eq('email', req.user.email)
+        .eq('email', effectiveEmail)
         .single();
 
       if (!userError && user?.position_id) {
@@ -5616,8 +5627,8 @@ app.get('/api/ind/my-templates', requireAuth, async (req, res) => {
       }
     }
 
-    // Se ainda não tem position_id e é usuário de dev, usa cargo default
-    if (!positionId && req.user.email?.endsWith('@otus.dev')) {
+    // Se ainda não tem position_id e é usuário de dev (sem impersonação), usa cargo default
+    if (!positionId && !req.session?.impersonating && req.user.email?.endsWith('@otus.dev')) {
       // Mapeamento de email dev para cargo default
       const devPositionMap = {
         'dev-leader@otus.dev': 'Líder de projeto',
