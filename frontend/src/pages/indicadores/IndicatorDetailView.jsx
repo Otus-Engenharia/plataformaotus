@@ -445,6 +445,21 @@ export default function IndicatorDetailView() {
     }
   };
 
+  const handleDeleteRecoveryPlan = async (planId) => {
+    const res = await fetch(`${API_URL}/api/ind/indicators/${id}/recovery-plans/${planId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Erro ao excluir plano');
+    }
+
+    setRecoveryPlans(prev => prev.filter(p => p.id !== planId));
+    setSelectedPlan(null);
+  };
+
   // Helper para parsear acoes (pode ser JSON, texto simples ou array)
   const parseAcoes = (acoes) => {
     if (!acoes) return [];
@@ -1271,18 +1286,19 @@ export default function IndicatorDetailView() {
           responsaveis={teamMembers}
           onUpdate={async (data) => {
             await handleUpdateRecoveryPlan(selectedPlan.id, data, true);
-            // Atualiza estados locais sem refresh
             setSelectedPlan(prev => ({ ...prev, ...data }));
             setRecoveryPlans(prev => prev.map(p =>
               p.id === selectedPlan.id ? { ...p, ...data } : p
             ));
+          }}
+          onDelete={async () => {
+            await handleDeleteRecoveryPlan(selectedPlan.id);
           }}
           onAddActivity={async (activity) => {
             const currentActions = parseAcoes(selectedPlan.acoes);
             const newActions = [...currentActions, activity];
             const newAcoesJson = JSON.stringify(newActions);
             await handleUpdateRecoveryPlan(selectedPlan.id, { acoes: newAcoesJson }, true);
-            // Atualiza estados locais
             setSelectedPlan(prev => ({ ...prev, acoes: newAcoesJson }));
             setRecoveryPlans(prev => prev.map(p =>
               p.id === selectedPlan.id ? { ...p, acoes: newAcoesJson } : p
@@ -1293,7 +1309,6 @@ export default function IndicatorDetailView() {
             currentActions[index] = { ...currentActions[index], concluida };
             const newAcoesJson = JSON.stringify(currentActions);
             await handleUpdateRecoveryPlan(selectedPlan.id, { acoes: newAcoesJson }, true);
-            // Atualiza estados locais
             setSelectedPlan(prev => ({ ...prev, acoes: newAcoesJson }));
             setRecoveryPlans(prev => prev.map(p =>
               p.id === selectedPlan.id ? { ...p, acoes: newAcoesJson } : p
@@ -1304,7 +1319,16 @@ export default function IndicatorDetailView() {
             currentActions.splice(index, 1);
             const newAcoesJson = JSON.stringify(currentActions);
             await handleUpdateRecoveryPlan(selectedPlan.id, { acoes: newAcoesJson }, true);
-            // Atualiza estados locais
+            setSelectedPlan(prev => ({ ...prev, acoes: newAcoesJson }));
+            setRecoveryPlans(prev => prev.map(p =>
+              p.id === selectedPlan.id ? { ...p, acoes: newAcoesJson } : p
+            ));
+          }}
+          onEditActivity={async (index, updatedActivity) => {
+            const currentActions = parseAcoes(selectedPlan.acoes);
+            currentActions[index] = { ...currentActions[index], ...updatedActivity };
+            const newAcoesJson = JSON.stringify(currentActions);
+            await handleUpdateRecoveryPlan(selectedPlan.id, { acoes: newAcoesJson }, true);
             setSelectedPlan(prev => ({ ...prev, acoes: newAcoesJson }));
             setRecoveryPlans(prev => prev.map(p =>
               p.id === selectedPlan.id ? { ...p, acoes: newAcoesJson } : p

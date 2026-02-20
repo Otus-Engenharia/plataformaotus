@@ -37,7 +37,7 @@ import {
   fetchPositionIndicators, createPositionIndicator, updatePositionIndicator, deletePositionIndicator, syncPositionIndicators,
   fetchIndicadoresIndividuais, getIndicadorById, createIndicadorFromTemplate, updateIndicadorIndividual,
   fetchCheckIns, getCheckInById, createCheckIn, updateCheckIn, deleteCheckIn,
-  fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan,
+  fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan, deleteRecoveryPlan,
   fetchPeopleWithScores, getPersonById, fetchTeam,
   fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, getUserSectorByEmail, getUserByEmail, createUser,
   fetchSectorsOverview, fetchHistoryComparison,
@@ -5144,6 +5144,27 @@ app.put('/api/ind/indicators/:id/recovery-plans/:planId', requireAuth, async (re
     res.json({ success: true, data: plan });
   } catch (error) {
     console.error('❌ Erro ao atualizar plano de recuperação:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/ind/indicators/:id/recovery-plans/:planId
+ * Exclui um plano de recuperação
+ */
+app.delete('/api/ind/indicators/:id/recovery-plans/:planId', requireAuth, async (req, res) => {
+  try {
+    const indicador = await getIndicadorById(req.params.id);
+    const effectiveUser = getEffectiveUser(req);
+    if (!isPrivileged(effectiveUser) && indicador.person_email !== effectiveUser.email) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    await deleteRecoveryPlan(req.params.planId);
+    await logAction(req, 'delete', 'recovery_plan', req.params.planId, `Plano de recuperação excluído`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Erro ao excluir plano de recuperação:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
