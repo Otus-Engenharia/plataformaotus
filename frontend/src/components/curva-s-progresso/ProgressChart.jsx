@@ -215,7 +215,10 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
   if (!chartData) {
     return (
       <div className="progress-chart-container">
-        <div className="progress-chart-empty">Sem dados para exibir o gráfico</div>
+        <div className="progress-chart-empty">
+          Sem dados para exibir o gráfico.
+          <br /><small style={{ opacity: 0.7 }}>Verifique se as tarefas possuem datas de término no cronograma.</small>
+        </div>
       </div>
     );
   }
