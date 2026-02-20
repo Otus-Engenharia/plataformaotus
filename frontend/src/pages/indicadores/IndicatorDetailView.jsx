@@ -221,6 +221,7 @@ export default function IndicatorDetailView() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [selectedQuarter, setSelectedQuarter] = useState(null);
   const [recoveryPlanContext, setRecoveryPlanContext] = useState(null);
+  const [farolData, setFarolData] = useState({ totalWeight: 0, scoreGeral: 0 });
 
   useEffect(() => {
     fetchIndicador();
@@ -269,14 +270,56 @@ export default function IndicatorDetailView() {
       if (!res.ok) throw new Error('Erro ao carregar indicador');
 
       const data = await res.json();
-      setIndicador(data.data);
-      setCheckIns(data.data?.check_ins || []);
-      setRecoveryPlans(data.data?.recovery_plans || []);
-      setComments(data.data?.comments || []);
+      const ind = data.data;
+      setIndicador(ind);
+      setCheckIns(ind?.check_ins || []);
+      setRecoveryPlans(ind?.recovery_plans || []);
+      setComments(ind?.comments || []);
+
+      // Buscar indicadores irmaos para calcular contribuicao ao farol
+      if (ind?.person_email) {
+        fetchFarolData(ind.person_email, ind.ano || selectedYear);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFarolData = async (personEmail, ano) => {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/ind/indicators?person_email=${encodeURIComponent(personEmail)}&ano=${ano}`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) return;
+      const siblings = await res.json();
+      const list = Array.isArray(siblings) ? siblings : (siblings.data || []);
+
+      const currentMonth = new Date().getMonth() + 1;
+      let tw = 0, weightedSum = 0;
+      for (const sib of list) {
+        const peso = sib.peso ?? 1;
+        if (peso === 0) continue;
+        const yearCheckIns = (sib.check_ins || []).filter(ci => ci.ano === ano);
+        const acc = calculateAccumulatedProgress(sib, yearCheckIns, currentMonth);
+        const isAuto = sib.auto_calculate !== false;
+        const real = isAuto ? acc.realizado : (sib.realizado_acumulado ?? 0);
+        const plan = isAuto ? acc.planejado : (sib.planejado_acumulado ?? 0);
+        const hasCI = isAuto ? acc.hasData : true;
+        const sibScore = plan > 0 && hasCI
+          ? calculateIndicatorScore(real, plan * 0.8, plan, plan * 1.2, sib.is_inverse)
+          : 0;
+        tw += peso;
+        weightedSum += sibScore * peso;
+      }
+      setFarolData({
+        totalWeight: tw,
+        scoreGeral: tw > 0 ? Math.round((weightedSum / tw) * 100) / 100 : 0
+      });
+    } catch (err) {
+      console.error('Erro ao buscar dados do farol:', err);
     }
   };
 
@@ -608,6 +651,12 @@ export default function IndicatorDetailView() {
     : null;
   const scoreColor = score !== null ? getScoreColor(score) : 'neutral';
 
+  // Contribuicao ao farol
+  const peso = indicador.peso ?? 1;
+  const farolContrib = score !== null && farolData.totalWeight > 0
+    ? Math.round((score * peso / farolData.totalWeight) * 100) / 100
+    : null;
+
   // Range acumulado
   const accMin = planejadoValue * ratio80;
   const accMax = planejadoValue * ratio120;
@@ -623,9 +672,17 @@ export default function IndicatorDetailView() {
           Voltar
         </button>
 
-        <div className={`score-badge score-badge--${scoreColor}`}>
-          <span className="score-badge__value">{score !== null ? score.toFixed(0) : '--'}</span>
-          <span className="score-badge__trend">{score !== null ? getScoreLabel(score) : 'Sem dados'}</span>
+        <div className="detail-header__badges">
+          <div className={`score-badge score-badge--${scoreColor}`}>
+            <span className="score-badge__value">{score !== null ? score.toFixed(0) : '--'}</span>
+            <span className="score-badge__trend">{score !== null ? getScoreLabel(score) : 'Sem dados'}</span>
+          </div>
+          {farolContrib !== null && (
+            <div className="farol-contrib-badge">
+              <span className="farol-contrib-badge__value">{Math.round(farolContrib)}</span>
+              <span className="farol-contrib-badge__label">no farol</span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -747,6 +804,11 @@ export default function IndicatorDetailView() {
             <span className={`kpi-score kpi-score--${scoreColor}`}>
               Score: {score !== null ? score.toFixed(0) : '--'}
             </span>
+            {farolContrib !== null && (
+              <span className="kpi-farol-contrib">
+                Farol: {Math.round(farolContrib)} pts
+              </span>
+            )}
             {planejadoValue > 0 && (
               <MonthRangeBar
                 score={score}

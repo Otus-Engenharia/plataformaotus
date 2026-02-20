@@ -90,9 +90,13 @@ function getActivePlans(indicador) {
 // ────────────────────────────────────────────────────────────
 // Indicator Card v2 — Premium KPI Storytelling Card
 // ────────────────────────────────────────────────────────────
-function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
+function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData, totalWeight, scoreGeral }) {
   const acc = accumulatedData || { realizado: 0, planejado: 0, score: null };
   const score = acc.score;
+  const peso = indicador.peso ?? 1;
+  const farolContrib = score !== null && totalWeight > 0
+    ? Math.round((score * peso / totalWeight) * 100) / 100
+    : null;
   const metaFormatada = formatValue(indicador.meta, indicador.metric_type);
   const realizadoFormatado = formatValue(acc.realizado, indicador.metric_type);
   const planejadoFormatado = formatValue(acc.planejado, indicador.metric_type);
@@ -135,7 +139,7 @@ function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
         )}
       </div>
 
-      {/* ─── SECTION 2: Result Cluster (Score + Peso) ─── */}
+      {/* ─── SECTION 2: Result Cluster (Score + Peso + Farol) ─── */}
       <div className="ind-card__result-cluster">
         <ScoreRing score={score} size={56} />
         <div className="ind-card__result-info">
@@ -146,6 +150,12 @@ function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
             Peso {indicador.peso || 1}
           </span>
         </div>
+        {farolContrib !== null && (
+          <div className={`ind-card__farol-contrib ind-card__farol-contrib--${getScoreZoneId(score)}`}>
+            <span className="ind-card__farol-contrib-value">{Math.round(farolContrib)}</span>
+            <span className="ind-card__farol-contrib-label">no farol</span>
+          </div>
+        )}
       </div>
 
       {/* ─── SECTION 3: Key Metrics (Meta, Realizado, Planejado) ─── */}
@@ -486,17 +496,20 @@ export default function DashboardIndicadores() {
   });
 
   // FAROL = Σ(score × peso) / Σ(peso) — indicadores sem dados contribuem score 0
-  const scoreGeral = useMemo(() => {
-    let totalWeight = 0;
+  const { scoreGeral, totalWeight } = useMemo(() => {
+    let tw = 0;
     let weightedSum = 0;
     for (const ind of indicadoresVisiveis) {
       const peso = ind.peso ?? 1;
       if (peso === 0) continue;
-      totalWeight += peso;
+      tw += peso;
       const s = accumulatedMap[ind.id]?.score;
       weightedSum += (s ?? 0) * peso;
     }
-    return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) / 100 : 0;
+    return {
+      scoreGeral: tw > 0 ? Math.round((weightedSum / tw) * 100) / 100 : 0,
+      totalWeight: tw
+    };
   }, [indicadoresVisiveis, accumulatedMap]);
 
   const indicadoresEmRisco = indicadoresVisiveis.filter(ind => {
@@ -670,6 +683,8 @@ export default function DashboardIndicadores() {
                 ano={ano}
                 index={index}
                 accumulatedData={accumulatedMap[ind.id]}
+                totalWeight={totalWeight}
+                scoreGeral={scoreGeral}
               />
             ))}
           </div>
