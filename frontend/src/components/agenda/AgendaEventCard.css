@@ -1,0 +1,92 @@
+.agenda-event-card {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: grab;
+  user-select: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: box-shadow 0.15s ease, opacity 0.1s ease;
+  z-index: 2;
+  border-left: 3px solid transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.agenda-event-card:active {
+  cursor: grabbing;
+}
+
+.agenda-event-card.status-a-fazer {
+  background: #e8f0fe;
+  border-left-color: #1a73e8;
+  color: #1558b0;
+}
+
+.agenda-event-card.status-feito {
+  background: #e6f4ea;
+  border-left-color: #34a853;
+  color: #1e8e3e;
+  opacity: 0.8;
+}
+
+.agenda-event-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 3;
+}
+
+.agenda-event-card.is-dragging {
+  opacity: 0.75;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  cursor: grabbing;
+}
+
+.agenda-event-card.is-resizing {
+  z-index: 100;
+}
+
+.agenda-event-card__name {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.agenda-event-card__time {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 1px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.agenda-event-card__resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agenda-event-card__resize-handle::before {
+  content: '';
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+.agenda-event-card__resize-handle:hover::before {
+  opacity: 0.6;
+}

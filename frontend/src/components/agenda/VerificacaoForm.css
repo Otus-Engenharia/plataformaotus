@@ -1,0 +1,381 @@
+/* ============================
+   Formulário de Verificação
+   Layout: 2 colunas (esquerda: campos, direita: lista de tasks)
+   ============================ */
+
+.verificacao-form {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+}
+
+/* ============================
+   Coluna esquerda — campos
+   ============================ */
+
+.verificacao-form__left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 20px;
+  border-right: 1px solid #e8eaed;
+}
+
+/* ============================
+   Coluna direita — lista de tasks
+   ============================ */
+
+.verificacao-form__right {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  padding-left: 20px;
+}
+
+.verificacao-form__tasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.verificacao-form__tasks-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.verificacao-form__tasks-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  user-select: none;
+}
+
+.verificacao-form__tasks-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #10b981;
+  cursor: pointer;
+}
+
+/* Lista de tasks */
+.verificacao-form__tasks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 340px;
+}
+
+.verificacao-form__task-item {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.verificacao-form__task-item:last-child {
+  border-bottom: none;
+}
+
+.verificacao-form__task-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  border-radius: 6px;
+}
+
+.verificacao-form__task-label:hover {
+  background: #f8f9fa;
+}
+
+.verificacao-form__task-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #10b981;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.verificacao-form__task-index {
+  font-size: 12px;
+  color: #9aa0a6;
+  font-family: 'DM Sans', sans-serif;
+  flex-shrink: 0;
+  min-width: 18px;
+}
+
+.verificacao-form__task-name {
+  font-size: 12px;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.4;
+}
+
+/* Botão de ação */
+.verificacao-form__submit-btn {
+  margin-top: 16px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #10b981;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.verificacao-form__submit-btn:hover {
+  background: #059669;
+}
+
+.verificacao-form__submit-btn:active {
+  transform: scale(0.98);
+}
+
+.verificacao-form__submit-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============================
+   Loading
+   ============================ */
+
+.verificacao-form__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  font-size: 13px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.verificacao-form__loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e8eaed;
+  border-top-color: #10b981;
+  border-radius: 50%;
+  animation: verificacao-spin 0.6s linear infinite;
+}
+
+@keyframes verificacao-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================
+   Campos (compartilhado)
+   ============================ */
+
+.verificacao-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.verificacao-form__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.verificacao-form__optional {
+  font-weight: 400;
+  color: #9aa0a6;
+}
+
+.verificacao-form__input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #1a1a1a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.verificacao-form__input::placeholder {
+  color: #9aa0a6;
+}
+
+.verificacao-form__input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Datas lado a lado */
+.verificacao-form__dates {
+  display: flex;
+  gap: 12px;
+}
+
+.verificacao-form__field--half {
+  flex: 1;
+  min-width: 0;
+}
+
+.verificacao-form__readonly {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  background: #f8f9fa;
+  min-height: 36px;
+}
+
+.verificacao-form__readonly-date {
+  font-size: 13px;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+}
+
+.verificacao-form__readonly-time {
+  font-size: 13px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ============================
+   Overrides: SearchableSelect
+   ============================ */
+
+.verificacao-form .searchable-select-trigger {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  background: #ffffff;
+  min-height: 36px;
+}
+
+.verificacao-form .searchable-select-trigger:hover {
+  border-color: #dadce0;
+}
+
+.verificacao-form .searchable-select-trigger.open {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.verificacao-form .searchable-select-dropdown {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.verificacao-form .searchable-select-option.selected {
+  background: rgba(16, 185, 129, 0.08);
+  color: #10b981;
+}
+
+/* ============================
+   Overrides: MultiSelectDropdown
+   ============================ */
+
+.verificacao-form .multi-select .multi-select-trigger {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  background: #ffffff;
+  min-height: 36px;
+}
+
+.verificacao-form .multi-select .multi-select-trigger:hover {
+  border-color: #dadce0;
+}
+
+.verificacao-form .multi-select .multi-select-trigger.open {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.verificacao-form .multi-select .multi-select-dropdown {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  z-index: 1100;
+}
+
+.verificacao-form .multi-select .multi-select-placeholder {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #9aa0a6;
+}
+
+.verificacao-form .multi-select .multi-select-count {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.verificacao-form .multi-select .multi-select-search input {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  border-color: #e8eaed;
+}
+
+.verificacao-form .multi-select .multi-select-search input:focus {
+  border-color: #10b981;
+}
+
+.verificacao-form .multi-select li.multi-select-option {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  padding: 0.5rem 0.75rem;
+}
+
+.verificacao-form .multi-select li.multi-select-option.selected {
+  background: rgba(16, 185, 129, 0.08);
+  font-weight: 500;
+}
+
+.verificacao-form .multi-select .multi-select-empty {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.verificacao-form .multi-select .multi-select-chip {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 2px 8px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.verificacao-form .multi-select .multi-select-chip-remove {
+  color: #059669;
+}
+
+.verificacao-form .multi-select .multi-select-chip-remove:hover {
+  color: #dc2626;
+}

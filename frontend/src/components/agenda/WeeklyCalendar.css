@@ -1,0 +1,214 @@
+/* ============================
+   Weekly Calendar Container (tema claro)
+   ============================ */
+
+.weekly-calendar {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: #ffffff;
+  /* Sem borda/radius no topo — conecta visualmente ao toolbar acima */
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+  border: 1px solid #dadce0;
+  border-top: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* ============================
+   Header: dias da semana
+   ============================ */
+
+.weekly-calendar__header {
+  display: grid;
+  grid-template-columns: 52px repeat(7, 1fr);
+  border-top: 1px solid #dadce0;
+  border-bottom: 1px solid #dadce0;
+  background: #ffffff;
+  /* sticky dentro do .weekly-calendar (fora do scroll container) */
+  flex-shrink: 0;
+}
+
+.weekly-calendar__header-gutter {
+  border-right: 1px solid #e8eaed;
+}
+
+.weekly-calendar__day-header {
+  padding: 10px 4px 8px;
+  text-align: center;
+  border-right: 1px solid #e8eaed;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.weekly-calendar__day-header:last-child {
+  border-right: none;
+}
+
+.weekly-calendar__day-header:hover {
+  background: #f8f9fa;
+}
+
+.weekly-calendar__day-header.is-today {
+  background: rgba(255, 221, 0, 0.04);
+}
+
+.weekly-calendar__day-header.is-selected {
+  background: rgba(255, 221, 0, 0.07);
+}
+
+.weekly-calendar__day-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: #70757a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.weekly-calendar__day-number {
+  font-size: 18px;
+  font-weight: 400;
+  color: #3c4043;
+  margin-top: 2px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin: 2px auto 0;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.weekly-calendar__day-header.is-today .weekly-calendar__day-number {
+  background: #ffdd00;
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.weekly-calendar__day-header.is-selected:not(.is-today) .weekly-calendar__day-number {
+  background: rgba(255, 221, 0, 0.2);
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* ============================
+   Corpo com scroll
+   ============================ */
+
+.weekly-calendar__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #dadce0 transparent;
+}
+
+.weekly-calendar__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.weekly-calendar__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.weekly-calendar__body::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 3px;
+}
+
+/* ============================
+   Grade: horas × colunas
+   ============================ */
+
+.weekly-calendar__grid {
+  display: grid;
+  grid-template-columns: 52px repeat(7, 1fr);
+  position: relative;
+}
+
+/* Coluna de horas */
+.weekly-calendar__hour-gutter {
+  border-right: 1px solid #e8eaed;
+}
+
+.weekly-calendar__hour-label {
+  height: 72px; /* 2 slots × 36px */
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-right: 8px;
+  padding-top: 4px;
+  font-size: 10px;
+  color: #70757a;
+  font-family: 'DM Sans', sans-serif;
+  box-sizing: border-box;
+  border-right: 1px solid #e8eaed;
+}
+
+/* Coluna de dia */
+.weekly-calendar__day-col {
+  position: relative;
+  border-right: 1px solid #e8eaed;
+}
+
+.weekly-calendar__day-col:last-child {
+  border-right: none;
+}
+
+.weekly-calendar__day-col.is-today {
+  background: rgba(255, 221, 0, 0.025);
+}
+
+/* Slots de 30 min */
+.weekly-calendar__slot {
+  height: 36px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  position: relative;
+}
+
+/* Separador de hora (slot ímpars: início de hora completa) */
+.weekly-calendar__slot:nth-child(odd) {
+  border-top: 1px solid #e8eaed;
+}
+
+/* Separador de meia hora (slots pares: meia hora) */
+.weekly-calendar__slot:nth-child(even) {
+  border-top: 1px dashed #f1f3f4;
+}
+
+.weekly-calendar__slot:hover {
+  background: rgba(0, 0, 0, 0.025);
+}
+
+/* ============================
+   Linha de hora atual
+   ============================ */
+
+.weekly-calendar__now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e8291c;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.weekly-calendar__now-line::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e8291c;
+}

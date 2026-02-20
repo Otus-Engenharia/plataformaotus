@@ -8,6 +8,7 @@ import { createRoutes as createFeedbackRoutes } from './feedbacks.js';
 import { createRoutes as createDemandaRoutes } from './demandas.js';
 import { createRoutes as createEstudoCustoRoutes } from './estudos-custos.js';
 import { createRoutes as createProjetoRoutes } from './projetos.js';
+import { createRoutes as createAgendaRoutes } from './agenda.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -34,5 +35,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const projetoRoutes = createProjetoRoutes(requireAuth, canAccessFormularioPassagem, logAction);
   app.use('/api/projetos', projetoRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos');
+  // Rotas de Agenda (DDD)
+  const agendaRoutes = createAgendaRoutes(requireAuth, logAction);
+  app.use('/api/agenda/tasks', agendaRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks');
 }
