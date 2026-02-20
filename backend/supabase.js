@@ -2740,6 +2740,7 @@ export async function fetchUsersWithRoles() {
       team:team_id(id, team_number, team_name)
     `)
     .eq('status', 'ativo')
+    .eq('is_active', true)
     .order('name', { ascending: true });
 
   if (error) {
