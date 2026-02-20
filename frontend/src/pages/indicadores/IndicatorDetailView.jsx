@@ -6,7 +6,8 @@ import {
   calculateAccumulatedProgress,
   formatValue,
   getMonthsForCycle,
-  getCycleMonthRange
+  getCycleMonthRange,
+  isMeasurementMonth
 } from '../../utils/indicator-utils';
 import ScoreZoneGauge from '../../components/indicadores/ScoreZoneGauge';
 import CreateCheckInDialog from '../../components/indicadores/dialogs/CreateCheckInDialog';
@@ -511,11 +512,17 @@ export default function IndicatorDetailView() {
       const { start, end } = getCycleMonthRange(selectedQuarter);
       months = months.filter(m => m.value >= start && m.value <= end);
     }
+    // Filtrar apenas meses de medição para a frequência (ex: semestral → só Jun e Dez)
+    const freq = indicador?.frequencia || 'mensal';
+    if (freq !== 'mensal') {
+      months = months.filter(m => isMeasurementMonth(m.value, freq));
+    }
     const yearCheckIns = checkIns.filter(c => c.ano === selectedYear);
 
     return months.map(m => {
       const checkIn = yearCheckIns.find(c => c.mes === m.value);
-      const target = parseFloat(indicador?.monthly_targets?.[m.value]) || parseFloat(indicador?.meta) || 0;
+      const mt = indicador?.monthly_targets?.[m.value];
+      const target = mt != null ? parseFloat(mt) : (parseFloat(indicador?.meta) || 0);
       const min = target * ratio80;
       const max = target * ratio120;
 
@@ -595,10 +602,11 @@ export default function IndicatorDetailView() {
   // Auto: calculado dos check-ins/metas; Manual: valores salvos no indicador
   const realizadoValue = isAutoCalc ? autoAccumulated.realizado : (indicador.realizado_acumulado ?? 0);
   const planejadoValue = isAutoCalc ? autoAccumulated.planejado : (indicador.planejado_acumulado ?? 0);
-  const score = planejadoValue > 0
+  const hasCheckIns = isAutoCalc ? autoAccumulated.hasData : true;
+  const score = planejadoValue > 0 && hasCheckIns
     ? calculateIndicatorScore(realizadoValue, planejadoValue * 0.8, planejadoValue, planejadoValue * 1.2, indicador.is_inverse)
-    : 0;
-  const scoreColor = getScoreColor(score);
+    : null;
+  const scoreColor = score !== null ? getScoreColor(score) : 'neutral';
 
   // Range acumulado
   const accMin = planejadoValue * ratio80;
@@ -616,8 +624,8 @@ export default function IndicatorDetailView() {
         </button>
 
         <div className={`score-badge score-badge--${scoreColor}`}>
-          <span className="score-badge__value">{score.toFixed(0)}</span>
-          <span className="score-badge__trend">{getScoreLabel(score)}</span>
+          <span className="score-badge__value">{score !== null ? score.toFixed(0) : '--'}</span>
+          <span className="score-badge__trend">{score !== null ? getScoreLabel(score) : 'Sem dados'}</span>
         </div>
       </header>
 
@@ -710,7 +718,7 @@ export default function IndicatorDetailView() {
             </div>
           </div>
 
-          <div className={`kpi-block kpi-block--accent-${getScoreColor(score)}`}>
+          <div className={`kpi-block kpi-block--accent-${scoreColor}`}>
             <div className="kpi-label-row">
               <span className="kpi-label">{cLabels.realizado}</span>
               {isAutoCalc ? (
@@ -737,7 +745,7 @@ export default function IndicatorDetailView() {
               />
             )}
             <span className={`kpi-score kpi-score--${scoreColor}`}>
-              Score: {score.toFixed(0)}
+              Score: {score !== null ? score.toFixed(0) : '--'}
             </span>
             {planejadoValue > 0 && (
               <MonthRangeBar

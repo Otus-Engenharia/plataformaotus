@@ -459,6 +459,7 @@
 .ind-card--success::before { background: var(--color-success); }
 .ind-card--warning::before { background: var(--color-warning); }
 .ind-card--danger::before  { background: var(--color-danger); }
+.ind-card--neutral::before { background: #9CA3AF; }
 
 .ind-card:hover {
   border-color: var(--color-border-hover);
@@ -665,6 +666,10 @@
   color: var(--color-danger);
 }
 
+.ind-card--neutral .ind-card__metric--realizado .ind-card__metric-value {
+  color: #9CA3AF;
+}
+
 /* Planejado stays muted */
 .ind-card__metric--planejado .ind-card__metric-value {
   color: var(--color-text-secondary);
@@ -689,6 +694,7 @@
 .ind-card__progress-fill--success { background: var(--color-success); }
 .ind-card__progress-fill--warning { background: var(--color-warning); }
 .ind-card__progress-fill--danger  { background: var(--color-danger); }
+.ind-card__progress-fill--neutral { background: #9CA3AF; }
 
 .ind-card__progress-label {
   position: absolute;

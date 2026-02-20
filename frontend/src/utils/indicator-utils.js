@@ -192,6 +192,23 @@ export function getCycleMonthRange(cycle) {
 }
 
 /**
+ * Meses de medição por frequência
+ */
+export const FREQ_MONTHS = {
+  mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  trimestral: [3, 6, 9, 12],
+  semestral: [6, 12],
+  anual: [12],
+};
+
+/**
+ * Retorna se um mês é mês de medição para a frequência
+ */
+export function isMeasurementMonth(month, frequencia = 'mensal') {
+  return (FREQ_MONTHS[frequencia] || FREQ_MONTHS.mensal).includes(month);
+}
+
+/**
  * Verifica se um indicador tem meses ativos dentro de um ciclo
  * Usado para esconder indicadores semestrais/anuais em trimestres sem medição
  * @param {Object} indicador - Indicador com frequencia, active_quarters, mes_inicio
@@ -206,12 +223,6 @@ export function hasActiveMonthsInCycle(indicador, ciclo) {
   const mesInicio = indicador.mes_inicio || 1;
   const aq = indicador.active_quarters || { q1: true, q2: true, q3: true, q4: true };
 
-  const FREQ_MONTHS = {
-    mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    trimestral: [3, 6, 9, 12],
-    semestral: [6, 12],
-    anual: [12],
-  };
   const visibleMonths = FREQ_MONTHS[frequencia] || FREQ_MONTHS.mensal;
 
   for (let m = start; m <= end; m++) {
@@ -533,7 +544,7 @@ export function calculateKRProgress(kr, checkIns = []) {
  * @returns {{ planejado: number, realizado: number, scoreAcumulado: number }}
  */
 export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMonth) {
-  if (!indicador) return { planejado: 0, realizado: 0, scoreAcumulado: 0 };
+  if (!indicador) return { planejado: 0, realizado: 0, scoreAcumulado: null, hasData: false };
 
   const { start, end } = getCycleMonthRange(indicador.ciclo || 'anual');
   const consolidationType = indicador.consolidation_type || 'last_value';
@@ -542,7 +553,8 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
   // Calcular "Acumulado Planejado" ate o mes atual
   let planejado = 0;
   for (let m = start; m <= Math.min(currentMonth, end); m++) {
-    const target = parseFloat(monthlyTargets[m]) || parseFloat(indicador.meta) || 0;
+    const mt = monthlyTargets[m];
+    const target = mt != null ? parseFloat(mt) : (parseFloat(indicador.meta) || 0);
     if (consolidationType === 'sum') {
       planejado += target;
     } else {
@@ -569,7 +581,9 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
   }
 
   // Score acumulado com thresholds proporcionais
-  const scoreAcumulado = planejado > 0
+  // Retorna null quando não há check-ins (sem dados) para distinguir de "zerado" (valor 0 real)
+  const hasData = relevantCheckIns.length > 0;
+  const scoreAcumulado = planejado > 0 && hasData
     ? calculateIndicatorScore(
         realizado,
         planejado * 0.8,
@@ -577,9 +591,9 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
         planejado * 1.2,
         indicador.is_inverse
       )
-    : 0;
+    : null;
 
-  return { planejado, realizado, scoreAcumulado };
+  return { planejado, realizado, scoreAcumulado, hasData };
 }
 
 /**

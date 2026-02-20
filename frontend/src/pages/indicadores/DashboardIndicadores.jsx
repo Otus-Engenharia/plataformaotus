@@ -15,6 +15,7 @@ import {
   getCycleLabel,
   getCycleMonthRange,
   hasActiveMonthsInCycle,
+  isMeasurementMonth,
   parseAcoes,
 } from '../../utils/indicator-utils';
 import ScoreZoneGauge, { ScoreRing } from '../../components/indicadores/ScoreZoneGauge';
@@ -32,10 +33,13 @@ const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Se
  */
 function getIndicatorMonthlyData(indicador, ciclo, ano) {
   const { start, end } = getCycleMonthRange(ciclo);
+  const freq = indicador.frequencia || 'mensal';
   const months = [];
   for (let m = start; m <= end; m++) {
+    if (!isMeasurementMonth(m, freq)) continue;
     const checkIn = (indicador.check_ins || []).find(ci => ci.mes === m && ci.ano === ano);
-    const target = parseFloat(indicador.monthly_targets?.[m]) || parseFloat(indicador.meta) || 0;
+    const mt = indicador.monthly_targets?.[m];
+    const target = mt != null ? parseFloat(mt) : (parseFloat(indicador.meta) || 0);
     const value = checkIn ? parseFloat(checkIn.valor) : null;
     const t80 = target * 0.8;
     const t120 = target * 1.2;
@@ -88,7 +92,7 @@ function getActivePlans(indicador) {
 // Indicator Card v2 — Premium KPI Storytelling Card
 // ────────────────────────────────────────────────────────────
 function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
-  const acc = accumulatedData || { realizado: 0, planejado: 0, score: 0 };
+  const acc = accumulatedData || { realizado: 0, planejado: 0, score: null };
   const score = acc.score;
   const metaFormatada = formatValue(indicador.meta, indicador.metric_type);
   const realizadoFormatado = formatValue(acc.realizado, indicador.metric_type);
@@ -98,6 +102,7 @@ function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
   const activePlans = getActivePlans(indicador);
 
   const getStatus = () => {
+    if (score === null || score === undefined) return 'neutral';
     if (score >= 100) return 'success';
     if (score >= 80) return 'warning';
     return 'danger';
@@ -136,7 +141,7 @@ function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData }) {
         <ScoreRing score={score} size={56} />
         <div className="ind-card__result-info">
           <span className={`ind-card__zone-label ind-card__zone-label--${getScoreZoneId(score)}`}>
-            {score >= 120 ? 'Superou' : score >= 100 ? 'No alvo' : score >= 80 ? 'Em risco' : 'Zerado'}
+            {score === null ? 'Sem dados' : score >= 120 ? 'Superou' : score >= 100 ? 'No alvo' : score >= 80 ? 'Em risco' : 'Zerado'}
           </span>
           <span className="ind-card__peso-tag">
             Peso {indicador.peso || 1}
@@ -467,18 +472,26 @@ export default function DashboardIndicadores() {
       const isAutoCalc = ind.auto_calculate !== false;
       const realizado = isAutoCalc ? acc.realizado : (ind.realizado_acumulado ?? 0);
       const planejado = isAutoCalc ? acc.planejado : (ind.planejado_acumulado ?? 0);
-      const score = planejado > 0
+      const hasCheckIns = isAutoCalc ? acc.hasData : true;
+      const score = planejado > 0 && hasCheckIns
         ? calculateIndicatorScore(realizado, planejado * 0.8, planejado, planejado * 1.2, ind.is_inverse)
-        : 0;
-      map[ind.id] = { realizado, planejado, score };
+        : null;
+      map[ind.id] = { realizado, planejado, score, hasCheckIns };
     }
     return map;
   }, [indicadoresNoCiclo, ano, currentMonth]);
 
-  const indicadoresEmRisco = indicadoresNoCiclo.filter(
-    ind => (accumulatedMap[ind.id]?.score || 0) < 100
-  );
-  const indicadoresFiltrados = filtroEmRisco ? indicadoresEmRisco : indicadoresNoCiclo;
+  // Ocultar indicadores sem medição no período atual (planejado=0, ex: semestral no Q1)
+  const indicadoresVisiveis = indicadoresNoCiclo.filter(ind => {
+    const acc = accumulatedMap[ind.id];
+    return acc && (acc.planejado > 0 || ind.auto_calculate === false);
+  });
+
+  const indicadoresEmRisco = indicadoresVisiveis.filter(ind => {
+    const s = accumulatedMap[ind.id]?.score;
+    return s != null && s < 100;
+  });
+  const indicadoresFiltrados = filtroEmRisco ? indicadoresEmRisco : indicadoresVisiveis;
 
   const usedTemplateIds = new Set(indicadores.map(i => i.template_id).filter(Boolean));
   const availableTemplates = templates.filter(t => !usedTemplateIds.has(t.id));
@@ -572,7 +585,7 @@ export default function DashboardIndicadores() {
             </div>
             <div className="farol-card__summary-badges">
               <span className="farol-badge farol-badge--subtitle">
-                Resultado ponderado de {indicadoresNoCiclo.length} indicador{indicadoresNoCiclo.length !== 1 ? 'es' : ''}
+                Resultado ponderado de {indicadoresVisiveis.length} indicador{indicadoresVisiveis.length !== 1 ? 'es' : ''}
               </span>
             </div>
           </div>
@@ -618,7 +631,7 @@ export default function DashboardIndicadores() {
           </div>
         </div>
 
-        {indicadoresNoCiclo.length === 0 ? (
+        {indicadoresVisiveis.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state__icon">
               <svg viewBox="0 0 24 24" width="64" height="64">
