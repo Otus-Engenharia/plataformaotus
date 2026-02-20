@@ -113,6 +113,37 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+/* Toggle Horas úteis / Completa */
+.agenda-view__view-toggle {
+  display: flex;
+  border: 1px solid #dadce0;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.agenda-view__view-btn {
+  padding: 5px 14px;
+  background: transparent;
+  border: none;
+  color: #5f6368;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.agenda-view__view-btn.is-active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  font-weight: 600;
+}
+
+.agenda-view__view-btn:hover:not(.is-active) {
+  background: #f1f3f4;
+  color: #3c4043;
+}
+
 /* Spacer */
 .agenda-view__spacer {
   flex: 1;

@@ -15,6 +15,7 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
 
   const isDraggingRef = useRef(false);
   const isResizingRef = useRef(false);
+  const didDragRef = useRef(false);
 
   const statusClass = task.status === 'feito' ? 'status-feito' : 'status-a-fazer';
 
@@ -23,6 +24,15 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
       if (!dragRef.current) return;
 
       const { type, startY, startX, origStartDate, origDueDate, origHeightPx } = dragRef.current;
+
+      // Marcar como drag real se moveu mais que 5px
+      if (!didDragRef.current) {
+        const dx = Math.abs(e.clientX - startX);
+        const dy = Math.abs(e.clientY - startY);
+        if (dx > 5 || dy > 5) {
+          didDragRef.current = true;
+        }
+      }
 
       if (type === 'move') {
         const deltaY = e.clientY - startY;
@@ -126,6 +136,7 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
     if (e.target.closest('.agenda-event-card__resize-handle')) return;
 
     isDraggingRef.current = true;
+    didDragRef.current = false;
     dragRef.current = {
       type: 'move',
       startY: e.clientY,
@@ -142,6 +153,7 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
     e.preventDefault();
 
     isResizingRef.current = true;
+    didDragRef.current = false;
     dragRef.current = {
       type: 'resize',
       startY: e.clientY,
@@ -151,9 +163,19 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
   };
 
   const handleClick = (e) => {
-    if (isDraggingRef.current || isResizingRef.current) return;
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      return;
+    }
     if (onEventClick) onEventClick(task);
   };
+
+  const handleMarkDone = (e) => {
+    e.stopPropagation();
+    onEventUpdate(task.id, { status: 'feito' });
+  };
+
+  const isFeito = task.status === 'feito';
 
   return (
     <div
@@ -164,6 +186,19 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
       onClick={handleClick}
       title={`${task.name}\n${formatTime(task.start_date)} – ${formatTime(task.due_date)}`}
     >
+      {!isFeito && (
+        <button
+          type="button"
+          className="agenda-event-card__check"
+          onClick={handleMarkDone}
+          onMouseDown={(e) => e.stopPropagation()}
+          title="Marcar como feito"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+      )}
       <div className="agenda-event-card__name">{task.name}</div>
       {heightPx >= 48 && (
         <div className="agenda-event-card__time">

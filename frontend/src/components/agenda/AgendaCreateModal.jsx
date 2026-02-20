@@ -3,6 +3,11 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import axios from 'axios';
 import VerificacaoForm from './VerificacaoForm';
+import CoordenacaoForm from './CoordenacaoForm';
+import CompatibilizacaoForm from './CompatibilizacaoForm';
+import TecnologiaForm from './TecnologiaForm';
+import ApoioProjetosForm from './ApoioProjetosForm';
+import TarefasOtusForm from './TarefasOtusForm';
 import './AgendaCreateModal.css';
 
 const ACTIVITY_TYPES = [
@@ -118,7 +123,7 @@ function AgendaCreateModal({ isOpen, onClose, selectedDate, onTaskCreated }) {
     setStep('type-select');
   };
 
-  const handleVerificacaoSubmit = async (data) => {
+  const handleFormSubmit = async (data) => {
     setSubmitting(true);
     try {
       const res = await axios.post('/api/agenda/tasks', data, { withCredentials: true });
@@ -127,7 +132,7 @@ function AgendaCreateModal({ isOpen, onClose, selectedDate, onTaskCreated }) {
       }
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'Erro desconhecido';
-      console.error('Erro ao criar tarefa de verificação:', msg);
+      console.error('Erro ao criar tarefa:', msg);
       alert(`Erro ao criar atividade: ${msg}`);
     } finally {
       setSubmitting(false);
@@ -138,7 +143,7 @@ function AgendaCreateModal({ isOpen, onClose, selectedDate, onTaskCreated }) {
 
   return (
     <div className="agenda-modal__overlay" onClick={onClose}>
-      <div className={`agenda-modal${step === 'form' ? ' agenda-modal--wide' : ''}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`agenda-modal${step === 'form' && selectedType === 'verificacao' ? ' agenda-modal--wide' : ''}${step === 'form' && selectedType !== 'verificacao' ? ' agenda-modal--medium' : ''}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <header className="agenda-modal__header">
           <div className="agenda-modal__header-left">
@@ -192,22 +197,49 @@ function AgendaCreateModal({ isOpen, onClose, selectedDate, onTaskCreated }) {
           {step === 'form' && typeObj && selectedType === 'verificacao' && (
             <VerificacaoForm
               selectedDate={selectedDate}
-              onSubmit={handleVerificacaoSubmit}
+              onSubmit={handleFormSubmit}
               submitting={submitting}
             />
           )}
 
-          {step === 'form' && typeObj && selectedType !== 'verificacao' && (
-            <div className="agenda-modal__form-placeholder">
-              <span
-                className="agenda-modal__form-placeholder-icon"
-                style={{ color: typeObj.color }}
-              >
-                {typeObj.icon}
-              </span>
-              <p>Formulário de <strong>{typeObj.label}</strong></p>
-              <span className="agenda-modal__form-placeholder-hint">Em desenvolvimento</span>
-            </div>
+          {step === 'form' && typeObj && selectedType === 'coordenacao' && (
+            <CoordenacaoForm
+              selectedDate={selectedDate}
+              onSubmit={handleFormSubmit}
+              submitting={submitting}
+            />
+          )}
+
+          {step === 'form' && typeObj && selectedType === 'compatibilizacao' && (
+            <CompatibilizacaoForm
+              selectedDate={selectedDate}
+              onSubmit={handleFormSubmit}
+              submitting={submitting}
+            />
+          )}
+
+          {step === 'form' && typeObj && selectedType === 'tecnologia' && (
+            <TecnologiaForm
+              selectedDate={selectedDate}
+              onSubmit={handleFormSubmit}
+              submitting={submitting}
+            />
+          )}
+
+          {step === 'form' && typeObj && selectedType === 'apoio-projetos' && (
+            <ApoioProjetosForm
+              selectedDate={selectedDate}
+              onSubmit={handleFormSubmit}
+              submitting={submitting}
+            />
+          )}
+
+          {step === 'form' && typeObj && selectedType === 'tarefas-otus' && (
+            <TarefasOtusForm
+              selectedDate={selectedDate}
+              onSubmit={handleFormSubmit}
+              submitting={submitting}
+            />
           )}
         </div>
       </div>

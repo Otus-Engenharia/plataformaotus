@@ -23,7 +23,7 @@
 
 .weekly-calendar__header {
   display: grid;
-  grid-template-columns: 52px repeat(7, 1fr);
+  grid-template-columns: 52px repeat(var(--day-count, 7), 1fr);
   border-top: 1px solid #dadce0;
   border-bottom: 1px solid #dadce0;
   background: #ffffff;
@@ -128,7 +128,7 @@
 
 .weekly-calendar__grid {
   display: grid;
-  grid-template-columns: 52px repeat(7, 1fr);
+  grid-template-columns: 52px repeat(var(--day-count, 7), 1fr);
   position: relative;
 }
 

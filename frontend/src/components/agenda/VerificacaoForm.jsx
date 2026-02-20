@@ -3,7 +3,6 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import axios from 'axios';
 import SearchableSelect from '../SearchableSelect';
-import MultiSelectDropdown from '../formulario-passagem/MultiSelectDropdown';
 import './VerificacaoForm.css';
 
 const TIPO_OPTIONS = [
@@ -50,12 +49,14 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
   const [tipoVerificacao, setTipoVerificacao] = useState('lancamento');
   const [fase, setFase] = useState('');
   const [disciplinaId, setDisciplinaId] = useState('');
-  const [projetoIds, setProjetoIds] = useState([]);
+  const [projetoId, setProjetoId] = useState('');
   const [nomeTarefa, setNomeTarefa] = useState('');
   const [horaTermino, setHoraTermino] = useState('');
+  const [showFavorites, setShowFavorites] = useState(true);
 
   const [disciplines, setDisciplines] = useState([]);
-  const [projects, setProjects] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
+  const [favoriteProjects, setFavoriteProjects] = useState([]);
   const [standardTasks, setStandardTasks] = useState([]);
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -65,9 +66,10 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
     async function fetchFormData() {
       setLoadingData(true);
       try {
-        const [discRes, projRes, tasksRes] = await Promise.all([
+        const [discRes, projRes, favRes, tasksRes] = await Promise.all([
           axios.get('/api/agenda/tasks/form/disciplines', { withCredentials: true }),
           axios.get('/api/agenda/tasks/form/projects', { withCredentials: true }),
+          axios.get('/api/agenda/tasks/form/favorite-projects', { withCredentials: true }),
           axios.get('/api/agenda/tasks/form/standard-tasks', {
             params: { standardAgendaTaskId: VERIFICACAO_STANDARD_AGENDA_TASK_ID },
             withCredentials: true,
@@ -78,7 +80,10 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
           setDisciplines(discRes.data.data || []);
         }
         if (projRes.data.success) {
-          setProjects(projRes.data.data || []);
+          setAllProjects(projRes.data.data || []);
+        }
+        if (favRes.data.success) {
+          setFavoriteProjects(favRes.data.data || []);
         }
         if (tasksRes.data.success) {
           const tasks = tasksRes.data.data || [];
@@ -108,13 +113,23 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
     return opts;
   }, [disciplines]);
 
-  // Opções de projeto
+  // Projetos ativos (favoritos ou todos)
+  const activeProjects = showFavorites ? favoriteProjects : allProjects;
+
   const projectOptions = useMemo(() => {
-    return projects.map((p) => ({
-      value: String(p.id),
-      label: p.comercial_name ? `${p.name} (${p.comercial_name})` : p.name,
-    }));
-  }, [projects]);
+    return activeProjects
+      .slice()
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'))
+      .map((p) => ({
+        value: String(p.id),
+        label: p.comercial_name ? `${p.name} (${p.comercial_name})` : p.name,
+      }));
+  }, [activeProjects]);
+
+  const handleToggleSource = useCallback(() => {
+    setShowFavorites((prev) => !prev);
+    setProjetoId('');
+  }, []);
 
   // Opções de horário de término
   const endTimeOptions = useMemo(() => {
@@ -183,7 +198,7 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
       phase: fase || null,
       related_discipline_id: disciplinaId === 'geral' ? null : (disciplinaId ? Number(disciplinaId) : null),
       standard_agenda_task: VERIFICACAO_STANDARD_AGENDA_TASK_ID,
-      project_ids: projetoIds.map(Number),
+      project_ids: projetoId ? [Number(projetoId)] : [],
       selected_standard_tasks: selectedTasks.map(t => ({ id: t.id, name: t.name })),
     });
   };
@@ -235,13 +250,40 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
         </div>
 
         <div className="verificacao-form__field">
-          <label className="verificacao-form__label">Projeto</label>
-          <MultiSelectDropdown
+          <div className="verificacao-form__project-header">
+            <label className="verificacao-form__label">Projeto</label>
+            <div className="verificacao-form__toggle">
+              <button
+                type="button"
+                className={`verificacao-form__toggle-btn${showFavorites ? ' is-active' : ''}`}
+                onClick={() => { if (!showFavorites) handleToggleSource(); }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={showFavorites ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                Favoritos
+              </button>
+              <button
+                type="button"
+                className={`verificacao-form__toggle-btn${!showFavorites ? ' is-active' : ''}`}
+                onClick={() => { if (showFavorites) handleToggleSource(); }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" />
+                  <rect x="14" y="3" width="7" height="7" />
+                  <rect x="14" y="14" width="7" height="7" />
+                  <rect x="3" y="14" width="7" height="7" />
+                </svg>
+                Todos
+              </button>
+            </div>
+          </div>
+          <SearchableSelect
+            id="projeto-verificacao"
+            value={projetoId}
+            onChange={(e) => setProjetoId(e.target.value)}
             options={projectOptions}
-            selectedValues={projetoIds}
-            onChange={setProjetoIds}
-            placeholder="Selecione os projetos"
-            emptyMessage="Nenhum projeto disponível"
+            placeholder={showFavorites ? 'Selecione entre seus favoritos' : 'Selecione o projeto'}
           />
         </div>
 

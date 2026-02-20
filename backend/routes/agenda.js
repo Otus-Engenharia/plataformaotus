@@ -77,6 +77,79 @@ function createRoutes(requireAuth, logAction) {
   });
 
   /**
+   * GET /api/agenda/tasks/form/standard-agenda-tasks
+   * Retorna grupos de atividades padrão filtrados por position
+   * Query params: position (ex: 'coordenação' ou 'digital,time bim' para múltiplos)
+   */
+  router.get('/form/standard-agenda-tasks', requireAuth, async (req, res) => {
+    try {
+      const { position } = req.query;
+
+      if (!position) {
+        return res.status(400).json({
+          success: false,
+          error: 'O parâmetro position é obrigatório',
+        });
+      }
+
+      const positions = position.split(',').map(p => p.trim()).filter(Boolean);
+
+      const supabase = getSupabaseClient();
+      let query = supabase
+        .from('standard_agenda_task')
+        .select('id, name')
+        .eq('status', 'ativo')
+        .order('name', { ascending: true });
+
+      if (positions.length === 1) {
+        query = query.eq('position', positions[0]);
+      } else {
+        query = query.in('position', positions);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw new Error(`Erro ao buscar atividades padrão: ${error.message}`);
+
+      res.json({ success: true, data: data || [] });
+    } catch (error) {
+      console.error('❌ Erro ao buscar standard_agenda_task:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/agenda/tasks/form/favorite-projects
+   * Retorna projetos favoritados pelo usuário logado
+   */
+  router.get('/form/favorite-projects', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Usuário não autenticado' });
+      }
+
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('project_favorites')
+        .select('project_id, projects(id, name, project_code, comercial_name, status, sector)')
+        .eq('user_id', userId);
+
+      if (error) throw new Error(`Erro ao buscar projetos favoritos: ${error.message}`);
+
+      const projects = (data || [])
+        .map(row => row.projects)
+        .filter(p => p && p.sector === 'Projetos');
+
+      res.json({ success: true, data: projects });
+    } catch (error) {
+      console.error('❌ Erro ao buscar projetos favoritos:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * GET /api/agenda/tasks/form/projects
    * Retorna projetos disponíveis para seleção no formulário
    * Filtra: sector='Projetos'
@@ -180,6 +253,140 @@ function createRoutes(requireAuth, logAction) {
       res.json({ success: true, data: updated });
     } catch (error) {
       console.error('❌ Erro ao atualizar ToDo:', error);
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/agenda/tasks/:id/details
+   * Retorna dados complementares: nome da atividade padrão e projetos vinculados
+   */
+  router.get('/:id/details', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const supabase = getSupabaseClient();
+
+      // Buscar nome da atividade padrão (standard_agenda_task)
+      const getTask = new GetAgendaTask(repository);
+      const task = await getTask.execute(parseInt(id, 10));
+
+      let standardAgendaTaskName = null;
+      if (task?.standard_agenda_task) {
+        const { data: sat } = await supabase
+          .from('standard_agenda_task')
+          .select('name')
+          .eq('id', task.standard_agenda_task)
+          .single();
+        standardAgendaTaskName = sat?.name || null;
+      }
+
+      // Buscar projetos vinculados via agenda_projects
+      const { data: agendaProjects } = await supabase
+        .from('agenda_projects')
+        .select('project_id, projects(id, name, comercial_name)')
+        .eq('agenda_task_id', parseInt(id, 10));
+
+      const projects = (agendaProjects || [])
+        .map(row => row.projects)
+        .filter(Boolean);
+
+      res.json({
+        success: true,
+        data: {
+          standard_agenda_task_name: standardAgendaTaskName,
+          projects,
+        },
+      });
+    } catch (error) {
+      console.error('❌ Erro ao buscar detalhes da tarefa:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/agenda/tasks/:id/projects
+   * Adiciona projetos à atividade
+   * Body: { project_ids: [1, 2, 3] }
+   */
+  router.post('/:id/projects', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { project_ids } = req.body;
+
+      if (!project_ids?.length) {
+        return res.status(400).json({ success: false, error: 'project_ids é obrigatório' });
+      }
+
+      const supabase = getSupabaseClient();
+      const agendaTaskId = parseInt(id, 10);
+
+      // Buscar links existentes para não duplicar
+      const { data: existing } = await supabase
+        .from('agenda_projects')
+        .select('project_id')
+        .eq('agenda_task_id', agendaTaskId);
+
+      const existingIds = new Set((existing || []).map(r => r.project_id));
+      const newIds = project_ids.filter(pid => !existingIds.has(Number(pid)));
+
+      if (newIds.length > 0) {
+        const rows = newIds.map(pid => ({ agenda_task_id: agendaTaskId, project_id: Number(pid) }));
+        const { error } = await supabase.from('agenda_projects').insert(rows);
+        if (error) throw error;
+      }
+
+      // Retornar lista atualizada
+      const { data: updatedProjects } = await supabase
+        .from('agenda_projects')
+        .select('project_id, projects(id, name, comercial_name)')
+        .eq('agenda_task_id', agendaTaskId);
+
+      const projects = (updatedProjects || []).map(row => row.projects).filter(Boolean);
+
+      res.json({ success: true, data: projects });
+    } catch (error) {
+      console.error('❌ Erro ao adicionar projetos:', error);
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * DELETE /api/agenda/tasks/:id/projects/:projectId
+   * Remove um projeto da atividade (apenas se não tiver ToDo's vinculados)
+   */
+  router.delete('/:id/projects/:projectId', requireAuth, async (req, res) => {
+    try {
+      const { id, projectId } = req.params;
+      const supabase = getSupabaseClient();
+      const agendaTaskId = parseInt(id, 10);
+      const projId = parseInt(projectId, 10);
+
+      // Verificar se há ToDo's vinculados a esse projeto nessa agenda_task
+      const { data: linkedTodos } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('agenda_task_id', agendaTaskId)
+        .eq('project_id', projId)
+        .limit(1);
+
+      if (linkedTodos?.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Não é possível remover um projeto que possui ToDo\'s vinculados',
+        });
+      }
+
+      const { error } = await supabase
+        .from('agenda_projects')
+        .delete()
+        .eq('agenda_task_id', agendaTaskId)
+        .eq('project_id', projId);
+
+      if (error) throw error;
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('❌ Erro ao remover projeto:', error);
       res.status(400).json({ success: false, error: error.message });
     }
   });

@@ -1,0 +1,160 @@
+/* ============================
+   Formulário de Tarefas Otus
+   Layout: coluna única — accent yellow #eab308
+   ============================ */
+
+.otus-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.otus-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.otus-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.otus-form__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.otus-form__optional {
+  font-weight: 400;
+  color: #9aa0a6;
+}
+
+.otus-form__input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #1a1a1a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.otus-form__input::placeholder { color: #9aa0a6; }
+
+.otus-form__input:focus {
+  border-color: #eab308;
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.1);
+}
+
+/* Datas */
+.otus-form__dates { display: flex; gap: 12px; }
+.otus-form__field--half { flex: 1; min-width: 0; }
+
+.otus-form__readonly {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  background: #f8f9fa;
+  min-height: 36px;
+}
+
+.otus-form__readonly-date {
+  font-size: 13px;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+}
+
+.otus-form__readonly-time {
+  font-size: 13px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Submit */
+.otus-form__submit-btn {
+  margin-top: 4px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #eab308;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.otus-form__submit-btn:hover { background: #ca8a04; }
+.otus-form__submit-btn:active { transform: scale(0.98); }
+
+.otus-form__submit-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading */
+.otus-form__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  font-size: 13px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.otus-form__loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e8eaed;
+  border-top-color: #eab308;
+  border-radius: 50%;
+  animation: otus-spin 0.6s linear infinite;
+}
+
+@keyframes otus-spin { to { transform: rotate(360deg); } }
+
+/* SearchableSelect overrides */
+.otus-form .searchable-select-trigger {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  background: #ffffff;
+  min-height: 36px;
+}
+
+.otus-form .searchable-select-trigger:hover { border-color: #dadce0; }
+
+.otus-form .searchable-select-trigger.open {
+  border-color: #eab308;
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.1);
+}
+
+.otus-form .searchable-select-dropdown {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.otus-form .searchable-select-option.selected {
+  background: rgba(234, 179, 8, 0.08);
+  color: #ca8a04;
+}
