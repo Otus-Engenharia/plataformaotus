@@ -116,6 +116,11 @@
   color: white;
 }
 
+.score-badge--neutral .score-badge__value {
+  background: #e5e7eb;
+  color: #9CA3AF;
+}
+
 .score-badge__trend {
   font-size: 0.75rem;
   color: #999;
@@ -292,6 +297,7 @@
 .kpi-block--accent-warning { border-left: 4px solid #f59e0b; }
 .kpi-block--accent-success { border-left: 4px solid #22c55e; }
 .kpi-block--accent-excellent { border-left: 4px solid #1a1a1a; }
+.kpi-block--accent-neutral { border-left: 4px solid #9CA3AF; }
 
 .kpi-label {
   font-size: 0.6875rem;
