@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import PermissoesView from './PermissoesView';
 import OperacaoView from './OperacaoView';
 import ClientesView from './ClientesView';
+import DefaultWeightsAdmin from './curva-s-progresso/DefaultWeightsAdmin';
 import '../styles/ConfiguracoesView.css';
 
 function ConfiguracoesView() {
@@ -29,6 +30,7 @@ function ConfiguracoesView() {
       { id: 'permissoes', label: 'Permissões', component: PermissoesView },
       { id: 'usuarios', label: 'Usuários', component: OperacaoView },
       { id: 'clientes', label: 'Clientes', component: ClientesView },
+      { id: 'pesos-padrao', label: 'Pesos Padrão', component: DefaultWeightsAdmin },
     ];
     return baseTabs;
   }, []);
