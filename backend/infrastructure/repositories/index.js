@@ -3,3 +3,4 @@
  */
 
 export { SupabaseFeedbackRepository } from './SupabaseFeedbackRepository.js';
+export { SupabaseAgendaRepository } from './SupabaseAgendaRepository.js';

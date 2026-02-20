@@ -18,6 +18,7 @@
 .app-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   background: #f6f6f6;
 }
 
@@ -827,6 +828,18 @@
 .main-content-sidebar {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+/* Páginas full-bleed (sem padding nem max-width) */
+.main-content-fullbleed {
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Responsividade */

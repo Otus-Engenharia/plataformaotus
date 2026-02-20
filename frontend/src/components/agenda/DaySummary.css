@@ -1,0 +1,244 @@
+.day-summary {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #dadce0;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Header do painel */
+.day-summary__header {
+  padding: 16px;
+  border-bottom: 1px solid #e8eaed;
+  background: #f8f9fa;
+}
+
+.day-summary__date-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #70757a;
+  text-transform: capitalize;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.day-summary__date {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-top: 2px;
+  font-family: 'Bricolage Grotesque', sans-serif;
+}
+
+.day-summary__hours-total {
+  font-size: 11px;
+  color: #70757a;
+  margin-top: 4px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.day-summary__hours-total span {
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+/* Seção */
+.day-summary__section {
+  padding: 12px 16px 4px;
+}
+
+.day-summary__section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #70757a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.day-summary__events {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #dadce0 transparent;
+}
+
+.day-summary__events::-webkit-scrollbar {
+  width: 4px;
+}
+
+.day-summary__events::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 2px;
+}
+
+/* Estado vazio */
+.day-summary__empty {
+  padding: 20px 16px;
+  text-align: center;
+  color: #9aa0a6;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ============================
+   Atividade (expand/collapse)
+   ============================ */
+
+.day-summary__activity {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.day-summary__activity:last-child {
+  border-bottom: none;
+}
+
+.day-summary__activity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.day-summary__activity-row:hover {
+  background: #f8f9fa;
+}
+
+.day-summary__activity-row.has-todos {
+  align-items: center;
+}
+
+.day-summary__event-time {
+  font-size: 10px;
+  color: #70757a;
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+  min-width: 34px;
+  padding-top: 2px;
+}
+
+.day-summary__event-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.day-summary__event-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #202124;
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.day-summary__todo-count {
+  display: block;
+  font-size: 10px;
+  color: #70757a;
+  font-family: 'DM Sans', sans-serif;
+  margin-top: 1px;
+}
+
+/* Chevron */
+.day-summary__chevron {
+  flex-shrink: 0;
+  color: #9aa0a6;
+  transition: transform 0.2s ease;
+}
+
+.day-summary__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* ============================
+   Lista de ToDo's (expandida)
+   ============================ */
+
+.day-summary__todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 8px 16px;
+}
+
+.day-summary__todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0 6px 44px;
+  transition: opacity 0.15s ease;
+}
+
+.day-summary__todo-item.is-done {
+  opacity: 0.55;
+}
+
+/* Botão de check */
+.day-summary__todo-check {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.12s ease;
+  margin-top: 1px;
+}
+
+.day-summary__todo-check:hover {
+  background: #f1f3f4;
+}
+
+.day-summary__todo-check-empty {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #dadce0;
+  border-radius: 3px;
+  transition: border-color 0.12s ease;
+}
+
+.day-summary__todo-check:hover .day-summary__todo-check-empty {
+  border-color: #10b981;
+}
+
+.day-summary__todo-check.is-checked {
+  color: #10b981;
+}
+
+/* Texto do ToDo */
+.day-summary__todo-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.day-summary__todo-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.3;
+}
+
+.day-summary__todo-item.is-done .day-summary__todo-name {
+  text-decoration: line-through;
+  color: #9aa0a6;
+}
+
+.day-summary__todo-project {
+  display: block;
+  font-size: 10px;
+  color: #9aa0a6;
+  font-family: 'DM Sans', sans-serif;
+  margin-top: 1px;
+}
