@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import './Dialogs.css';
 
 /**
@@ -51,7 +52,7 @@ export default function WeightManagerDialog({ indicadores, onClose, onSave, onDe
     }
   };
 
-  return (
+  return createPortal(
     <div className="dialog-overlay" onClick={onClose}>
       <div
         className="dialog-content glass-card weight-manager"
@@ -149,6 +150,7 @@ export default function WeightManagerDialog({ indicadores, onClose, onSave, onDe
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
