@@ -188,6 +188,17 @@ export function canAccessFormularioPassagem(emailOrUser) {
 }
 
 /**
+ * Verifica se um usuário pode acessar a área de Vendas
+ * (Dev, Diretores, Admin, Líderes e Vendas)
+ * @param {string|Object} emailOrUser - Email ou user object
+ * @returns {boolean}
+ */
+export function canAccessVendas(emailOrUser) {
+  const email = typeof emailOrUser === 'object' ? emailOrUser?.email : emailOrUser;
+  return isPrivileged(emailOrUser) || isVendas(email);
+}
+
+/**
  * Verifica se um usuário tem acesso administrativo total
  * (Dev, Director ou Admin)
  * @param {string} email - Email do usuário

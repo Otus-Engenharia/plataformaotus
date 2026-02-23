@@ -246,6 +246,7 @@ export function AuthProvider({ children }) {
     hasFullAccess: hasFullAccess(),
     isLeader: isLeader(),
     canAccessFormularioPassagem: canAccessFormularioPassagem(),
+    canAccessVendas: user?.canAccessVendas === true,
     canManageDemandas: user?.canManageDemandas === true,
     canManageEstudosCustos: user?.canManageEstudosCustos === true,
     canManageApoioProjetos: user?.canManageApoioProjetos === true,
