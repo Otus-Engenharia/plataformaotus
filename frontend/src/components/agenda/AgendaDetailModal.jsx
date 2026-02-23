@@ -10,6 +10,13 @@ const STATUS_OPTIONS = [
   { value: 'feito', label: 'Feito', color: '#34a853' },
 ];
 
+const RECURRENCE_OPTIONS = [
+  { value: 'nunca', label: 'Nunca' },
+  { value: 'diária', label: 'Diária' },
+  { value: 'semanal', label: 'Semanal' },
+  { value: 'mensal', label: 'Mensal' },
+];
+
 // Opções de horário em intervalos de 30 min
 const TIME_OPTIONS = [];
 for (let h = 0; h < 24; h++) {
@@ -49,6 +56,8 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
   const [editingTime, setEditingTime] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editingRecurrence, setEditingRecurrence] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
   const dateInputRef = useRef(null);
 
   // Fetch ToDo's e detalhes quando a task muda
@@ -108,6 +117,8 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       setConfirmDelete(false);
       setShowStatusMenu(false);
       setEditingTime(false);
+      setEditingRecurrence(false);
+      setPendingAction(null);
       setShowAddProject(false);
       setAddingProjectId('');
     }
@@ -129,6 +140,8 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     }
   }, [task, onTaskUpdate]);
 
+  const isRecurring = task?.recurrence && task.recurrence !== 'nunca';
+
   const handleDateChange = useCallback(async (e) => {
     const newDateStr = e.target.value;
     if (!newDateStr || !task?.start_date || !task?.due_date) return;
@@ -141,11 +154,19 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     const newEnd = new Date(task.due_date);
     newEnd.setFullYear(year, month - 1, day);
 
+    const payload = {
+      start_date: newStart.toISOString(),
+      due_date: newEnd.toISOString(),
+    };
+
+    // Se recorrente, perguntar escopo antes de salvar
+    if (isRecurring) {
+      setPendingAction({ type: 'edit', payload });
+      return;
+    }
+
     try {
-      const res = await axios.put(`/api/agenda/tasks/${task.id}`, {
-        start_date: newStart.toISOString(),
-        due_date: newEnd.toISOString(),
-      }, { withCredentials: true });
+      const res = await axios.put(`/api/agenda/tasks/${task.id}`, payload, { withCredentials: true });
 
       if (res.data.success) {
         onTaskUpdate?.(res.data.data);
@@ -153,7 +174,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     } catch (err) {
       console.error('Erro ao atualizar data:', err);
     }
-  }, [task, onTaskUpdate]);
+  }, [task, onTaskUpdate, isRecurring]);
 
   const handleStartTimeChange = useCallback(async (e) => {
     const newTime = e.target.value;
@@ -163,18 +184,22 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     const newStart = new Date(task.start_date);
     newStart.setHours(hours, minutes, 0, 0);
 
-    try {
-      const res = await axios.put(`/api/agenda/tasks/${task.id}`, {
-        start_date: newStart.toISOString(),
-      }, { withCredentials: true });
+    const payload = { start_date: newStart.toISOString() };
 
+    if (isRecurring) {
+      setPendingAction({ type: 'edit', payload });
+      return;
+    }
+
+    try {
+      const res = await axios.put(`/api/agenda/tasks/${task.id}`, payload, { withCredentials: true });
       if (res.data.success) {
         onTaskUpdate?.(res.data.data);
       }
     } catch (err) {
       console.error('Erro ao atualizar horário:', err);
     }
-  }, [task, onTaskUpdate]);
+  }, [task, onTaskUpdate, isRecurring]);
 
   const handleEndTimeChange = useCallback(async (e) => {
     const newTime = e.target.value;
@@ -184,18 +209,22 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     const newEnd = new Date(task.due_date);
     newEnd.setHours(hours, minutes, 0, 0);
 
-    try {
-      const res = await axios.put(`/api/agenda/tasks/${task.id}`, {
-        due_date: newEnd.toISOString(),
-      }, { withCredentials: true });
+    const payload = { due_date: newEnd.toISOString() };
 
+    if (isRecurring) {
+      setPendingAction({ type: 'edit', payload });
+      return;
+    }
+
+    try {
+      const res = await axios.put(`/api/agenda/tasks/${task.id}`, payload, { withCredentials: true });
       if (res.data.success) {
         onTaskUpdate?.(res.data.data);
       }
     } catch (err) {
       console.error('Erro ao atualizar horário:', err);
     }
-  }, [task, onTaskUpdate]);
+  }, [task, onTaskUpdate, isRecurring]);
 
   const handleToggleTodoStatus = useCallback(async (todo) => {
     const newStatus = todo.status === 'finalizado' ? 'backlog' : 'finalizado';
@@ -217,6 +246,13 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
   }, []);
 
   const handleDelete = useCallback(async () => {
+    // Se é recorrente, mostrar dialog de escopo
+    if (isRecurring) {
+      setPendingAction({ type: 'delete' });
+      return;
+    }
+
+    // Não-recorrente: confirmação simples
     if (!confirmDelete) {
       setConfirmDelete(true);
       return;
@@ -236,7 +272,69 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     } finally {
       setDeleting(false);
     }
-  }, [task, confirmDelete, onTaskDelete, onClose]);
+  }, [task, confirmDelete, onTaskDelete, onClose, isRecurring]);
+
+  // Handler: Alterar recorrência
+  const handleRecurrenceChange = useCallback(async (e) => {
+    const newRecurrence = e.target.value;
+    setEditingRecurrence(false);
+    if (!task || newRecurrence === task.recurrence) return;
+
+    try {
+      const res = await axios.put(`/api/agenda/tasks/${task.id}`, {
+        recurrence: newRecurrence,
+      }, { withCredentials: true });
+
+      if (res.data.success) {
+        onTaskUpdate?.(res.data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar recorrência:', err);
+    }
+  }, [task, onTaskUpdate]);
+
+  // Handler: Confirmar ação com escopo (dialog de 3 opções)
+  const handleScopeSelect = useCallback(async (scope) => {
+    if (!pendingAction || !task) return;
+
+    const action = pendingAction;
+    setPendingAction(null);
+
+    if (action.type === 'delete') {
+      setDeleting(true);
+      try {
+        const res = await axios.delete(`/api/agenda/tasks/${task.id}/recurring`, {
+          params: { scope },
+          withCredentials: true,
+        });
+        if (res.data.success) {
+          onTaskDelete?.(task.id);
+          onClose();
+        }
+      } catch (err) {
+        console.error('Erro ao deletar tarefa recorrente:', err);
+      } finally {
+        setDeleting(false);
+      }
+    } else if (action.type === 'edit') {
+      try {
+        const res = await axios.put(`/api/agenda/tasks/${task.id}`, {
+          ...action.payload,
+          recurrence_scope: scope,
+        }, { withCredentials: true });
+
+        if (res.data.success) {
+          onTaskUpdate?.(res.data.data);
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar tarefa recorrente:', err);
+      }
+    }
+  }, [pendingAction, task, onTaskUpdate, onTaskDelete, onClose]);
+
+  const handleCancelAction = useCallback(() => {
+    setPendingAction(null);
+  }, []);
 
   // IDs de projetos que possuem ToDo's (não podem ser removidos)
   const projectIdsWithTodos = useMemo(() => {
@@ -459,7 +557,30 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
                   </svg>
                 </div>
                 <span className="detail-modal__meta-label">Recorrência</span>
-                <span className="detail-modal__meta-value">{task.recurrence_label || task.recurrence || 'Nunca'}</span>
+                {editingRecurrence ? (
+                  <select
+                    className="detail-modal__recurrence-select"
+                    value={task.recurrence || 'nunca'}
+                    onChange={handleRecurrenceChange}
+                    onBlur={() => setEditingRecurrence(false)}
+                    autoFocus
+                  >
+                    {RECURRENCE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span
+                    className="detail-modal__meta-value detail-modal__meta-value--editable"
+                    onClick={() => setEditingRecurrence(true)}
+                  >
+                    {task.recurrence_label || task.recurrence || 'Nunca'}
+                    <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </span>
+                )}
               </div>
 
               {/* Grupo padrão */}
@@ -622,6 +743,48 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
             {deleting ? 'Deletando...' : confirmDelete ? 'Confirmar exclusão' : 'Deletar'}
           </button>
         </footer>
+
+        {/* Dialog de escopo para ações em tarefas recorrentes */}
+        {pendingAction && (
+          <div className="detail-modal__scope-overlay" onClick={handleCancelAction}>
+            <div className="detail-modal__scope-dialog" onClick={(e) => e.stopPropagation()}>
+              <h4 className="detail-modal__scope-title">
+                {pendingAction.type === 'delete'
+                  ? 'Deletar atividade recorrente'
+                  : 'Editar atividade recorrente'}
+              </h4>
+              <p className="detail-modal__scope-desc">
+                Esta atividade faz parte de um grupo recorrente. Como deseja aplicar a alteração?
+              </p>
+              <div className="detail-modal__scope-options">
+                <button
+                  className="detail-modal__scope-btn"
+                  onClick={() => handleScopeSelect('this')}
+                >
+                  Apenas esta atividade
+                </button>
+                <button
+                  className="detail-modal__scope-btn"
+                  onClick={() => handleScopeSelect('future')}
+                >
+                  Esta e as seguintes
+                </button>
+                <button
+                  className="detail-modal__scope-btn"
+                  onClick={() => handleScopeSelect('all')}
+                >
+                  Todas as atividades do grupo
+                </button>
+              </div>
+              <button
+                className="detail-modal__scope-cancel"
+                onClick={handleCancelAction}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

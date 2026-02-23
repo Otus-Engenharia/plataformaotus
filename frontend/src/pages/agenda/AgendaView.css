@@ -215,3 +215,98 @@
   color: #d93025;
   font-size: 13px;
 }
+
+/* ============================
+   Scope dialog (drag & drop recorrente)
+   ============================ */
+
+.agenda-view__scope-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  animation: agenda-scope-fade 0.12s ease;
+}
+
+@keyframes agenda-scope-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.agenda-view__scope-dialog {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agenda-view__scope-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Bricolage Grotesque', 'DM Sans', sans-serif;
+}
+
+.agenda-view__scope-desc {
+  font-size: 13px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.agenda-view__scope-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agenda-view__scope-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #3c4043;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+}
+
+.agenda-view__scope-btn:hover {
+  border-color: #1a73e8;
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.agenda-view__scope-cancel {
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #9aa0a6;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.12s ease;
+}
+
+.agenda-view__scope-cancel:hover {
+  color: #5f6368;
+}

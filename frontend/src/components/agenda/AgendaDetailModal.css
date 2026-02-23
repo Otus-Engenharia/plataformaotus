@@ -24,6 +24,7 @@
 
 /* Container */
 .detail-modal {
+  position: relative;
   background: #ffffff;
   border-radius: 16px;
   width: 100%;
@@ -676,4 +677,114 @@
 .detail-modal__delete-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ============================
+   Recurrence select (inline edit)
+   ============================ */
+
+.detail-modal__recurrence-select {
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 1.5px solid #1a73e8;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #1a1a1a;
+  background: #ffffff;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+/* ============================
+   Scope dialog (3 opções para recorrentes)
+   ============================ */
+
+.detail-modal__scope-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  animation: detail-fade-in 0.12s ease;
+}
+
+.detail-modal__scope-dialog {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-modal__scope-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Bricolage Grotesque', 'DM Sans', sans-serif;
+}
+
+.detail-modal__scope-desc {
+  font-size: 13px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.detail-modal__scope-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-modal__scope-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #3c4043;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+}
+
+.detail-modal__scope-btn:hover {
+  border-color: #1a73e8;
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.detail-modal__scope-cancel {
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #9aa0a6;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.12s ease;
+}
+
+.detail-modal__scope-cancel:hover {
+  color: #5f6368;
 }

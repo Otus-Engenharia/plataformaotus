@@ -5,6 +5,19 @@ import axios from 'axios';
 import SearchableSelect from '../SearchableSelect';
 import './VerificacaoForm.css';
 
+const RECURRENCE_OPTIONS = [
+  { value: 'nunca', label: 'Nunca' },
+  { value: 'diária', label: 'Diária' },
+  { value: 'semanal', label: 'Semanal' },
+  { value: 'mensal', label: 'Mensal' },
+];
+
+const END_TYPE_OPTIONS = [
+  { value: 'never', label: 'Nunca (contínuo)' },
+  { value: 'date', label: 'Em uma data' },
+  { value: 'count', label: 'Após N repetições' },
+];
+
 const TIPO_OPTIONS = [
   { value: 'lancamento', label: 'Lançamento' },
   { value: 'ajuste', label: 'Ajuste' },
@@ -53,6 +66,11 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
   const [nomeTarefa, setNomeTarefa] = useState('');
   const [horaTermino, setHoraTermino] = useState('');
   const [showFavorites, setShowFavorites] = useState(true);
+  const [recurrence, setRecurrence] = useState('nunca');
+  const [endType, setEndType] = useState('never');
+  const [recurrenceUntil, setRecurrenceUntil] = useState('');
+  const [recurrenceCount, setRecurrenceCount] = useState(10);
+  const [copyProjects, setCopyProjects] = useState(false);
 
   const [disciplines, setDisciplines] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
@@ -200,6 +218,10 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
       standard_agenda_task: VERIFICACAO_STANDARD_AGENDA_TASK_ID,
       project_ids: projetoId ? [Number(projetoId)] : [],
       selected_standard_tasks: selectedTasks.map(t => ({ id: t.id, name: t.name })),
+      recurrence,
+      recurrence_until: recurrence !== 'nunca' && endType === 'date' ? recurrenceUntil : null,
+      recurrence_count: recurrence !== 'nunca' && endType === 'count' ? Number(recurrenceCount) : null,
+      recurrence_copy_projects: recurrence !== 'nunca' ? copyProjects : false,
     });
   };
 
@@ -320,6 +342,67 @@ function VerificacaoForm({ selectedDate, onSubmit, submitting }) {
             />
           </div>
         </div>
+
+        <div className="verificacao-form__field">
+          <label className="verificacao-form__label">Repetir</label>
+          <SearchableSelect
+            id="recurrence-verificacao"
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value)}
+            options={RECURRENCE_OPTIONS}
+            placeholder="Nunca"
+          />
+        </div>
+
+        {recurrence !== 'nunca' && (
+          <div className="verificacao-form__recurrence-options">
+            <div className="verificacao-form__field">
+              <label className="verificacao-form__label">Termina</label>
+              <SearchableSelect
+                id="end-type-verificacao"
+                value={endType}
+                onChange={(e) => setEndType(e.target.value)}
+                options={END_TYPE_OPTIONS}
+                placeholder="Selecione"
+              />
+            </div>
+
+            {endType === 'date' && (
+              <div className="verificacao-form__field">
+                <label className="verificacao-form__label">Data limite</label>
+                <input
+                  type="date"
+                  className="verificacao-form__input"
+                  value={recurrenceUntil}
+                  onChange={(e) => setRecurrenceUntil(e.target.value)}
+                />
+              </div>
+            )}
+
+            {endType === 'count' && (
+              <div className="verificacao-form__field">
+                <label className="verificacao-form__label">Número de repetições</label>
+                <input
+                  type="number"
+                  className="verificacao-form__input"
+                  min="1"
+                  max="365"
+                  value={recurrenceCount}
+                  onChange={(e) => setRecurrenceCount(e.target.value)}
+                />
+              </div>
+            )}
+
+            <label className="verificacao-form__checkbox-label">
+              <input
+                type="checkbox"
+                checked={copyProjects}
+                onChange={(e) => setCopyProjects(e.target.checked)}
+              />
+              <span>Manter projetos nas repetições</span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Coluna direita — lista de tarefas padrão */}

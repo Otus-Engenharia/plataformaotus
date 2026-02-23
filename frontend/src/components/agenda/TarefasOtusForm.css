@@ -82,6 +82,17 @@
   font-family: 'DM Sans', sans-serif;
 }
 
+/* Recorrência */
+.otus-form__recurrence-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e8eaed;
+}
+
 /* Submit */
 .otus-form__submit-btn {
   margin-top: 4px;
