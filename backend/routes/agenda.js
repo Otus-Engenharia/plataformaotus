@@ -12,6 +12,8 @@ import {
   CreateAgendaTask,
   UpdateAgendaTask,
   DeleteAgendaTask,
+  MaterializeRecurringTasks,
+  DeleteRecurringInstance,
 } from '../application/use-cases/agenda/index.js';
 import { AgendaTaskStatus } from '../domain/agenda/value-objects/AgendaTaskStatus.js';
 import { AgendaRecurrence } from '../domain/agenda/value-objects/AgendaRecurrence.js';
@@ -47,6 +49,15 @@ function createRoutes(requireAuth, logAction) {
           success: false,
           error: 'Os parâmetros startDate e endDate são obrigatórios',
         });
+      }
+
+      // Materializar instâncias recorrentes antes de listar
+      // (não-bloqueante: se falhar, ainda lista as tarefas existentes)
+      try {
+        const materialize = new MaterializeRecurringTasks(repository);
+        await materialize.execute({ userId, startDate, endDate });
+      } catch (matErr) {
+        console.warn('⚠️ Materialização de recorrência falhou (não-bloqueante):', matErr.message);
       }
 
       const listTasks = new ListAgendaTasks(repository);
@@ -121,10 +132,12 @@ function createRoutes(requireAuth, logAction) {
   /**
    * GET /api/agenda/tasks/form/favorite-projects
    * Retorna projetos favoritados pelo usuário logado
+   * Query params: allSectors (opcional) — se 'true', não filtra por sector
    */
   router.get('/form/favorite-projects', requireAuth, async (req, res) => {
     try {
       const userId = req.user?.id;
+      const allSectors = req.query.allSectors === 'true';
 
       if (!userId) {
         return res.status(401).json({ success: false, error: 'Usuário não autenticado' });
@@ -140,7 +153,7 @@ function createRoutes(requireAuth, logAction) {
 
       const projects = (data || [])
         .map(row => row.projects)
-        .filter(p => p && p.sector === 'Projetos');
+        .filter(p => p && (allSectors || p.sector === 'Projetos'));
 
       res.json({ success: true, data: projects });
     } catch (error) {
@@ -152,17 +165,23 @@ function createRoutes(requireAuth, logAction) {
   /**
    * GET /api/agenda/tasks/form/projects
    * Retorna projetos disponíveis para seleção no formulário
-   * Filtra: sector='Projetos'
+   * Query params: allSectors (opcional) — se 'true', não filtra por sector
    */
   router.get('/form/projects', requireAuth, async (req, res) => {
     try {
+      const allSectors = req.query.allSectors === 'true';
       const supabase = getSupabaseClient();
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('projects')
         .select('id, name, project_code, comercial_name, status')
-        .eq('sector', 'Projetos')
         .order('comercial_name', { ascending: true });
+
+      if (!allSectors) {
+        query = query.eq('sector', 'Projetos');
+      }
+
+      const { data, error } = await query;
 
       if (error) throw new Error(`Erro ao buscar projetos: ${error.message}`);
 
@@ -432,6 +451,9 @@ function createRoutes(requireAuth, logAction) {
         phase,
         project_ids,
         selected_standard_tasks,
+        recurrence_until,
+        recurrence_count,
+        recurrence_copy_projects,
       } = req.body;
 
       // Gerar nome automático se não informado
@@ -457,6 +479,9 @@ function createRoutes(requireAuth, logAction) {
         phase: phase || null,
         projectIds: project_ids || [],
         selectedStandardTasks: selected_standard_tasks || [],
+        recurrenceUntil: recurrence_until || null,
+        recurrenceCount: recurrence_count != null ? Number(recurrence_count) : null,
+        recurrenceCopyProjects: Boolean(recurrence_copy_projects),
       });
 
       if (logAction) {
@@ -482,12 +507,19 @@ function createRoutes(requireAuth, logAction) {
   router.put('/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { reschedule, resize, status, start_date, due_date, name } = req.body;
+      const { reschedule, resize, status, start_date, due_date, name, recurrence, recurrence_scope } = req.body;
 
       if (status && !AgendaTaskStatus.isValid(status)) {
         return res.status(400).json({
           success: false,
           error: `Status inválido. Valores permitidos: ${AgendaTaskStatus.VALID_VALUES.join(', ')}`,
+        });
+      }
+
+      if (recurrence && !AgendaRecurrence.isValid(recurrence)) {
+        return res.status(400).json({
+          success: false,
+          error: `Recorrência inválida. Valores permitidos: ${AgendaRecurrence.VALID_VALUES.join(', ')}`,
         });
       }
 
@@ -498,8 +530,10 @@ function createRoutes(requireAuth, logAction) {
         startDate: start_date,
         dueDate: due_date,
         status,
+        recurrence,
         reschedule,
         resize,
+        recurrenceScope: recurrence_scope,
       });
 
       res.json({ success: true, data: task });
@@ -510,8 +544,39 @@ function createRoutes(requireAuth, logAction) {
   });
 
   /**
+   * DELETE /api/agenda/tasks/:id/recurring
+   * Remove instância(s) de tarefa recorrente com scope
+   * Query params: scope ('this' | 'future' | 'all')
+   */
+  router.delete('/:id/recurring', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { scope } = req.query;
+
+      if (!['this', 'future', 'all'].includes(scope)) {
+        return res.status(400).json({
+          success: false,
+          error: "Parâmetro scope é obrigatório. Valores: 'this', 'future', 'all'",
+        });
+      }
+
+      const deleteRecurring = new DeleteRecurringInstance(repository);
+      await deleteRecurring.execute(parseInt(id, 10), scope);
+
+      if (logAction) {
+        await logAction(req, 'delete', 'agenda_task', id, `Tarefa recorrente excluída (scope: ${scope})`);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('❌ Erro ao excluir tarefa recorrente:', error);
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * DELETE /api/agenda/tasks/:id
-   * Remove uma tarefa de agenda
+   * Remove uma tarefa de agenda (não-recorrente ou fallback)
    */
   router.delete('/:id', requireAuth, async (req, res) => {
     try {

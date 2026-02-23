@@ -200,6 +200,14 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
         </button>
       )}
       <div className="agenda-event-card__name">{task.name}</div>
+      {task.recurrence && task.recurrence !== 'nunca' && (
+        <div className="agenda-event-card__recurrence-icon" title={`Repete: ${task.recurrence}`}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+        </div>
+      )}
       {heightPx >= 48 && (
         <div className="agenda-event-card__time">
           {formatTime(task.start_date)} – {formatTime(task.due_date)}
