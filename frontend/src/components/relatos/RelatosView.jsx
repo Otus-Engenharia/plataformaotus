@@ -8,13 +8,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
-import { useAuth } from '../../contexts/AuthContext';
 import RelatoCard from './RelatoCard';
 import RelatoForm from './RelatoForm';
 import '../../styles/RelatosView.css';
 
 function RelatosView({ selectedProjectId, portfolio }) {
-  const { user } = useAuth();
   const [relatos, setRelatos] = useState([]);
   const [tipos, setTipos] = useState([]);
   const [prioridades, setPrioridades] = useState([]);
@@ -146,13 +144,6 @@ function RelatosView({ selectedProjectId, portfolio }) {
     }
   };
 
-  const canEdit = (relato) => {
-    if (!user) return false;
-    const role = user.role || user.papel;
-    if (role === 'admin' || role === 'director') return true;
-    return relato.author_id === user.id;
-  };
-
   // Contadores para o footer
   const statsByPrioridade = {};
   for (const p of prioridades) {
@@ -214,7 +205,6 @@ function RelatosView({ selectedProjectId, portfolio }) {
               onToggleExpand={() => setExpandedId(expandedId === relato.id ? null : relato.id)}
               onEdit={() => { setEditingRelato(relato); setShowForm(true); }}
               onDelete={() => handleDelete(relato.id)}
-              canEdit={canEdit(relato)}
             />
           ))}
           {relatos.length === 0 && !loading && (

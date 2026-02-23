@@ -290,16 +290,6 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
       const { id } = req.params;
       const { titulo, descricao, tipo, prioridade, is_resolved } = req.body;
 
-      // Verifica permissão: autor ou admin
-      const getRelato = new GetRelato(repository);
-      const existing = await getRelato.execute(parseInt(id, 10));
-      if (!existing) {
-        return res.status(404).json({ success: false, error: 'Relato não encontrado' });
-      }
-      if (existing.author_id !== req.user.id && !isPrivileged(req.user)) {
-        return res.status(403).json({ success: false, error: 'Acesso negado' });
-      }
-
       const updateRelato = new UpdateRelato(repository);
       const relato = await updateRelato.execute({
         id: parseInt(id, 10),

@@ -31,6 +31,17 @@ function isNaoFeitaStatus(status) {
  * Gera chave de matching para uma tarefa.
  * Usa NomeDaTarefa + Disciplina para disambiguar duplicatas.
  */
+/**
+ * Extrai metadados do Smartsheet (atraso) de uma tarefa do snapshot.
+ */
+function extractSmartsheetMeta(task) {
+  return {
+    categoria_atraso: task.Categoria_de_atraso || task.categoria_de_atraso || null,
+    motivo_atraso: task.Motivo_de_atraso || task.motivo_de_atraso || null,
+    observacao_otus: task.ObservacaoOtus || task.observacao_otus || null,
+  };
+}
+
 function taskMatchKey(task) {
   const name = (task.NomeDaTarefa || task.nome_tarefa || '').toLowerCase().trim();
   const disc = (task.Disciplina || task.disciplina || '').toLowerCase().trim();
@@ -74,6 +85,7 @@ class SnapshotDiffService {
           fase_nome: task.fase_nome || null,
           curr_data_termino: parseBqDate(task.DataDeTermino || task.data_termino),
           curr_status: task.Status || task.status || null,
+          ...extractSmartsheetMeta(task),
         });
       }
     }
@@ -88,6 +100,7 @@ class SnapshotDiffService {
           fase_nome: task.fase_nome || null,
           prev_data_termino: parseBqDate(task.DataDeTermino || task.data_termino),
           prev_status: task.Status || task.status || null,
+          ...extractSmartsheetMeta(task),
         });
       }
     }
@@ -124,6 +137,7 @@ class SnapshotDiffService {
           delta_days: deltaDays,
           prev_status: prevStatus,
           curr_status: currStatus,
+          ...extractSmartsheetMeta(currTask),
         });
       }
 
@@ -138,6 +152,7 @@ class SnapshotDiffService {
           curr_status: currStatus,
           prev_data_termino: prevEnd,
           curr_data_termino: currEnd,
+          ...extractSmartsheetMeta(currTask),
         });
       }
     }

@@ -140,10 +140,14 @@ function ChangeLogTab({ changeLog, loading, projectCode, onRefresh }) {
                         </span>
                         {change.delta_days != null && (
                           <span
-                            className="changelog-delta-badge"
+                            className={`changelog-delta-badge ${change.is_overridden ? 'changelog-delta-overridden' : ''}`}
                             style={{ color: change.delta_days > 0 ? '#EF4444' : '#10B981' }}
+                            title={change.is_overridden
+                              ? `Original: ${change.original_delta_days > 0 ? '+' : ''}${change.original_delta_days} dias`
+                              : undefined}
                           >
                             {change.delta_days > 0 ? '+' : ''}{change.delta_days} dias
+                            {change.is_overridden && <span className="changelog-override-indicator">*</span>}
                           </span>
                         )}
                       </div>
@@ -154,6 +158,25 @@ function ChangeLogTab({ changeLog, loading, projectCode, onRefresh }) {
                         )}
                         {change.fase_nome && (
                           <span className="changelog-change-phase">{change.fase_nome}</span>
+                        )}
+                        {(change.categoria_atraso || change.motivo_atraso || change.observacao_otus) && (
+                          <div className="changelog-smartsheet-meta">
+                            {change.categoria_atraso && (
+                              <span className="changelog-meta-tag changelog-meta-categoria">
+                                {change.categoria_atraso}
+                              </span>
+                            )}
+                            {change.motivo_atraso && (
+                              <span className="changelog-meta-tag changelog-meta-motivo">
+                                {change.motivo_atraso}
+                              </span>
+                            )}
+                            {change.observacao_otus && (
+                              <span className="changelog-meta-obs">
+                                {change.observacao_otus}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div className="changelog-change-row-right">

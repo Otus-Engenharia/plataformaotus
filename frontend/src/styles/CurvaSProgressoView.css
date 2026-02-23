@@ -1620,6 +1620,39 @@
   white-space: nowrap;
 }
 
+/* Smartsheet delay metadata */
+.changelog-smartsheet-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.changelog-meta-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.changelog-meta-categoria {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.changelog-meta-motivo {
+  background: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+.changelog-meta-obs {
+  font-size: 10px;
+  color: #6B7280;
+  font-style: italic;
+}
+
 .changelog-change-row-right {
   display: flex;
   align-items: center;
@@ -1765,6 +1798,66 @@
   background: #fef2f2;
   padding: 4px 8px;
   border-radius: 4px;
+}
+
+/* Override section in editor */
+.changelog-editor-override-section {
+  margin: 10px 0;
+  padding: 8px 10px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 6px;
+}
+
+.changelog-editor-override-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400E;
+  margin-bottom: 6px;
+}
+
+.changelog-editor-override-fields {
+  display: flex;
+  gap: 12px;
+}
+
+.changelog-editor-field-inline {
+  flex: 1;
+}
+
+.changelog-override-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.changelog-override-input:focus {
+  outline: none;
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.changelog-editor-override-hint {
+  font-size: 10px;
+  color: #92400E;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Override indicator on displayed badge */
+.changelog-delta-overridden {
+  position: relative;
+}
+
+.changelog-override-indicator {
+  font-size: 10px;
+  margin-left: 2px;
+  color: #F59E0B;
+  font-weight: bold;
 }
 
 /* Discipline Summary */
