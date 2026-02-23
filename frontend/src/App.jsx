@@ -855,8 +855,14 @@ function Sidebar({ collapsed, onToggle, area }) {
         className="sidebar-toggle sidebar-toggle-inline"
         onClick={onToggle}
         aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        title={collapsed ? 'Expandir menu' : 'Recolher menu'}
       >
-        {collapsed ? '»' : '«'}
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          {collapsed
+            ? <polyline points="9 18 15 12 9 6" />
+            : <polyline points="15 18 9 12 15 6" />}
+        </svg>
       </button>
       <div className="sidebar-lower">
         {!collapsed && (
@@ -1046,6 +1052,8 @@ function AppContent() {
   const currentArea = getCurrentArea();
   const showSidebar = !isHomeRoute && currentArea !== null;
   const showTopBar = !isHomeRoute;
+  const isWideContentRoute = location.pathname.startsWith('/projetos')
+    || location.pathname.startsWith('/lideres-projeto');
 
   // Mapeamento de áreas para títulos do TopBar
   const areaTitles = {
@@ -1104,7 +1112,7 @@ function AppContent() {
             area={currentArea}
           />
         )}
-        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') ? 'main-content-fullbleed' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
+        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
             {/* Redirect antigo /indicadores-lideranca para nova área */}
             <Route

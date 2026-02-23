@@ -6,3 +6,4 @@ export { PhaseWeight } from './PhaseWeight.js';
 export { DisciplineWeight } from './DisciplineWeight.js';
 export { ActivityWeight } from './ActivityWeight.js';
 export { ActivityType } from './ActivityType.js';
+export { ChangeType } from './ChangeType.js';

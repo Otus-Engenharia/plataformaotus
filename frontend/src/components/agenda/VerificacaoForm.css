@@ -296,86 +296,47 @@
 }
 
 /* ============================
-   Overrides: MultiSelectDropdown
+   Projetos — header com toggle
    ============================ */
 
-.verificacao-form .multi-select .multi-select-trigger {
+.verificacao-form__project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.verificacao-form__toggle {
+  display: flex;
   border: 1.5px solid #e8eaed;
   border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+}
+
+.verificacao-form__toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: none;
   background: #ffffff;
-  min-height: 36px;
-}
-
-.verificacao-form .multi-select .multi-select-trigger:hover {
-  border-color: #dadce0;
-}
-
-.verificacao-form .multi-select .multi-select-trigger.open {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-}
-
-.verificacao-form .multi-select .multi-select-dropdown {
-  border: 1.5px solid #e8eaed;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  z-index: 1100;
-}
-
-.verificacao-form .multi-select .multi-select-placeholder {
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 500;
   font-family: 'DM Sans', sans-serif;
   color: #9aa0a6;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.verificacao-form .multi-select .multi-select-count {
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
+.verificacao-form__toggle-btn:first-child {
+  border-right: 1.5px solid #e8eaed;
 }
 
-.verificacao-form .multi-select .multi-select-search input {
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
-  border-color: #e8eaed;
-}
-
-.verificacao-form .multi-select .multi-select-search input:focus {
-  border-color: #10b981;
-}
-
-.verificacao-form .multi-select li.multi-select-option {
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
-  padding: 0.5rem 0.75rem;
-}
-
-.verificacao-form .multi-select li.multi-select-option.selected {
+.verificacao-form__toggle-btn.is-active {
   background: rgba(16, 185, 129, 0.08);
-  font-weight: 500;
+  color: #10b981;
 }
 
-.verificacao-form .multi-select .multi-select-empty {
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
-}
-
-.verificacao-form .multi-select .multi-select-chip {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: 6px;
-  font-size: 12px;
-  padding: 2px 8px;
-  font-family: 'DM Sans', sans-serif;
-}
-
-.verificacao-form .multi-select .multi-select-chip-remove {
-  color: #059669;
-}
-
-.verificacao-form .multi-select .multi-select-chip-remove:hover {
-  color: #dc2626;
+.verificacao-form__toggle-btn:hover:not(.is-active) {
+  background: #f8f9fa;
+  color: #5f6368;
 }

@@ -1,6 +1,6 @@
 /**
  * Componente: KPI Cards do Progresso
- * Exibe métricas principais: progresso %, IDP, tarefas, desvio
+ * Exibe métricas principais: progresso %, IDP, desvio, prazo base, prazo atual, variação
  */
 
 import React from 'react';
@@ -19,62 +19,96 @@ function getIdpLabel(idp) {
   return 'Atrasado';
 }
 
-function ProgressKpiCards({ progress, loading }) {
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function ProgressKpiCards({ progress, prazos, loading }) {
   if (loading) {
     return (
-      <div className="progress-kpi-cards">
-        <div className="kpi-card loading"><span>Calculando...</span></div>
-        <div className="kpi-card loading"><span>Calculando...</span></div>
-        <div className="kpi-card loading"><span>Calculando...</span></div>
-        <div className="kpi-card loading"><span>Calculando...</span></div>
+      <div className="progress-kpi-strip">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="kpi-chip loading"><span>...</span></div>
+        ))}
       </div>
     );
   }
 
   if (!progress) {
     return (
-      <div className="progress-kpi-cards">
-        <div className="kpi-card empty"><span>Sem dados</span></div>
+      <div className="progress-kpi-strip">
+        <div className="kpi-chip empty"><span>Sem dados</span></div>
       </div>
     );
   }
 
   const progressPercent = progress.total_progress || 0;
   const plannedProgress = progress.planned_progress || 0;
-  const idp = progress.idp;
-  const desvio = progress.desvio;
-  const completedTasks = progress.completed_tasks || 0;
-  const activeTasks = progress.active_tasks || 0;
-  const excludedTasks = progress.excluded_tasks || 0;
-  const totalTasks = progress.total_tasks || 0;
+
+  // Preferir IDP/desvio baseados no último baseline, com fallback
+  const idp = progress.idp_baseline != null ? progress.idp_baseline : progress.idp;
+  const desvio = progress.desvio_baseline != null ? progress.desvio_baseline : progress.desvio;
+  const hasBaselineMetrics = progress.idp_baseline != null;
+
+  const prazoBaseline = prazos?.prazo_baseline;
+  const prazoBaselineLabel = prazos?.prazo_baseline_label || 'Baseline';
+  const prazoAtual = prazos?.prazo_atual;
+  const variacaoDias = prazos?.variacao_dias;
+
+  const variacaoColor = variacaoDias != null
+    ? (variacaoDias > 0 ? '#b91c1c' : variacaoDias < 0 ? '#16a34a' : '#1a1a1a')
+    : '#666';
+
+  const prazoAtualColor = variacaoDias != null && variacaoDias > 0
+    ? '#d97706'
+    : '#1a1a1a';
 
   return (
-    <div className="progress-kpi-cards">
-      <div className="kpi-card highlight">
-        <div className="kpi-label">Progresso Real</div>
-        <div className="kpi-value">{progressPercent.toFixed(2)}%</div>
-        <div className="kpi-detail">Planejado: {plannedProgress.toFixed(2)}%</div>
+    <div className="progress-kpi-strip">
+      <div className="kpi-chip highlight">
+        <span className="kpi-chip-label">Progresso</span>
+        <span className="kpi-chip-value">{progressPercent.toFixed(2)}%</span>
+        <span className="kpi-chip-detail">Plan. {plannedProgress.toFixed(1)}%</span>
       </div>
-      <div className="kpi-card">
-        <div className="kpi-label">IDP</div>
-        <div className="kpi-value" style={{ color: getIdpColor(idp) }}>
+      <div className="kpi-chip">
+        <span className="kpi-chip-label">IDP</span>
+        <span className="kpi-chip-value" style={{ color: getIdpColor(idp) }}>
           {idp != null ? idp.toFixed(2) : '-'}
-        </div>
-        <div className="kpi-detail">{getIdpLabel(idp)}</div>
+        </span>
+        <span className="kpi-chip-detail">{getIdpLabel(idp)}</span>
       </div>
-      <div className="kpi-card">
-        <div className="kpi-label">Desvio</div>
-        <div className="kpi-value" style={{ color: desvio != null && desvio < 0 ? '#b91c1c' : desvio > 0 ? '#16a34a' : '#1a1a1a' }}>
+      <div className="kpi-chip">
+        <span className="kpi-chip-label">Desvio</span>
+        <span className="kpi-chip-value" style={{ color: desvio != null && desvio < 0 ? '#b91c1c' : desvio > 0 ? '#16a34a' : '#1a1a1a' }}>
           {desvio != null ? `${desvio > 0 ? '+' : ''}${desvio.toFixed(2)}%` : '-'}
-        </div>
-        <div className="kpi-detail">{completedTasks} de {activeTasks} tarefas</div>
+        </span>
+        <span className="kpi-chip-detail">{hasBaselineMetrics ? 'vs. último baseline' : 'vs. planejado'}</span>
       </div>
-      <div className="kpi-card">
-        <div className="kpi-label">Tarefas</div>
-        <div className="kpi-value">{totalTasks}</div>
-        <div className="kpi-detail">
-          {activeTasks} com peso{excludedTasks > 0 ? ` · ${excludedTasks} sem etapa` : ''}
-        </div>
+      <div className="kpi-chip">
+        <span className="kpi-chip-label">Prazo Base</span>
+        <span className="kpi-chip-value">{formatDate(prazoBaseline)}</span>
+        <span className="kpi-chip-detail" title={prazoBaselineLabel}>{prazoBaselineLabel}</span>
+      </div>
+      <div className="kpi-chip">
+        <span className="kpi-chip-label">Prazo Atual</span>
+        <span className="kpi-chip-value" style={{ color: prazoAtualColor }}>
+          {formatDate(prazoAtual)}
+        </span>
+        <span className="kpi-chip-detail">Cronograma vigente</span>
+      </div>
+      <div className="kpi-chip">
+        <span className="kpi-chip-label">Variação</span>
+        <span className="kpi-chip-value" style={{ color: variacaoColor }}>
+          {variacaoDias != null ? `${variacaoDias > 0 ? '+' : ''}${variacaoDias}d` : '-'}
+        </span>
+        <span className="kpi-chip-detail">
+          {variacaoDias != null
+            ? (variacaoDias > 0 ? 'Atrasado' : variacaoDias < 0 ? 'Adiantado' : 'No prazo')
+            : 'Sem baseline'}
+        </span>
       </div>
     </div>
   );

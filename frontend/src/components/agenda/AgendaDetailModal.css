@@ -1,0 +1,679 @@
+/* ============================
+   Modal de Detalhe da Atividade
+   Inspirado em ClickUp + Google Calendar
+   ============================ */
+
+/* Overlay */
+.detail-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: detail-fade-in 0.15s ease;
+}
+
+@keyframes detail-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Container */
+.detail-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: detail-slide-up 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+
+@keyframes detail-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================
+   Header
+   ============================ */
+
+.detail-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  gap: 12px;
+}
+
+.detail-modal__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Bricolage Grotesque', 'DM Sans', sans-serif;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-modal__close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #9aa0a6;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.detail-modal__close-btn:hover {
+  background: #f1f3f4;
+  color: #5f6368;
+}
+
+/* ============================
+   Content
+   ============================ */
+
+.detail-modal__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px;
+  scrollbar-width: thin;
+  scrollbar-color: #dadce0 transparent;
+}
+
+.detail-modal__content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.detail-modal__content::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 2px;
+}
+
+.detail-modal__main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ============================
+   Meta grid (2 colunas)
+   ============================ */
+
+.detail-modal__meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid #e8eaed;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.detail-modal__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f3f4;
+  border-right: 1px solid #f1f3f4;
+}
+
+.detail-modal__meta-item:nth-child(even) {
+  border-right: none;
+}
+
+.detail-modal__meta-item:nth-last-child(-n+2) {
+  border-bottom: none;
+}
+
+/* Se número ímpar de itens, último sem borda direita */
+.detail-modal__meta-item:last-child {
+  border-right: none;
+}
+
+.detail-modal__meta-icon {
+  color: #9aa0a6;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.detail-modal__meta-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #9aa0a6;
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+  min-width: 52px;
+}
+
+.detail-modal__meta-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: 'DM Sans', sans-serif;
+  margin-left: auto;
+  text-align: right;
+}
+
+/* Editable meta values (date/time) */
+.detail-modal__meta-value--editable {
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  transition: background 0.15s ease;
+}
+
+.detail-modal__meta-value--editable:hover {
+  background: #f1f3f4;
+}
+
+.detail-modal__edit-icon {
+  color: #9aa0a6;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.detail-modal__meta-value--editable:hover .detail-modal__edit-icon {
+  opacity: 1;
+}
+
+/* Hidden date input (picker is opened programmatically via showPicker) */
+.detail-modal__date-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  border: none;
+  font-size: 0;
+}
+
+/* Time edit dropdowns */
+.detail-modal__time-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.detail-modal__time-select {
+  padding: 4px 8px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #1a1a1a;
+  background: #ffffff;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.detail-modal__time-select:focus {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.detail-modal__time-sep {
+  font-size: 12px;
+  color: #9aa0a6;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ============================
+   Status badge + dropdown
+   ============================ */
+
+.detail-modal__status-wrapper {
+  position: relative;
+  margin-left: auto;
+}
+
+.detail-modal__status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--status-color) 12%, white);
+  color: var(--status-color);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.detail-modal__status-badge:hover {
+  background: color-mix(in srgb, var(--status-color) 20%, white);
+}
+
+.detail-modal__status-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 10;
+  min-width: 140px;
+  padding: 4px;
+}
+
+.detail-modal__status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #3c4043;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.detail-modal__status-option:hover {
+  background: #f8f9fa;
+}
+
+.detail-modal__status-option.is-active {
+  background: #f1f3f4;
+  font-weight: 600;
+}
+
+.detail-modal__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--opt-color);
+  flex-shrink: 0;
+}
+
+/* ============================
+   Section
+   ============================ */
+
+.detail-modal__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-modal__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.detail-modal__section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-modal__todo-counter {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9aa0a6;
+  background: #f1f3f4;
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+
+/* ============================
+   Project list
+   ============================ */
+
+.detail-modal__project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-modal__project-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.detail-modal__project-item:last-child {
+  border-bottom: none;
+}
+
+.detail-modal__project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1a73e8;
+  flex-shrink: 0;
+}
+
+.detail-modal__project-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-modal__project-remove {
+  border: none;
+  background: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #9aa0a6;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+  opacity: 0;
+}
+
+.detail-modal__project-item:hover .detail-modal__project-remove {
+  opacity: 1;
+}
+
+.detail-modal__project-remove:hover {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+/* Add project */
+.detail-modal__add-btn {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #5f6368;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.detail-modal__add-btn:hover {
+  border-color: #1a73e8;
+  color: #1a73e8;
+  background: #e8f0fe;
+}
+
+.detail-modal__add-project-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.detail-modal__add-project-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-modal__add-project-confirm {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #1a73e8;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.detail-modal__add-project-confirm:hover {
+  background: #1558b0;
+}
+
+.detail-modal__add-project-confirm:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+/* SearchableSelect overrides inside detail modal */
+.detail-modal .searchable-select-trigger {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  background: #ffffff;
+  min-height: 36px;
+}
+
+.detail-modal .searchable-select-trigger:hover {
+  border-color: #dadce0;
+}
+
+.detail-modal .searchable-select-trigger.open {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.detail-modal .searchable-select-dropdown {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.detail-modal .searchable-select-option.selected {
+  background: rgba(26, 115, 232, 0.08);
+  color: #1a73e8;
+}
+
+/* Barra de progresso */
+.detail-modal__progress-bar {
+  height: 4px;
+  background: #e8eaed;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.detail-modal__progress-fill {
+  height: 100%;
+  background: #10b981;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ============================
+   ToDo list
+   ============================ */
+
+.detail-modal__todo-loading,
+.detail-modal__todo-empty {
+  font-size: 12px;
+  color: #9aa0a6;
+  font-family: 'DM Sans', sans-serif;
+  padding: 12px 0;
+  text-align: center;
+}
+
+.detail-modal__todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-modal__todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f4;
+  transition: opacity 0.15s ease;
+}
+
+.detail-modal__todo-item:last-child {
+  border-bottom: none;
+}
+
+.detail-modal__todo-item.is-done {
+  opacity: 0.55;
+}
+
+/* Check button */
+.detail-modal__todo-check {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.12s ease;
+  margin-top: 1px;
+}
+
+.detail-modal__todo-check:hover {
+  background: #f1f3f4;
+}
+
+.detail-modal__todo-check-empty {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #dadce0;
+  border-radius: 4px;
+  transition: border-color 0.12s ease;
+}
+
+.detail-modal__todo-check:hover .detail-modal__todo-check-empty {
+  border-color: #10b981;
+}
+
+.detail-modal__todo-check.is-checked {
+  color: #10b981;
+}
+
+.detail-modal__todo-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-modal__todo-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.4;
+}
+
+.detail-modal__todo-item.is-done .detail-modal__todo-name {
+  text-decoration: line-through;
+  color: #9aa0a6;
+}
+
+.detail-modal__todo-project {
+  font-size: 11px;
+  color: #9aa0a6;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ============================
+   Footer
+   ============================ */
+
+.detail-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 12px 24px 16px;
+  gap: 8px;
+}
+
+.detail-modal__delete-btn {
+  padding: 7px 16px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #5f6368;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.detail-modal__delete-btn:hover {
+  border-color: #f87171;
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.detail-modal__delete-btn.is-confirm {
+  border-color: #ef4444;
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.detail-modal__delete-btn.is-confirm:hover {
+  background: #dc2626;
+}
+
+.detail-modal__delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

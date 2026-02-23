@@ -113,7 +113,8 @@ const bqCache = new NodeCache({ stdTTL: 900, checkperiod: 120, useClones: false 
 function withBqCache(ttlSeconds) {
   return (req, res, next) => {
     const sortedQuery = Object.keys(req.query || {}).sort().reduce((acc, k) => { acc[k] = req.query[k]; return acc; }, {});
-    const key = `bq:${req.path}:${req.user?.email || 'anon'}:${JSON.stringify(sortedQuery)}`;
+    const effectiveEmail = req.session?.impersonating?.email || req.user?.email || 'anon';
+    const key = `bq:${req.path}:${effectiveEmail}:${JSON.stringify(sortedQuery)}`;
     const cached = bqCache.get(key);
     if (cached) {
       console.log(`📦 Cache HIT: ${req.path} (${ttlSeconds}s TTL)`);

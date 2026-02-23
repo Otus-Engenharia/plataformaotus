@@ -1,0 +1,348 @@
+/* ============================
+   Formulário de Compatibilização
+   Layout: coluna única — accent purple #8b5cf6
+   ============================ */
+
+.compat-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.compat-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ============================
+   Campos
+   ============================ */
+
+.compat-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compat-form__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.compat-form__optional {
+  font-weight: 400;
+  color: #9aa0a6;
+}
+
+.compat-form__input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #1a1a1a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.compat-form__input::placeholder {
+  color: #9aa0a6;
+}
+
+.compat-form__input:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+/* ============================
+   Projetos — header com toggle
+   ============================ */
+
+.compat-form__project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compat-form__project-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compat-form__select-all-btn {
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #8b5cf6;
+  cursor: pointer;
+  padding: 2px 0;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.compat-form__select-all-btn:hover {
+  color: #7c3aed;
+}
+
+.compat-form__toggle {
+  display: flex;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.compat-form__toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: none;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #9aa0a6;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.compat-form__toggle-btn:first-child {
+  border-right: 1.5px solid #e8eaed;
+}
+
+.compat-form__toggle-btn.is-active {
+  background: rgba(139, 92, 246, 0.08);
+  color: #8b5cf6;
+}
+
+.compat-form__toggle-btn:hover:not(.is-active) {
+  background: #f8f9fa;
+  color: #5f6368;
+}
+
+/* ============================
+   Datas
+   ============================ */
+
+.compat-form__dates {
+  display: flex;
+  gap: 12px;
+}
+
+.compat-form__field--half {
+  flex: 1;
+  min-width: 0;
+}
+
+.compat-form__readonly {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  background: #f8f9fa;
+  min-height: 36px;
+}
+
+.compat-form__readonly-date {
+  font-size: 13px;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+}
+
+.compat-form__readonly-time {
+  font-size: 13px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ============================
+   Botão submit
+   ============================ */
+
+.compat-form__submit-btn {
+  margin-top: 4px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #8b5cf6;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.compat-form__submit-btn:hover {
+  background: #7c3aed;
+}
+
+.compat-form__submit-btn:active {
+  transform: scale(0.98);
+}
+
+.compat-form__submit-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============================
+   Loading
+   ============================ */
+
+.compat-form__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  font-size: 13px;
+  color: #5f6368;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.compat-form__loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e8eaed;
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: compat-spin 0.6s linear infinite;
+}
+
+@keyframes compat-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================
+   Overrides: SearchableSelect
+   ============================ */
+
+.compat-form .searchable-select-trigger {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  background: #ffffff;
+  min-height: 36px;
+}
+
+.compat-form .searchable-select-trigger:hover {
+  border-color: #dadce0;
+}
+
+.compat-form .searchable-select-trigger.open {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.compat-form .searchable-select-dropdown {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.compat-form .searchable-select-option.selected {
+  background: rgba(139, 92, 246, 0.08);
+  color: #8b5cf6;
+}
+
+/* ============================
+   Overrides: MultiSelectDropdown
+   ============================ */
+
+.compat-form .multi-select .multi-select-trigger {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  background: #ffffff;
+  min-height: 36px;
+}
+
+.compat-form .multi-select .multi-select-trigger:hover {
+  border-color: #dadce0;
+}
+
+.compat-form .multi-select .multi-select-trigger.open {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.compat-form .multi-select .multi-select-dropdown {
+  border: 1.5px solid #e8eaed;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  z-index: 1100;
+}
+
+.compat-form .multi-select .multi-select-placeholder {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #9aa0a6;
+}
+
+.compat-form .multi-select .multi-select-count {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.compat-form .multi-select .multi-select-search input {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  border-color: #e8eaed;
+}
+
+.compat-form .multi-select .multi-select-search input:focus {
+  border-color: #8b5cf6;
+}
+
+.compat-form .multi-select li.multi-select-option {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  padding: 0.5rem 0.75rem;
+}
+
+.compat-form .multi-select li.multi-select-option.selected {
+  background: rgba(139, 92, 246, 0.08);
+  font-weight: 500;
+}
+
+.compat-form .multi-select .multi-select-empty {
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.compat-form .multi-select .multi-select-chip {
+  background: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 2px 8px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.compat-form .multi-select .multi-select-chip-remove {
+  color: #7c3aed;
+}
+
+.compat-form .multi-select .multi-select-chip-remove:hover {
+  color: #dc2626;
+}

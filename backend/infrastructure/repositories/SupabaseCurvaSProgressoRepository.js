@@ -5,12 +5,14 @@
  */
 
 import { CurvaSProgressoRepository } from '../../domain/curva-s-progresso/CurvaSProgressoRepository.js';
+import { ChangeAnnotation } from '../../domain/curva-s-progresso/entities/ChangeAnnotation.js';
 import { getSupabaseClient } from '../../supabase.js';
 
 const PHASE_TABLE = 'curva_s_default_phase_weights';
 const DISCIPLINE_TABLE = 'curva_s_default_discipline_weights';
 const ACTIVITY_TABLE = 'curva_s_default_activity_weights';
 const OVERRIDES_TABLE = 'curva_s_project_weight_overrides';
+const ANNOTATIONS_TABLE = 'curva_s_change_annotations';
 
 class SupabaseCurvaSProgressoRepository extends CurvaSProgressoRepository {
   #supabase;
@@ -194,6 +196,52 @@ class SupabaseCurvaSProgressoRepository extends CurvaSProgressoRepository {
 
     if (error) {
       throw new Error(`Erro ao remover overrides do projeto: ${error.message}`);
+    }
+  }
+
+  // --- Change Annotations ---
+
+  async findAnnotationsByProject(projectCode) {
+    const { data, error } = await this.#supabase
+      .from(ANNOTATIONS_TABLE)
+      .select('*')
+      .eq('project_code', projectCode)
+      .order('to_snapshot_date', { ascending: false });
+
+    if (error) {
+      throw new Error(`Erro ao buscar anotações: ${error.message}`);
+    }
+    return (data || []).map(row => ChangeAnnotation.fromPersistence(row));
+  }
+
+  async upsertAnnotation(annotation) {
+    const row = {
+      ...annotation.toPersistence(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await this.#supabase
+      .from(ANNOTATIONS_TABLE)
+      .upsert(row, {
+        onConflict: 'project_code,from_snapshot_date,to_snapshot_date,change_type,task_name',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Erro ao salvar anotação: ${error.message}`);
+    }
+    return ChangeAnnotation.fromPersistence(data);
+  }
+
+  async deleteAnnotation(id) {
+    const { error } = await this.#supabase
+      .from(ANNOTATIONS_TABLE)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Erro ao remover anotação: ${error.message}`);
     }
   }
 }

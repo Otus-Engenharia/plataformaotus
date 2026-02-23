@@ -1,42 +1,264 @@
 /**
  * Componente: Gráfico Curva S de Progresso Físico
- * Exibe múltiplas curvas: Executado, Projeção Atual e Reprogramações mensais (snapshots)
+ * Exibe múltiplas curvas: Baseline Original, Reprogramações mensais (snapshots),
+ * Executado (realizado) e Projeção Atual.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
   Filler,
 } from 'chart.js';
-import { Line } from 'react-chartjs-2';
-import { getSnapshotColor } from './snapshotColors';
+import { Chart } from 'react-chartjs-2';
+import { BASELINE_COLOR, EXECUTADO_COLOR, EXECUTADO_BAR_COLOR, getReprogramadoColor, getBaselineColor, getBaselineBarColor } from './snapshotColors';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
   Filler
 );
 
-function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecutado, loading }) {
+// Tooltip externo HTML agrupado por categoria
+function getOrCreateTooltipEl(chart) {
+  let el = chart.canvas.parentNode.querySelector('.chart-tooltip');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'chart-tooltip';
+    chart.canvas.parentNode.appendChild(el);
+  }
+  return el;
+}
+
+function externalTooltipHandler(context) {
+  const { chart, tooltip } = context;
+  const tooltipEl = getOrCreateTooltipEl(chart);
+
+  if (tooltip.opacity === 0) {
+    tooltipEl.style.opacity = '0';
+    tooltipEl.style.pointerEvents = 'none';
+    return;
+  }
+
+  // Filtrar items válidos
+  const items = tooltip.dataPoints?.filter(item =>
+    item.parsed.y != null && !(item.dataset.type === 'bar' && item.parsed.y === 0)
+  ) || [];
+
+  if (items.length === 0) {
+    tooltipEl.style.opacity = '0';
+    return;
+  }
+
+  // Agrupar por categoria usando dataset.order
+  const acumulado = items.filter(i => (i.dataset.order ?? 0) < 2);
+  const mensal = items.filter(i => (i.dataset.order ?? 0) >= 2);
+
+  // Construir HTML
+  let html = `<div class="chart-tooltip-title">${tooltip.title?.[0] || ''}</div>`;
+
+  if (acumulado.length > 0) {
+    html += '<div class="chart-tooltip-section">';
+    html += '<div class="chart-tooltip-section-header">Acumulado</div>';
+    acumulado.forEach(item => {
+      const color = item.dataset.borderColor || item.dataset.backgroundColor;
+      const isDashed = item.dataset.borderDash && item.dataset.borderDash.length > 0;
+      const isThick = (item.dataset.borderWidth || 1) >= 3;
+      let lineStyle = 'solid';
+      if (isDashed) lineStyle = 'dashed';
+
+      html += `<div class="chart-tooltip-item">
+        <span class="chart-tooltip-swatch" style="
+          background: transparent;
+          border-top: ${isThick ? '3px' : '2px'} ${lineStyle} ${color};
+        "></span>
+        <span class="chart-tooltip-label">${item.dataset.label}</span>
+        <span class="chart-tooltip-value">${item.parsed.y.toFixed(2)}%</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  if (mensal.length > 0) {
+    html += '<div class="chart-tooltip-section">';
+    html += '<div class="chart-tooltip-section-header">Mensal</div>';
+    mensal.forEach(item => {
+      const color = item.dataset.backgroundColor || item.dataset.borderColor;
+      html += `<div class="chart-tooltip-item">
+        <span class="chart-tooltip-swatch chart-tooltip-swatch-bar" style="background: ${color}; border-color: ${item.dataset.borderColor};"></span>
+        <span class="chart-tooltip-label">${item.dataset.label}</span>
+        <span class="chart-tooltip-value">${item.parsed.y.toFixed(2)}%</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  tooltipEl.innerHTML = html;
+  tooltipEl.style.opacity = '1';
+  tooltipEl.style.pointerEvents = 'none';
+
+  // Posicionar
+  const { offsetLeft, offsetTop } = chart.canvas;
+  const tooltipWidth = tooltipEl.offsetWidth;
+  const chartWidth = chart.width;
+  let left = offsetLeft + tooltip.caretX + 12;
+
+  // Se sair pela direita, mostrar à esquerda do cursor
+  if (left + tooltipWidth > offsetLeft + chartWidth) {
+    left = offsetLeft + tooltip.caretX - tooltipWidth - 12;
+  }
+
+  tooltipEl.style.left = left + 'px';
+  tooltipEl.style.top = offsetTop + tooltip.caretY + 'px';
+}
+
+function ProgressChart({
+  timeseries,
+  snapshotCurves,
+  baselineCurve,
+  baselineCurves,
+  visibleBaselines,
+  visibleSnapshots,
+  showExecutado,
+  showBaseline,
+  showBarExecutado = true,
+  visibleBaselineBars,
+  loading,
+}) {
+  // Todas as baselines disponíveis (novo sistema + fallback)
+  const allBaselines = useMemo(() => {
+    if (baselineCurves && baselineCurves.length > 0) return baselineCurves;
+    if (baselineCurve) return [baselineCurve];
+    return [];
+  }, [baselineCurves, baselineCurve]);
+
+  // Contagem de curvas visíveis para subtítulo
+  const curveCount = useMemo(() => {
+    const baseline = showBaseline
+      ? allBaselines.filter(b => !visibleBaselines || visibleBaselines.has(b.id ?? b.label)).length
+      : 0;
+    const snapshots = snapshotCurves
+      ? snapshotCurves.filter(sc => !visibleSnapshots || visibleSnapshots.has(sc.snapshot_date)).length
+      : 0;
+    const executado = showExecutado ? 1 : 0;
+    return { baseline, snapshots, executado };
+  }, [showBaseline, allBaselines, visibleBaselines, snapshotCurves, visibleSnapshots, showExecutado]);
+
+  const counterText = useMemo(() => {
+    const parts = [];
+    if (curveCount.baseline > 0) parts.push(`${curveCount.baseline} baseline`);
+    if (curveCount.snapshots > 0) parts.push(`${curveCount.snapshots} reprogramado(s)`);
+    if (curveCount.executado > 0) parts.push('Executado');
+    return parts.length > 0 ? parts.join(', ') : 'Nenhuma curva selecionada';
+  }, [curveCount]);
+
   const chartData = useMemo(() => {
     if (!timeseries || timeseries.length === 0) return null;
 
     const labels = timeseries.map(t => t.month);
     const datasets = [];
 
-    // 1. Curvas de snapshots (reprogramações) - renderizar primeiro (fundo)
+    // ========================================
+    // BARRAS MENSAIS (order: 2 = renderizam atrás)
+    // ========================================
+
+    // Barras das Baselines (cinza semi-transparente)
+    if (showBaseline && allBaselines.length > 0) {
+      allBaselines.forEach((bl, idx) => {
+        if (!bl.timeseries) return;
+        const blKey = bl.id ?? bl.label;
+        // visibleBaselineBars é sempre um Set; se não existe ou não contém a key, pular
+        if (!visibleBaselineBars || !visibleBaselineBars.has(blKey)) return;
+
+        const data = labels.map(label => {
+          const point = bl.timeseries.find(t => t.month === label);
+          return point ? point.monthly_increment : null;
+        });
+
+        const color = allBaselines.length > 1 ? getBaselineColor(idx) : BASELINE_COLOR;
+
+        datasets.push({
+          type: 'bar',
+          label: `Mensal ${bl.label || bl.revision_label || 'Baseline'}`,
+          data,
+          yAxisID: 'y1',
+          backgroundColor: getBaselineBarColor(idx),
+          borderColor: color,
+          borderWidth: 1,
+          barPercentage: 0.7,
+          categoryPercentage: 0.85,
+          order: 2,
+        });
+      });
+    }
+
+    // Barras do Executado (amber semi-transparente)
+    if (showBarExecutado && showExecutado !== false) {
+      datasets.push({
+        type: 'bar',
+        label: 'Progresso Mensal',
+        data: timeseries.map(t => t.monthly_increment),
+        yAxisID: 'y1',
+        backgroundColor: EXECUTADO_BAR_COLOR,
+        borderColor: EXECUTADO_COLOR,
+        borderWidth: 1,
+        barPercentage: 0.7,
+        categoryPercentage: 0.85,
+        order: 2,
+      });
+    }
+
+    // ========================================
+    // LINHAS ACUMULADAS (order: 1 = renderizam na frente)
+    // ========================================
+
+    // 1. Baselines (cinza, tracejadas) - renderizar primeiro (fundo)
+    if (showBaseline && allBaselines.length > 0) {
+      allBaselines.forEach((bl, idx) => {
+        if (!bl.timeseries) return;
+        const blKey = bl.id ?? bl.label;
+        if (visibleBaselines && !visibleBaselines.has(blKey)) return;
+
+        const data = labels.map(label => {
+          const point = bl.timeseries.find(t => t.month === label);
+          return point ? point.cumulative_progress : null;
+        });
+
+        const color = allBaselines.length > 1 ? getBaselineColor(idx) : BASELINE_COLOR;
+        const dashPattern = idx === 0 ? [8, 4] : [4 + idx * 2, 4];
+
+        datasets.push({
+          label: bl.label || bl.revision_label || 'Baseline',
+          data,
+          borderColor: color,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: dashPattern,
+          tension: 0.3,
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          pointBackgroundColor: color,
+          spanGaps: true,
+          order: 1,
+        });
+      });
+    }
+
+    // 2. Curvas de snapshots (reprogramações) - verde-teal, tracejadas curtas
     if (snapshotCurves && snapshotCurves.length > 0) {
       const visible = snapshotCurves.filter(sc =>
         !visibleSnapshots || visibleSnapshots.has(sc.snapshot_date)
@@ -48,7 +270,7 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
           return point ? point.cumulative_progress : null;
         });
 
-        const color = getSnapshotColor(idx, visible.length);
+        const color = getReprogramadoColor(idx, visible.length);
 
         datasets.push({
           label: `Reprog. ${sc.label}`,
@@ -56,17 +278,19 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
           borderColor: color,
           backgroundColor: 'transparent',
           borderWidth: 1.5,
+          borderDash: [4, 3],
           tension: 0.3,
           fill: false,
           pointRadius: 0,
           pointHoverRadius: 3,
           pointBackgroundColor: color,
           spanGaps: true,
+          order: 1,
         });
       });
     }
 
-    // 2. Executado (linha grossa dourada) - dados realizados
+    // 3. Executado (linha grossa amber) - dados realizados
     if (showExecutado !== false) {
       const realizado = timeseries.map(t => t.is_past ? t.cumulative_progress : null);
       const lastPastIndex = timeseries.reduce((acc, t, i) => t.is_past ? i : acc, -1);
@@ -74,19 +298,20 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
       datasets.push({
         label: 'Executado',
         data: realizado,
-        borderColor: '#F59E0B',
+        borderColor: EXECUTADO_COLOR,
         backgroundColor: 'rgba(245, 158, 11, 0.06)',
         borderWidth: 3,
         tension: 0.3,
         fill: true,
         pointRadius: 3,
-        pointBackgroundColor: '#F59E0B',
+        pointBackgroundColor: EXECUTADO_COLOR,
         pointBorderColor: '#fff',
         pointBorderWidth: 1,
         spanGaps: false,
+        order: 0,
       });
 
-      // 3. Projeção Atual (tracejada dourada)
+      // 4. Projeção Atual (tracejada amber)
       const projecao = timeseries.map(t => t.is_past ? null : t.cumulative_progress);
 
       // Conectar as duas curvas no ponto de transição
@@ -97,22 +322,23 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
       datasets.push({
         label: 'Projeção Atual',
         data: projecao,
-        borderColor: '#F59E0B',
+        borderColor: EXECUTADO_COLOR,
         backgroundColor: 'rgba(245, 158, 11, 0.03)',
         borderWidth: 2,
         borderDash: [6, 4],
         tension: 0.3,
         fill: true,
         pointRadius: 2,
-        pointBackgroundColor: '#F59E0B',
+        pointBackgroundColor: EXECUTADO_COLOR,
         pointBorderColor: '#fff',
         pointBorderWidth: 1,
         spanGaps: false,
+        order: 0,
       });
     }
 
     return { labels, datasets };
-  }, [timeseries, snapshotCurves, visibleSnapshots, showExecutado]);
+  }, [timeseries, snapshotCurves, allBaselines, visibleBaselines, visibleSnapshots, showExecutado, showBaseline, showBarExecutado, visibleBaselineBars]);
 
   const options = useMemo(() => {
     if (!timeseries || timeseries.length === 0) return {};
@@ -127,20 +353,15 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
         intersect: false,
       },
       plugins: {
+        datalabels: { display: false },
         legend: {
-          display: false, // Legenda custom abaixo do gráfico
+          display: false,
         },
         tooltip: {
-          backgroundColor: 'rgba(26, 26, 26, 0.95)',
-          titleFont: { size: 12 },
-          bodyFont: { size: 12 },
-          padding: 10,
-          callbacks: {
-            label: (context) => {
-              if (context.parsed.y == null) return null;
-              return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}%`;
-            },
-          },
+          enabled: false,
+          mode: 'index',
+          intersect: false,
+          external: externalTooltipHandler,
         },
         todayLine: { todayIndex },
       },
@@ -148,7 +369,7 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
         x: {
           grid: { color: 'rgba(0,0,0,0.04)' },
           ticks: {
-            font: { size: 11 },
+            font: { size: 10 },
             maxRotation: 45,
             minRotation: 45,
           },
@@ -158,9 +379,30 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
           max: 100,
           grid: { color: 'rgba(0,0,0,0.06)' },
           ticks: {
-            font: { size: 11 },
+            font: { size: 10 },
             callback: (value) => `${value}%`,
             stepSize: 10,
+          },
+          title: {
+            display: true,
+            text: 'Progresso acumulado (%)',
+            font: { size: 10 },
+            color: '#888',
+          },
+        },
+        y1: {
+          position: 'right',
+          beginAtZero: true,
+          grid: { drawOnChartArea: false },
+          ticks: {
+            font: { size: 10 },
+            callback: (value) => `${value}%`,
+          },
+          title: {
+            display: true,
+            text: 'Progresso mensal (%)',
+            font: { size: 10 },
+            color: '#888',
           },
         },
       },
@@ -226,41 +468,18 @@ function ProgressChart({ timeseries, snapshotCurves, visibleSnapshots, showExecu
   return (
     <div className="progress-chart-container">
       <div className="progress-chart-header">
-        <h4>Curva S - Progresso Físico</h4>
+        <h4>Avanço do projeto</h4>
+        <span className="progress-chart-counter">
+          Mostrando: {counterText}
+        </span>
       </div>
       <div className="progress-chart-wrapper">
-        <Line
+        <Chart
+          type="line"
           data={{ labels: chartData.labels, datasets: chartData.datasets }}
           options={options}
           plugins={[todayLinePlugin]}
         />
-      </div>
-      <div className="progress-chart-legend">
-        {chartData.datasets.map((ds, i) => (
-          <span key={i} className="legend-item">
-            <span
-              className="legend-color"
-              style={ds.borderDash
-                ? {
-                    display: 'inline-block',
-                    width: '20px',
-                    height: '2px',
-                    borderTop: `2px dashed ${ds.borderColor}`,
-                    backgroundColor: 'transparent',
-                    verticalAlign: 'middle',
-                  }
-                : {
-                    display: 'inline-block',
-                    width: '20px',
-                    height: ds.borderWidth >= 3 ? '3px' : '2px',
-                    backgroundColor: ds.borderColor,
-                    verticalAlign: 'middle',
-                  }
-              }
-            />
-            <span className="legend-label">{ds.label}</span>
-          </span>
-        ))}
       </div>
     </div>
   );

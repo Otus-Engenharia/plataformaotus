@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 
-function WeightConfigPanel({ weights, onSave, onReset, loading }) {
+function WeightConfigPanel({ weights, phaseBreakdown, onSave, onReset, loading }) {
   const [editMode, setEditMode] = useState(false);
   const [phaseEdits, setPhaseEdits] = useState({});
   const [disciplineEdits, setDisciplineEdits] = useState({});
@@ -42,6 +42,25 @@ function WeightConfigPanel({ weights, onSave, onReset, loading }) {
   );
 
   const isPhaseValid = Math.abs(phaseTotal - 100) < 0.01;
+
+  // Detectar mismatches entre fases configuradas e fases reais do projeto
+  const phaseWarnings = useMemo(() => {
+    if (!phaseBreakdown || phaseBreakdown.length === 0) return null;
+    const configNames = Object.keys(phaseEdits);
+    const projectNames = phaseBreakdown.map(p => p.phase_name);
+    const configLower = configNames.map(n => n.toLowerCase().trim());
+    const projectLower = projectNames.map(n => n.toLowerCase().trim());
+
+    const missingInConfig = projectNames.filter(
+      name => !configLower.includes(name.toLowerCase().trim())
+    );
+    const missingInProject = configNames.filter(
+      name => !projectLower.includes(name.toLowerCase().trim())
+    );
+
+    if (missingInConfig.length === 0 && missingInProject.length === 0) return null;
+    return { missingInConfig, missingInProject };
+  }, [phaseEdits, phaseBreakdown]);
 
   const handleSave = async () => {
     if (!isPhaseValid) return;
@@ -126,6 +145,20 @@ function WeightConfigPanel({ weights, onSave, onReset, loading }) {
             ))}
             {!isPhaseValid && editMode && (
               <div className="weight-error">Soma deve ser 100% (atual: {phaseTotal.toFixed(1)}%)</div>
+            )}
+            {phaseWarnings && (
+              <div className="weight-phase-warnings">
+                {phaseWarnings.missingInConfig.length > 0 && (
+                  <div className="weight-warning warning-missing-config">
+                    Fases do projeto sem configuração: {phaseWarnings.missingInConfig.join(', ')}
+                  </div>
+                )}
+                {phaseWarnings.missingInProject.length > 0 && (
+                  <div className="weight-warning warning-missing-project">
+                    Fases configuradas sem tarefas no projeto: {phaseWarnings.missingInProject.join(', ')}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

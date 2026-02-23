@@ -83,7 +83,7 @@ const CARGO_COLORS = [
 ];
 
 function CurvaSView() {
-  const { isPrivileged } = useAuth();
+  const { isPrivileged, hasFullAccess } = useAuth();
   const [data, setData] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [custosPorCargo, setCustosPorCargo] = useState([]);
@@ -1033,7 +1033,7 @@ function CurvaSView() {
 
         {/* Segunda linha: Dropdowns - Ordem: Líder, Time, Projeto */}
         <div className="filters-row">
-          {isPrivileged && (
+          {hasFullAccess && (
             <div className="filter-group">
               <label htmlFor="lider-filter">Líder:</label>
               <SearchableSelect

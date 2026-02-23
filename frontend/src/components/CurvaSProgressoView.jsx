@@ -13,7 +13,9 @@ import WeightConfigPanel from './curva-s-progresso/WeightConfigPanel';
 import ProgressKpiCards from './curva-s-progresso/ProgressKpiCards';
 import WeightSummaryTable from './curva-s-progresso/WeightSummaryTable';
 import ProgressChart from './curva-s-progresso/ProgressChart';
-import { getSnapshotColor } from './curva-s-progresso/snapshotColors';
+import ChartFilterSidebar from './curva-s-progresso/ChartFilterSidebar';
+import ChangeLogPanel from './curva-s-progresso/ChangeLogPanel';
+import ChangeLogTab from './curva-s-progresso/ChangeLogTab';
 import '../styles/CurvaSProgressoView.css';
 
 function CurvaSProgressoView({ selectedProjectId, portfolio }) {
@@ -31,7 +33,20 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
 
   // Filtros de visibilidade das curvas
   const [showExecutado, setShowExecutado] = useState(true);
+  const [showBaseline, setShowBaseline] = useState(true);
   const [visibleSnapshots, setVisibleSnapshots] = useState(null); // null = todos visíveis
+  const [baselineCurve, setBaselineCurve] = useState(null);
+  const [baselineCurves, setBaselineCurves] = useState([]);
+  const [visibleBaselines, setVisibleBaselines] = useState(null); // null = todas visíveis
+  const [prazos, setPrazos] = useState(null);
+
+  // Estado das barras mensais
+  const [showBarExecutado, setShowBarExecutado] = useState(true);
+  const [visibleBaselineBars, setVisibleBaselineBars] = useState(new Set());
+
+  // Changelog state
+  const [changeLog, setChangeLog] = useState(null);
+  const [changeLogLoading, setChangeLogLoading] = useState(false);
 
   // Buscar dados do projeto selecionado no portfolio
   const selectedProject = portfolio?.find(p =>
@@ -107,9 +122,14 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       if (res.data.success) {
         setTimeseries(res.data.data.timeseries || []);
         setSnapshotCurves(res.data.data.snapshot_curves || []);
+        setBaselineCurve(res.data.data.baseline_curve || null);
+        setBaselineCurves(res.data.data.baseline_curves || []);
+        setPrazos(res.data.data.prazos || null);
         // Resetar filtros quando mudar de projeto
         setVisibleSnapshots(null);
+        setVisibleBaselines(null);
         setShowExecutado(true);
+        setShowBaseline(true);
       }
     } catch (err) {
       console.error('Erro ao buscar série temporal:', err);
@@ -117,6 +137,29 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       setTimeseriesLoading(false);
     }
   }, [projectCode, smartsheetId, projectName, projectId]);
+
+  // Buscar log de alterações mensais
+  const fetchChangeLog = useCallback(async () => {
+    if (!projectCode || (!smartsheetId && !projectName)) return;
+    setChangeLogLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (smartsheetId) params.set('smartsheetId', smartsheetId);
+      if (projectName) params.set('projectName', projectName);
+
+      const res = await axios.get(
+        `${API_URL}/api/curva-s-progresso/project/${encodeURIComponent(projectCode)}/changelog?${params}`,
+        { withCredentials: true }
+      );
+      if (res.data.success) {
+        setChangeLog(res.data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar log de alterações:', err);
+    } finally {
+      setChangeLogLoading(false);
+    }
+  }, [projectCode, smartsheetId, projectName]);
 
   useEffect(() => {
     fetchWeights();
@@ -129,6 +172,29 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   useEffect(() => {
     fetchTimeseries();
   }, [fetchTimeseries]);
+
+  // Inicializar barras de baseline: apenas última visível por padrão
+  useEffect(() => {
+    const allBl = baselineCurves.length > 0 ? baselineCurves : (baselineCurve ? [baselineCurve] : []);
+    if (allBl.length > 0) {
+      const last = allBl[allBl.length - 1];
+      setVisibleBaselineBars(new Set([last.id ?? last.label]));
+    } else {
+      setVisibleBaselineBars(new Set());
+    }
+  }, [baselineCurves, baselineCurve]);
+
+  // Resetar changelog quando mudar de projeto
+  useEffect(() => {
+    setChangeLog(null);
+  }, [projectCode]);
+
+  // Lazy load changelog quando aba relevante fica ativa
+  useEffect(() => {
+    if ((activeTab === 'grafico' || activeTab === 'alteracoes') && !changeLog && !changeLogLoading) {
+      fetchChangeLog();
+    }
+  }, [activeTab, changeLog, changeLogLoading, fetchChangeLog]);
 
   // Handler para salvar pesos customizados
   const handleSaveWeights = async (weightData) => {
@@ -162,6 +228,15 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     } catch (err) {
       console.error('Erro ao resetar pesos:', err);
     }
+  };
+
+  // Toggle barras de baseline
+  const toggleBaselineBar = (key) => {
+    setVisibleBaselineBars(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
   };
 
   // Toggle de visibilidade de snapshot
@@ -200,7 +275,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   return (
     <div className="curva-s-progresso-container">
       {/* KPI Cards */}
-      <ProgressKpiCards progress={progress} loading={loading} />
+      <ProgressKpiCards progress={progress} prazos={prazos} loading={loading} />
 
       {/* Tabs internas */}
       <div className="curva-s-tabs">
@@ -209,6 +284,12 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
           onClick={() => setActiveTab('grafico')}
         >
           Gráfico
+        </button>
+        <button
+          className={`curva-s-tab ${activeTab === 'resumo' ? 'active' : ''}`}
+          onClick={() => setActiveTab('resumo')}
+        >
+          Resumo
         </button>
         <button
           className={`curva-s-tab ${activeTab === 'pesos' ? 'active' : ''}`}
@@ -222,6 +303,15 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
         >
           Tarefas ({tasks.length})
         </button>
+        <button
+          className={`curva-s-tab ${activeTab === 'alteracoes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('alteracoes')}
+        >
+          Alterações
+          {changeLog?.overall_summary?.total_changes > 0 && (
+            <span className="curva-s-tab-badge">{changeLog.overall_summary.total_changes}</span>
+          )}
+        </button>
       </div>
 
       {error && (
@@ -233,34 +323,68 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       {/* Conteúdo baseado na tab ativa */}
       <div className="curva-s-content">
         {activeTab === 'grafico' && (
-          <div className="curva-s-chart-layout">
-            <div className="curva-s-chart-main">
-              {/* Filtros de curvas */}
-              {snapshotCurves.length > 0 && (
-                <CurveFilters
-                  snapshotCurves={snapshotCurves}
-                  visibleSnapshots={visibleSnapshots}
-                  showExecutado={showExecutado}
-                  onToggleExecutado={() => setShowExecutado(prev => !prev)}
-                  onToggleSnapshot={toggleSnapshot}
-                  onSelectAll={selectAllSnapshots}
-                  onClearAll={clearAllSnapshots}
-                />
-              )}
+          <div className="curva-s-chart-layout-v3">
+            <ChartFilterSidebar
+              showExecutado={showExecutado}
+              onToggleExecutado={() => setShowExecutado(prev => !prev)}
+              baselineCurve={baselineCurve}
+              baselineCurves={baselineCurves}
+              showBaseline={showBaseline}
+              onToggleBaseline={() => setShowBaseline(prev => !prev)}
+              visibleBaselines={visibleBaselines}
+              onToggleBaseline2={(key) => {
+                setVisibleBaselines(prev => {
+                  if (!prev) {
+                    const allKeys = new Set(
+                      (baselineCurves.length > 0 ? baselineCurves : (baselineCurve ? [baselineCurve] : []))
+                        .map(b => b.id ?? b.label)
+                    );
+                    allKeys.delete(key);
+                    return allKeys;
+                  }
+                  const next = new Set(prev);
+                  next.has(key) ? next.delete(key) : next.add(key);
+                  return next;
+                });
+              }}
+              snapshotCurves={snapshotCurves}
+              visibleSnapshots={visibleSnapshots}
+              onToggleSnapshot={toggleSnapshot}
+              onSelectAllSnapshots={selectAllSnapshots}
+              onClearAllSnapshots={clearAllSnapshots}
+              showBarExecutado={showBarExecutado}
+              onToggleBarExecutado={() => setShowBarExecutado(prev => !prev)}
+              visibleBaselineBars={visibleBaselineBars}
+              onToggleBaselineBar={toggleBaselineBar}
+            />
+            <div className="curva-s-chart-main-v3">
               <ProgressChart
                 timeseries={timeseries}
                 snapshotCurves={snapshotCurves}
+                baselineCurve={baselineCurve}
+                baselineCurves={baselineCurves}
+                visibleBaselines={visibleBaselines}
                 visibleSnapshots={visibleSnapshots}
                 showExecutado={showExecutado}
+                showBaseline={showBaseline}
+                showBarExecutado={showBarExecutado}
+                visibleBaselineBars={visibleBaselineBars}
                 loading={timeseriesLoading}
               />
             </div>
-            <div className="curva-s-chart-sidebar">
-              <WeightSummaryTable
-                phaseBreakdown={phaseBreakdown}
-                progress={progress}
-              />
-            </div>
+            <ChangeLogPanel
+              changeLog={changeLog}
+              loading={changeLogLoading}
+            />
+          </div>
+        )}
+
+        {activeTab === 'resumo' && (
+          <div className="curva-s-resumo-layout">
+            <WeightSummaryTable
+              phaseBreakdown={phaseBreakdown}
+              progress={progress}
+            />
           </div>
         )}
 
@@ -269,6 +393,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
             <div className="curva-s-pesos-config">
               <WeightConfigPanel
                 weights={weights}
+                phaseBreakdown={phaseBreakdown}
                 onSave={handleSaveWeights}
                 onReset={handleResetWeights}
                 loading={loading}
@@ -288,55 +413,15 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
             <TaskWeightTable tasks={tasks} loading={loading} />
           </div>
         )}
-      </div>
-    </div>
-  );
-}
 
-// Barra de filtros de curvas
-function CurveFilters({
-  snapshotCurves,
-  visibleSnapshots,
-  showExecutado,
-  onToggleExecutado,
-  onToggleSnapshot,
-  onSelectAll,
-  onClearAll,
-}) {
-  const isSnapshotVisible = (date) =>
-    !visibleSnapshots || visibleSnapshots.has(date);
-
-  return (
-    <div className="curve-filters">
-      <div className="curve-filters-group">
-        <button
-          className={`curve-filter-btn executado ${showExecutado ? 'active' : ''}`}
-          onClick={onToggleExecutado}
-        >
-          <span className="curve-filter-color" style={{ backgroundColor: '#F59E0B' }} />
-          Executado
-        </button>
-      </div>
-
-      <div className="curve-filters-separator" />
-
-      <div className="curve-filters-group">
-        <span className="curve-filters-label">Reprogramados:</span>
-        {snapshotCurves.map((sc, idx) => (
-          <button
-            key={sc.snapshot_date}
-            className={`curve-filter-btn snapshot ${isSnapshotVisible(sc.snapshot_date) ? 'active' : ''}`}
-            onClick={() => onToggleSnapshot(sc.snapshot_date)}
-          >
-            <span
-              className="curve-filter-color"
-              style={{ backgroundColor: getSnapshotColor(idx, snapshotCurves.length) }}
-            />
-            {sc.label}
-          </button>
-        ))}
-        <button className="curve-filter-action" onClick={onSelectAll}>Todos</button>
-        <button className="curve-filter-action" onClick={onClearAll}>Limpar</button>
+        {activeTab === 'alteracoes' && (
+          <ChangeLogTab
+            changeLog={changeLog}
+            loading={changeLogLoading}
+            projectCode={projectCode}
+            onRefresh={fetchChangeLog}
+          />
+        )}
       </div>
     </div>
   );

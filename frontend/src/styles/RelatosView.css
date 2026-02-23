@@ -1,0 +1,448 @@
+/* ============================================
+   Relatos (Diário de Projeto)
+   ============================================ */
+
+.relatos-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* Header */
+.relatos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.relatos-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.relatos-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.relatos-filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.relatos-filter-select {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  color: #374151;
+  background: white;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.relatos-filter-select:focus {
+  border-color: #ffdd00;
+}
+
+/* Lista */
+.relatos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.relatos-loading,
+.relatos-empty,
+.relatos-error {
+  text-align: center;
+  padding: 32px 16px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.relatos-error {
+  color: #ef4444;
+  background: #fef2f2;
+  border-radius: 8px;
+}
+
+/* Card */
+.relato-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #6b7280;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.relato-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.relato-card-expanded {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.relato-card-resolved {
+  opacity: 0.7;
+}
+
+.relato-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.relato-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.relato-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.relato-card-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.relato-card-titulo {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+/* Badges */
+.relato-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.relato-badge-tipo {
+  color: white;
+}
+
+.relato-badge-prioridade {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Meta */
+.relato-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.relato-card-separator {
+  font-size: 0.6rem;
+}
+
+.relato-card-resolved-badge {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+/* Chevron */
+.relato-card-chevron {
+  color: #9ca3af;
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.relato-card-chevron-open {
+  transform: rotate(180deg);
+}
+
+/* Body expandido */
+.relato-card-body {
+  padding: 0 16px 12px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.relato-card-descricao {
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 12px 0 8px;
+  white-space: pre-wrap;
+}
+
+.relato-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.relato-action-btn {
+  padding: 4px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+  background: white;
+  transition: all 0.2s;
+}
+
+.relato-action-edit {
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+.relato-action-edit:hover {
+  background: #2563eb;
+  color: white;
+}
+
+.relato-action-delete {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.relato-action-delete:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* Footer */
+.relatos-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid #e5e7eb;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.relatos-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.85rem;
+}
+
+.relatos-stat-total {
+  color: #6b7280;
+}
+
+.relatos-stat-item {
+  font-weight: 600;
+}
+
+.relatos-add-btn {
+  padding: 8px 16px;
+  background: white;
+  color: #2563eb;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.relatos-add-btn:hover {
+  background: #2563eb;
+  color: white;
+}
+
+/* Modal / Overlay */
+.relato-form-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.relato-form-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.relato-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+}
+
+.relato-form-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.relato-form-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.relato-form-close:hover {
+  color: #374151;
+}
+
+.relato-form-body {
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.relato-form-error {
+  padding: 8px 12px;
+  background: #fef2f2;
+  color: #ef4444;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.relato-form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.relato-form-row .relato-form-field {
+  flex: 1;
+}
+
+.relato-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.relato-form-field label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.relato-form-field input,
+.relato-form-field textarea,
+.relato-form-field select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  color: #1f2937;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.relato-form-field input:focus,
+.relato-form-field textarea:focus,
+.relato-form-field select:focus {
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.15);
+}
+
+.relato-form-field textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.relato-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.relato-form-btn-cancel,
+.relato-form-btn-save {
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.relato-form-btn-cancel {
+  background: white;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.relato-form-btn-cancel:hover {
+  background: #f9fafb;
+}
+
+.relato-form-btn-save {
+  background: #ffdd00;
+  color: #1f2937;
+  border: 1px solid #ffdd00;
+}
+
+.relato-form-btn-save:hover {
+  background: #ffd000;
+}
+
+.relato-form-btn-save:disabled,
+.relato-form-btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
