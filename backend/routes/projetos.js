@@ -5,6 +5,8 @@
 
 import express from 'express';
 import { SupabaseProjetoRepository } from '../infrastructure/repositories/SupabaseProjetoRepository.js';
+import { sendProjectCreatedNotification } from '../discord.js';
+import { getSupabaseServiceClient } from '../supabase.js';
 import {
   CreateProject,
   CreateClient,
@@ -260,6 +262,30 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction) {
           { name: result.name }
         );
       }
+
+      // Notificação Discord (fire-and-forget)
+      (async () => {
+        try {
+          let companyName = 'N/A';
+          const supabase = getSupabaseServiceClient();
+          const { data: company } = await supabase
+            .from('companies')
+            .select('name')
+            .eq('id', company_id)
+            .single();
+          if (company) companyName = company.name;
+
+          await sendProjectCreatedNotification({
+            projectName: result.name,
+            companyName,
+            userName: req.user?.displayName || req.user?.name || 'Usuário',
+            serviceType: service_type || null,
+            faseEntrada: fase_entrada || null,
+          });
+        } catch (err) {
+          console.error('Erro ao enviar notificação Discord:', err);
+        }
+      })();
 
       res.status(201).json({ success: true, data: result });
     } catch (error) {

@@ -37,6 +37,10 @@ const EVENT_CONFIG = {
     title: '❌  PROJETO CANCELADO',
     color: 0xe74c3c
   },
+  'projeto_criado': {
+    title: '📋  NOVO PROJETO CRIADO',
+    color: 0x9b59b6
+  },
   'default': {
     title: '🔄  MUDANÇA DE STATUS',
     color: 0xD4A017
@@ -247,10 +251,128 @@ function getWebhookUrls(oldStatus, newStatus) {
   return urls.filter(Boolean);
 }
 
+/**
+ * Retorna URLs de webhook para notificação de criação de projeto
+ * Envia para TODOS os canais: Projetos, CS, Digital e Financeiro
+ * @returns {string[]} Array de URLs de webhook
+ */
+function getProjectCreatedWebhookUrls() {
+  return [
+    process.env.DISCORD_WEBHOOK_URL_PROJETOS,
+    process.env.DISCORD_WEBHOOK_URL_CS,
+    process.env.DISCORD_WEBHOOK_URL_DIGITAL,
+    process.env.DISCORD_WEBHOOK_URL_FINANCEIRO
+  ].filter(Boolean);
+}
+
+/**
+ * Envia notificação de criação de projeto para o Discord
+ * @param {Object} params - Parâmetros da notificação
+ * @param {string} params.projectName - Nome do projeto
+ * @param {string} params.companyName - Nome da empresa/cliente
+ * @param {string} params.userName - Nome do usuário que criou
+ * @param {string} [params.serviceType] - Tipo de serviço
+ * @param {string} [params.faseEntrada] - Fase de entrada
+ * @returns {Promise<PromiseSettledResult[]>} Resultados das requisições
+ */
+async function sendProjectCreatedNotification({
+  projectName,
+  companyName,
+  userName,
+  serviceType,
+  faseEntrada
+}) {
+  const eventConfig = EVENT_CONFIG['projeto_criado'];
+
+  const fields = [
+    {
+      name: '━━━━━━━━━━━━━━━━━━━━━━',
+      value: '\u200B',
+      inline: false
+    },
+    {
+      name: '📁  PROJETO',
+      value: `\`\`\`${projectName || 'N/A'}\`\`\``,
+      inline: false
+    },
+    {
+      name: '🏢  CLIENTE',
+      value: `\`\`\`${companyName || 'N/A'}\`\`\``,
+      inline: false
+    }
+  ];
+
+  if (serviceType || faseEntrada) {
+    fields.push({ name: '\u200B', value: '\u200B', inline: false });
+    if (serviceType) {
+      fields.push({
+        name: '🔧  TIPO DE SERVIÇO',
+        value: `\`\`\`${serviceType}\`\`\``,
+        inline: true
+      });
+    }
+    if (faseEntrada) {
+      fields.push({
+        name: '📌  FASE DE ENTRADA',
+        value: `\`\`\`${faseEntrada}\`\`\``,
+        inline: true
+      });
+    }
+  }
+
+  const embed = {
+    title: eventConfig.title,
+    description: `**${userName || 'Usuário'}** criou um novo projeto via Formulário de Passagem`,
+    color: eventConfig.color,
+    fields,
+    footer: {
+      text: '🏗️ Plataforma Otus • Formulário de Passagem',
+      icon_url: 'https://app.otusengenharia.com/favicon.ico'
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  const payload = {
+    username: BOT_NAME,
+    avatar_url: BOT_AVATAR,
+    embeds: [embed]
+  };
+
+  const webhookUrls = getProjectCreatedWebhookUrls();
+
+  if (webhookUrls.length === 0) {
+    console.warn('Discord: Nenhuma URL de webhook configurada para criação de projeto');
+    return [];
+  }
+
+  const results = await Promise.allSettled(
+    webhookUrls.map(url =>
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+    )
+  );
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' && result.value.ok) {
+      console.log(`✅ Discord: Notificação de novo projeto enviada (webhook ${index + 1})`);
+    } else {
+      console.error(`❌ Discord: Falha ao enviar notificação de novo projeto (webhook ${index + 1}):`,
+        result.reason || result.value?.statusText);
+    }
+  });
+
+  return results;
+}
+
 export {
   sendStatusChangeNotification,
   getWebhookUrls,
   getEventConfig,
   getEventType,
+  sendProjectCreatedNotification,
+  getProjectCreatedWebhookUrls,
   EVENT_CONFIG
 };
