@@ -28,7 +28,8 @@ class SaveChangeAnnotation {
    * @returns {Object} Annotation response
    */
   async execute({ projectCode, fromSnapshotDate, toSnapshotDate, changeType, taskName,
-                  disciplina, description, justification, isVisible, userEmail }) {
+                  disciplina, description, justification, isVisible, userEmail,
+                  overrideDeltaDays, overrideDataTermino }) {
     if (!projectCode) throw new Error('projectCode é obrigatório');
     if (!fromSnapshotDate) throw new Error('fromSnapshotDate é obrigatório');
     if (!toSnapshotDate) throw new Error('toSnapshotDate é obrigatório');
@@ -46,6 +47,8 @@ class SaveChangeAnnotation {
       justification,
       isVisible: isVisible !== undefined ? isVisible : true,
       createdByEmail: userEmail,
+      overrideDeltaDays,
+      overrideDataTermino,
     });
 
     const saved = await this.#repository.upsertAnnotation(annotation);

@@ -61,6 +61,28 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: calc(100vh - 340px);
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.relatos-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.relatos-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.relatos-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.relatos-list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 .relatos-loading,
@@ -86,6 +108,7 @@
   border-radius: 8px;
   overflow: hidden;
   transition: box-shadow 0.2s, border-color 0.2s;
+  flex-shrink: 0;
 }
 
 .relato-card:hover {
@@ -179,6 +202,32 @@
   font-size: 0.7rem;
   font-weight: 500;
   margin-left: 4px;
+}
+
+/* Header actions (edit + chevron) */
+.relato-card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.relato-card-edit-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #9ca3af;
+  padding: 2px 5px;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.relato-card-edit-btn:hover {
+  color: #2563eb;
+  border-color: #2563eb;
+  background: #eff6ff;
 }
 
 /* Chevron */

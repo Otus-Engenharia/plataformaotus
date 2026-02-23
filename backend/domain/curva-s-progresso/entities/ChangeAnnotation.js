@@ -21,6 +21,8 @@ class ChangeAnnotation {
   #updatedByEmail;
   #createdAt;
   #updatedAt;
+  #overrideDeltaDays;
+  #overrideDataTermino;
 
   constructor({
     id = null,
@@ -37,6 +39,8 @@ class ChangeAnnotation {
     updatedByEmail = null,
     createdAt = null,
     updatedAt = null,
+    overrideDeltaDays = null,
+    overrideDataTermino = null,
   }) {
     if (!projectCode?.trim()) throw new Error('Código do projeto é obrigatório');
     if (!fromSnapshotDate) throw new Error('Data do snapshot anterior é obrigatória');
@@ -57,6 +61,8 @@ class ChangeAnnotation {
     this.#updatedByEmail = updatedByEmail;
     this.#createdAt = createdAt || new Date();
     this.#updatedAt = updatedAt || new Date();
+    this.#overrideDeltaDays = overrideDeltaDays != null ? Number(overrideDeltaDays) : null;
+    this.#overrideDataTermino = overrideDataTermino || null;
   }
 
   // --- Getters ---
@@ -74,6 +80,8 @@ class ChangeAnnotation {
   get updatedByEmail() { return this.#updatedByEmail; }
   get createdAt() { return this.#createdAt; }
   get updatedAt() { return this.#updatedAt; }
+  get overrideDeltaDays() { return this.#overrideDeltaDays; }
+  get overrideDataTermino() { return this.#overrideDataTermino; }
 
   // --- Comportamentos ---
 
@@ -111,6 +119,8 @@ class ChangeAnnotation {
       is_visible: this.#isVisible,
       created_by_email: this.#createdByEmail,
       updated_by_email: this.#updatedByEmail,
+      override_delta_days: this.#overrideDeltaDays,
+      override_data_termino: this.#overrideDataTermino,
     };
   }
 
@@ -131,12 +141,14 @@ class ChangeAnnotation {
       updated_by_email: this.#updatedByEmail,
       created_at: this.#createdAt,
       updated_at: this.#updatedAt,
+      override_delta_days: this.#overrideDeltaDays,
+      override_data_termino: this.#overrideDataTermino,
     };
   }
 
   // --- Factories ---
 
-  static create({ projectCode, fromSnapshotDate, toSnapshotDate, changeType, taskName, disciplina, description, justification, isVisible, createdByEmail }) {
+  static create({ projectCode, fromSnapshotDate, toSnapshotDate, changeType, taskName, disciplina, description, justification, isVisible, createdByEmail, overrideDeltaDays, overrideDataTermino }) {
     return new ChangeAnnotation({
       projectCode,
       fromSnapshotDate,
@@ -148,6 +160,8 @@ class ChangeAnnotation {
       justification,
       isVisible,
       createdByEmail,
+      overrideDeltaDays,
+      overrideDataTermino,
     });
   }
 
@@ -167,6 +181,8 @@ class ChangeAnnotation {
       updatedByEmail: row.updated_by_email,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      overrideDeltaDays: row.override_delta_days,
+      overrideDataTermino: row.override_data_termino,
     });
   }
 }
