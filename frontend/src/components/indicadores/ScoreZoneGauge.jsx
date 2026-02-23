@@ -72,7 +72,7 @@ export default function ScoreZoneGauge({
       {showScore && size !== 'sm' && (
         <div className="zone-gauge__header">
           <span className={`zone-gauge__score zone-gauge__score--${ZONES[Math.max(activeZone, 0)].id}`}>
-            {hasScore ? Math.round(score) : '—'}
+            {hasScore ? score.toFixed(1) : '—'}
           </span>
           {showStatus && (
             <span className={`zone-gauge__status zone-gauge__status--${ZONES[Math.max(activeZone, 0)].id}`}>
@@ -107,7 +107,7 @@ export default function ScoreZoneGauge({
               <div className="zone-gauge__pointer-line" />
               {size === 'sm' && (
                 <span className="zone-gauge__pointer-value">
-                  {Math.round(score)}
+                  {score.toFixed(1)}
                 </span>
               )}
             </div>
@@ -155,7 +155,7 @@ export function ScoreZoneBadge({ score }) {
 
   return (
     <span className={`zone-badge zone-badge--${zone.id}`}>
-      {hasScore ? Math.round(score) : '—'}
+      {hasScore ? score.toFixed(1) : '—'}
     </span>
   );
 }
@@ -242,7 +242,7 @@ export function ArcGauge({ score, size = 280 }) {
         fontFamily="'Bricolage Grotesque', 'DM Sans', sans-serif"
         style={{ fontVariantNumeric: 'tabular-nums' }}
       >
-        {hasScore ? Math.round(score) : '--'}
+        {hasScore ? score.toFixed(1) : '--'}
       </text>
 
       {/* Status label */}
@@ -303,7 +303,7 @@ export function ScoreRing({ score, size = 44 }) {
         fontFamily="'DM Sans', sans-serif"
         style={{ fontVariantNumeric: 'tabular-nums' }}
       >
-        {hasScore ? Math.round(score) : '--'}
+        {hasScore ? score.toFixed(1) : '--'}
       </text>
     </svg>
   );

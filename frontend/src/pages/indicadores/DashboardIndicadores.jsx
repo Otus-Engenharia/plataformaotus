@@ -152,7 +152,7 @@ function IndicadorCard({ indicador, ciclo, ano, index, accumulatedData, totalWei
         </div>
         {farolContrib !== null && (
           <div className={`ind-card__farol-contrib ind-card__farol-contrib--${getScoreZoneId(score)}`}>
-            <span className="ind-card__farol-contrib-value">{Math.round(farolContrib)}</span>
+            <span className="ind-card__farol-contrib-value">{farolContrib.toFixed(1)}</span>
             <span className="ind-card__farol-contrib-label">no farol</span>
           </div>
         )}
@@ -605,7 +605,7 @@ export default function DashboardIndicadores() {
             <div className="farol-card__score-area">
               <span className="farol-card__label-text">FAROL</span>
               <span className="farol-card__big-score">
-                {scoreGeral !== null ? Math.round(scoreGeral) : '--'}
+                {scoreGeral !== null ? scoreGeral.toFixed(1) : '--'}
               </span>
             </div>
             <div className="farol-card__summary-badges">

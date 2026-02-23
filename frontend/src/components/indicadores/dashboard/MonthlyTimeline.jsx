@@ -124,7 +124,7 @@ export default function MonthlyTimeline({ monthlyScores }) {
                     fontFamily="'DM Sans', sans-serif"
                     style={{ fontVariantNumeric: 'tabular-nums' }}
                   >
-                    {p.score.toFixed(0)}
+                    {p.score.toFixed(1)}
                   </text>
                   {/* Filled dot */}
                   <circle
