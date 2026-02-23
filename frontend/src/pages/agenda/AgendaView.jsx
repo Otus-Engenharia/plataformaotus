@@ -277,8 +277,8 @@ function AgendaView() {
         isOpen={createModal.isOpen}
         selectedDate={createModal.date}
         onClose={() => setCreateModal({ isOpen: false, date: null })}
-        onTaskCreated={(task) => {
-          setTasks(prev => [...prev, task]);
+        onTaskCreated={() => {
+          loadTasks();
           setCreateModal({ isOpen: false, date: null });
         }}
       />

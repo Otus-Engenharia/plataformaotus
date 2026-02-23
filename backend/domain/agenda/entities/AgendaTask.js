@@ -188,6 +188,16 @@ class AgendaTask {
   }
 
   /**
+   * Altera o grupo de atividade padrão (standard_agenda_task) e opcionalmente o nome
+   */
+  changeStandardTask(newStandardAgendaTaskId, newName) {
+    this.#standardAgendaTaskId = newStandardAgendaTaskId;
+    if (newName) {
+      this.#name = newName;
+    }
+  }
+
+  /**
    * Define a data-modelo (anchor) para materialização de instâncias futuras
    */
   setAnchorDate(date) {
@@ -199,6 +209,20 @@ class AgendaTask {
    */
   setRecurrenceUntil(date) {
     this.#recurrenceUntil = date ? new Date(date) : null;
+  }
+
+  /**
+   * Define o número máximo de repetições
+   */
+  setRecurrenceCount(count) {
+    this.#recurrenceCount = count != null ? Number(count) : null;
+  }
+
+  /**
+   * Define se deve copiar projetos para instâncias filhas
+   */
+  setCopyProjects(value) {
+    this.#recurrenceCopyProjects = !!value;
   }
 
   /**

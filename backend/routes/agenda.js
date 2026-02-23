@@ -290,13 +290,15 @@ function createRoutes(requireAuth, logAction) {
       const task = await getTask.execute(parseInt(id, 10));
 
       let standardAgendaTaskName = null;
+      let standardAgendaTaskPosition = null;
       if (task?.standard_agenda_task) {
         const { data: sat } = await supabase
           .from('standard_agenda_task')
-          .select('name')
+          .select('name, position')
           .eq('id', task.standard_agenda_task)
           .single();
         standardAgendaTaskName = sat?.name || null;
+        standardAgendaTaskPosition = sat?.position || null;
       }
 
       // Buscar projetos vinculados via agenda_projects
@@ -313,6 +315,7 @@ function createRoutes(requireAuth, logAction) {
         success: true,
         data: {
           standard_agenda_task_name: standardAgendaTaskName,
+          standard_agenda_task_position: standardAgendaTaskPosition,
           projects,
         },
       });
@@ -507,7 +510,7 @@ function createRoutes(requireAuth, logAction) {
   router.put('/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { reschedule, resize, status, start_date, due_date, name, recurrence, recurrence_scope } = req.body;
+      const { reschedule, resize, status, start_date, due_date, name, recurrence, recurrence_scope, recurrence_until, recurrence_count, recurrence_copy_projects, standard_agenda_task, standard_agenda_task_name } = req.body;
 
       if (status && !AgendaTaskStatus.isValid(status)) {
         return res.status(400).json({
@@ -531,9 +534,14 @@ function createRoutes(requireAuth, logAction) {
         dueDate: due_date,
         status,
         recurrence,
+        recurrenceUntil: recurrence_until,
+        recurrenceCount: recurrence_count,
+        recurrenceCopyProjects: recurrence_copy_projects,
         reschedule,
         resize,
         recurrenceScope: recurrence_scope,
+        standardAgendaTask: standard_agenda_task,
+        standardAgendaTaskName: standard_agenda_task_name,
       });
 
       res.json({ success: true, data: task });

@@ -12,9 +12,18 @@ const STATUS_OPTIONS = [
 
 const RECURRENCE_OPTIONS = [
   { value: 'nunca', label: 'Nunca' },
-  { value: 'diária', label: 'Diária' },
+  { value: 'diária', label: 'Diária (todos os dias)' },
+  { value: 'diária_útil', label: 'Diária (dias úteis)' },
   { value: 'semanal', label: 'Semanal' },
   { value: 'mensal', label: 'Mensal' },
+];
+
+const GROUP_POSITIONS = [
+  { value: 'coordenação', label: 'Coordenação' },
+  { value: 'compatibilização', label: 'Compatibilização' },
+  { value: 'digital', label: 'Tecnologia' },
+  { value: 'time bim', label: 'Apoio Projetos' },
+  { value: 'otus', label: 'Tarefas Otus' },
 ];
 
 // Opções de horário em intervalos de 30 min
@@ -56,8 +65,18 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
   const [editingTime, setEditingTime] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [editingRecurrence, setEditingRecurrence] = useState(false);
+  const [showRecurrenceEditor, setShowRecurrenceEditor] = useState(false);
+  const [recEditorType, setRecEditorType] = useState('nunca');
+  const [recEditorEndType, setRecEditorEndType] = useState('never');
+  const [recEditorUntil, setRecEditorUntil] = useState('');
+  const [recEditorCount, setRecEditorCount] = useState(10);
+  const [recEditorCopyProjects, setRecEditorCopyProjects] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+  const [showGroupEditor, setShowGroupEditor] = useState(false);
+  const [groupPosition, setGroupPosition] = useState('');
+  const [groupOptions, setGroupOptions] = useState([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [currentPosition, setCurrentPosition] = useState(null);
   const dateInputRef = useRef(null);
 
   // Fetch ToDo's e detalhes quando a task muda
@@ -94,6 +113,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
           }
           if (detailsRes.data.success) {
             setStandardTaskName(detailsRes.data.data.standard_agenda_task_name);
+            setCurrentPosition(detailsRes.data.data.standard_agenda_task_position);
             setProjects(detailsRes.data.data.projects || []);
           }
           if (projRes.data.success) {
@@ -117,8 +137,11 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       setConfirmDelete(false);
       setShowStatusMenu(false);
       setEditingTime(false);
-      setEditingRecurrence(false);
+      setShowRecurrenceEditor(false);
       setPendingAction(null);
+      setShowGroupEditor(false);
+      setGroupPosition('');
+      setGroupOptions([]);
       setShowAddProject(false);
       setAddingProjectId('');
     }
@@ -274,16 +297,41 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     }
   }, [task, confirmDelete, onTaskDelete, onClose, isRecurring]);
 
-  // Handler: Alterar recorrência
-  const handleRecurrenceChange = useCallback(async (e) => {
-    const newRecurrence = e.target.value;
-    setEditingRecurrence(false);
-    if (!task || newRecurrence === task.recurrence) return;
+  // Handler: Abrir editor de recorrência com valores atuais
+  const openRecurrenceEditor = useCallback(() => {
+    if (!task) return;
+    setRecEditorType(task.recurrence || 'nunca');
+    if (task.recurrence_until) {
+      setRecEditorEndType('date');
+      // Converter ISO para yyyy-MM-dd
+      const d = new Date(task.recurrence_until);
+      setRecEditorUntil(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    } else if (task.recurrence_count) {
+      setRecEditorEndType('count');
+      setRecEditorCount(task.recurrence_count);
+    } else {
+      setRecEditorEndType('never');
+      setRecEditorUntil('');
+      setRecEditorCount(10);
+    }
+    setRecEditorCopyProjects(task.recurrence_copy_projects || false);
+    setShowRecurrenceEditor(true);
+  }, [task]);
+
+  // Handler: Salvar recorrência
+  const handleRecurrenceSave = useCallback(async () => {
+    if (!task) return;
+    setShowRecurrenceEditor(false);
+
+    const payload = {
+      recurrence: recEditorType,
+      recurrence_until: recEditorType !== 'nunca' && recEditorEndType === 'date' ? recEditorUntil : null,
+      recurrence_count: recEditorType !== 'nunca' && recEditorEndType === 'count' ? Number(recEditorCount) : null,
+      recurrence_copy_projects: recEditorType !== 'nunca' ? recEditorCopyProjects : false,
+    };
 
     try {
-      const res = await axios.put(`/api/agenda/tasks/${task.id}`, {
-        recurrence: newRecurrence,
-      }, { withCredentials: true });
+      const res = await axios.put(`/api/agenda/tasks/${task.id}`, payload, { withCredentials: true });
 
       if (res.data.success) {
         onTaskUpdate?.(res.data.data);
@@ -291,7 +339,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     } catch (err) {
       console.error('Erro ao atualizar recorrência:', err);
     }
-  }, [task, onTaskUpdate]);
+  }, [task, recEditorType, recEditorEndType, recEditorUntil, recEditorCount, recEditorCopyProjects, onTaskUpdate]);
 
   // Handler: Confirmar ação com escopo (dialog de 3 opções)
   const handleScopeSelect = useCallback(async (scope) => {
@@ -329,12 +377,91 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       } catch (err) {
         console.error('Erro ao atualizar tarefa recorrente:', err);
       }
+    } else if (action.type === 'group_change') {
+      try {
+        const res = await axios.put(`/api/agenda/tasks/${task.id}`, {
+          standard_agenda_task: action.payload.id,
+          standard_agenda_task_name: action.payload.name,
+          recurrence_scope: scope,
+        }, { withCredentials: true });
+
+        if (res.data.success) {
+          setStandardTaskName(action.payload.name);
+          setCurrentPosition(groupPosition);
+          onTaskUpdate?.(res.data.data);
+        }
+      } catch (err) {
+        console.error('Erro ao alterar grupo recorrente:', err);
+      }
     }
-  }, [pendingAction, task, onTaskUpdate, onTaskDelete, onClose]);
+  }, [pendingAction, task, onTaskUpdate, onTaskDelete, onClose, groupPosition]);
 
   const handleCancelAction = useCallback(() => {
     setPendingAction(null);
   }, []);
+
+  // Fetch standard_agenda_tasks quando position muda no editor de grupo
+  useEffect(() => {
+    if (!showGroupEditor || !groupPosition) {
+      setGroupOptions([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchGroups = async () => {
+      setLoadingGroups(true);
+      try {
+        const res = await axios.get('/api/agenda/tasks/form/standard-agenda-tasks', {
+          params: { position: groupPosition },
+          withCredentials: true,
+        });
+        if (!cancelled) {
+          setGroupOptions(res.data.data || []);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar grupos:', err);
+      } finally {
+        if (!cancelled) setLoadingGroups(false);
+      }
+    };
+    fetchGroups();
+    return () => { cancelled = true; };
+  }, [showGroupEditor, groupPosition]);
+
+  // Handler: selecionar nova atividade no editor de grupo
+  const handleGroupSelect = useCallback(async (e) => {
+    const newGroupId = e.target.value;
+    if (!newGroupId) return;
+
+    const selectedGroup = groupOptions.find(g => g.id === Number(newGroupId));
+    if (!selectedGroup) return;
+
+    setShowGroupEditor(false);
+
+    // Se recorrente, mostrar scope dialog
+    if (isRecurring) {
+      setPendingAction({
+        type: 'group_change',
+        payload: { id: selectedGroup.id, name: selectedGroup.name },
+      });
+      return;
+    }
+
+    // Não-recorrente: aplicar direto
+    try {
+      const res = await axios.put(`/api/agenda/tasks/${task.id}`, {
+        standard_agenda_task: selectedGroup.id,
+        standard_agenda_task_name: selectedGroup.name,
+      }, { withCredentials: true });
+
+      if (res.data.success) {
+        setStandardTaskName(selectedGroup.name);
+        setCurrentPosition(groupPosition);
+        onTaskUpdate?.(res.data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao alterar grupo:', err);
+    }
+  }, [task, groupOptions, groupPosition, isRecurring, onTaskUpdate]);
 
   // IDs de projetos que possuem ToDo's (não podem ser removidos)
   const projectIdsWithTodos = useMemo(() => {
@@ -557,30 +684,16 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
                   </svg>
                 </div>
                 <span className="detail-modal__meta-label">Recorrência</span>
-                {editingRecurrence ? (
-                  <select
-                    className="detail-modal__recurrence-select"
-                    value={task.recurrence || 'nunca'}
-                    onChange={handleRecurrenceChange}
-                    onBlur={() => setEditingRecurrence(false)}
-                    autoFocus
-                  >
-                    {RECURRENCE_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span
-                    className="detail-modal__meta-value detail-modal__meta-value--editable"
-                    onClick={() => setEditingRecurrence(true)}
-                  >
-                    {task.recurrence_label || task.recurrence || 'Nunca'}
-                    <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                  </span>
-                )}
+                <span
+                  className="detail-modal__meta-value detail-modal__meta-value--editable"
+                  onClick={openRecurrenceEditor}
+                >
+                  {task.recurrence_label || task.recurrence || 'Nunca'}
+                  <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </span>
               </div>
 
               {/* Grupo padrão */}
@@ -597,7 +710,19 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
                     </svg>
                   </div>
                   <span className="detail-modal__meta-label">Grupo</span>
-                  <span className="detail-modal__meta-value">{standardTaskName}</span>
+                  <span
+                    className="detail-modal__meta-value detail-modal__meta-value--editable"
+                    onClick={() => {
+                      setGroupPosition(currentPosition || '');
+                      setShowGroupEditor(true);
+                    }}
+                  >
+                    {standardTaskName}
+                    <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </span>
                 </div>
               )}
             </div>
@@ -744,6 +869,134 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
           </button>
         </footer>
 
+        {/* Overlay de edição de recorrência */}
+        {showRecurrenceEditor && (
+          <div className="detail-modal__recurrence-editor-overlay" onClick={() => setShowRecurrenceEditor(false)}>
+            <div className="detail-modal__recurrence-editor" onClick={(e) => e.stopPropagation()}>
+              <h4 className="detail-modal__recurrence-editor-title">Configurar recorrência</h4>
+
+              <label className="detail-modal__recurrence-editor-label">Repetir</label>
+              <select
+                className="detail-modal__recurrence-editor-select"
+                value={recEditorType}
+                onChange={(e) => setRecEditorType(e.target.value)}
+              >
+                {RECURRENCE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+
+              {recEditorType !== 'nunca' && (
+                <>
+                  <label className="detail-modal__recurrence-editor-label">Termina</label>
+                  <select
+                    className="detail-modal__recurrence-editor-select"
+                    value={recEditorEndType}
+                    onChange={(e) => setRecEditorEndType(e.target.value)}
+                  >
+                    <option value="never">Nunca (contínuo)</option>
+                    <option value="date">Em uma data</option>
+                    <option value="count">Após N repetições</option>
+                  </select>
+
+                  {recEditorEndType === 'date' && (
+                    <>
+                      <label className="detail-modal__recurrence-editor-label">Data limite</label>
+                      <input
+                        type="date"
+                        className="detail-modal__recurrence-editor-input"
+                        value={recEditorUntil}
+                        onChange={(e) => setRecEditorUntil(e.target.value)}
+                      />
+                    </>
+                  )}
+
+                  {recEditorEndType === 'count' && (
+                    <>
+                      <label className="detail-modal__recurrence-editor-label">Número de repetições</label>
+                      <input
+                        type="number"
+                        className="detail-modal__recurrence-editor-input"
+                        min="1"
+                        max="365"
+                        value={recEditorCount}
+                        onChange={(e) => setRecEditorCount(e.target.value)}
+                      />
+                    </>
+                  )}
+
+                  <label className="detail-modal__recurrence-editor-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={recEditorCopyProjects}
+                      onChange={(e) => setRecEditorCopyProjects(e.target.checked)}
+                    />
+                    <span>Manter projetos nas repetições</span>
+                  </label>
+                </>
+              )}
+
+              <div className="detail-modal__recurrence-editor-actions">
+                <button
+                  className="detail-modal__recurrence-editor-cancel"
+                  onClick={() => setShowRecurrenceEditor(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="detail-modal__recurrence-editor-save"
+                  onClick={handleRecurrenceSave}
+                >
+                  Salvar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Overlay de troca de grupo */}
+        {showGroupEditor && (
+          <div className="detail-modal__group-editor-overlay" onClick={() => setShowGroupEditor(false)}>
+            <div className="detail-modal__group-editor" onClick={(e) => e.stopPropagation()}>
+              <h4 className="detail-modal__group-editor-title">Alterar grupo de atividade</h4>
+
+              <label className="detail-modal__group-editor-label">Tipo de grupo</label>
+              <select
+                className="detail-modal__group-editor-select"
+                value={groupPosition}
+                onChange={(e) => setGroupPosition(e.target.value)}
+              >
+                <option value="">Selecione...</option>
+                {GROUP_POSITIONS.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+
+              <label className="detail-modal__group-editor-label">Atividade</label>
+              <select
+                className="detail-modal__group-editor-select"
+                disabled={!groupPosition || loadingGroups}
+                value=""
+                onChange={handleGroupSelect}
+              >
+                <option value="">
+                  {loadingGroups ? 'Carregando...' : 'Selecione a atividade'}
+                </option>
+                {groupOptions.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+
+              <button
+                className="detail-modal__group-editor-cancel"
+                onClick={() => setShowGroupEditor(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Dialog de escopo para ações em tarefas recorrentes */}
         {pendingAction && (
           <div className="detail-modal__scope-overlay" onClick={handleCancelAction}>
@@ -751,7 +1004,9 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
               <h4 className="detail-modal__scope-title">
                 {pendingAction.type === 'delete'
                   ? 'Deletar atividade recorrente'
-                  : 'Editar atividade recorrente'}
+                  : pendingAction.type === 'group_change'
+                    ? 'Alterar grupo da atividade recorrente'
+                    : 'Editar atividade recorrente'}
               </h4>
               <p className="detail-modal__scope-desc">
                 Esta atividade faz parte de um grupo recorrente. Como deseja aplicar a alteração?

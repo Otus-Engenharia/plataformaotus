@@ -7,7 +7,8 @@ import './VerificacaoForm.css';
 
 const RECURRENCE_OPTIONS = [
   { value: 'nunca', label: 'Nunca' },
-  { value: 'diária', label: 'Diária' },
+  { value: 'diária', label: 'Diária (todos os dias)' },
+  { value: 'diária_útil', label: 'Diária (dias úteis)' },
   { value: 'semanal', label: 'Semanal' },
   { value: 'mensal', label: 'Mensal' },
 ];

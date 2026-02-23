@@ -83,8 +83,12 @@ class DeleteRecurringInstance {
       return;
     }
 
-    // Setar recurrence_until no parent (1 segundo antes desta instância)
-    const untilDate = new Date(task.startDate.getTime() - 1000);
+    // Setar recurrence_until para o final do dia anterior (UTC)
+    // Evita que a materialização re-crie a instância deletada
+    const untilDate = new Date(task.startDate);
+    untilDate.setUTCDate(untilDate.getUTCDate() - 1);
+    untilDate.setUTCHours(23, 59, 59, 999);
+
     await this.#agendaRepository.updateParentRecurrenceFields(parentId, {
       recurrence_until: untilDate.toISOString(),
     });

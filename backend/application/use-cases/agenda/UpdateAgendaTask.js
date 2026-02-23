@@ -16,7 +16,7 @@ class UpdateAgendaTask {
     this.#agendaRepository = agendaRepository;
   }
 
-  async execute({ id, name, startDate, dueDate, status, recurrence, reschedule, resize, recurrenceScope }) {
+  async execute({ id, name, startDate, dueDate, status, recurrence, recurrenceUntil, recurrenceCount, recurrenceCopyProjects, reschedule, resize, recurrenceScope, standardAgendaTask, standardAgendaTaskName }) {
     const task = await this.#agendaRepository.findById(id);
 
     if (!task) {
@@ -25,7 +25,12 @@ class UpdateAgendaTask {
 
     // --- Mudança de recorrência ---
     if (recurrence !== undefined) {
-      return this.#handleRecurrenceChange(task, recurrence);
+      return this.#handleRecurrenceChange(task, recurrence, { recurrenceUntil, recurrenceCount, recurrenceCopyProjects });
+    }
+
+    // --- Mudança de grupo de atividade ---
+    if (standardAgendaTask !== undefined) {
+      return this.#handleGroupChange(task, standardAgendaTask, standardAgendaTaskName, recurrenceScope);
     }
 
     // --- Drag & drop (reschedule) com scope ---
@@ -62,12 +67,24 @@ class UpdateAgendaTask {
   }
 
   /**
-   * Muda o tipo de recorrência e limpa filhas futuras
+   * Muda o tipo de recorrência e campos relacionados, limpa filhas futuras
    */
-  async #handleRecurrenceChange(task, newRecurrence) {
+  async #handleRecurrenceChange(task, newRecurrence, extras = {}) {
     const parentId = task.parentTaskId || task.id;
 
     task.changeRecurrence(newRecurrence);
+
+    // Aplicar campos extras de recorrência
+    if (extras.recurrenceUntil !== undefined) {
+      task.setRecurrenceUntil(extras.recurrenceUntil);
+    }
+    if (extras.recurrenceCount !== undefined) {
+      task.setRecurrenceCount(extras.recurrenceCount);
+    }
+    if (extras.recurrenceCopyProjects !== undefined) {
+      task.setCopyProjects(extras.recurrenceCopyProjects);
+    }
+
     const updated = await this.#agendaRepository.update(task);
 
     // Se mudou para 'nunca', deletar todas as filhas futuras
@@ -77,11 +94,21 @@ class UpdateAgendaTask {
       await this.#agendaRepository.deleteFutureByParent(parentId, now);
     }
 
-    // Atualizar anchor do parent se a task é o parent
+    // Atualizar anchor e campos de recorrência do parent
     if (!task.parentTaskId && newRecurrence !== 'nunca') {
-      await this.#agendaRepository.updateParentRecurrenceFields(task.id, {
+      const parentFields = {
         recurrence_anchor_date: task.startDate?.toISOString() || null,
-      });
+      };
+      if (extras.recurrenceUntil !== undefined) {
+        parentFields.recurrence_until = extras.recurrenceUntil;
+      }
+      if (extras.recurrenceCount !== undefined) {
+        parentFields.recurrence_count = extras.recurrenceCount;
+      }
+      if (extras.recurrenceCopyProjects !== undefined) {
+        parentFields.recurrence_copy_projects = extras.recurrenceCopyProjects;
+      }
+      await this.#agendaRepository.updateParentRecurrenceFields(task.id, parentFields);
     }
 
     return updated.toResponse();
@@ -203,6 +230,43 @@ class UpdateAgendaTask {
         }
       }
     }
+  }
+  /**
+   * Muda o grupo de atividade padrão com suporte a scope recorrente
+   */
+  async #handleGroupChange(task, newGroupId, newGroupName, scope) {
+    task.changeStandardTask(newGroupId, newGroupName);
+    const updated = await this.#agendaRepository.update(task);
+
+    // Se é tarefa recorrente e tem scope, aplicar a outras instâncias
+    if (scope && scope !== 'this' && task.recurrence.isRecurring) {
+      const parentId = task.parentTaskId || task.id;
+      const instances = await this.#agendaRepository.findGroupInstances(parentId);
+
+      let targetIds;
+      if (scope === 'future') {
+        targetIds = instances
+          .filter(t => t.id !== task.id && t.startDate >= task.startDate)
+          .map(t => t.id);
+      } else {
+        // 'all'
+        targetIds = instances
+          .filter(t => t.id !== task.id)
+          .map(t => t.id);
+      }
+
+      if (targetIds.length > 0) {
+        await this.#agendaRepository.updateGroupForInstances(targetIds, newGroupId, newGroupName);
+      }
+
+      // Atualizar o parent para que futuras materializações usem o novo grupo
+      await this.#agendaRepository.updateParentRecurrenceFields(parentId, {
+        standard_agenda_task: newGroupId,
+        name: newGroupName,
+      });
+    }
+
+    return updated.toResponse();
   }
 }
 
