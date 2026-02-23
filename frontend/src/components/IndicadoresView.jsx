@@ -20,6 +20,7 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import CoberturaDisciplinasView from './CoberturaDisciplinasView';
+import DesviosPortfolioView from './curva-s-progresso/DesviosPortfolioView';
 import '../styles/IndicadoresView.css';
 
 // Registra componentes do Chart.js
@@ -34,7 +35,7 @@ ChartJS.register(
 );
 
 function IndicadoresView() {
-  const { isPrivileged } = useAuth();
+  const { hasFullAccess } = useAuth();
   const {
     loading,
     error,
@@ -169,6 +170,12 @@ function IndicadoresView() {
         >
           Indicadores de Coordenacao
         </button>
+        <button
+          className={`indicadores-tab ${activeTab === 'desvios' ? 'indicadores-tab-active' : ''}`}
+          onClick={() => setActiveTab('desvios')}
+        >
+          Análise de Desvios
+        </button>
       </div>
 
       {/* Filtros Principais - Sticky no topo */}
@@ -224,7 +231,7 @@ function IndicadoresView() {
             </div>
 
             {/* Filtro de Lider - apenas para diretora/admin */}
-            {isPrivileged && (
+            {hasFullAccess && (
               <div className="multi-select-wrapper">
                 <button
                   type="button"
@@ -277,6 +284,10 @@ function IndicadoresView() {
 
       {activeTab === 'coordenacao' && (
         <CoberturaDisciplinasView />
+      )}
+
+      {activeTab === 'desvios' && (
+        <DesviosPortfolioView />
       )}
 
       {activeTab === 'lideres' && (

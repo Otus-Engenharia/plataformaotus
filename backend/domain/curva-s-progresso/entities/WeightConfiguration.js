@@ -59,7 +59,8 @@ class WeightConfiguration {
    * Busca o peso de uma fase pelo nome
    */
   getPhaseWeight(phaseName) {
-    return this.#phaseWeights.find(pw => pw.phaseName === phaseName) || null;
+    const needle = phaseName.toLowerCase().trim();
+    return this.#phaseWeights.find(pw => pw.phaseName.toLowerCase().trim() === needle) || null;
   }
 
   /**
@@ -67,7 +68,8 @@ class WeightConfiguration {
    * Retorna fator 1 (padrão) se disciplina não encontrada
    */
   getDisciplineFactor(disciplineName) {
-    const dw = this.#disciplineWeights.find(dw => dw.disciplineName === disciplineName);
+    const needle = disciplineName.toLowerCase().trim();
+    const dw = this.#disciplineWeights.find(dw => dw.disciplineName.toLowerCase().trim() === needle);
     return dw ? dw.factor : 1;
   }
 
@@ -77,7 +79,8 @@ class WeightConfiguration {
    */
   getActivityFactor(activityType) {
     if (!activityType) return 0;
-    const aw = this.#activityWeights.find(aw => aw.activityType === activityType);
+    const needle = activityType.toLowerCase().trim();
+    const aw = this.#activityWeights.find(aw => aw.activityType.toLowerCase().trim() === needle);
     return aw ? aw.factor : 0;
   }
 

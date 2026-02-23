@@ -45,6 +45,20 @@ class CurvaSProgressoRepository {
   async deleteProjectOverrides(projectCode) {
     throw new Error('Método deleteProjectOverrides deve ser implementado');
   }
+
+  // --- Change Annotations ---
+
+  async findAnnotationsByProject(projectCode) {
+    throw new Error('Método findAnnotationsByProject deve ser implementado');
+  }
+
+  async upsertAnnotation(annotation) {
+    throw new Error('Método upsertAnnotation deve ser implementado');
+  }
+
+  async deleteAnnotation(id) {
+    throw new Error('Método deleteAnnotation deve ser implementado');
+  }
 }
 
 export { CurvaSProgressoRepository };

@@ -106,7 +106,7 @@
   height: calc(100vh - 104px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   transition: width 0.25s ease, padding 0.25s ease;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .glass-sidebar {
@@ -117,8 +117,8 @@
 }
 
 .sidebar-collapsed {
-  width: 72px;
-  padding: 0.75rem 0.5rem;
+  width: 56px;
+  padding: 0.75rem 0.35rem;
 }
 
 .sidebar-header {
@@ -147,29 +147,36 @@
 
 .sidebar-toggle-inline {
   position: absolute;
-  right: -10px;
+  right: -14px;
   top: 50%;
   transform: translateY(-50%);
-  align-self: center;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  color: rgba(26, 26, 26, 0.5);
-  padding: 0.15rem 0.35rem;
-  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a1a;
+  border: 2px solid #333;
+  color: #ffffff;
+  padding: 0;
+  border-radius: 50%;
   z-index: 2;
-  font-size: 11px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  opacity: 0;
-  transition: opacity 0.2s ease, background 0.2s ease;
-}
-
-.sidebar:hover .sidebar-toggle-inline {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
   opacity: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .sidebar-toggle-inline:hover {
-  background: rgba(255, 221, 0, 0.35);
+  background: #ffdd00;
   color: #1a1a1a;
+  border-color: #ffdd00;
+  box-shadow: 0 2px 12px rgba(255, 221, 0, 0.4);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.sidebar-toggle-inline:active {
+  transform: translateY(-50%) scale(0.95);
 }
 
 .nav-logo {
@@ -516,7 +523,7 @@
 
 .sidebar-collapsed .nav-link {
   justify-content: center;
-  padding: 0.5rem;
+  padding: 0.5rem 0.25rem;
 }
 
 .sidebar-collapsed .nav-text {
@@ -846,6 +853,18 @@
 .main-content-sidebar {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+/* Views que precisam de largura total (Projetos, Líderes) */
+.main-content-sidebar.main-content-wide {
+  max-width: none;
+  padding-right: 5rem; /* espaço para Oracle e BugReport FABs */
+}
+
+@media (min-width: 2560px) {
+  .main-content-sidebar.main-content-wide {
+    max-width: 2200px;
+  }
 }
 
 /* Páginas full-bleed (sem padding nem max-width) */
