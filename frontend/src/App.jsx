@@ -139,6 +139,12 @@ const icons = {
       <path d="M8 12h8v2H8v-2Zm0 4h8v2H8v-2Z" />
     </svg>
   ),
+  vendas: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  ),
   feedbacks: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Zm0 14H6l-2 2V4h16v12Z" />
@@ -387,16 +393,6 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.contatos}</span>
         <span className="nav-text">Contatos</span>
       </Link>
-      {canAccessFormularioPassagem && (
-        <Link 
-          to="/formulario-passagem" 
-          className={`nav-link nav-link-modern ${location.pathname.startsWith('/formulario-passagem') ? 'nav-link-active' : ''}`}
-          title={linkTitle('Formulário de Passagem')}
-        >
-          <span className="nav-icon">{icons.formularioPassagem}</span>
-          <span className="nav-text">Formulário de Passagem</span>
-        </Link>
-      )}
       <Link
         to="/feedbacks"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/feedbacks') ? 'nav-link-active' : ''}`}
@@ -542,6 +538,20 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.financeiro}</span>
         <span className="nav-text">Controle Passivo</span>
+      </Link>
+    </>
+  );
+
+  // Links para área de VENDAS
+  const vendasLinks = (
+    <>
+      <Link
+        to="/vendas/formulario-passagem"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/vendas/formulario-passagem') || location.pathname === '/vendas' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Formulário de Passagem')}
+      >
+        <span className="nav-icon">{icons.formularioPassagem}</span>
+        <span className="nav-text">Formulário de Passagem</span>
       </Link>
     </>
   );
@@ -845,6 +855,7 @@ function Sidebar({ collapsed, onToggle, area }) {
         {area === 'cs' && csLinks}
         {area === 'apoio' && apoioLinks}
         {area === 'admin_financeiro' && adminFinanceiroLinks}
+        {area === 'vendas' && vendasLinks}
         {area === 'configuracoes' && configuracoesLinks}
         {area === 'indicadores' && indicadoresIndLinks}
         {area === 'okrs' && okrsLinks}
@@ -972,6 +983,7 @@ function AppContent() {
   const canAccessCSArea = canAccessArea('cs');
   const canAccessApoioArea = canAccessArea('apoio');
   const canAccessAdminFinanceiroArea = canAccessArea('admin_financeiro');
+  const canAccessVendasArea = canAccessArea('vendas');
   const canAccessOkrsArea = canAccessArea('okrs');
   const canAccessIndicadoresArea = canAccessArea('indicadores');
   const canAccessWorkspaceArea = canAccessArea('workspace');
@@ -1024,11 +1036,14 @@ function AppContent() {
     if (path.startsWith('/admin-financeiro')) {
       return 'admin_financeiro';
     }
+    // Área Vendas
+    if (path.startsWith('/vendas')) {
+      return 'vendas';
+    }
     if (path.startsWith('/horas') ||
         path.startsWith('/projetos') ||
         path.startsWith('/cs') ||
         path.startsWith('/contatos') ||
-        path.startsWith('/formulario-passagem') ||
         path.startsWith('/feedbacks') ||
         path.startsWith('/demandas-apoio') ||
         path.startsWith('/agenda')) {
@@ -1061,6 +1076,7 @@ function AppContent() {
     cs: 'Customer Success',
     apoio: 'Apoio de Projetos',
     admin_financeiro: 'Admin & Financeiro',
+    vendas: 'Vendas',
     projetos: 'Projetos',
     configuracoes: 'Configurações',
     indicadores: 'Plataforma Otus',
@@ -1195,6 +1211,20 @@ function AppContent() {
               <Route index element={<Navigate to="controle-passivo" replace />} />
               <Route path="controle-passivo" element={<ControlePassivoView />} />
             </Route>
+            {/* Área Vendas - rotas aninhadas */}
+            <Route
+              path="/vendas"
+              element={
+                <ProtectedRoute>
+                  {canAccessVendasArea ? (
+                    <Outlet />
+                  ) : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="formulario-passagem" replace />} />
+              <Route path="formulario-passagem" element={<FormularioPassagemView />} />
+            </Route>
             <Route
               path="/horas"
               element={
@@ -1252,13 +1282,10 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+            {/* Redirect antigo /formulario-passagem para nova área Vendas */}
             <Route
               path="/formulario-passagem"
-              element={
-                <ProtectedRoute>
-                  {canAccessProjetosArea ? <FormularioPassagemView /> : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/vendas/formulario-passagem" replace />}
             />
             <Route
               path="/feedbacks"

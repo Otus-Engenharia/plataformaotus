@@ -20,7 +20,7 @@ import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
-import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
+import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
@@ -595,6 +595,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         picture: req.user.picture,
         role: req.user.role,
         canAccessFormularioPassagem: canAccessFormularioPassagem(req.user),
+        canAccessVendas: canAccessVendas(req.user),
         canManageDemandas: canManageDemandas(req.user),
         canManageEstudosCustos: canManageEstudosCustos(req.user),
         canManageApoioProjetos: canManageApoioProjetos(req.user),
@@ -622,6 +623,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         picture: req.user.picture,
         role: req.user.role,
         canAccessFormularioPassagem: canAccessFormularioPassagem(req.user),
+        canAccessVendas: canAccessVendas(req.user),
         canManageDemandas: canManageDemandas(req.user),
         canManageEstudosCustos: canManageEstudosCustos(req.user),
         canManageApoioProjetos: canManageApoioProjetos(req.user),
