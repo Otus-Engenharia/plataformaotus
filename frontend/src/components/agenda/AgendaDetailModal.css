@@ -68,6 +68,32 @@
   line-height: 1.4;
   flex: 1;
   min-width: 0;
+  cursor: default;
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background 0.15s ease;
+}
+
+.detail-modal__title:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.detail-modal__title-input {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'Bricolage Grotesque', 'DM Sans', sans-serif;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+  border: 1.5px solid #667eea;
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  background: #ffffff;
 }
 
 .detail-modal__close-btn {
@@ -248,6 +274,23 @@
   font-size: 12px;
   color: #9aa0a6;
   font-family: 'DM Sans', sans-serif;
+}
+
+/* Verification inline select */
+.detail-modal__verif-select {
+  padding: 4px 8px;
+  border: 1.5px solid #667eea;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #1a1a2e;
+  background: #ffffff;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  margin-left: auto;
+  min-width: 120px;
 }
 
 /* ============================
@@ -994,4 +1037,154 @@
 
 .detail-modal__scope-cancel:hover {
   color: #5f6368;
+}
+
+/* ============================
+   Duplicate button & overlay
+   ============================ */
+
+.detail-modal__duplicate-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.detail-modal__duplicate-btn:hover {
+  background: #f0f4ff;
+  color: #667eea;
+  border-color: #667eea;
+}
+
+.detail-modal__duplicate-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  padding: 32px;
+  animation: detail-fade-in 0.12s ease;
+}
+
+.detail-modal__duplicate-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.detail-modal__duplicate-editor-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+  text-align: center;
+  font-family: 'Bricolage Grotesque', 'DM Sans', sans-serif;
+}
+
+.detail-modal__duplicate-editor-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.detail-modal__duplicate-editor-select,
+.detail-modal__duplicate-editor-input {
+  padding: 8px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  background: white;
+  color: #1a1a2e;
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.detail-modal__duplicate-editor-select:focus,
+.detail-modal__duplicate-editor-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.detail-modal__duplicate-editor-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #3c4043;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.detail-modal__duplicate-editor-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #667eea;
+  cursor: pointer;
+}
+
+.detail-modal__duplicate-editor-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.detail-modal__duplicate-editor-cancel {
+  flex: 1;
+  padding: 8px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.detail-modal__duplicate-editor-cancel:hover {
+  background: #f8fafc;
+  color: #3c4043;
+}
+
+.detail-modal__duplicate-editor-save {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #667eea;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.detail-modal__duplicate-editor-save:hover {
+  background: #5a6fd6;
+}
+
+.detail-modal__duplicate-editor-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

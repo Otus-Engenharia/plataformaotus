@@ -16,7 +16,7 @@ class UpdateAgendaTask {
     this.#agendaRepository = agendaRepository;
   }
 
-  async execute({ id, name, startDate, dueDate, status, recurrence, recurrenceUntil, recurrenceCount, recurrenceCopyProjects, reschedule, resize, recurrenceScope, standardAgendaTask, standardAgendaTaskName }) {
+  async execute({ id, name, startDate, dueDate, status, recurrence, recurrenceUntil, recurrenceCount, recurrenceCopyProjects, reschedule, resize, recurrenceScope, standardAgendaTask, standardAgendaTaskName, compactTaskKind, relatedDisciplineId, phase }) {
     const task = await this.#agendaRepository.findById(id);
 
     if (!task) {
@@ -50,6 +50,22 @@ class UpdateAgendaTask {
       } else {
         task.reopen();
       }
+      const updated = await this.#agendaRepository.update(task);
+      return updated.toResponse();
+    }
+
+    // --- Edição de campos de verificação ---
+    if (compactTaskKind !== undefined || relatedDisciplineId !== undefined || phase !== undefined) {
+      if (compactTaskKind !== undefined) task.changeVerificationKind(compactTaskKind);
+      if (relatedDisciplineId !== undefined) task.changeRelatedDiscipline(relatedDisciplineId);
+      if (phase !== undefined) task.changePhase(phase);
+      const updated = await this.#agendaRepository.update(task);
+      return updated.toResponse();
+    }
+
+    // --- Edição de nome ---
+    if (name !== undefined) {
+      task.changeName(name);
       const updated = await this.#agendaRepository.update(task);
       return updated.toResponse();
     }

@@ -288,7 +288,15 @@ function AgendaView() {
         task={detailModal.task}
         onClose={() => setDetailModal({ isOpen: false, task: null })}
         onTaskUpdate={(updatedTask) => {
-          setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+          setTasks(prev => {
+            const exists = prev.some(t => t.id === updatedTask.id);
+            if (exists) {
+              return prev.map(t => t.id === updatedTask.id ? updatedTask : t);
+            }
+            // Tarefa nova (ex: duplicação) — recarregar lista completa
+            loadTasks();
+            return prev;
+          });
           setDetailModal(prev => ({ ...prev, task: updatedTask }));
         }}
         onTaskDelete={() => {
