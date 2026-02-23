@@ -13,6 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import WeeklyCalendar from '../../components/agenda/WeeklyCalendar';
 import DaySummary from '../../components/agenda/DaySummary';
 import AgendaCreateModal from '../../components/agenda/AgendaCreateModal';
+import AgendaDetailModal from '../../components/agenda/AgendaDetailModal';
 import './AgendaView.css';
 
 function getWeekDays(referenceDate) {
@@ -84,7 +85,9 @@ function AgendaView() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [scopeMode, setScopeMode] = useState('minha'); // 'minha' | 'equipe'
+  const [viewMode, setViewMode] = useState('business'); // 'business' | 'full'
   const [createModal, setCreateModal] = useState({ isOpen: false, date: null });
+  const [detailModal, setDetailModal] = useState({ isOpen: false, task: null });
 
   const weekDays = getWeekDays(currentWeekRef);
 
@@ -139,8 +142,7 @@ function AgendaView() {
   }, []);
 
   const handleEventClick = useCallback((task) => {
-    console.log('[Agenda] Evento clicado:', task);
-    // TODO: abrir popup de detalhe/edição
+    setDetailModal({ isOpen: true, task });
   }, []);
 
   const goToPreviousWeek = () => setCurrentWeekRef(prev => subWeeks(prev, 1));
@@ -184,6 +186,21 @@ function AgendaView() {
                   Hoje
                 </button>
 
+                <div className="agenda-view__view-toggle">
+                  <button
+                    className={`agenda-view__view-btn${viewMode === 'business' ? ' is-active' : ''}`}
+                    onClick={() => setViewMode('business')}
+                  >
+                    Horas úteis
+                  </button>
+                  <button
+                    className={`agenda-view__view-btn${viewMode === 'full' ? ' is-active' : ''}`}
+                    onClick={() => setViewMode('full')}
+                  >
+                    Completa
+                  </button>
+                </div>
+
                 <div className="agenda-view__spacer" />
 
                 <div className="agenda-view__scope-toggle">
@@ -210,6 +227,7 @@ function AgendaView() {
                 onSlotClick={handleSlotClick}
                 onEventUpdate={handleEventUpdate}
                 onEventClick={handleEventClick}
+                viewMode={viewMode}
               />
             </div>
 
@@ -230,6 +248,19 @@ function AgendaView() {
         onTaskCreated={(task) => {
           setTasks(prev => [...prev, task]);
           setCreateModal({ isOpen: false, date: null });
+        }}
+      />
+
+      <AgendaDetailModal
+        isOpen={detailModal.isOpen}
+        task={detailModal.task}
+        onClose={() => setDetailModal({ isOpen: false, task: null })}
+        onTaskUpdate={(updatedTask) => {
+          setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+          setDetailModal(prev => ({ ...prev, task: updatedTask }));
+        }}
+        onTaskDelete={(taskId) => {
+          setTasks(prev => prev.filter(t => t.id !== taskId));
         }}
       />
     </div>
