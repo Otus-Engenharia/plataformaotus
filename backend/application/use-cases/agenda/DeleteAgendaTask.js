@@ -17,6 +17,12 @@ class DeleteAgendaTask {
       throw new Error(`Tarefa de agenda com ID ${id} não encontrada`);
     }
 
+    // Se é parent de um grupo recorrente, deletar filhas primeiro (CASCADE cuida,
+    // mas ser explícito evita problemas com project links e todos)
+    if (task.isRecurringParent) {
+      await this.#agendaRepository.deleteAllChildren(id);
+    }
+
     await this.#agendaRepository.delete(id);
   }
 }

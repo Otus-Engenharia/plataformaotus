@@ -13,7 +13,15 @@ class CreateAgendaTask {
     this.#agendaRepository = agendaRepository;
   }
 
-  async execute({ name, startDate, dueDate, userId, recurrence, standardAgendaTaskId, compactTaskKind, relatedDisciplineId, phase, projectIds, selectedStandardTasks }) {
+  async execute({
+    name, startDate, dueDate, userId, recurrence,
+    standardAgendaTaskId, compactTaskKind, relatedDisciplineId, phase,
+    projectIds, selectedStandardTasks,
+    recurrenceUntil, recurrenceCount, recurrenceCopyProjects,
+  }) {
+    // Se é recorrente, setar anchor e campos de recorrência
+    const isRecurring = recurrence && recurrence !== 'nunca';
+
     const task = AgendaTask.create({
       name,
       startDate: startDate || null,
@@ -24,6 +32,10 @@ class CreateAgendaTask {
       compactTaskKind,
       relatedDisciplineId,
       phase,
+      recurrenceAnchorDate: isRecurring ? (startDate || null) : null,
+      recurrenceUntil: isRecurring ? (recurrenceUntil || null) : null,
+      recurrenceCount: isRecurring ? (recurrenceCount != null ? recurrenceCount : null) : null,
+      recurrenceCopyProjects: isRecurring ? Boolean(recurrenceCopyProjects) : false,
     });
 
     const saved = await this.#agendaRepository.save(task);

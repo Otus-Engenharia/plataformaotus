@@ -25,6 +25,13 @@ class AgendaTask {
   #relatedDisciplineId;
   #phase;
   #createdAt;
+  // Campos de recorrência
+  #parentTaskId;
+  #recurrenceAnchorDate;
+  #recurrenceUntil;
+  #recurrenceCount;
+  #recurrenceExcludedDates;
+  #recurrenceCopyProjects;
 
   constructor({
     id = null,
@@ -39,6 +46,12 @@ class AgendaTask {
     relatedDisciplineId = null,
     phase = null,
     createdAt = null,
+    parentTaskId = null,
+    recurrenceAnchorDate = null,
+    recurrenceUntil = null,
+    recurrenceCount = null,
+    recurrenceExcludedDates = null,
+    recurrenceCopyProjects = false,
   }) {
     if (!name || name.trim().length === 0) {
       throw new Error('O nome da tarefa é obrigatório');
@@ -67,6 +80,13 @@ class AgendaTask {
     this.#relatedDisciplineId = relatedDisciplineId || null;
     this.#phase = phase || null;
     this.#createdAt = createdAt ? new Date(createdAt) : new Date();
+    // Recorrência
+    this.#parentTaskId = parentTaskId || null;
+    this.#recurrenceAnchorDate = recurrenceAnchorDate ? new Date(recurrenceAnchorDate) : null;
+    this.#recurrenceUntil = recurrenceUntil ? new Date(recurrenceUntil) : null;
+    this.#recurrenceCount = recurrenceCount != null ? Number(recurrenceCount) : null;
+    this.#recurrenceExcludedDates = Array.isArray(recurrenceExcludedDates) ? recurrenceExcludedDates : [];
+    this.#recurrenceCopyProjects = Boolean(recurrenceCopyProjects);
   }
 
   // Getters
@@ -82,6 +102,12 @@ class AgendaTask {
   get relatedDisciplineId() { return this.#relatedDisciplineId; }
   get phase() { return this.#phase; }
   get createdAt() { return this.#createdAt; }
+  get parentTaskId() { return this.#parentTaskId; }
+  get recurrenceAnchorDate() { return this.#recurrenceAnchorDate; }
+  get recurrenceUntil() { return this.#recurrenceUntil; }
+  get recurrenceCount() { return this.#recurrenceCount; }
+  get recurrenceExcludedDates() { return this.#recurrenceExcludedDates; }
+  get recurrenceCopyProjects() { return this.#recurrenceCopyProjects; }
 
   // Propriedades calculadas
   get isScheduled() {
@@ -99,6 +125,14 @@ class AgendaTask {
 
   get isRecurring() {
     return this.#recurrence.isRecurring;
+  }
+
+  get isRecurringParent() {
+    return this.isRecurring && !this.#parentTaskId;
+  }
+
+  get isRecurringChild() {
+    return !!this.#parentTaskId;
   }
 
   // --- Comportamentos do domínio ---
@@ -145,6 +179,38 @@ class AgendaTask {
   }
 
   /**
+   * Altera o tipo de recorrência
+   */
+  changeRecurrence(newRecurrence) {
+    this.#recurrence = newRecurrence instanceof AgendaRecurrence
+      ? newRecurrence
+      : new AgendaRecurrence(newRecurrence);
+  }
+
+  /**
+   * Define a data-modelo (anchor) para materialização de instâncias futuras
+   */
+  setAnchorDate(date) {
+    this.#recurrenceAnchorDate = date ? new Date(date) : null;
+  }
+
+  /**
+   * Define a data limite da recorrência
+   */
+  setRecurrenceUntil(date) {
+    this.#recurrenceUntil = date ? new Date(date) : null;
+  }
+
+  /**
+   * Adiciona uma data à lista de exclusões (para "deletar apenas esta")
+   */
+  addExcludedDate(dateStr) {
+    if (dateStr && !this.#recurrenceExcludedDates.includes(dateStr)) {
+      this.#recurrenceExcludedDates = [...this.#recurrenceExcludedDates, dateStr];
+    }
+  }
+
+  /**
    * Converte para objeto de persistência (snake_case)
    */
   toPersistence() {
@@ -161,6 +227,12 @@ class AgendaTask {
       related_discipline_id: this.#relatedDisciplineId,
       phase: this.#phase,
       created_at: this.#createdAt.toISOString(),
+      parent_task_id: this.#parentTaskId,
+      recurrence_anchor_date: this.#recurrenceAnchorDate?.toISOString() || null,
+      recurrence_until: this.#recurrenceUntil?.toISOString() || null,
+      recurrence_count: this.#recurrenceCount,
+      recurrence_excluded_dates: this.#recurrenceExcludedDates.length > 0 ? this.#recurrenceExcludedDates : null,
+      recurrence_copy_projects: this.#recurrenceCopyProjects,
     };
   }
 
@@ -187,6 +259,12 @@ class AgendaTask {
       is_scheduled: this.isScheduled,
       duration_minutes: this.durationMinutes,
       is_done: this.isDone,
+      // Campos de recorrência
+      parent_task_id: this.#parentTaskId,
+      recurrence_anchor_date: this.#recurrenceAnchorDate?.toISOString() || null,
+      recurrence_until: this.#recurrenceUntil?.toISOString() || null,
+      recurrence_count: this.#recurrenceCount,
+      recurrence_copy_projects: this.#recurrenceCopyProjects,
     };
   }
 
@@ -207,13 +285,24 @@ class AgendaTask {
       relatedDisciplineId: data.related_discipline_id,
       phase: data.phase,
       createdAt: data.created_at,
+      parentTaskId: data.parent_task_id,
+      recurrenceAnchorDate: data.recurrence_anchor_date,
+      recurrenceUntil: data.recurrence_until,
+      recurrenceCount: data.recurrence_count,
+      recurrenceExcludedDates: data.recurrence_excluded_dates,
+      recurrenceCopyProjects: data.recurrence_copy_projects,
     });
   }
 
   /**
    * Factory: cria nova tarefa
    */
-  static create({ name, startDate, dueDate, userId, recurrence, standardAgendaTaskId, compactTaskKind, relatedDisciplineId, phase }) {
+  static create({
+    name, startDate, dueDate, userId, recurrence,
+    standardAgendaTaskId, compactTaskKind, relatedDisciplineId, phase,
+    parentTaskId, recurrenceAnchorDate, recurrenceUntil, recurrenceCount,
+    recurrenceExcludedDates, recurrenceCopyProjects,
+  }) {
     return new AgendaTask({
       name,
       startDate: startDate || null,
@@ -224,6 +313,12 @@ class AgendaTask {
       compactTaskKind: compactTaskKind || null,
       relatedDisciplineId: relatedDisciplineId || null,
       phase: phase || null,
+      parentTaskId: parentTaskId || null,
+      recurrenceAnchorDate: recurrenceAnchorDate || null,
+      recurrenceUntil: recurrenceUntil || null,
+      recurrenceCount: recurrenceCount != null ? recurrenceCount : null,
+      recurrenceExcludedDates: recurrenceExcludedDates || null,
+      recurrenceCopyProjects: recurrenceCopyProjects || false,
     });
   }
 

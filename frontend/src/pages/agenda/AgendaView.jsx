@@ -88,6 +88,7 @@ function AgendaView() {
   const [viewMode, setViewMode] = useState('business'); // 'business' | 'full'
   const [createModal, setCreateModal] = useState({ isOpen: false, date: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, task: null });
+  const [pendingScopeAction, setPendingScopeAction] = useState(null);
 
   const weekDays = getWeekDays(currentWeekRef);
 
@@ -122,6 +123,16 @@ function AgendaView() {
   }, [loadTasks]);
 
   const handleEventUpdate = useCallback(async (taskId, updatePayload) => {
+    // Para tarefas recorrentes com reschedule/resize, pedir escopo
+    const task = tasks.find(t => t.id === taskId);
+    const isRecurring = task?.recurrence && task.recurrence !== 'nunca';
+    const isDragOrResize = updatePayload.reschedule || updatePayload.resize;
+
+    if (isRecurring && isDragOrResize) {
+      setPendingScopeAction({ taskId, payload: updatePayload });
+      return;
+    }
+
     try {
       const res = await axios.put(`/api/agenda/tasks/${taskId}`, updatePayload, {
         withCredentials: true,
@@ -135,7 +146,28 @@ function AgendaView() {
     } catch (err) {
       console.error('Erro ao atualizar tarefa:', err);
     }
-  }, []);
+  }, [tasks]);
+
+  const handleScopeConfirm = useCallback(async (scope) => {
+    if (!pendingScopeAction) return;
+
+    const { taskId, payload } = pendingScopeAction;
+    setPendingScopeAction(null);
+
+    try {
+      const res = await axios.put(`/api/agenda/tasks/${taskId}`, {
+        ...payload,
+        recurrence_scope: scope,
+      }, { withCredentials: true });
+
+      if (res.data.success) {
+        // Recarregar toda a semana para pegar instâncias atualizadas
+        loadTasks();
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar tarefa recorrente:', err);
+    }
+  }, [pendingScopeAction, loadTasks]);
 
   const handleSlotClick = useCallback((date) => {
     setCreateModal({ isOpen: true, date });
@@ -259,10 +291,36 @@ function AgendaView() {
           setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
           setDetailModal(prev => ({ ...prev, task: updatedTask }));
         }}
-        onTaskDelete={(taskId) => {
-          setTasks(prev => prev.filter(t => t.id !== taskId));
+        onTaskDelete={() => {
+          loadTasks();
         }}
       />
+
+      {/* Dialog de escopo para drag & drop em tarefas recorrentes */}
+      {pendingScopeAction && (
+        <div className="agenda-view__scope-overlay" onClick={() => setPendingScopeAction(null)}>
+          <div className="agenda-view__scope-dialog" onClick={(e) => e.stopPropagation()}>
+            <h4 className="agenda-view__scope-title">Editar atividade recorrente</h4>
+            <p className="agenda-view__scope-desc">
+              Esta atividade faz parte de um grupo recorrente. Como deseja aplicar a alteração?
+            </p>
+            <div className="agenda-view__scope-options">
+              <button className="agenda-view__scope-btn" onClick={() => handleScopeConfirm('this')}>
+                Apenas esta atividade
+              </button>
+              <button className="agenda-view__scope-btn" onClick={() => handleScopeConfirm('future')}>
+                Esta e as seguintes
+              </button>
+              <button className="agenda-view__scope-btn" onClick={() => handleScopeConfirm('all')}>
+                Todas as atividades do grupo
+              </button>
+            </div>
+            <button className="agenda-view__scope-cancel" onClick={() => setPendingScopeAction(null)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

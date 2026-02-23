@@ -5,6 +5,19 @@ import axios from 'axios';
 import SearchableSelect from '../SearchableSelect';
 import './TarefasOtusForm.css';
 
+const RECURRENCE_OPTIONS = [
+  { value: 'nunca', label: 'Nunca' },
+  { value: 'diária', label: 'Diária' },
+  { value: 'semanal', label: 'Semanal' },
+  { value: 'mensal', label: 'Mensal' },
+];
+
+const END_TYPE_OPTIONS = [
+  { value: 'never', label: 'Nunca (contínuo)' },
+  { value: 'date', label: 'Em uma data' },
+  { value: 'count', label: 'Após N repetições' },
+];
+
 function generateEndTimeOptions(startDate) {
   if (!startDate || !(startDate instanceof Date) || isNaN(startDate.getTime())) {
     return [];
@@ -34,6 +47,10 @@ function TarefasOtusForm({ selectedDate, onSubmit, submitting }) {
   const [grupoAtividadeId, setGrupoAtividadeId] = useState('');
   const [nomeTarefa, setNomeTarefa] = useState('');
   const [horaTermino, setHoraTermino] = useState('');
+  const [recurrence, setRecurrence] = useState('nunca');
+  const [endType, setEndType] = useState('never');
+  const [recurrenceUntil, setRecurrenceUntil] = useState('');
+  const [recurrenceCount, setRecurrenceCount] = useState(10);
 
   const [standardAgendaTasks, setStandardAgendaTasks] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -108,6 +125,10 @@ function TarefasOtusForm({ selectedDate, onSubmit, submitting }) {
       standard_agenda_task: grupoAtividadeId ? Number(grupoAtividadeId) : null,
       project_ids: [],
       selected_standard_tasks: [],
+      recurrence,
+      recurrence_until: recurrence !== 'nunca' && endType === 'date' ? recurrenceUntil : null,
+      recurrence_count: recurrence !== 'nunca' && endType === 'count' ? Number(recurrenceCount) : null,
+      recurrence_copy_projects: false,
     });
   };
 
@@ -167,6 +188,58 @@ function TarefasOtusForm({ selectedDate, onSubmit, submitting }) {
             />
           </div>
         </div>
+
+        <div className="otus-form__field">
+          <label className="otus-form__label">Repetir</label>
+          <SearchableSelect
+            id="recurrence-otus"
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value)}
+            options={RECURRENCE_OPTIONS}
+            placeholder="Nunca"
+          />
+        </div>
+
+        {recurrence !== 'nunca' && (
+          <div className="otus-form__recurrence-options">
+            <div className="otus-form__field">
+              <label className="otus-form__label">Termina</label>
+              <SearchableSelect
+                id="end-type-otus"
+                value={endType}
+                onChange={(e) => setEndType(e.target.value)}
+                options={END_TYPE_OPTIONS}
+                placeholder="Selecione"
+              />
+            </div>
+
+            {endType === 'date' && (
+              <div className="otus-form__field">
+                <label className="otus-form__label">Data limite</label>
+                <input
+                  type="date"
+                  className="otus-form__input"
+                  value={recurrenceUntil}
+                  onChange={(e) => setRecurrenceUntil(e.target.value)}
+                />
+              </div>
+            )}
+
+            {endType === 'count' && (
+              <div className="otus-form__field">
+                <label className="otus-form__label">Número de repetições</label>
+                <input
+                  type="number"
+                  className="otus-form__input"
+                  min="1"
+                  max="365"
+                  value={recurrenceCount}
+                  onChange={(e) => setRecurrenceCount(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <button
           type="button"

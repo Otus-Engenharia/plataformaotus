@@ -29,6 +29,19 @@
   background: #ffffff;
   /* sticky dentro do .weekly-calendar (fora do scroll container) */
   flex-shrink: 0;
+  /* Scrollbar invisível para reservar o mesmo espaço que a scrollbar do body */
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.weekly-calendar__header::-webkit-scrollbar {
+  width: 6px;
+}
+
+.weekly-calendar__header::-webkit-scrollbar-track,
+.weekly-calendar__header::-webkit-scrollbar-thumb {
+  background: transparent;
 }
 
 .weekly-calendar__header-gutter {
