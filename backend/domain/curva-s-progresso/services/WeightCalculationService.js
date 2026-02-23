@@ -62,6 +62,7 @@ class WeightCalculationService {
 
       return {
         ...task,
+        fase_nome: task.fase_nome || 'Sem fase',
         activity_type: activityType ? activityType.value : null,
         standard_discipline: standardDiscipline,
         is_complete: isTaskComplete(task.Status),
@@ -99,15 +100,39 @@ class WeightCalculationService {
     }
 
     // 3.5. Verificar se fases do projeto encontram match na configuração
-    const phaseNames = [...new Set(activeTasks.map(t => t.fase_nome))].filter(Boolean);
+    const phaseNames = [...new Set(activeTasks.map(t => t.fase_nome))];
     const matchingPhases = phaseNames.filter(name => weightConfig.getPhaseWeight(name));
+    const unmatchedPhases = phaseNames.filter(name => !weightConfig.getPhaseWeight(name));
     const noPhaseMatch = phaseNames.length > 0 && matchingPhases.length === 0;
+
+    // Calcular peso residual para redistribuir
+    const matchedPercent = matchingPhases.reduce((sum, name) => {
+      return sum + (weightConfig.getPhaseWeight(name)?.percent || 0);
+    }, 0);
+    const remainingPercent = 100 - matchedPercent;
+
+    // Para fases do projeto sem match na config: dividir peso residual
+    const unmatchedPhasePercent = unmatchedPhases.length > 0
+      ? remainingPercent / unmatchedPhases.length
+      : 0;
+
+    // Para fases matched: se config tem fases sem tarefas, escalar proporcionalmente
+    // Ex: config soma 100%, mas só 70% tem tarefas → escalar matched por 100/70
+    let matchedScaleFactor = 1;
+    if (unmatchedPhases.length === 0 && matchedPercent > 0 && matchedPercent < 100) {
+      matchedScaleFactor = 100 / matchedPercent;
+    }
 
     if (noPhaseMatch) {
       console.warn(`[WeightCalculationService] Nenhuma fase do projeto encontra match na configuração.`);
       console.warn(`  Fases do projeto: ${phaseNames.join(', ')}`);
       console.warn(`  Fases configuradas: ${weightConfig.phaseWeights.map(p => p.phaseName).join(', ')}`);
       console.warn(`  Usando distribuição igual automática.`);
+    } else if (unmatchedPhases.length > 0) {
+      console.warn(`[WeightCalculationService] Fases sem match na config: ${unmatchedPhases.join(', ')}`);
+      console.warn(`  Redistribuindo ${remainingPercent.toFixed(1)}% entre ${unmatchedPhases.length} fase(s) não-matched.`);
+    } else if (matchedScaleFactor > 1) {
+      console.log(`[WeightCalculationService] Escalando fases matched (${matchedPercent.toFixed(1)}% → 100%) pois config tem fases sem tarefas.`);
     }
 
     // 4. Calcular peso por tarefa
@@ -118,11 +143,11 @@ class WeightCalculationService {
       const phaseWeight = weightConfig.getPhaseWeight(group.fase);
       let phasePercent;
       if (phaseWeight) {
-        phasePercent = phaseWeight.percent;
+        phasePercent = phaseWeight.percent * matchedScaleFactor;
       } else if (noPhaseMatch) {
         phasePercent = 100 / phaseNames.length;
       } else {
-        phasePercent = 0;
+        phasePercent = unmatchedPhasePercent;
       }
       const phaseTotal = phaseTotals.get(group.fase) || 1;
 
@@ -178,11 +203,21 @@ class WeightCalculationService {
     // Ordenar por rowNumber
     taskResults.sort((a, b) => Number(a.rowNumber) - Number(b.rowNumber));
 
-    // 5. Breakdown por fase
+    // 5. Breakdown por fase - usar nomes REAIS do projeto (BigQuery), não do config
     const phaseBreakdown = [];
-    const breakdownPhases = noPhaseMatch
-      ? phaseNames.map(name => ({ phaseName: name, percent: 100 / phaseNames.length }))
-      : weightConfig.phaseWeights.map(pw => ({ phaseName: pw.phaseName, percent: pw.percent }));
+    let breakdownPhases;
+    if (noPhaseMatch) {
+      breakdownPhases = phaseNames.map(name => ({ phaseName: name, percent: 100 / phaseNames.length }));
+    } else {
+      breakdownPhases = phaseNames.map(name => {
+        const pw = weightConfig.getPhaseWeight(name); // case-insensitive
+        if (pw) {
+          return { phaseName: name, percent: pw.percent * matchedScaleFactor };
+        } else {
+          return { phaseName: name, percent: unmatchedPhasePercent };
+        }
+      });
+    }
 
     for (const pw of breakdownPhases) {
       const phaseTasks = taskResults.filter(t => t.fase === pw.phaseName && t.peso_no_projeto > 0);
@@ -237,6 +272,7 @@ class WeightCalculationService {
         completed_tasks: activeTasks.filter(t => t.is_complete).length,
       },
       phase_breakdown: phaseBreakdown,
+      project_phases: phaseNames,
     };
   }
 
@@ -285,37 +321,41 @@ class WeightCalculationService {
     today.setHours(23, 59, 59, 999);
 
     const activeTasks = taskResults.filter(t => t.peso_no_projeto > 0);
+    // Total real dos pesos (pode ser ~99.97% por arredondamento)
+    const totalWeight = activeTasks.reduce((sum, t) => sum + t.peso_no_projeto, 0);
 
     const timeSeries = [];
-    let previousCumulative = 0;
+    let previousNormalized = 0;
 
     for (const m of months) {
-      let cumulativeProgress = 0;
+      let rawProgress = 0;
 
       for (const task of activeTasks) {
         const termino = task.data_termino ? new Date(task.data_termino) : null;
 
         if (m.endOfMonth <= today) {
           if (task.is_complete && termino && termino <= m.endOfMonth) {
-            cumulativeProgress += task.peso_no_projeto;
+            rawProgress += task.peso_no_projeto;
           }
         } else {
           if (termino && termino <= m.endOfMonth) {
-            cumulativeProgress += task.peso_no_projeto;
+            rawProgress += task.peso_no_projeto;
           }
         }
       }
 
-      const monthlyIncrement = cumulativeProgress - previousCumulative;
+      // Normalizar contra o total real para garantir que feche em 100%
+      const normalized = totalWeight > 0 ? (rawProgress / totalWeight) * 100 : 0;
+      const monthlyIncrement = normalized - previousNormalized;
       timeSeries.push({
         month: m.label,
         year: m.year,
         month_number: m.month + 1,
-        cumulative_progress: Math.round(cumulativeProgress * 100) / 100,
+        cumulative_progress: Math.round(normalized * 100) / 100,
         monthly_increment: Math.round(monthlyIncrement * 100) / 100,
         is_past: m.endOfMonth <= today,
       });
-      previousCumulative = cumulativeProgress;
+      previousNormalized = normalized;
     }
 
     return timeSeries;
@@ -330,29 +370,33 @@ class WeightCalculationService {
     if (months.length === 0) return [];
 
     const activeTasks = taskResults.filter(t => t.peso_no_projeto > 0);
+    // Total real dos pesos (pode ser ~99.97% por arredondamento)
+    const totalWeight = activeTasks.reduce((sum, t) => sum + t.peso_no_projeto, 0);
 
     const timeSeries = [];
-    let previousCumulative = 0;
+    let previousNormalized = 0;
 
     for (const m of months) {
-      let cumulativeProgress = 0;
+      let rawProgress = 0;
 
       for (const task of activeTasks) {
         const termino = task.data_termino ? new Date(task.data_termino) : null;
         if (termino && termino <= m.endOfMonth) {
-          cumulativeProgress += task.peso_no_projeto;
+          rawProgress += task.peso_no_projeto;
         }
       }
 
-      const monthlyIncrement = cumulativeProgress - previousCumulative;
+      // Normalizar contra o total real para garantir que feche em 100%
+      const normalized = totalWeight > 0 ? (rawProgress / totalWeight) * 100 : 0;
+      const monthlyIncrement = normalized - previousNormalized;
       timeSeries.push({
         month: m.label,
         year: m.year,
         month_number: m.month + 1,
-        cumulative_progress: Math.round(cumulativeProgress * 100) / 100,
+        cumulative_progress: Math.round(normalized * 100) / 100,
         monthly_increment: Math.round(monthlyIncrement * 100) / 100,
       });
-      previousCumulative = cumulativeProgress;
+      previousNormalized = normalized;
     }
 
     return timeSeries;

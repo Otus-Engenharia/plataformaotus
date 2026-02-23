@@ -2313,48 +2313,60 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
   const snapshotDataset = 'smartsheet_atrasos';
   const snapshotTable = 'smartsheet_snapshot';
 
+  // Schema da tabela smartsheet_snapshot: só Level 5, sem rowNumber, sem fases
+  // Estratégia: JOIN com smartsheet_data_projetos para obter fase_nome e rowNumber
+  const currentTable = 'smartsheet.smartsheet_data_projetos';
+
   const baseQuery = `
-    WITH tasks_with_hierarchy AS (
+    WITH current_hierarchy AS (
       SELECT
         ID_Projeto,
-        NomeDaPlanilha,
         NomeDaTarefa,
-        Disciplina,
-        Level,
-        Status,
-        DataDeInicio,
-        DataDeTermino,
-        rowNumber,
-        snapshot_date,
+        CAST(Level AS INT64) AS Level,
+        CAST(rowNumber AS INT64) AS rowNumber,
         LAST_VALUE(IF(CAST(Level AS INT64) = 2, NomeDaTarefa, NULL) IGNORE NULLS)
           OVER (
-            PARTITION BY snapshot_date, ID_Projeto
+            PARTITION BY ID_Projeto
             ORDER BY CAST(rowNumber AS INT64)
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
           ) AS fase_nome
-      FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\`
-      WHERE {{WHERE_CLAUSE}}
-        AND NomeDaPlanilha NOT LIKE '%(Backup%'
-        AND NomeDaPlanilha NOT LIKE '%Cópia%'
-        AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
-        AND NomeDaPlanilha NOT LIKE '%Copy%'
+      FROM \`${snapshotProject}.${currentTable}\`
+      WHERE {{WHERE_CLAUSE_CURR}}
+    ),
+    unique_fases AS (
+      SELECT ID_Projeto, NomeDaTarefa, MIN(rowNumber) AS rowNumber, ANY_VALUE(fase_nome) AS fase_nome
+      FROM current_hierarchy
+      WHERE Level = 5
+      GROUP BY ID_Projeto, NomeDaTarefa
     )
     SELECT
-      ID_Projeto,
-      NomeDaPlanilha,
-      NomeDaTarefa,
-      Disciplina,
-      Status,
-      DataDeInicio,
-      DataDeTermino,
-      rowNumber,
-      fase_nome,
-      snapshot_date
-    FROM tasks_with_hierarchy
-    WHERE CAST(Level AS INT64) = 5
-      AND Disciplina IS NOT NULL
-      AND TRIM(Disciplina) != ''
-    ORDER BY snapshot_date, CAST(rowNumber AS INT64)
+      snap.ID_Projeto,
+      snap.NomeDaPlanilha,
+      snap.NomeDaTarefa,
+      snap.Disciplina,
+      snap.Status,
+      snap.DataDeInicio,
+      snap.DataDeTermino,
+      snap.Duracao,
+      COALESCE(cf.rowNumber, ROW_NUMBER() OVER (
+        PARTITION BY snap.snapshot_date, snap.ID_Projeto
+        ORDER BY snap.DataDeInicio, snap.NomeDaTarefa
+      )) AS rowNumber,
+      cf.fase_nome,
+      snap.snapshot_date
+    FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
+    LEFT JOIN unique_fases cf
+      ON snap.ID_Projeto = cf.ID_Projeto
+      AND snap.NomeDaTarefa = cf.NomeDaTarefa
+    WHERE {{WHERE_CLAUSE_SNAP}}
+      AND snap.Level = 5
+      AND snap.Disciplina IS NOT NULL
+      AND TRIM(snap.Disciplina) != ''
+      AND snap.NomeDaPlanilha NOT LIKE '%(Backup%'
+      AND snap.NomeDaPlanilha NOT LIKE '%Cópia%'
+      AND snap.NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+      AND snap.NomeDaPlanilha NOT LIKE '%Copy%'
+    ORDER BY snap.snapshot_date, rowNumber
   `;
 
   try {
@@ -2362,24 +2374,37 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
 
     if (smartsheetId) {
       const escapedId = String(smartsheetId).replace(/'/g, "''");
-      const query = baseQuery.replace('{{WHERE_CLAUSE}}', `ID_Projeto = '${escapedId}'`);
+      const idClause = `ID_Projeto = '${escapedId}'`;
+      const query = baseQuery
+        .replace('{{WHERE_CLAUSE_CURR}}', idClause)
+        .replace('{{WHERE_CLAUSE_SNAP}}', `snap.${idClause}`);
       rows = await executeQuery(query);
     }
 
     if (rows.length === 0 && projectName) {
       const escapedName = String(projectName).replace(/'/g, "''");
-      const whereClause = `LOWER(REGEXP_REPLACE(
+      const namePattern = `LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', ''))`;
+      const currClause = `LOWER(REGEXP_REPLACE(
         REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
         r'[^a-zA-Z0-9]', ''
-      )) LIKE CONCAT('%', LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', '')), '%')`;
-      const query = baseQuery.replace('{{WHERE_CLAUSE}}', whereClause);
+      )) LIKE CONCAT('%', ${namePattern}, '%')`;
+      const snapClause = `LOWER(REGEXP_REPLACE(
+        REGEXP_REPLACE(snap.NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+        r'[^a-zA-Z0-9]', ''
+      )) LIKE CONCAT('%', ${namePattern}, '%')`;
+      const query = baseQuery
+        .replace('{{WHERE_CLAUSE_CURR}}', currClause)
+        .replace('{{WHERE_CLAUSE_SNAP}}', snapClause);
       rows = await executeQuery(query);
     }
 
     // Agrupar por snapshot_date
     const snapshots = new Map();
     for (const row of rows) {
-      const date = row.snapshot_date ? String(row.snapshot_date).split('T')[0] : null;
+      const rawDate = row.snapshot_date;
+      const dateVal = typeof rawDate === 'object' && rawDate !== null && rawDate.value != null
+        ? String(rawDate.value) : rawDate ? String(rawDate) : null;
+      const date = dateVal ? dateVal.split('T')[0] : null;
       if (!date) continue;
       if (!snapshots.has(date)) snapshots.set(date, []);
       snapshots.get(date).push(row);
@@ -2390,6 +2415,66 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
   } catch (error) {
     console.error('❌ Erro ao buscar snapshots para Curva S:', error.message);
     return { rows: [], snapshots: new Map() };
+  }
+}
+
+/**
+ * Busca snapshots de TODOS os projetos para análise consolidada do portfolio.
+ * Retorna dados agrupados por projeto e snapshot_date.
+ */
+export async function queryCurvaSAllSnapshotTasks() {
+  const snapshotProject = 'dadosindicadores';
+  const snapshotDataset = 'smartsheet_atrasos';
+  const snapshotTable = 'smartsheet_snapshot';
+
+  const query = `
+    SELECT
+      snap.ID_Projeto,
+      snap.NomeDaPlanilha,
+      snap.NomeDaTarefa,
+      snap.Disciplina,
+      snap.Status,
+      snap.DataDeInicio,
+      snap.DataDeTermino,
+      snap.Duracao,
+      snap.snapshot_date
+    FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
+    WHERE snap.Level = 5
+      AND snap.Disciplina IS NOT NULL
+      AND TRIM(snap.Disciplina) != ''
+      AND snap.NomeDaPlanilha NOT LIKE '%(Backup%'
+      AND snap.NomeDaPlanilha NOT LIKE '%Cópia%'
+      AND snap.NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+      AND snap.NomeDaPlanilha NOT LIKE '%Copy%'
+    ORDER BY snap.ID_Projeto, snap.snapshot_date, snap.NomeDaTarefa
+  `;
+
+  try {
+    const rows = await executeQuery(query);
+
+    // Agrupar: ID_Projeto → snapshot_date → tasks[]
+    const projectSnapshots = new Map();
+    for (const row of rows) {
+      const projectId = row.ID_Projeto ? String(row.ID_Projeto) : null;
+      if (!projectId) continue;
+
+      const rawDate = row.snapshot_date;
+      const dateVal = typeof rawDate === 'object' && rawDate !== null && rawDate.value != null
+        ? String(rawDate.value) : rawDate ? String(rawDate) : null;
+      const date = dateVal ? dateVal.split('T')[0] : null;
+      if (!date) continue;
+
+      if (!projectSnapshots.has(projectId)) projectSnapshots.set(projectId, new Map());
+      const snapMap = projectSnapshots.get(projectId);
+      if (!snapMap.has(date)) snapMap.set(date, []);
+      snapMap.get(date).push(row);
+    }
+
+    console.log(`✅ [queryCurvaSAllSnapshotTasks] ${rows.length} tarefas em ${projectSnapshots.size} projetos`);
+    return { rows, projectSnapshots };
+  } catch (error) {
+    console.error('❌ Erro ao buscar todos os snapshots:', error.message);
+    return { rows: [], projectSnapshots: new Map() };
   }
 }
 

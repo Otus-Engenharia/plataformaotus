@@ -3,3 +3,4 @@
  */
 
 export { WeightConfiguration } from './WeightConfiguration.js';
+export { ChangeAnnotation } from './ChangeAnnotation.js';

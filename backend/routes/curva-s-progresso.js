@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { SupabaseCurvaSProgressoRepository } from '../infrastructure/repositories/SupabaseCurvaSProgressoRepository.js';
+import { SupabaseBaselineRepository } from '../infrastructure/repositories/SupabaseBaselineRepository.js';
 import {
   GetDefaultWeights,
   UpdateDefaultWeights,
@@ -13,19 +14,30 @@ import {
   UpdateProjectWeights,
   CalculateProgress,
   GetProgressTimeSeries,
+  GetChangeLog,
+  SaveChangeAnnotation,
+  GetPortfolioChangeLog,
 } from '../application/use-cases/curva-s-progresso/index.js';
-import { queryCurvaSProgressoTasks, queryCurvaSSnapshotTasks } from '../bigquery.js';
+import { queryCurvaSProgressoTasks, queryCurvaSSnapshotTasks, queryCurvaSAllSnapshotTasks } from '../bigquery.js';
 import { fetchDisciplineMappings } from '../supabase.js';
 
 const router = express.Router();
 
 let curvaSRepository = null;
+let baselineRepository = null;
 
 function getRepository() {
   if (!curvaSRepository) {
     curvaSRepository = new SupabaseCurvaSProgressoRepository();
   }
   return curvaSRepository;
+}
+
+function getBaselineRepository() {
+  if (!baselineRepository) {
+    baselineRepository = new SupabaseBaselineRepository();
+  }
+  return baselineRepository;
 }
 
 function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
@@ -276,7 +288,8 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
         repository,
         queryCurvaSProgressoTasks,
         fetchDisciplineMappings,
-        queryCurvaSSnapshotTasks
+        queryCurvaSSnapshotTasks,
+        getBaselineRepository()
       );
 
       const data = await getTimeSeries.execute({
@@ -294,6 +307,122 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
       res.status(500).json({
         success: false,
         error: error.message || 'Erro ao calcular série temporal',
+      });
+    }
+  });
+
+  /**
+   * GET /api/curva-s-progresso/portfolio/changelog
+   * Retorna log de alterações consolidado de todos os projetos do portfolio
+   */
+  router.get('/portfolio/changelog', requireAuth, cacheMiddleware, async (req, res) => {
+    try {
+      const { projectIds } = req.query;
+      const parsedIds = projectIds ? projectIds.split(',').map(s => s.trim()).filter(Boolean) : null;
+
+      const useCase = new GetPortfolioChangeLog(queryCurvaSAllSnapshotTasks);
+      const data = await useCase.execute({ projectIds: parsedIds });
+
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Erro ao buscar changelog do portfolio:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao buscar changelog do portfolio',
+      });
+    }
+  });
+
+  /**
+   * GET /api/curva-s-progresso/project/:projectCode/changelog
+   * Retorna log de alterações mensais com anotações do coordenador
+   */
+  router.get('/project/:projectCode/changelog', requireAuth, cacheMiddleware, async (req, res) => {
+    try {
+      const { projectCode } = req.params;
+      const { smartsheetId, projectName } = req.query;
+
+      if (!smartsheetId && !projectName) {
+        return res.status(400).json({
+          success: false,
+          error: 'smartsheetId ou projectName é obrigatório',
+        });
+      }
+
+      const getChangeLog = new GetChangeLog(repository, queryCurvaSSnapshotTasks);
+      const data = await getChangeLog.execute({ projectCode, smartsheetId, projectName });
+
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Erro ao buscar log de alterações:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao buscar log de alterações',
+      });
+    }
+  });
+
+  /**
+   * PUT /api/curva-s-progresso/project/:projectCode/changelog/annotation
+   * Cria ou atualiza anotação do coordenador (upsert)
+   */
+  router.put('/project/:projectCode/changelog/annotation', requireAuth, async (req, res) => {
+    try {
+      const { projectCode } = req.params;
+      const { from_snapshot_date, to_snapshot_date, change_type, task_name,
+              disciplina, description, justification, is_visible } = req.body;
+
+      const saveAnnotation = new SaveChangeAnnotation(repository);
+      const data = await saveAnnotation.execute({
+        projectCode,
+        fromSnapshotDate: from_snapshot_date,
+        toSnapshotDate: to_snapshot_date,
+        changeType: change_type,
+        taskName: task_name,
+        disciplina,
+        description,
+        justification,
+        isVisible: is_visible,
+        userEmail: req.user?.email,
+      });
+
+      if (logAction) {
+        await logAction(req, 'upsert', 'changelog_annotation', projectCode,
+          `Anotação de changelog: ${change_type} - ${task_name}`);
+      }
+
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Erro ao salvar anotação:', error);
+      const status = error.message.includes('obrigatório') || error.message.includes('inválido') ? 400 : 500;
+      res.status(status).json({
+        success: false,
+        error: error.message || 'Erro ao salvar anotação',
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/curva-s-progresso/project/:projectCode/changelog/annotation/:id
+   * Remove uma anotação
+   */
+  router.delete('/project/:projectCode/changelog/annotation/:id', requireAuth, async (req, res) => {
+    try {
+      const { projectCode, id } = req.params;
+
+      await repository.deleteAnnotation(Number(id));
+
+      if (logAction) {
+        await logAction(req, 'delete', 'changelog_annotation', projectCode,
+          `Anotação de changelog removida: ID ${id}`);
+      }
+
+      res.json({ success: true, data: { id: Number(id) } });
+    } catch (error) {
+      console.error('Erro ao remover anotação:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao remover anotação',
       });
     }
   });

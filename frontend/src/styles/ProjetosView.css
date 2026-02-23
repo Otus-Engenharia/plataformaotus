@@ -38,6 +38,7 @@
   padding: 1rem;
   background: #f9fafb;
   border-radius: 8px;
+  flex-wrap: wrap;
 }
 
 .projetos-project-filter .apontamentos-project-select {
