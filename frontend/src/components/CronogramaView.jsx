@@ -33,6 +33,11 @@ function CronogramaView({ selectedProjectId, portfolio = [] }) {
   const [cobrancasFeitas, setCobrancasFeitas] = useState(new Set());
   const [cobrancaToggling, setCobrancaToggling] = useState(null); // rowId em atualização
 
+  // Estado do botão Gmail Draft
+  const [gmailAuthorized, setGmailAuthorized] = useState(false);
+  const [gmailLoading, setGmailLoading] = useState(null); // chave da disciplina em loading
+  const [gmailFeedback, setGmailFeedback] = useState(null); // { type, message, key }
+
   // Busca o projeto selecionado do portfólio para obter o smartsheet_id
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !portfolio || portfolio.length === 0) return null;
@@ -427,6 +432,65 @@ Fico à disposição.`;
     const telefone = '5541998992821'; // Pedro - MVP
     const mensagemEncoded = encodeURIComponent(mensagem);
     return `https://web.whatsapp.com/send?phone=${telefone}&text=${mensagemEncoded}`;
+  };
+
+  // Verifica autorização Gmail no mount
+  useEffect(() => {
+    axios.get(`${API_URL}/api/auth/gmail-status`, { withCredentials: true })
+      .then(res => setGmailAuthorized(res.data?.authorized === true))
+      .catch(() => setGmailAuthorized(false));
+  }, []);
+
+  // Gera assunto do email de cobrança
+  const generateEmailSubject = (discGroup, dateGroup) => {
+    const projetoNome = selectedProject?.project_name || selectedProject?.project_code_norm || 'Projeto';
+    if (dateGroup) {
+      return `Entregas Previstas - ${projetoNome} - ${discGroup.disciplina} - ${dateGroup.date}`;
+    }
+    return `Atrasos Pendentes - ${projetoNome} - ${discGroup.disciplina}`;
+  };
+
+  // Cria rascunho no Gmail via API
+  const handleGmailDraft = async (discGroup, dateGroup = null) => {
+    const key = `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}`;
+    setGmailLoading(key);
+    setGmailFeedback(null);
+
+    try {
+      const body = dateGroup
+        ? generateWhatsAppMessage(discGroup, dateGroup)
+        : generateWhatsAppMessageAtrasos(discGroup);
+
+      const response = await axios.post(
+        `${API_URL}/api/projetos/cronograma/gmail-draft`,
+        {
+          construflowId: selectedProject?.construflow_id,
+          disciplinaName: discGroup.disciplina,
+          subject: generateEmailSubject(discGroup, dateGroup),
+          body,
+        },
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        setGmailFeedback({ type: 'success', message: 'Rascunho criado no Gmail!', key });
+        window.open('https://mail.google.com/mail/u/0/#drafts', '_blank');
+      }
+    } catch (err) {
+      const code = err.response?.data?.code;
+      if (code === 'GMAIL_NOT_AUTHORIZED') {
+        window.location.href = `${API_URL}/api/auth/google?reauthorize=true`;
+        return;
+      }
+      if (code === 'NO_RECIPIENTS') {
+        setGmailFeedback({ type: 'error', message: 'Nenhum email cadastrado para esta disciplina.', key });
+      } else {
+        setGmailFeedback({ type: 'error', message: 'Erro ao criar rascunho. Tente novamente.', key });
+      }
+    } finally {
+      setGmailLoading(null);
+      setTimeout(() => setGmailFeedback(null), 4000);
+    }
   };
 
   // Próximas entregas previstas - agrupadas por data e depois por disciplina
@@ -918,18 +982,38 @@ Fico à disposição.`;
                             >
                               <div className="cronograma-disciplina-wrapper">
                                 <span>{discGroup.disciplina}</span>
-                                <a
-                                  href={generateWhatsAppLink(discGroup, dateGroup)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="cronograma-cobranca-button"
-                                  title="Enviar cobrança via WhatsApp"
-                                >
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                                  </svg>
-                                  Cobrança
-                                </a>
+                                <div className="cronograma-disciplina-buttons">
+                                  <a
+                                    href={generateWhatsAppLink(discGroup, dateGroup)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="cronograma-cobranca-button"
+                                    title="Enviar cobrança via WhatsApp"
+                                  >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                                    </svg>
+                                    Cobrança
+                                  </a>
+                                  <button
+                                    type="button"
+                                    className="cronograma-cobranca-button cronograma-email-button"
+                                    title={gmailAuthorized ? 'Criar rascunho de cobrança no Gmail' : 'Autorize o Gmail para criar rascunhos'}
+                                    onClick={() => handleGmailDraft(discGroup, dateGroup)}
+                                    disabled={gmailLoading === `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}`}
+                                  >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                                      <path d="M22 4L12 13L2 4" />
+                                    </svg>
+                                    {gmailLoading === `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}` ? 'Criando...' : 'Email'}
+                                  </button>
+                                </div>
+                                {gmailFeedback?.key === `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}` && (
+                                  <span className={`cronograma-gmail-feedback cronograma-gmail-feedback-${gmailFeedback.type}`}>
+                                    {gmailFeedback.message}
+                                  </span>
+                                )}
                               </div>
                             </td>
                           )}
@@ -1112,18 +1196,38 @@ Fico à disposição.`;
                             >
                               <div className="cronograma-disciplina-wrapper">
                                 <span>{discGroup.disciplina}</span>
-                                <a
-                                  href={generateWhatsAppLinkAtrasos(discGroup)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="cronograma-cobranca-button"
-                                  title="Enviar cobrança via WhatsApp"
-                                >
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                                  </svg>
-                                  Cobrança
-                                </a>
+                                <div className="cronograma-disciplina-buttons">
+                                  <a
+                                    href={generateWhatsAppLinkAtrasos(discGroup)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="cronograma-cobranca-button"
+                                    title="Enviar cobrança via WhatsApp"
+                                  >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                                    </svg>
+                                    Cobrança
+                                  </a>
+                                  <button
+                                    type="button"
+                                    className="cronograma-cobranca-button cronograma-email-button"
+                                    title={gmailAuthorized ? 'Criar rascunho de cobrança no Gmail' : 'Autorize o Gmail para criar rascunhos'}
+                                    onClick={() => handleGmailDraft(discGroup)}
+                                    disabled={gmailLoading === `${discGroup.disciplina}-atraso`}
+                                  >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                                      <path d="M22 4L12 13L2 4" />
+                                    </svg>
+                                    {gmailLoading === `${discGroup.disciplina}-atraso` ? 'Criando...' : 'Email'}
+                                  </button>
+                                </div>
+                                {gmailFeedback?.key === `${discGroup.disciplina}-atraso` && (
+                                  <span className={`cronograma-gmail-feedback cronograma-gmail-feedback-${gmailFeedback.type}`}>
+                                    {gmailFeedback.message}
+                                  </span>
+                                )}
                               </div>
                             </td>
                           )}

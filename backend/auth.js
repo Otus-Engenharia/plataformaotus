@@ -11,7 +11,7 @@ dotenv.config();
 
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { getSupabaseClient, updateUserAvatar } from './supabase.js';
+import { getSupabaseClient, updateUserAvatar, storeUserOAuthTokens } from './supabase.js';
 // Mantém auth-config.js como fallback para compatibilidade
 import { hasAccess as hasAccessLegacy, getUserRole as getUserRoleLegacy, isPrivileged as isPrivilegedLegacy, getLeaderNameFromEmail } from './auth-config.js';
 
@@ -138,6 +138,17 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
           if (pictureUrl) {
             updateUserAvatar(dbUser.id, pictureUrl).catch(err => {
               console.warn('Não foi possível atualizar avatar:', err.message);
+            });
+          }
+
+          // Salva tokens OAuth para uso com Gmail API (não bloqueia o login se falhar)
+          if (accessToken) {
+            storeUserOAuthTokens(dbUser.id, {
+              accessToken,
+              refreshToken,
+              scopes: ['profile', 'email', 'https://www.googleapis.com/auth/gmail.compose'],
+            }).catch(err => {
+              console.warn('Não foi possível salvar tokens OAuth:', err.message);
             });
           }
 

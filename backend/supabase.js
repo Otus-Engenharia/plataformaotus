@@ -5327,3 +5327,121 @@ export async function updatePlataformaAcd(projectCode, plataformaAcd) {
 
   return data;
 }
+
+// ============================================
+// OAUTH TOKENS (Gmail Draft)
+// ============================================
+
+/**
+ * Armazena tokens OAuth de um usuário (upsert)
+ * Usa service_role para bypassar RLS
+ * @param {string} userId - ID do users_otus
+ * @param {Object} tokens - { accessToken, refreshToken, scopes }
+ */
+export async function storeUserOAuthTokens(userId, { accessToken, refreshToken, scopes }) {
+  const supabase = getSupabaseServiceClient();
+
+  const upsertData = {
+    user_id: userId,
+    provider: 'google',
+    access_token: accessToken,
+    scopes: scopes || [],
+    updated_at: new Date().toISOString(),
+  };
+
+  // Só sobrescreve refresh_token se recebemos um novo
+  // (Google só envia refresh_token no primeiro consent)
+  if (refreshToken) {
+    upsertData.refresh_token = refreshToken;
+  }
+
+  const { error } = await supabase
+    .from('user_oauth_tokens')
+    .upsert(upsertData, {
+      onConflict: 'user_id,provider',
+      ignoreDuplicates: false,
+    });
+
+  if (error) {
+    throw new Error(`Erro ao salvar tokens OAuth: ${error.message}`);
+  }
+}
+
+/**
+ * Busca tokens OAuth de um usuário
+ * Usa service_role para bypassar RLS
+ * @param {string} userId - ID do users_otus
+ * @returns {Promise<{access_token, refresh_token, scopes}|null>}
+ */
+export async function getUserOAuthTokens(userId) {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from('user_oauth_tokens')
+    .select('access_token, refresh_token, scopes, updated_at')
+    .eq('user_id', userId)
+    .eq('provider', 'google')
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
+
+/**
+ * Resolve emails dos responsáveis por uma disciplina em um projeto
+ * Usa 3 estratégias: match exato → discipline_mappings → match parcial
+ * @param {string} construflowId - ID Construflow do projeto
+ * @param {string} disciplinaName - Nome da disciplina (do Smartsheet/BigQuery)
+ * @returns {Promise<string[]>} - Array de emails
+ */
+export async function resolveRecipientEmails(construflowId, disciplinaName) {
+  if (!construflowId || !disciplinaName) return [];
+
+  const disciplines = await fetchProjectDisciplines(construflowId);
+  if (!disciplines || disciplines.length === 0) return [];
+
+  const normalizedInput = disciplinaName.trim().toLowerCase();
+
+  // Estratégia 1: Match exato no discipline_name ou short_name
+  let matched = disciplines.filter(d => {
+    const name = (d.discipline?.discipline_name || '').toLowerCase();
+    const short = (d.discipline?.short_name || '').toLowerCase();
+    return name === normalizedInput || short === normalizedInput;
+  });
+
+  // Estratégia 2: Via discipline_mappings (smartsheet → standard)
+  if (matched.length === 0) {
+    const projectId = await getProjectIdByConstruflow(construflowId);
+    if (projectId) {
+      const mappings = await fetchDisciplineMappings(projectId);
+      const mapping = mappings.find(m =>
+        m.external_discipline_name?.toLowerCase() === normalizedInput &&
+        m.external_source === 'smartsheet'
+      );
+      if (mapping?.standard_discipline_id) {
+        matched = disciplines.filter(d =>
+          d.discipline_id === mapping.standard_discipline_id
+        );
+      }
+    }
+  }
+
+  // Estratégia 3: Match parcial (contains)
+  if (matched.length === 0) {
+    matched = disciplines.filter(d => {
+      const name = (d.discipline?.discipline_name || '').toLowerCase();
+      return name.includes(normalizedInput) || normalizedInput.includes(name);
+    });
+  }
+
+  // Extrair emails: prefere override da project_disciplines, fallback para contact.email
+  const emails = [];
+  for (const d of matched) {
+    const email = d.email || d.contact?.email;
+    if (email && !emails.includes(email)) {
+      emails.push(email);
+    }
+  }
+
+  return emails;
+}
