@@ -71,8 +71,11 @@ import {
   // Apoio de Projetos - Portfolio
   fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd,
   // Portfolio - Edicao inline
-  fetchPortfolioEditOptions, updateProjectField
+  fetchPortfolioEditOptions, updateProjectField,
+  // OAuth tokens (Gmail Draft)
+  getUserOAuthTokens, resolveRecipientEmails
 } from './supabase.js';
+import { createGmailDraft } from './gmail.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -725,9 +728,15 @@ app.get(
         message: 'Google OAuth não está configurado. Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET no arquivo .env'
       });
     }
-    passport.authenticate('google', {
-      scope: ['profile', 'email']
-    })(req, res, next);
+    const authOptions = {
+      scope: ['profile', 'email', 'https://www.googleapis.com/auth/gmail.compose'],
+      accessType: 'offline',
+    };
+    // Força re-consent quando solicitado (ex: botão "Autorizar Gmail")
+    if (req.query.reauthorize === 'true') {
+      authOptions.prompt = 'consent';
+    }
+    passport.authenticate('google', authOptions)(req, res, next);
   }
 );
 
@@ -1617,6 +1626,84 @@ app.put('/api/projetos/cronograma/cobrancas', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Erro ao salvar cobrança:', err);
     res.status(500).json({ success: false, error: err.message || 'Erro ao salvar cobrança' });
+  }
+});
+
+/**
+ * Rota: GET /api/auth/gmail-status
+ * Retorna se o usuário tem tokens Gmail válidos armazenados
+ */
+app.get('/api/auth/gmail-status', requireAuth, async (req, res) => {
+  try {
+    const tokens = await getUserOAuthTokens(req.user.id);
+    const hasGmailScope = tokens?.scopes?.includes(
+      'https://www.googleapis.com/auth/gmail.compose'
+    );
+    res.json({
+      success: true,
+      authorized: !!tokens && !!hasGmailScope,
+      hasRefreshToken: !!tokens?.refresh_token,
+    });
+  } catch (error) {
+    res.json({ success: true, authorized: false });
+  }
+});
+
+/**
+ * Rota: POST /api/projetos/cronograma/gmail-draft
+ * Cria um rascunho no Gmail do usuário com a cobrança
+ * Body: { construflowId, disciplinaName, subject, body }
+ */
+app.post('/api/projetos/cronograma/gmail-draft', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { to, subject, body, construflowId, disciplinaName } = req.body;
+
+    if (!subject || !body) {
+      return res.status(400).json({
+        success: false,
+        error: 'subject e body são obrigatórios',
+      });
+    }
+
+    // Resolve emails se não fornecidos diretamente
+    let recipients = to;
+    if (!recipients && construflowId && disciplinaName) {
+      recipients = await resolveRecipientEmails(construflowId, disciplinaName);
+    }
+
+    if (!recipients || recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nenhum email de destinatário encontrado para esta disciplina',
+        code: 'NO_RECIPIENTS',
+      });
+    }
+
+    const draft = await createGmailDraft(userId, {
+      to: recipients,
+      subject,
+      body,
+    });
+
+    res.json({
+      success: true,
+      draftId: draft.draftId,
+      message: 'Rascunho criado com sucesso no Gmail',
+    });
+  } catch (error) {
+    if (error.message === 'GMAIL_NOT_AUTHORIZED') {
+      return res.status(403).json({
+        success: false,
+        error: 'Gmail não autorizado. Faça login novamente com permissão de Gmail.',
+        code: 'GMAIL_NOT_AUTHORIZED',
+      });
+    }
+    console.error('Erro ao criar rascunho Gmail:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar rascunho no Gmail',
+    });
   }
 });
 

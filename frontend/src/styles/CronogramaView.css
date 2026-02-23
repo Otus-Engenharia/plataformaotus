@@ -321,6 +321,54 @@
   stroke-width: 2;
 }
 
+/* Wrapper para botões lado a lado (WhatsApp + Email) */
+.cronograma-disciplina-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Botão Email Draft (vermelho, ao lado do WhatsApp azul) */
+.cronograma-email-button {
+  background: #ffffff;
+  color: #dc2626;
+  border-color: #dc2626;
+  cursor: pointer;
+}
+
+.cronograma-email-button:hover:not(:disabled) {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+
+.cronograma-email-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Feedback inline do Gmail (sucesso/erro) */
+.cronograma-gmail-feedback {
+  display: block;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-top: 0.25rem;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.cronograma-gmail-feedback-success {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.cronograma-gmail-feedback-error {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
 /* Coluna e checkbox "Cobrança feita" */
 .cronograma-th-cobranca {
   white-space: nowrap;
