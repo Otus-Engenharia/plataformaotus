@@ -2353,7 +2353,10 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
         ORDER BY snap.DataDeInicio, snap.NomeDaTarefa
       )) AS rowNumber,
       cf.fase_nome,
-      snap.snapshot_date
+      snap.snapshot_date,
+      snap.Categoria_de_atraso,
+      snap.Motivo_de_atraso,
+      snap.ObservacaoOtus
     FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
     LEFT JOIN unique_fases cf
       ON snap.ID_Projeto = cf.ID_Projeto
@@ -2437,7 +2440,10 @@ export async function queryCurvaSAllSnapshotTasks() {
       snap.DataDeInicio,
       snap.DataDeTermino,
       snap.Duracao,
-      snap.snapshot_date
+      snap.snapshot_date,
+      snap.Categoria_de_atraso,
+      snap.Motivo_de_atraso,
+      snap.ObservacaoOtus
     FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
     WHERE snap.Level = 5
       AND snap.Disciplina IS NOT NULL

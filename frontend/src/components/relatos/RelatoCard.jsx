@@ -14,7 +14,7 @@ const TIPO_ICONS = {
   'info': '\u2139\uFE0F',
 };
 
-function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete, canEdit }) {
+function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -65,24 +65,31 @@ function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete, canE
             )}
           </div>
         </div>
-        <span className={`relato-card-chevron ${isExpanded ? 'relato-card-chevron-open' : ''}`}>
-          &#9660;
-        </span>
+        <div className="relato-card-header-actions">
+          <button
+            className="relato-card-edit-btn"
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            title="Editar relato"
+          >
+            &#9998;
+          </button>
+          <span className={`relato-card-chevron ${isExpanded ? 'relato-card-chevron-open' : ''}`}>
+            &#9660;
+          </span>
+        </div>
       </div>
 
       {isExpanded && (
         <div className="relato-card-body">
           <p className="relato-card-descricao">{relato.descricao}</p>
-          {canEdit && (
-            <div className="relato-card-actions">
-              <button className="relato-action-btn relato-action-edit" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
-                Editar
-              </button>
-              <button className="relato-action-btn relato-action-delete" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
-                Remover
-              </button>
-            </div>
-          )}
+          <div className="relato-card-actions">
+            <button className="relato-action-btn relato-action-edit" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+              Editar
+            </button>
+            <button className="relato-action-btn relato-action-delete" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+              Remover
+            </button>
+          </div>
         </div>
       )}
     </div>

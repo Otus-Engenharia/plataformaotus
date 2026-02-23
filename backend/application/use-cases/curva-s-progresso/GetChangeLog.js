@@ -59,14 +59,29 @@ class GetChangeLog {
       annotationMap.set(key, a.toResponse());
     }
 
-    // 5. Merge: anexar annotation em cada change
+    // 5. Merge: anexar annotation em cada change + aplicar overrides
     let totalAnnotated = 0;
     for (const pair of diffResult.month_pairs) {
       for (const change of pair.changes) {
         const key = `${pair.from_snapshot}|${pair.to_snapshot}|${change.type}|${change.task_name}`;
         const annotation = annotationMap.get(key) || null;
         change.annotation = annotation;
-        if (annotation) totalAnnotated++;
+        if (annotation) {
+          totalAnnotated++;
+          // Aplicar overrides de prazo para DESVIO_PRAZO
+          if (change.type === 'DESVIO_PRAZO') {
+            if (annotation.override_delta_days != null) {
+              change.original_delta_days = change.delta_days;
+              change.delta_days = annotation.override_delta_days;
+              change.is_overridden = true;
+            }
+            if (annotation.override_data_termino != null) {
+              change.original_data_termino = change.curr_data_termino;
+              change.curr_data_termino = annotation.override_data_termino;
+              change.is_overridden = true;
+            }
+          }
+        }
       }
       pair.summary.annotated = pair.changes.filter(c => c.annotation !== null).length;
     }

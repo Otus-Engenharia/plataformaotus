@@ -370,7 +370,8 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
     try {
       const { projectCode } = req.params;
       const { from_snapshot_date, to_snapshot_date, change_type, task_name,
-              disciplina, description, justification, is_visible } = req.body;
+              disciplina, description, justification, is_visible,
+              override_delta_days, override_data_termino } = req.body;
 
       const saveAnnotation = new SaveChangeAnnotation(repository);
       const data = await saveAnnotation.execute({
@@ -384,6 +385,8 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
         justification,
         isVisible: is_visible,
         userEmail: req.user?.email,
+        overrideDeltaDays: override_delta_days,
+        overrideDataTermino: override_data_termino,
       });
 
       if (logAction) {
