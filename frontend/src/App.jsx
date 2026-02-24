@@ -88,6 +88,7 @@ const WhiteboardView = lazy(() => import('./pages/whiteboard/WhiteboardView'));
 
 // Vista do Cliente
 const VistaClienteInicioView = lazy(() => import('./pages/vista-cliente/VistaClienteInicioView'));
+const VistaClienteApontamentosView = lazy(() => import('./pages/vista-cliente/VistaClienteApontamentosView'));
 
 const icons = {
   indicadoresLideranca: (
@@ -623,7 +624,6 @@ function Sidebar({ collapsed, onToggle, area }) {
         to="/vista-cliente/apontamentos"
         className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/apontamentos' ? 'nav-link-active' : ''}`}
         title={linkTitle('Apontamentos')}
-        style={{ opacity: 0.5, pointerEvents: 'none' }}
       >
         <span className="nav-icon">{icons.demandas}</span>
         <span className="nav-text">Apontamentos</span>
@@ -1332,6 +1332,7 @@ function AppContent() {
             >
               <Route index element={<Navigate to="inicio" replace />} />
               <Route path="inicio" element={<VistaClienteInicioView />} />
+              <Route path="apontamentos" element={<VistaClienteApontamentosView />} />
             </Route>
             <Route
               path="/horas"
