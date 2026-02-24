@@ -315,6 +315,8 @@ export default function TodosView() {
         onWeekToday={goToToday}
         showClosedInDate={showClosedInDate}
         onShowClosedInDateChange={setShowClosedInDate}
+        sort={sort}
+        onSortChange={setSort}
       />
 
       <div className="todos-view__content">

@@ -94,9 +94,24 @@ function SkeletonRow() {
       <div className="todo-row__checkbox" style={{ borderColor: '#e2e8f0' }} />
       <span className="todo-row__priority" style={{ backgroundColor: '#e2e8f0' }} />
       <div className="skeleton-block skeleton-block--name" />
-      <div className="skeleton-block skeleton-block--date" />
-      <div className="skeleton-block skeleton-block--avatar" />
-      <div className="skeleton-block skeleton-block--pill" />
+      <span className="todo-row__due-date"><div className="skeleton-block skeleton-block--date" /></span>
+      <span className="todo-row__assignee-col"><div className="skeleton-block skeleton-block--avatar" /></span>
+      <span className="todo-row__project-col"><div className="skeleton-block skeleton-block--pill" /></span>
+      <div className="todo-row__actions" />
+    </div>
+  );
+}
+
+function ListHeader() {
+  return (
+    <div className="todo-list-header">
+      <span className="todo-list-header__spacer-checkbox" />
+      <span className="todo-list-header__spacer-priority" />
+      <span className="todo-list-header__col todo-list-header__col--name">Tarefa</span>
+      <span className="todo-list-header__col todo-list-header__col--date">Data</span>
+      <span className="todo-list-header__col todo-list-header__col--assignee" title="Responsável">Resp.</span>
+      <span className="todo-list-header__col todo-list-header__col--project">Projeto</span>
+      <span className="todo-list-header__col todo-list-header__col--actions" />
     </div>
   );
 }
@@ -107,6 +122,7 @@ function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, on
   if (loading) {
     return (
       <div className="todo-list-view">
+        <ListHeader />
         <div className="todo-list-view__group">
           <div className="todo-list-view__skeleton-header">
             <div className="skeleton-block" style={{ width: 80, height: 14, borderRadius: 4 }} />
@@ -135,6 +151,7 @@ function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, on
 
   return (
     <div className="todo-list-view">
+      <ListHeader />
       {groups.map((group) => (
         <div key={group.key} className="todo-list-view__group">
           {group.label && (

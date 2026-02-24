@@ -136,48 +136,6 @@
   }
 }
 
-/* --- SearchableSelect overrides inside toolbar --- */
-
-.todo-toolbar .searchable-select-trigger {
-  padding: 6px 12px;
-  border: 1px solid #d4d4d8;
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: inherit;
-  min-height: auto;
-}
-
-.todo-toolbar .searchable-select-trigger.open {
-  border-color: #a1a1aa;
-  box-shadow: none;
-}
-
-.todo-toolbar .searchable-select-dropdown {
-  border-color: #d4d4d8;
-  border-radius: 6px;
-  min-width: 320px;
-}
-
-.todo-toolbar .searchable-select-input {
-  padding: 8px 12px;
-  font-size: 13px;
-  font-family: inherit;
-}
-
-.todo-toolbar .searchable-select-option {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-
-.todo-toolbar .searchable-select-option.selected {
-  background: #fff9e6;
-  font-weight: 600;
-}
-
-.todo-toolbar .searchable-select-empty {
-  font-size: 13px;
-}
-
 /* --- Responsive --- */
 
 @media (max-width: 768px) {

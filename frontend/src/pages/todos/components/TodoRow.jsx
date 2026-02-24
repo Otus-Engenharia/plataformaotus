@@ -10,10 +10,12 @@ const PRIORITY_COLORS = {
 
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
+  const raw = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
+  const date = new Date(raw + 'T00:00:00');
+  if (isNaN(date.getTime())) return null;
   const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  const day = date.getUTCDate();
-  const month = months[date.getUTCMonth()];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
   return `${day} ${month}`;
 }
 
@@ -29,6 +31,7 @@ function getInitials(name) {
 function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete }) {
   const priorityColor = PRIORITY_COLORS[todo.priority_label?.toLowerCase()] || PRIORITY_COLORS[todo.priority] || '#94a3b8';
   const isClosed = todo.is_closed;
+  const dueDateStr = formatDueDate(todo.due_date);
 
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
@@ -48,6 +51,12 @@ function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete }) {
   const handleRowClick = () => {
     if (onSelect) onSelect(todo);
   };
+
+  const dueDateClass = [
+    'todo-row__due-date',
+    !dueDateStr && 'todo-row__due-date--empty',
+    todo.is_overdue && 'todo-row__due-date--overdue',
+  ].filter(Boolean).join(' ');
 
   return (
     <div
@@ -77,23 +86,25 @@ function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete }) {
         {todo.name}
       </span>
 
-      {todo.due_date && (
-        <span className={`todo-row__due-date ${todo.is_overdue ? 'todo-row__due-date--overdue' : ''}`}>
-          {formatDueDate(todo.due_date)}
-        </span>
-      )}
+      <span className={dueDateClass}>
+        {dueDateStr || '—'}
+      </span>
 
-      {todo.assignee_name && (
-        <span className="todo-row__assignee" title={todo.assignee_name}>
-          {getInitials(todo.assignee_name)}
-        </span>
-      )}
+      <span className="todo-row__assignee-col">
+        {todo.assignee_name ? (
+          <span className="todo-row__assignee" title={todo.assignee_name}>
+            {getInitials(todo.assignee_name)}
+          </span>
+        ) : null}
+      </span>
 
-      {todo.project_name && (
-        <span className="todo-row__project">
-          {todo.project_name}
-        </span>
-      )}
+      <span className="todo-row__project-col">
+        {todo.project_name ? (
+          <span className="todo-row__project" title={todo.project_name}>
+            {todo.project_name}
+          </span>
+        ) : null}
+      </span>
 
       <div className="todo-row__actions">
         <button className="todo-row__action-btn" onClick={handleEditClick} title="Editar">
