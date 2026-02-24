@@ -238,6 +238,9 @@ function Sidebar({ collapsed, onToggle, area }) {
   const [workspaceProjects, setWorkspaceProjects] = useState({});
   const [expandedSectors, setExpandedSectors] = useState({});
 
+  // State para badge de solicitações pendentes de baseline
+  const [pendingBaselineCount, setPendingBaselineCount] = useState(0);
+
   // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
     if (area === 'okrs') {
@@ -277,6 +280,18 @@ function Sidebar({ collapsed, onToggle, area }) {
         .catch(err => console.error('Error loading workspace sectors:', err));
     }
   }, [area]);
+
+  // Buscar contagem de solicitações pendentes de baseline (para badge)
+  useEffect(() => {
+    if (!isPrivileged) return;
+    axios.get('/api/baseline-requests/pending', { withCredentials: true })
+      .then(res => {
+        if (res.data.success) {
+          setPendingBaselineCount((res.data.data || []).length);
+        }
+      })
+      .catch(() => {}); // silencioso - 403 para não-privilegiados
+  }, [isPrivileged, location.pathname]);
 
   // Função para carregar projetos de um setor (lazy load)
   const loadSectorProjects = useCallback((sectorId) => {
@@ -454,6 +469,9 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.indicadoresLideranca}</span>
         <span className="nav-text">Baselines</span>
+        {pendingBaselineCount > 0 && (
+          <span className="nav-notification-badge">{pendingBaselineCount}</span>
+        )}
       </Link>
       {isPrivileged && (
         <Link
