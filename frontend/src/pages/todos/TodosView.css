@@ -1,0 +1,159 @@
+/* ============================================================
+   TodosView - Main container for the ToDo's module
+   ============================================================ */
+
+:root {
+  /* Priority colors */
+  --todo-color-alta: #ef4444;
+  --todo-color-media: #f59e0b;
+  --todo-color-baixa: #22c55e;
+
+  /* Status colors */
+  --todo-color-backlog: #64748b;
+  --todo-color-a-fazer: #f59e0b;
+  --todo-color-em-progresso: #3b82f6;
+  --todo-color-validacao: #8b5cf6;
+  --todo-color-finalizado: #22c55e;
+  --todo-color-cancelado: #6b7280;
+}
+
+/* --- Layout --- */
+
+.todos-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px;
+  background: #f8f8f7;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* --- Header --- */
+
+.todos-view__header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.todos-view__header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #18181b;
+  margin: 0;
+}
+
+/* --- Stat badges --- */
+
+.todos-view__stats {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.stat-badge strong {
+  font-weight: 700;
+}
+
+/* Badge color variants */
+
+.stat-badge--backlog {
+  background: var(--todo-color-backlog);
+}
+
+.stat-badge--a-fazer {
+  background: var(--todo-color-a-fazer);
+  color: #18181b;
+}
+
+.stat-badge--em-progresso {
+  background: var(--todo-color-em-progresso);
+}
+
+.stat-badge--validacao {
+  background: var(--todo-color-validacao);
+}
+
+.stat-badge--finalizado {
+  background: var(--todo-color-finalizado);
+}
+
+.stat-badge--cancelado {
+  background: var(--todo-color-cancelado);
+}
+
+/* --- Content area --- */
+
+.todos-view__content {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  min-height: 0;
+}
+
+/* --- Loading overlay --- */
+
+.todos-view__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 248, 247, 0.7);
+  z-index: 10;
+}
+
+.todos-view__spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e4e4e7;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: todos-spin 0.7s linear infinite;
+}
+
+@keyframes todos-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 768px) {
+  .todos-view {
+    padding: 16px;
+  }
+
+  .todos-view__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .todos-view__stats {
+    gap: 8px;
+  }
+
+  .stat-badge {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+  }
+}
