@@ -304,8 +304,8 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       {/* KPI Cards */}
       <ProgressKpiCards progress={progress} prazos={prazos} loading={loading} />
 
-      {/* Botão de solicitação de baseline (coordenadores) */}
-      {isCoordinator && projectCode && (
+      {/* Botão de solicitação de baseline */}
+      {projectCode && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '0.5rem 0' }}>
           <button
             className="btn-modal-confirm"
