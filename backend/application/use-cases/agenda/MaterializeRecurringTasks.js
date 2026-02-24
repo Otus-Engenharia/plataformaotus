@@ -30,8 +30,10 @@ class MaterializeRecurringTasks {
     if (!parent.startDate || !parent.dueDate) return;
 
     const anchor = parent.recurrenceAnchorDate || parent.startDate;
+    // Garantir que recurrence_until cubra o dia inteiro (evita off-by-one por timezone)
     const maxDate = parent.recurrenceUntil
-      || new Date(anchor.getTime() + ONE_YEAR_MS);
+      ? (() => { const d = new Date(parent.recurrenceUntil); d.setUTCHours(23, 59, 59, 999); return d; })()
+      : new Date(anchor.getTime() + ONE_YEAR_MS);
     const maxCount = parent.recurrenceCount;
     const excluded = parent.recurrenceExcludedDates || [];
 
@@ -137,6 +139,8 @@ class MaterializeRecurringTasks {
     switch (recurrenceType) {
       case 'diária':
         return this.#computeDaily(anchor, rangeStart, effectiveEnd);
+      case 'diária_útil':
+        return this.#computeBusinessDaily(anchor, rangeStart, effectiveEnd);
       case 'semanal':
         return this.#computeWeekly(anchor, rangeStart, effectiveEnd);
       case 'mensal':
@@ -148,7 +152,6 @@ class MaterializeRecurringTasks {
 
   #computeDaily(anchor, rangeStart, rangeEnd) {
     const dates = [];
-    // Começar do dia seguinte ao anchor ou do rangeStart (o que for mais tardio)
     const anchorNextDay = new Date(anchor);
     anchorNextDay.setDate(anchorNextDay.getDate() + 1);
     anchorNextDay.setHours(0, 0, 0, 0);
@@ -161,6 +164,29 @@ class MaterializeRecurringTasks {
 
     while (current <= endDate) {
       dates.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
+  }
+
+  #computeBusinessDaily(anchor, rangeStart, rangeEnd) {
+    const dates = [];
+    const anchorNextDay = new Date(anchor);
+    anchorNextDay.setDate(anchorNextDay.getDate() + 1);
+    anchorNextDay.setHours(0, 0, 0, 0);
+
+    const start = new Date(Math.max(anchorNextDay.getTime(), new Date(rangeStart).setHours(0, 0, 0, 0)));
+
+    const current = new Date(start);
+    const endDate = new Date(rangeEnd);
+    endDate.setHours(23, 59, 59, 999);
+
+    while (current <= endDate) {
+      const dow = current.getDay();
+      if (dow >= 1 && dow <= 5) { // seg=1 a sex=5
+        dates.push(new Date(current));
+      }
       current.setDate(current.getDate() + 1);
     }
 

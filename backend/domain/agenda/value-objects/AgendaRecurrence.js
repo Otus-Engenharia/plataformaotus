@@ -6,6 +6,7 @@
 const VALID_RECURRENCES = Object.freeze({
   NUNCA: 'nunca',
   DIARIA: 'diária',
+  DIARIA_UTIL: 'diária_útil',
   SEMANAL: 'semanal',
   MENSAL: 'mensal',
 });
@@ -13,6 +14,7 @@ const VALID_RECURRENCES = Object.freeze({
 const RECURRENCE_LABELS = Object.freeze({
   [VALID_RECURRENCES.NUNCA]: 'Nunca',
   [VALID_RECURRENCES.DIARIA]: 'Diária',
+  [VALID_RECURRENCES.DIARIA_UTIL]: 'Diária (dias úteis)',
   [VALID_RECURRENCES.SEMANAL]: 'Semanal',
   [VALID_RECURRENCES.MENSAL]: 'Mensal',
 });
