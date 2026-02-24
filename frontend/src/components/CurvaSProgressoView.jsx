@@ -304,19 +304,6 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       {/* KPI Cards */}
       <ProgressKpiCards progress={progress} prazos={prazos} loading={loading} />
 
-      {/* Botão de solicitação de baseline */}
-      {projectCode && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '0.5rem 0' }}>
-          <button
-            className="btn-modal-confirm"
-            onClick={() => setShowRequestModal(true)}
-            style={{ fontSize: '0.813rem', padding: '0.5rem 1rem' }}
-          >
-            Solicitar Nova Baseline
-          </button>
-        </div>
-      )}
-
       {/* Feedback de sucesso */}
       {requestSuccess && (
         <div style={{ background: '#e8f5e9', color: '#2e7d32', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
@@ -383,6 +370,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
         {activeTab === 'grafico' && (
           <div className="curva-s-chart-layout-v3">
             <ChartFilterSidebar
+              onRequestBaseline={() => setShowRequestModal(true)}
               showExecutado={showExecutado}
               onToggleExecutado={() => setShowExecutado(prev => !prev)}
               baselineCurve={baselineCurve}
