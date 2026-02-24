@@ -57,6 +57,19 @@ class SupabaseTodoRepository extends TodoRepository {
       query = query.ilike('name', `%${filters.search}%`);
     }
 
+    // Filtro por time (via projetos do time)
+    if (filters.teamId) {
+      const { data: teamProjects } = await this.#supabase
+        .from(PROJECTS_TABLE)
+        .select('id')
+        .eq('team_id', filters.teamId);
+      const projectIds = (teamProjects || []).map(p => p.id);
+      if (projectIds.length === 0) {
+        return [];
+      }
+      query = query.in('project_id', projectIds);
+    }
+
     // Ordenação
     const sortField = sort.field || 'created_at';
     const ascending = sort.direction === 'asc';
@@ -226,7 +239,7 @@ class SupabaseTodoRepository extends TodoRepository {
 
     const { data, error } = await this.#supabase
       .from(PROJECTS_TABLE)
-      .select('id, name, comercial_name')
+      .select('id, name, comercial_name, team_id, teams(id, team_name, team_number)')
       .in('id', uniqueIds);
 
     if (error) {
@@ -236,10 +249,32 @@ class SupabaseTodoRepository extends TodoRepository {
 
     const projectsMap = new Map();
     for (const p of data || []) {
-      projectsMap.set(p.id, { id: p.id, name: p.comercial_name || p.name });
+      const team = p.teams;
+      projectsMap.set(p.id, {
+        id: p.id,
+        name: p.comercial_name || p.name,
+        team_id: p.team_id || null,
+        team_name: team ? `${team.team_number} - ${team.team_name}` : null,
+      });
     }
 
     return projectsMap;
+  }
+  /**
+   * Busca lista de times para filtro
+   */
+  async getTeams() {
+    const { data, error } = await this.#supabase
+      .from('teams')
+      .select('id, team_name, team_number')
+      .order('team_number', { ascending: true });
+
+    if (error) {
+      console.error('Erro ao buscar times:', error);
+      return [];
+    }
+
+    return data || [];
   }
 }
 

@@ -254,6 +254,8 @@ class Todo {
       created_by_name: createdByData?.name || null,
       project_id: this.#projectId,
       project_name: projectData?.name || null,
+      team_id: projectData?.team_id || null,
+      team_name: projectData?.team_name || null,
       agenda_task_id: this.#agendaTaskId,
       closed_at: this.#closedAt?.toISOString() || null,
       closed_by: this.#closedBy,

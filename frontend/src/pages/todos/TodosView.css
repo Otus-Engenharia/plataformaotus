@@ -22,8 +22,9 @@
 .todos-view {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: 24px;
+  flex: 1;
+  min-height: 0;
+  padding: 20px 24px 12px 24px;
   background: #f8f8f7;
   box-sizing: border-box;
   overflow: hidden;

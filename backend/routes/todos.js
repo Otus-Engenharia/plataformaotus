@@ -38,7 +38,7 @@ function createRoutes(requireAuth, logAction) {
    */
   router.get('/', requireAuth, async (req, res) => {
     try {
-      const { status, priority, project_id, assignee, search, sort_field, sort_dir } = req.query;
+      const { status, priority, project_id, assignee, search, sort_field, sort_dir, team_id } = req.query;
 
       const filters = {};
       if (status) filters.status = status;
@@ -46,6 +46,7 @@ function createRoutes(requireAuth, logAction) {
       if (project_id) filters.projectId = parseInt(project_id, 10);
       if (assignee) filters.assignee = assignee;
       if (search) filters.search = search;
+      if (team_id) filters.teamId = team_id;
 
       const sort = {};
       if (sort_field) sort.field = sort_field;
@@ -62,6 +63,20 @@ function createRoutes(requireAuth, logAction) {
     } catch (error) {
       console.error('Erro ao buscar ToDos:', error);
       res.status(500).json({ success: false, error: error.message || 'Erro ao buscar ToDos' });
+    }
+  });
+
+  /**
+   * GET /api/todos/teams
+   * Lista times disponíveis para filtro
+   */
+  router.get('/teams', requireAuth, async (req, res) => {
+    try {
+      const teams = await repository.getTeams();
+      res.json({ success: true, data: teams });
+    } catch (error) {
+      console.error('Erro ao buscar times:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao buscar times' });
     }
   });
 

@@ -29,10 +29,22 @@ const styles = {
     display: 'flex',
     flexDirection: 'row',
     gap: '12px',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     flexWrap: 'wrap',
     padding: '12px 0',
     borderBottom: '1px solid #e4e4e7',
+  },
+  filterGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  filterLabel: {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#71717a',
+    textTransform: 'uppercase',
+    letterSpacing: '0.03em',
   },
   searchWrapper: {
     display: 'flex',
@@ -176,6 +188,7 @@ export default function TodoToolbar({
   onCreateClick,
   projects = [],
   users = [],
+  teams = [],
 }) {
   const debounceRef = useRef(null);
 
@@ -202,21 +215,25 @@ export default function TodoToolbar({
   return (
     <div className="todo-toolbar" style={styles.toolbar}>
       {/* Search */}
-      <div className="todo-toolbar__search" style={styles.searchWrapper}>
-        <span style={styles.searchIcon}>
-          <SearchIcon />
-        </span>
-        <input
-          type="text"
-          placeholder="Buscar tarefas..."
-          defaultValue={filters.search || ''}
-          onChange={handleSearchChange}
-          style={styles.searchInput}
-        />
+      <div style={styles.filterGroup}>
+        <span style={styles.filterLabel}>Buscar</span>
+        <div className="todo-toolbar__search" style={styles.searchWrapper}>
+          <span style={styles.searchIcon}>
+            <SearchIcon />
+          </span>
+          <input
+            type="text"
+            placeholder="Buscar tarefas..."
+            defaultValue={filters.search || ''}
+            onChange={handleSearchChange}
+            style={styles.searchInput}
+          />
+        </div>
       </div>
 
       {/* Status filter */}
-      <div className="todo-toolbar__filter">
+      <div className="todo-toolbar__filter" style={styles.filterGroup}>
+        <span style={styles.filterLabel}>Status</span>
         <select
           value={filters.status || ''}
           onChange={handleFilterChange('status')}
@@ -231,7 +248,8 @@ export default function TodoToolbar({
       </div>
 
       {/* Priority filter */}
-      <div className="todo-toolbar__filter">
+      <div className="todo-toolbar__filter" style={styles.filterGroup}>
+        <span style={styles.filterLabel}>Prioridade</span>
         <select
           value={filters.priority || ''}
           onChange={handleFilterChange('priority')}
@@ -246,7 +264,8 @@ export default function TodoToolbar({
       </div>
 
       {/* Project filter */}
-      <div className="todo-toolbar__filter">
+      <div className="todo-toolbar__filter" style={styles.filterGroup}>
+        <span style={styles.filterLabel}>Projeto</span>
         <select
           value={filters.projectId || ''}
           onChange={handleFilterChange('projectId')}
@@ -261,8 +280,26 @@ export default function TodoToolbar({
         </select>
       </div>
 
+      {/* Team filter */}
+      <div className="todo-toolbar__filter" style={styles.filterGroup}>
+        <span style={styles.filterLabel}>Time</span>
+        <select
+          value={filters.teamId || ''}
+          onChange={handleFilterChange('teamId')}
+          style={styles.select}
+        >
+          <option value="">Todos</option>
+          {teams.map((team) => (
+            <option key={team.id} value={team.id}>
+              {team.team_number} - {team.team_name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Assignee filter */}
-      <div className="todo-toolbar__filter">
+      <div className="todo-toolbar__filter" style={styles.filterGroup}>
+        <span style={styles.filterLabel}>Responsável</span>
         <select
           value={filters.assignee || ''}
           onChange={handleFilterChange('assignee')}
@@ -279,7 +316,8 @@ export default function TodoToolbar({
 
       {/* Group By (only in list mode) */}
       {viewMode === 'list' && (
-        <div className="todo-toolbar__filter">
+        <div className="todo-toolbar__filter" style={styles.filterGroup}>
+          <span style={styles.filterLabel}>Agrupar</span>
           <select
             value={groupBy || 'none'}
             onChange={(e) => onGroupByChange(e.target.value)}

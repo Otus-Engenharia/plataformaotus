@@ -23,6 +23,7 @@ const INITIAL_FILTERS = {
   priority: '',
   projectId: '',
   assignee: '',
+  teamId: '',
   search: '',
 };
 
@@ -44,6 +45,7 @@ export default function TodosView() {
   const [stats, setStats] = useState({});
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
+  const [teams, setTeams] = useState([]);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingTodo, setEditingTodo] = useState(null);
@@ -59,6 +61,7 @@ export default function TodosView() {
       if (filters.priority) params.set('priority', filters.priority);
       if (filters.projectId) params.set('projectId', filters.projectId);
       if (filters.assignee) params.set('assignee', filters.assignee);
+      if (filters.teamId) params.set('team_id', filters.teamId);
       if (filters.search) params.set('search', filters.search);
       params.set('sortField', sort.field);
       params.set('sortDirection', sort.direction);
@@ -116,6 +119,19 @@ export default function TodosView() {
     }
   }, []);
 
+  const fetchTeams = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/todos/teams`, {
+        credentials: 'include',
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      setTeams(json.data ?? []);
+    } catch (err) {
+      console.error('[TodosView] fetchTeams:', err);
+    }
+  }, []);
+
   // Load on mount + when filters/sort change
   useEffect(() => {
     fetchTodos();
@@ -125,7 +141,8 @@ export default function TodosView() {
     fetchStats();
     fetchProjects();
     fetchUsers();
-  }, [fetchStats, fetchProjects, fetchUsers]);
+    fetchTeams();
+  }, [fetchStats, fetchProjects, fetchUsers, fetchTeams]);
 
   // Refresh stats whenever todos change
   useEffect(() => {
@@ -247,6 +264,7 @@ export default function TodosView() {
         onCreateClick={() => setShowCreateDialog(true)}
         projects={projects}
         users={users}
+        teams={teams}
       />
 
       <div className="todos-view__content">

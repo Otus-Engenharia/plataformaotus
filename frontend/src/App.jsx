@@ -1146,7 +1146,7 @@ function AppContent() {
             area={currentArea}
           />
         )}
-        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
+        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') && !location.pathname.startsWith('/todos') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') || location.pathname.startsWith('/todos') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
             {/* Redirect antigo /indicadores-lideranca para nova área */}
             <Route
