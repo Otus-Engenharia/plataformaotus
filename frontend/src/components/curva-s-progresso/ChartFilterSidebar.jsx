@@ -43,6 +43,7 @@ const BarChartIcon = () => (
 );
 
 function ChartFilterSidebar({
+  onRequestBaseline,
   showExecutado,
   onToggleExecutado,
   baselineCurve,
@@ -86,6 +87,19 @@ function ChartFilterSidebar({
 
   return (
     <div className="chart-filter-sidebar">
+      {/* Botão solicitar baseline */}
+      {onRequestBaseline && (
+        <div className="cfs-section" style={{ paddingBottom: '0.5rem', borderBottom: '1px solid #eee', marginBottom: '0.25rem' }}>
+          <button
+            className="btn-modal-confirm"
+            onClick={onRequestBaseline}
+            style={{ width: '100%', fontSize: '0.75rem', padding: '0.5rem 0.75rem' }}
+          >
+            Solicitar Nova Baseline
+          </button>
+        </div>
+      )}
+
       {/* Executado toggle */}
       <div className="cfs-section">
         <button
