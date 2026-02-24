@@ -9,6 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import RequestBaselineModal from './baselines/RequestBaselineModal';
 import WeightConfigPanel from './curva-s-progresso/WeightConfigPanel';
 import ProgressKpiCards from './curva-s-progresso/ProgressKpiCards';
 import WeightSummaryTable from './curva-s-progresso/WeightSummaryTable';
@@ -19,7 +20,7 @@ import ChangeLogTab from './curva-s-progresso/ChangeLogTab';
 import '../styles/CurvaSProgressoView.css';
 
 function CurvaSProgressoView({ selectedProjectId, portfolio }) {
-  const { user } = useAuth();
+  const { user, isCoordinator, isPrivileged } = useAuth();
   const [weights, setWeights] = useState(null);
   const [progress, setProgress] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -47,6 +48,11 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   // Changelog state
   const [changeLog, setChangeLog] = useState(null);
   const [changeLogLoading, setChangeLogLoading] = useState(false);
+
+  // Solicitação de baseline state
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestingBaseline, setRequestingBaseline] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(null);
 
   // Buscar dados do projeto selecionado no portfolio
   const selectedProject = portfolio?.find(p =>
@@ -256,6 +262,27 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   const selectAllSnapshots = () => setVisibleSnapshots(null);
   const clearAllSnapshots = () => setVisibleSnapshots(new Set());
 
+  // Handler para solicitar baseline
+  const handleRequestBaseline = async ({ title, description, response_deadline }) => {
+    setRequestingBaseline(true);
+    try {
+      await axios.post(`${API_URL}/api/baseline-requests`, {
+        project_code: projectCode,
+        project_name: projectName,
+        title,
+        description,
+        response_deadline,
+      }, { withCredentials: true });
+      setShowRequestModal(false);
+      setRequestSuccess('Solicitacao enviada com sucesso! O gerente sera notificado.');
+      setTimeout(() => setRequestSuccess(null), 5000);
+    } catch (err) {
+      throw new Error(err.response?.data?.error || 'Erro ao enviar solicitacao');
+    } finally {
+      setRequestingBaseline(false);
+    }
+  };
+
   if (!selectedProjectId) {
     return (
       <div className="curva-s-progresso-empty">
@@ -276,6 +303,37 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     <div className="curva-s-progresso-container">
       {/* KPI Cards */}
       <ProgressKpiCards progress={progress} prazos={prazos} loading={loading} />
+
+      {/* Botão de solicitação de baseline (coordenadores) */}
+      {isCoordinator && projectCode && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '0.5rem 0' }}>
+          <button
+            className="btn-modal-confirm"
+            onClick={() => setShowRequestModal(true)}
+            style={{ fontSize: '0.813rem', padding: '0.5rem 1rem' }}
+          >
+            Solicitar Nova Baseline
+          </button>
+        </div>
+      )}
+
+      {/* Feedback de sucesso */}
+      {requestSuccess && (
+        <div style={{ background: '#e8f5e9', color: '#2e7d32', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+          {requestSuccess}
+        </div>
+      )}
+
+      {/* Modal de solicitação */}
+      {showRequestModal && (
+        <RequestBaselineModal
+          projectName={projectName}
+          projectCode={projectCode}
+          onConfirm={handleRequestBaseline}
+          onCancel={() => setShowRequestModal(false)}
+          loading={requestingBaseline}
+        />
+      )}
 
       {/* Tabs internas */}
       <div className="curva-s-tabs">
