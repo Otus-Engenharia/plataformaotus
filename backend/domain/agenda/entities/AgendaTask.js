@@ -188,6 +188,47 @@ class AgendaTask {
   }
 
   /**
+   * Altera o nome da tarefa
+   */
+  changeName(newName) {
+    if (!newName || newName.trim().length === 0) {
+      throw new Error('O nome da tarefa é obrigatório');
+    }
+    this.#name = newName.trim();
+  }
+
+  /**
+   * Altera o grupo de atividade padrão (standard_agenda_task) e opcionalmente o nome
+   */
+  changeStandardTask(newStandardAgendaTaskId, newName) {
+    this.#standardAgendaTaskId = newStandardAgendaTaskId;
+    if (newName) {
+      this.#name = newName;
+    }
+  }
+
+  /**
+   * Altera o tipo de verificação (lançamento/ajuste)
+   */
+  changeVerificationKind(kind) {
+    this.#compactTaskKind = kind || null;
+  }
+
+  /**
+   * Altera a disciplina relacionada
+   */
+  changeRelatedDiscipline(disciplineId) {
+    this.#relatedDisciplineId = disciplineId != null ? Number(disciplineId) : null;
+  }
+
+  /**
+   * Altera a fase do projeto
+   */
+  changePhase(phase) {
+    this.#phase = phase || null;
+  }
+
+  /**
    * Define a data-modelo (anchor) para materialização de instâncias futuras
    */
   setAnchorDate(date) {
@@ -199,6 +240,20 @@ class AgendaTask {
    */
   setRecurrenceUntil(date) {
     this.#recurrenceUntil = date ? new Date(date) : null;
+  }
+
+  /**
+   * Define o número máximo de repetições
+   */
+  setRecurrenceCount(count) {
+    this.#recurrenceCount = count != null ? Number(count) : null;
+  }
+
+  /**
+   * Define se deve copiar projetos para instâncias filhas
+   */
+  setCopyProjects(value) {
+    this.#recurrenceCopyProjects = !!value;
   }
 
   /**

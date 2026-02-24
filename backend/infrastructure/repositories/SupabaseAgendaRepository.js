@@ -418,6 +418,18 @@ class SupabaseAgendaRepository extends AgendaRepository {
     if ('recurrence' in fields) {
       updateData.recurrence = fields.recurrence;
     }
+    if ('standard_agenda_task' in fields) {
+      updateData.standard_agenda_task = fields.standard_agenda_task;
+    }
+    if ('name' in fields) {
+      updateData.name = fields.name;
+    }
+    if ('recurrence_count' in fields) {
+      updateData.recurrence_count = fields.recurrence_count;
+    }
+    if ('recurrence_copy_projects' in fields) {
+      updateData.recurrence_copy_projects = fields.recurrence_copy_projects;
+    }
 
     if (Object.keys(updateData).length === 0) return;
 
@@ -428,6 +440,21 @@ class SupabaseAgendaRepository extends AgendaRepository {
 
     if (error) {
       throw new Error(`Erro ao atualizar campos de recorrência: ${error.message}`);
+    }
+  }
+  /**
+   * Atualiza o grupo de atividade e nome de múltiplas instâncias
+   */
+  async updateGroupForInstances(ids, standardAgendaTaskId, name) {
+    if (!ids.length) return;
+
+    const { error } = await this.#supabase
+      .from(AGENDA_TASKS_TABLE)
+      .update({ standard_agenda_task: standardAgendaTaskId, name })
+      .in('id', ids);
+
+    if (error) {
+      throw new Error(`Erro ao atualizar grupo das instâncias: ${error.message}`);
     }
   }
 }
