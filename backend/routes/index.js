@@ -12,6 +12,7 @@ import { createRoutes as createAgendaRoutes } from './agenda.js';
 import { createRoutes as createCurvaSProgressoRoutes } from './curva-s-progresso.js';
 import { createRoutes as createBaselineRoutes } from './baselines.js';
 import { createRoutes as createRelatoRoutes } from './relatos.js';
+import { createRoutes as createBaselineRequestRoutes } from './baseline-requests.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -54,5 +55,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const relatoRoutes = createRelatoRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/relatos', relatoRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos');
+  // Rotas de Solicitações de Baseline (DDD)
+  const baselineRequestRoutes = createBaselineRequestRoutes(requireAuth, isPrivileged, logAction);
+  app.use('/api/baseline-requests', baselineRequestRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests');
 }
