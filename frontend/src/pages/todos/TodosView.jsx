@@ -53,6 +53,11 @@ export default function TodosView() {
   const goToNextWeek = useCallback(() => setWeekRef(prev => addWeeks(prev, 1)), []);
   const goToToday = useCallback(() => setWeekRef(new Date()), []);
 
+  const filteredTodos = useMemo(() => {
+    if (showClosedInDate) return todos;
+    return todos.filter(t => t.status !== 'finalizado' && t.status !== 'cancelado');
+  }, [todos, showClosedInDate]);
+
   const weekLabel = useMemo(() => {
     const start = startOfWeek(weekRef, { weekStartsOn: 1 });
     const end = addDays(start, 4);
@@ -328,7 +333,7 @@ export default function TodosView() {
 
         {!loading && viewMode === 'list' && (
           <TodoListView
-            todos={todos}
+            todos={filteredTodos}
             groupBy={groupBy}
             onComplete={handleComplete}
             onSelect={setSelectedTodo}
@@ -343,7 +348,7 @@ export default function TodosView() {
 
         {!loading && viewMode === 'kanban' && (
           <TodoKanbanView
-            todos={todos}
+            todos={filteredTodos}
             groupBy={groupBy}
             weekRef={weekRef}
             onComplete={handleComplete}
@@ -354,7 +359,6 @@ export default function TodosView() {
             }}
             onStatusChange={(id, status) => handleUpdate(id, { status })}
             onDrop={handleKanbanDrop}
-            showClosedTasks={showClosedInDate}
             loading={loading}
           />
         )}
