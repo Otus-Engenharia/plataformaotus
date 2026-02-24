@@ -4,6 +4,8 @@
  * Dashboard principal do projeto na perspectiva do cliente.
  * Agrega KPIs, marcos, gráfico S-curve, relatos e changelog.
  * Reutiliza componentes existentes da plataforma.
+ *
+ * Layout: 2 colunas (chart+sidebar | marcos+changelog) + relatos full-width abaixo
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -36,12 +38,20 @@ const isPausedStatus = (status) => {
   return PAUSED_STATUSES.some(p => s === p.toLowerCase().trim() || s.includes(p.toLowerCase().trim()));
 };
 
+function getHealthLevel(idp) {
+  if (idp == null) return 'warning';
+  if (idp >= 1.0) return 'good';
+  if (idp >= 0.8) return 'warning';
+  return 'danger';
+}
+
 function VistaClienteInicioView() {
   // ---- Estado geral ----
   const [portfolio, setPortfolio] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [showOnlyActive, setShowOnlyActive] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   // ---- Dados do projeto ----
   const [progress, setProgress] = useState(null);
@@ -72,7 +82,7 @@ function VistaClienteInicioView() {
   const [marcosLoading, setMarcosLoading] = useState(false);
 
   // Apontamentos (contagens)
-  const [apontamentosCount, setApontamentosCount] = useState({ total: 0, definicoes: 0 });
+  const [apontamentosCount, setApontamentosCount] = useState({ total: 0 });
 
   // ---- Projeto selecionado ----
   const selectedProject = portfolio.find(p =>
@@ -84,6 +94,9 @@ function VistaClienteInicioView() {
   const projectId = selectedProject?.id;
   const construflowId = selectedProject?.construflow_id;
 
+  // IDP para health dot
+  const idp = progress?.idp_baseline != null ? progress.idp_baseline : progress?.idp;
+
   // ---- Fetch portfolio ----
   useEffect(() => {
     async function load() {
@@ -92,7 +105,6 @@ function VistaClienteInicioView() {
         const data = res.data.data || [];
         setPortfolio(data);
 
-        // Selecionar primeiro projeto ativo
         const valid = data
           .filter(p => p.project_code_norm && !isFinalizedStatus(p.status) && !isPausedStatus(p.status))
           .reduce((acc, p) => {
@@ -192,7 +204,7 @@ function VistaClienteInicioView() {
     }
   }, [projectCode, smartsheetId, projectName]);
 
-  // ---- Fetch marcos (cronograma filtrado por CaminhoCriticoMarco) ----
+  // ---- Fetch marcos ----
   const fetchMarcos = useCallback(async () => {
     if (!smartsheetId && !projectName) {
       setMarcos([]);
@@ -209,17 +221,13 @@ function VistaClienteInicioView() {
         { withCredentials: true }
       );
       const tasks = res.data?.data || [];
-
-      // Filtrar por CaminhoCriticoMarco preenchido e excluir internos (INT)
       const now = new Date();
       const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
 
-      // Agrupar por nome do marco (deduplicar tarefas com mesmo CaminhoCriticoMarco)
       const marcosMap = new Map();
       tasks.forEach(t => {
         const marco = t.CaminhoCriticoMarco;
         if (!marco || !String(marco).trim()) return;
-        // Excluir marcos internos
         if (String(marco).trim().toUpperCase().startsWith('INT')) return;
 
         const nome = String(marco).trim();
@@ -228,16 +236,13 @@ function VistaClienteInicioView() {
         const dataAtualizacao = t.DataAtualizacao ? new Date(t.DataAtualizacao) : null;
         const alteradoRecente = dataAtualizacao && dataAtualizacao >= oneMonthAgo;
 
-        // Se já existe, manter o com data de término mais tardia (última entrega)
         if (marcosMap.has(nome)) {
           const existing = marcosMap.get(nome);
           const existingDate = existing.prazoAtual ? new Date(existing.prazoAtual) : null;
           const newDate = dataTermino ? new Date(dataTermino) : null;
           if (newDate && (!existingDate || newDate > existingDate)) {
             marcosMap.set(nome, {
-              nome,
-              status: t.Status,
-              prazoAtual: dataTermino,
+              nome, status: t.Status, prazoAtual: dataTermino,
               prazoBase: t.DataDeFimBaselineOtus,
               variacaoDias: variancia != null ? Number(variancia) : null,
               alteradoRecente: existing.alteradoRecente || alteradoRecente,
@@ -245,9 +250,7 @@ function VistaClienteInicioView() {
           }
         } else {
           marcosMap.set(nome, {
-            nome,
-            status: t.Status,
-            prazoAtual: dataTermino,
+            nome, status: t.Status, prazoAtual: dataTermino,
             prazoBase: t.DataDeFimBaselineOtus,
             variacaoDias: variancia != null ? Number(variancia) : null,
             alteradoRecente,
@@ -264,10 +267,10 @@ function VistaClienteInicioView() {
     }
   }, [smartsheetId, projectName]);
 
-  // ---- Fetch apontamentos (contagem) ----
+  // ---- Fetch apontamentos ----
   const fetchApontamentos = useCallback(async () => {
     if (!construflowId) {
-      setApontamentosCount({ total: 0, definicoes: 0 });
+      setApontamentosCount({ total: 0 });
       return;
     }
     try {
@@ -276,25 +279,19 @@ function VistaClienteInicioView() {
         { withCredentials: true }
       );
       const issues = res.data?.data || [];
-
-      // Contar apontamentos abertos (status != "Fechado" / "Closed")
       const closedStatuses = ['fechado', 'closed', 'resolvido', 'resolved', 'cancelado'];
       const open = issues.filter(i => {
         const s = String(i.status || '').toLowerCase().trim();
         return !closedStatuses.some(c => s.includes(c));
       });
-
-      setApontamentosCount({
-        total: open.length,
-        definicoes: open.length, // Por enquanto, todas abertas = definições a tomar
-      });
+      setApontamentosCount({ total: open.length });
     } catch (err) {
       console.error('Erro ao buscar apontamentos:', err);
-      setApontamentosCount({ total: 0, definicoes: 0 });
+      setApontamentosCount({ total: 0 });
     }
   }, [construflowId]);
 
-  // ---- Efeitos de fetch quando projeto muda ----
+  // ---- Efeitos de fetch ----
   useEffect(() => { fetchProgress(); }, [fetchProgress]);
   useEffect(() => { fetchTimeseries(); }, [fetchTimeseries]);
   useEffect(() => { fetchChangeLog(); }, [fetchChangeLog]);
@@ -312,7 +309,6 @@ function VistaClienteInicioView() {
     }
   }, [baselineCurves, baselineCurve]);
 
-  // Reset changelog quando muda projeto
   useEffect(() => { setChangeLog(null); }, [projectCode]);
 
   // ---- Handlers de toggle do gráfico ----
@@ -349,7 +345,7 @@ function VistaClienteInicioView() {
     });
   };
 
-  // ---- Projetos filtrados para o select ----
+  // ---- Projetos filtrados ----
   const sortedProjects = portfolio
     .filter(p => {
       if (!p.project_code_norm) return false;
@@ -366,9 +362,22 @@ function VistaClienteInicioView() {
 
   return (
     <div className="vista-cliente-container">
-      {/* Header com seletor de projeto */}
+      {/* Header */}
       <div className="vc-header">
-        <div className="vc-header-left">
+        <div className="vc-header-title-row">
+          {selectedProject && (
+            <>
+              <span className={`vc-health-dot ${getHealthLevel(idp)}`} />
+              <h1 className="vc-project-title">
+                {selectedProject.project_name || selectedProject.project_code_norm}
+              </h1>
+            </>
+          )}
+          {!selectedProject && (
+            <h1 className="vc-project-title">Vista do Cliente</h1>
+          )}
+        </div>
+        <div className="vc-header-controls">
           <select
             value={selectedProjectId || ''}
             onChange={e => setSelectedProjectId(e.target.value)}
@@ -389,8 +398,6 @@ function VistaClienteInicioView() {
             />
             Somente Ativos
           </label>
-        </div>
-        <div className="vc-header-right">
           {lastUpdate && (
             <span className="vc-last-update">
               {lastUpdate.toLocaleDateString('pt-BR')} {lastUpdate.toLocaleTimeString('pt-BR')}
@@ -406,55 +413,67 @@ function VistaClienteInicioView() {
         </div>
       ) : (
         <>
-          {/* KPI Strip */}
-          <VistaClienteKpiStrip
-            progress={progress}
-            project={selectedProject}
-            apontamentosCount={apontamentosCount}
-            loading={progressLoading}
-          />
-
-          {/* Grid principal: 3 colunas */}
-          <div className="vc-main-grid">
-            {/* Coluna esquerda: Marcos + Relatos */}
-            <div className="vc-left-col">
-              <MarcosProjetoSection marcos={marcos} loading={marcosLoading} />
-              <RelatosSection projectCode={projectCode} />
-            </div>
-
-            {/* Coluna central: Gráfico S-curve */}
-            <div className="vc-center-col">
-              <ChartSection
-                prazos={prazos}
-                timeseries={timeseries}
-                snapshotCurves={snapshotCurves}
-                baselineCurve={baselineCurve}
-                baselineCurves={baselineCurves}
-                timeseriesLoading={timeseriesLoading}
-                showExecutado={showExecutado}
-                onToggleExecutado={() => setShowExecutado(prev => !prev)}
-                showBaseline={showBaseline}
-                onToggleBaseline={() => setShowBaseline(prev => !prev)}
-                visibleBaselines={visibleBaselines}
-                onToggleBaseline2={handleToggleBaseline2}
-                visibleSnapshots={visibleSnapshots}
-                onToggleSnapshot={toggleSnapshot}
-                onSelectAllSnapshots={() => setVisibleSnapshots(null)}
-                onClearAllSnapshots={() => setVisibleSnapshots(new Set())}
-                showBarExecutado={showBarExecutado}
-                onToggleBarExecutado={() => setShowBarExecutado(prev => !prev)}
-                visibleBaselineBars={visibleBaselineBars}
-                onToggleBaselineBar={toggleBaselineBar}
-              />
-            </div>
-
-            {/* Coluna direita: Changelog */}
-            <div className="vc-right-col">
-              <div className="vc-changelog-section">
-                <ChangeLogPanel changeLog={changeLog} loading={changeLogLoading} />
-              </div>
-            </div>
+          <div className="vc-tabs">
+            <button
+              className={`vc-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              Dashboard
+            </button>
+            <button
+              className={`vc-tab ${activeTab === 'relatos' ? 'active' : ''}`}
+              onClick={() => setActiveTab('relatos')}
+            >
+              Relatos
+            </button>
           </div>
+
+          {activeTab === 'dashboard' ? (
+            <>
+              <VistaClienteKpiStrip
+                progress={progress}
+                project={selectedProject}
+                apontamentosCount={apontamentosCount}
+                prazos={prazos}
+                loading={progressLoading}
+              />
+
+              <div className="vc-main-grid">
+                <div className="vc-chart-col">
+                  <ChartSection
+                    timeseries={timeseries}
+                    snapshotCurves={snapshotCurves}
+                    baselineCurve={baselineCurve}
+                    baselineCurves={baselineCurves}
+                    timeseriesLoading={timeseriesLoading}
+                    showExecutado={showExecutado}
+                    onToggleExecutado={() => setShowExecutado(prev => !prev)}
+                    showBaseline={showBaseline}
+                    onToggleBaseline={() => setShowBaseline(prev => !prev)}
+                    visibleBaselines={visibleBaselines}
+                    onToggleBaseline2={handleToggleBaseline2}
+                    visibleSnapshots={visibleSnapshots}
+                    onToggleSnapshot={toggleSnapshot}
+                    onSelectAllSnapshots={() => setVisibleSnapshots(null)}
+                    onClearAllSnapshots={() => setVisibleSnapshots(new Set())}
+                    showBarExecutado={showBarExecutado}
+                    onToggleBarExecutado={() => setShowBarExecutado(prev => !prev)}
+                    visibleBaselineBars={visibleBaselineBars}
+                    onToggleBaselineBar={toggleBaselineBar}
+                  />
+                </div>
+
+                <div className="vc-sidebar-col">
+                  <MarcosProjetoSection marcos={marcos} loading={marcosLoading} />
+                  <div className="vc-changelog-wrapper">
+                    <ChangeLogPanel changeLog={changeLog} loading={changeLogLoading} />
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <RelatosSection projectCode={projectCode} />
+          )}
         </>
       )}
     </div>
