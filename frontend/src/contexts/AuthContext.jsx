@@ -199,6 +199,11 @@ export function AuthProvider({ children }) {
 
   const isLeader = () => getEffectiveRole() === 'leader';
 
+  const isCoordinator = () => {
+    const cargoName = user?.cargo_name || '';
+    return cargoName.toLowerCase().includes('coordena');
+  };
+
   /**
    * Verifica se o usuário pode acessar uma vista específica
    * Devs têm acesso total; outros verificam effectiveViews
@@ -245,6 +250,7 @@ export function AuthProvider({ children }) {
     isPrivileged: isPrivileged(),
     hasFullAccess: hasFullAccess(),
     isLeader: isLeader(),
+    isCoordinator: isCoordinator(),
     canAccessFormularioPassagem: canAccessFormularioPassagem(),
     canAccessVendas: user?.canAccessVendas === true,
     canManageDemandas: user?.canManageDemandas === true,

@@ -18,10 +18,11 @@ import SearchableSelect from './SearchableSelect';
 import CreateBaselineModal from './baselines/CreateBaselineModal';
 import BaselineTable from './baselines/BaselineTable';
 import BaselineDetailPanel from './baselines/BaselineDetailPanel';
+import PendingRequestsSection from './baselines/PendingRequestsSection';
 import '../styles/BaselinesView.css';
 
 function BaselinesView() {
-  const { hasFullAccess } = useAuth();
+  const { hasFullAccess, isPrivileged } = useAuth();
 
   // Estado
   const [portfolio, setPortfolio] = useState([]);
@@ -188,6 +189,14 @@ function BaselinesView() {
             Gerencie baselines de cronograma dos projetos
           </p>
         </div>
+
+        {/* Solicitações pendentes (visível para leaders/admins/directors) */}
+        {isPrivileged && (
+          <PendingRequestsSection
+            portfolio={portfolio}
+            onApproved={fetchBaselines}
+          />
+        )}
 
         {/* Seletor de Projeto e Filtros */}
         <div className="baselines-project-selector">
