@@ -11,15 +11,6 @@ import './TodosView.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-const STATUS_LABELS = {
-  backlog: 'Backlog',
-  'a fazer': 'A Fazer',
-  'em progresso': 'Em Progresso',
-  validacao: 'Validacao',
-  finalizado: 'Finalizado',
-  cancelado: 'Cancelado',
-};
-
 const INITIAL_FILTERS = {
   status: '',
   priority: '',
@@ -53,13 +44,17 @@ export default function TodosView() {
   const goToNextWeek = useCallback(() => setWeekRef(prev => addWeeks(prev, 1)), []);
   const goToToday = useCallback(() => setWeekRef(new Date()), []);
 
+  const filteredTodos = useMemo(() => {
+    if (showClosedInDate) return todos;
+    return todos.filter(t => t.status !== 'finalizado' && t.status !== 'cancelado');
+  }, [todos, showClosedInDate]);
+
   const weekLabel = useMemo(() => {
     const start = startOfWeek(weekRef, { weekStartsOn: 1 });
     const end = addDays(start, 4);
     return `${format(start, "d MMM", { locale: ptBR })} – ${format(end, "d MMM yyyy", { locale: ptBR })}`;
   }, [weekRef]);
 
-  const [stats, setStats] = useState({});
   const [projects, setProjects] = useState([]);
   const [favoriteProjects, setFavoriteProjects] = useState([]);
   const [users, setUsers] = useState([]);
@@ -97,19 +92,6 @@ export default function TodosView() {
       setLoading(false);
     }
   }, [filters, sort]);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/todos/stats`, {
-        credentials: 'include',
-      });
-      if (!res.ok) return;
-      const json = await res.json();
-      setStats(json.data ?? {});
-    } catch (err) {
-      console.error('[TodosView] fetchStats:', err);
-    }
-  }, []);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -169,17 +151,11 @@ export default function TodosView() {
   }, [fetchTodos]);
 
   useEffect(() => {
-    fetchStats();
     fetchProjects();
     fetchFavoriteProjects();
     fetchUsers();
     fetchTeams();
-  }, [fetchStats, fetchProjects, fetchFavoriteProjects, fetchUsers, fetchTeams]);
-
-  // Refresh stats whenever todos change
-  useEffect(() => {
-    fetchStats();
-  }, [todos, fetchStats]);
+  }, [fetchProjects, fetchFavoriteProjects, fetchUsers, fetchTeams]);
 
   // --- Mutation handlers ---
 
@@ -270,14 +246,21 @@ export default function TodosView() {
 
   // --- Stat badges ---
 
-  const statBadges = [
-    { key: 'backlog', label: 'Backlog', count: stats.backlog ?? 0 },
-    { key: 'a-fazer', label: 'A Fazer', count: stats['a fazer'] ?? stats.aFazer ?? 0 },
-    { key: 'em-progresso', label: 'Em Progresso', count: stats['em progresso'] ?? stats.emProgresso ?? 0 },
-    { key: 'validacao', label: 'Validacao', count: stats.validacao ?? 0 },
-    { key: 'finalizado', label: 'Finalizado', count: stats.finalizado ?? 0 },
-    { key: 'cancelado', label: 'Cancelado', count: stats.cancelado ?? 0 },
-  ];
+  const statBadges = useMemo(() => {
+    const counts = {};
+    todos.forEach((t) => {
+      const s = t.status || 'backlog';
+      counts[s] = (counts[s] || 0) + 1;
+    });
+    return [
+      { key: 'backlog', label: 'Backlog', count: counts.backlog ?? 0 },
+      { key: 'a-fazer', label: 'A Fazer', count: counts['a fazer'] ?? 0 },
+      { key: 'em-progresso', label: 'Em Progresso', count: counts['em progresso'] ?? 0 },
+      { key: 'validacao', label: 'Validação', count: counts['validação'] ?? 0 },
+      { key: 'finalizado', label: 'Finalizado', count: counts.finalizado ?? 0 },
+      { key: 'cancelado', label: 'Cancelado', count: counts.cancelado ?? 0 },
+    ];
+  }, [todos]);
 
   // --- Render ---
 
@@ -328,7 +311,7 @@ export default function TodosView() {
 
         {!loading && viewMode === 'list' && (
           <TodoListView
-            todos={todos}
+            todos={filteredTodos}
             groupBy={groupBy}
             onComplete={handleComplete}
             onSelect={setSelectedTodo}
@@ -343,7 +326,7 @@ export default function TodosView() {
 
         {!loading && viewMode === 'kanban' && (
           <TodoKanbanView
-            todos={todos}
+            todos={filteredTodos}
             groupBy={groupBy}
             weekRef={weekRef}
             onComplete={handleComplete}
@@ -354,7 +337,6 @@ export default function TodosView() {
             }}
             onStatusChange={(id, status) => handleUpdate(id, { status })}
             onDrop={handleKanbanDrop}
-            showClosedTasks={showClosedInDate}
             loading={loading}
           />
         )}
