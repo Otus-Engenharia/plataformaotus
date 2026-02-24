@@ -1,0 +1,492 @@
+/* ============================================================
+   Vista do Cliente - Apontamentos
+   Presentation-ready view for client meetings
+   ============================================================ */
+
+/* ---- Local Filter Bar ---- */
+.vca-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  animation: vcFadeInUp 0.35s ease-out 0.05s both;
+}
+
+.vca-filter-label {
+  font-size: 12px;
+  font-family: var(--vc-font-body);
+  font-weight: 600;
+  color: var(--vc-text-secondary);
+  white-space: nowrap;
+}
+
+.vca-filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vca-filter-chip {
+  padding: 4px 12px;
+  border: 1px solid var(--vc-border);
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: var(--vc-font-body);
+  font-weight: 500;
+  color: var(--vc-text-secondary);
+  background: var(--vc-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vca-filter-chip:hover {
+  border-color: var(--vc-border-hover);
+  color: var(--vc-text-primary);
+}
+
+.vca-filter-chip.active {
+  background: var(--vc-accent);
+  border-color: var(--vc-accent);
+  color: var(--vc-text-primary);
+  font-weight: 600;
+}
+
+.vca-filter-clear {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: var(--vc-font-body);
+  font-weight: 500;
+  color: var(--vc-text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.vca-filter-clear:hover {
+  color: var(--vc-danger);
+}
+
+.vca-filter-info {
+  font-size: 12px;
+  color: var(--vc-text-muted);
+  margin-left: auto;
+}
+
+/* ---- Charts Grid (2 columns) ---- */
+.vca-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  animation: vcFadeInUp 0.4s ease-out 0.15s both;
+}
+
+.vca-chart-card {
+  background: var(--vc-surface);
+  border: 1px solid var(--vc-border);
+  border-radius: var(--vc-radius);
+  box-shadow: var(--vc-shadow-card);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: box-shadow 0.2s;
+}
+
+.vca-chart-card:hover {
+  box-shadow: var(--vc-shadow-elevated);
+}
+
+.vca-chart-card h4 {
+  font-family: var(--vc-font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--vc-text-primary);
+  margin: 0;
+}
+
+.vca-donut-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  position: relative;
+}
+
+.vca-chart-area {
+  position: relative;
+  min-height: 200px;
+}
+
+.vca-chart-area-tall {
+  position: relative;
+}
+
+.vca-chart-divider {
+  height: 1px;
+  background: var(--vc-border);
+}
+
+.vca-legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.vca-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: var(--vc-font-body);
+  color: var(--vc-text-secondary);
+}
+
+.vca-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ---- Pendencias do Cliente (HERO Section) ---- */
+.vca-pendencias-section {
+  background: var(--vc-surface);
+  border: 1px solid var(--vc-border);
+  border-top: 3px solid var(--vc-accent);
+  border-radius: var(--vc-radius);
+  box-shadow: var(--vc-shadow-elevated);
+  padding: 20px 24px;
+  animation: vcFadeInUp 0.4s ease-out 0.2s both;
+}
+
+.vca-pendencias-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.vca-pendencias-title {
+  font-family: var(--vc-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--vc-text-primary);
+  margin: 0;
+}
+
+.vca-pendencias-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  background: var(--vc-accent);
+  color: var(--vc-text-primary);
+  font-family: var(--vc-font-body);
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 20px;
+}
+
+.vca-pendencias-info {
+  font-size: 12px;
+  color: var(--vc-text-secondary);
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: #f5f5f0;
+  border-radius: var(--vc-radius-sm);
+}
+
+.vca-pendencias-info strong {
+  color: var(--vc-text-primary);
+}
+
+/* Pendencias Table */
+.vca-table-container {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d6d3d1 transparent;
+}
+
+.vca-table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.vca-table-container::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 3px;
+}
+
+.vca-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--vc-font-body);
+}
+
+.vca-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--vc-text-secondary);
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--vc-border);
+  white-space: nowrap;
+}
+
+.vca-table td {
+  font-size: 13px;
+  color: var(--vc-text-primary);
+  padding: 10px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.vca-table tbody tr {
+  transition: background 0.15s;
+}
+
+.vca-table tbody tr:hover {
+  background: #fafaf8;
+}
+
+.vca-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vca-issue-code {
+  font-family: 'DM Mono', 'SF Mono', 'Consolas', monospace;
+  font-size: 12px;
+  color: var(--vc-text-secondary);
+  font-weight: 500;
+}
+
+.vca-issue-title {
+  font-weight: 500;
+  color: var(--vc-text-primary);
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vca-issue-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vca-expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--vc-text-muted);
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.vca-expand-btn:hover {
+  background: #f0efed;
+}
+
+.vca-issue-description {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: #f5f5f0;
+  border-radius: var(--vc-radius-sm);
+  font-size: 12px;
+  color: var(--vc-text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Priority Badge */
+.vca-priority-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--vc-font-body);
+  white-space: nowrap;
+}
+
+.vca-priority-badge.alta {
+  background: var(--vc-danger-bg);
+  color: var(--vc-danger);
+}
+
+.vca-priority-badge.média,
+.vca-priority-badge.media {
+  background: var(--vc-warning-bg);
+  color: var(--vc-warning);
+}
+
+.vca-priority-badge.baixa {
+  background: #f5f5f0;
+  color: var(--vc-text-secondary);
+}
+
+.vca-priority-badge.não-definida {
+  background: #f5f5f0;
+  color: var(--vc-text-muted);
+}
+
+.vca-days-danger {
+  color: var(--vc-danger);
+  font-weight: 600;
+}
+
+.vca-update-type {
+  font-size: 11px;
+  color: var(--vc-text-muted);
+}
+
+/* Pendencias empty state */
+.vca-pendencias-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--vc-text-muted);
+  font-size: 14px;
+}
+
+.vca-pendencias-empty-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  display: block;
+  opacity: 0.5;
+}
+
+/* ---- Breakdown Section (collapsible) ---- */
+.vca-breakdown-section {
+  animation: vcFadeInUp 0.4s ease-out 0.25s both;
+}
+
+.vca-breakdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  font-family: var(--vc-font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--vc-text-primary);
+  cursor: pointer;
+  padding: 8px 0;
+  transition: color 0.15s;
+}
+
+.vca-breakdown-toggle:hover {
+  color: var(--vc-accent);
+}
+
+.vca-breakdown-arrow {
+  font-size: 11px;
+  transition: transform 0.2s;
+  color: var(--vc-text-muted);
+}
+
+.vca-breakdown-arrow.open {
+  transform: rotate(90deg);
+}
+
+.vca-breakdown-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+/* ---- Loading / Empty / Error States ---- */
+.vca-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--vc-text-muted);
+  font-size: 14px;
+  font-family: var(--vc-font-body);
+}
+
+.vca-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--vc-text-muted);
+  font-size: 14px;
+  font-family: var(--vc-font-body);
+}
+
+.vca-empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  display: block;
+  opacity: 0.4;
+}
+
+.vca-error {
+  padding: 16px 20px;
+  background: var(--vc-danger-bg);
+  border: 1px solid var(--vc-danger);
+  border-left: 4px solid var(--vc-danger);
+  border-radius: var(--vc-radius);
+  color: var(--vc-danger);
+  font-size: 14px;
+  font-family: var(--vc-font-body);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vca-error-retry {
+  padding: 6px 14px;
+  border: 1px solid var(--vc-danger);
+  border-radius: var(--vc-radius-sm);
+  background: transparent;
+  color: var(--vc-danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.vca-error-retry:hover {
+  background: var(--vc-danger);
+  color: white;
+}
+
+/* ---- KPI Card accent variant (for pendencias) ---- */
+.vc-kpi-card.status-accent {
+  border-left: 4px solid var(--vc-accent);
+  background: var(--vc-accent-dim);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1200px) {
+  .vca-charts-grid,
+  .vca-breakdown-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .vca-pendencias-section {
+    padding: 14px 16px;
+  }
+
+  .vca-table {
+    min-width: 650px;
+  }
+
+  .vca-filter-bar {
+    gap: 8px;
+  }
+
+  .vca-filter-info {
+    margin-left: 0;
+    width: 100%;
+  }
+}
