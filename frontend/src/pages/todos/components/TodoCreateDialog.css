@@ -1,0 +1,195 @@
+.todo-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.todo-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.todo-dialog__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #18181b;
+}
+
+/* Fields */
+.todo-dialog__field {
+  margin-bottom: 16px;
+}
+
+.todo-dialog__field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #52525b;
+  margin-bottom: 4px;
+}
+
+.todo-dialog__field input,
+.todo-dialog__field textarea,
+.todo-dialog__field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #18181b;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.todo-dialog__field input:focus,
+.todo-dialog__field textarea:focus,
+.todo-dialog__field select:focus {
+  outline: none;
+  border-color: #a1a1aa;
+}
+
+.todo-dialog__field textarea {
+  resize: vertical;
+}
+
+/* Priority radio group */
+.todo-dialog__priority-group {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+}
+
+.todo-dialog__priority-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  color: #18181b;
+  transition: border-color 0.15s;
+}
+
+.todo-dialog__priority-option--active {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.todo-dialog__priority-radio {
+  display: none;
+}
+
+.todo-dialog__priority-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Row layout for side-by-side fields */
+.todo-dialog__row {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+}
+
+/* Footer */
+.todo-dialog__footer {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e4e7;
+}
+
+.todo-dialog__btn-cancel {
+  background: transparent;
+  border: 1px solid #e4e4e7;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #52525b;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.todo-dialog__btn-cancel:hover {
+  background: #f4f4f5;
+}
+
+.todo-dialog__btn-save {
+  background: #ffdd00;
+  color: #18181b;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.todo-dialog__btn-save:hover {
+  background: #f5d400;
+}
+
+/* Project header with toggle */
+.todo-dialog__project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.todo-dialog__project-header label {
+  margin-bottom: 0;
+}
+
+.todo-dialog__project-toggle {
+  display: flex;
+  gap: 2px;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.todo-dialog__toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-family: inherit;
+  color: #71717a;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.todo-dialog__toggle-btn.is-active {
+  background: #18181b;
+  color: #fff;
+}
+
+.todo-dialog__toggle-btn:hover:not(.is-active) {
+  background: #f4f4f5;
+}
