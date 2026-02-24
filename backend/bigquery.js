@@ -2317,7 +2317,13 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
   // Estratégia: JOIN com smartsheet_data_projetos para obter fase_nome e rowNumber
   const currentTable = 'smartsheet.smartsheet_data_projetos';
 
-  const baseQuery = `
+  // Colunas opcionais de metadados de atraso (podem não existir em tabelas antigas)
+  const optionalCols = `,
+      snap.Categoria_de_atraso,
+      snap.Motivo_de_atraso,
+      snap.ObservacaoOtus`;
+
+  const buildBaseQuery = (includeOptionalCols = true) => `
     WITH current_hierarchy AS (
       SELECT
         ID_Projeto,
@@ -2353,10 +2359,7 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
         ORDER BY snap.DataDeInicio, snap.NomeDaTarefa
       )) AS rowNumber,
       cf.fase_nome,
-      snap.snapshot_date,
-      snap.Categoria_de_atraso,
-      snap.Motivo_de_atraso,
-      snap.ObservacaoOtus
+      snap.snapshot_date${includeOptionalCols ? optionalCols : ''}
     FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
     LEFT JOIN unique_fases cf
       ON snap.ID_Projeto = cf.ID_Projeto
@@ -2372,7 +2375,8 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
     ORDER BY snap.snapshot_date, rowNumber
   `;
 
-  try {
+  async function runQuery(includeOptionalCols) {
+    const baseQuery = buildBaseQuery(includeOptionalCols);
     let rows = [];
 
     if (smartsheetId) {
@@ -2399,6 +2403,22 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
         .replace('{{WHERE_CLAUSE_CURR}}', currClause)
         .replace('{{WHERE_CLAUSE_SNAP}}', snapClause);
       rows = await executeQuery(query);
+    }
+
+    return rows;
+  }
+
+  try {
+    let rows;
+    try {
+      rows = await runQuery(true);
+    } catch (colError) {
+      if (colError.message && colError.message.includes('not found')) {
+        console.warn('⚠️ [queryCurvaSSnapshotTasks] Colunas opcionais ausentes, re-executando sem elas...');
+        rows = await runQuery(false);
+      } else {
+        throw colError;
+      }
     }
 
     // Agrupar por snapshot_date
@@ -2430,7 +2450,12 @@ export async function queryCurvaSAllSnapshotTasks() {
   const snapshotDataset = 'smartsheet_atrasos';
   const snapshotTable = 'smartsheet_snapshot';
 
-  const query = `
+  const buildQuery = (includeOptionalCols = true) => {
+    const optionalCols = includeOptionalCols ? `,
+      snap.Categoria_de_atraso,
+      snap.Motivo_de_atraso,
+      snap.ObservacaoOtus` : '';
+    return `
     SELECT
       snap.ID_Projeto,
       snap.NomeDaPlanilha,
@@ -2440,10 +2465,7 @@ export async function queryCurvaSAllSnapshotTasks() {
       snap.DataDeInicio,
       snap.DataDeTermino,
       snap.Duracao,
-      snap.snapshot_date,
-      snap.Categoria_de_atraso,
-      snap.Motivo_de_atraso,
-      snap.ObservacaoOtus
+      snap.snapshot_date${optionalCols}
     FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
     WHERE snap.Level = 5
       AND snap.Disciplina IS NOT NULL
@@ -2454,9 +2476,20 @@ export async function queryCurvaSAllSnapshotTasks() {
       AND snap.NomeDaPlanilha NOT LIKE '%Copy%'
     ORDER BY snap.ID_Projeto, snap.snapshot_date, snap.NomeDaTarefa
   `;
+  };
 
   try {
-    const rows = await executeQuery(query);
+    let rows;
+    try {
+      rows = await executeQuery(buildQuery(true));
+    } catch (colError) {
+      if (colError.message && colError.message.includes('not found')) {
+        console.warn('⚠️ [queryCurvaSAllSnapshotTasks] Colunas opcionais ausentes, re-executando sem elas...');
+        rows = await executeQuery(buildQuery(false));
+      } else {
+        throw colError;
+      }
+    }
 
     // Agrupar: ID_Projeto → snapshot_date → tasks[]
     const projectSnapshots = new Map();

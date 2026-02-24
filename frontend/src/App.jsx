@@ -83,6 +83,9 @@ const HistoryOKRs = lazy(() => import('./pages/okrs/HistoryOKRs'));
 // Whiteboard (Excalidraw)
 const WhiteboardView = lazy(() => import('./pages/whiteboard/WhiteboardView'));
 
+// Vista do Cliente
+const VistaClienteInicioView = lazy(() => import('./pages/vista-cliente/VistaClienteInicioView'));
+
 const icons = {
   indicadoresLideranca: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -227,6 +230,12 @@ const icons = {
   whiteboard: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M3 3h18v14H3V3zm2 2v10h14V5H5zm-2 14h18v2H3v-2z" />
+    </svg>
+  ),
+  vistaCliente: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
     </svg>
   ),
 };
@@ -582,6 +591,29 @@ function Sidebar({ collapsed, onToggle, area }) {
     </>
   );
 
+  // Links para área de VISTA DO CLIENTE
+  const vistaClienteLinks = (
+    <>
+      <Link
+        to="/vista-cliente/inicio"
+        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/inicio' || location.pathname === '/vista-cliente' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Início')}
+      >
+        <span className="nav-icon">{icons.vistaCliente}</span>
+        <span className="nav-text">Início</span>
+      </Link>
+      <Link
+        to="/vista-cliente/apontamentos"
+        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/apontamentos' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Apontamentos')}
+        style={{ opacity: 0.5, pointerEvents: 'none' }}
+      >
+        <span className="nav-icon">{icons.demandas}</span>
+        <span className="nav-text">Apontamentos</span>
+      </Link>
+    </>
+  );
+
   // Links para área de WORKSPACE (Gestão de Tarefas)
   // Navegação simplificada - setores são gerenciados pelo drawer no WorkspaceView
   const workspaceLinks = (
@@ -894,6 +926,7 @@ function Sidebar({ collapsed, onToggle, area }) {
         {area === 'indicadores' && indicadoresIndLinks}
         {area === 'okrs' && okrsLinks}
         {area === 'workspace' && workspaceLinks}
+        {area === 'vista_cliente' && vistaClienteLinks}
       </nav>
       <button
         type="button"
@@ -1021,6 +1054,7 @@ function AppContent() {
   const canAccessOkrsArea = canAccessArea('okrs');
   const canAccessIndicadoresArea = canAccessArea('indicadores');
   const canAccessWorkspaceArea = canAccessArea('workspace');
+  const canAccessVistaClienteArea = canAccessArea('vista_cliente');
 
   // 1. Verificando auth: só loading minimalista, sem revelar estrutura do app
   if (loading) {
@@ -1054,6 +1088,10 @@ function AppContent() {
   // Detectar área atual baseado na rota
   const getCurrentArea = () => {
     const path = location.pathname;
+    // Vista do Cliente
+    if (path.startsWith('/vista-cliente')) {
+      return 'vista_cliente';
+    }
     // Área Líderes de Projeto (separada de projetos)
     if (path.startsWith('/lideres-projeto')) {
       return 'lideres';
@@ -1102,7 +1140,8 @@ function AppContent() {
   const showSidebar = !isHomeRoute && currentArea !== null;
   const showTopBar = !isHomeRoute;
   const isWideContentRoute = location.pathname.startsWith('/projetos')
-    || location.pathname.startsWith('/lideres-projeto');
+    || location.pathname.startsWith('/lideres-projeto')
+    || location.pathname.startsWith('/vista-cliente');
 
   // Mapeamento de áreas para títulos do TopBar
   const areaTitles = {
@@ -1116,6 +1155,7 @@ function AppContent() {
     indicadores: 'Plataforma Otus',
     okrs: 'OKRs',
     workspace: 'Gestão de Tarefas',
+    vista_cliente: 'Vista do Cliente',
   };
   const currentTitle = currentArea ? areaTitles[currentArea] : 'Plataforma Otus';
   // Não mostrar Oráculo na Home, OKRs, Indicadores legados e área /ind
@@ -1258,6 +1298,22 @@ function AppContent() {
             >
               <Route index element={<Navigate to="formulario-passagem" replace />} />
               <Route path="formulario-passagem" element={<FormularioPassagemView />} />
+            </Route>
+            {/* Área Vista do Cliente */}
+            <Route
+              path="/vista-cliente"
+              element={
+                <ProtectedRoute>
+                  {canAccessVistaClienteArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <Outlet />
+                    </Suspense>
+                  ) : <Navigate to="/home" replace />}
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="inicio" replace />} />
+              <Route path="inicio" element={<VistaClienteInicioView />} />
             </Route>
             <Route
               path="/horas"
