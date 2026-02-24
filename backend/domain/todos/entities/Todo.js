@@ -224,7 +224,6 @@ class Todo {
       project_id: this.#projectId,
       agenda_task_id: this.#agendaTaskId,
       closed_at: this.#closedAt?.toISOString() || null,
-      closed_by: this.#closedBy,
       created_at: this.#createdAt.toISOString(),
       updated_at: this.#updatedAt.toISOString(),
     };
@@ -258,7 +257,6 @@ class Todo {
       team_name: projectData?.team_name || null,
       agenda_task_id: this.#agendaTaskId,
       closed_at: this.#closedAt?.toISOString() || null,
-      closed_by: this.#closedBy,
       created_at: this.#createdAt.toISOString(),
       updated_at: this.#updatedAt.toISOString(),
       is_closed: this.isClosed,

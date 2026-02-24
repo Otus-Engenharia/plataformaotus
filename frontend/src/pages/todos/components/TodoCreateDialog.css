@@ -150,3 +150,46 @@
 .todo-dialog__btn-save:hover {
   background: #f5d400;
 }
+
+/* Project header with toggle */
+.todo-dialog__project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.todo-dialog__project-header label {
+  margin-bottom: 0;
+}
+
+.todo-dialog__project-toggle {
+  display: flex;
+  gap: 2px;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.todo-dialog__toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-family: inherit;
+  color: #71717a;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.todo-dialog__toggle-btn.is-active {
+  background: #18181b;
+  color: #fff;
+}
+
+.todo-dialog__toggle-btn:hover:not(.is-active) {
+  background: #f4f4f5;
+}

@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { startOfWeek, addWeeks, subWeeks, addDays, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../../contexts/AuthContext';
 import TodoToolbar from './components/TodoToolbar';
 import TodoListView from './components/TodoListView';
@@ -38,12 +40,28 @@ export default function TodosView() {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('list');
-  const [filters, setFilters] = useState(INITIAL_FILTERS);
+  const [filters, setFilters] = useState(() => ({
+    ...INITIAL_FILTERS,
+    assignee: user?.userId || '',
+  }));
   const [sort, setSort] = useState(INITIAL_SORT);
   const [groupBy, setGroupBy] = useState('status');
+  const [weekRef, setWeekRef] = useState(new Date());
+  const [showClosedInDate, setShowClosedInDate] = useState(false);
+
+  const goToPreviousWeek = useCallback(() => setWeekRef(prev => subWeeks(prev, 1)), []);
+  const goToNextWeek = useCallback(() => setWeekRef(prev => addWeeks(prev, 1)), []);
+  const goToToday = useCallback(() => setWeekRef(new Date()), []);
+
+  const weekLabel = useMemo(() => {
+    const start = startOfWeek(weekRef, { weekStartsOn: 1 });
+    const end = addDays(start, 4);
+    return `${format(start, "d MMM", { locale: ptBR })} – ${format(end, "d MMM yyyy", { locale: ptBR })}`;
+  }, [weekRef]);
 
   const [stats, setStats] = useState({});
   const [projects, setProjects] = useState([]);
+  const [favoriteProjects, setFavoriteProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
 
@@ -59,20 +77,20 @@ export default function TodosView() {
       const params = new URLSearchParams();
       if (filters.status) params.set('status', filters.status);
       if (filters.priority) params.set('priority', filters.priority);
-      if (filters.projectId) params.set('projectId', filters.projectId);
+      if (filters.projectId) params.set('project_id', filters.projectId);
       if (filters.assignee) params.set('assignee', filters.assignee);
       if (filters.teamId) params.set('team_id', filters.teamId);
       if (filters.search) params.set('search', filters.search);
-      params.set('sortField', sort.field);
-      params.set('sortDirection', sort.direction);
+      params.set('sort_field', sort.field);
+      params.set('sort_dir', sort.direction);
 
       const qs = params.toString();
       const res = await fetch(`${API_URL}/api/todos${qs ? `?${qs}` : ''}`, {
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Erro ao buscar todos');
-      const data = await res.json();
-      setTodos(Array.isArray(data) ? data : data.todos ?? []);
+      const json = await res.json();
+      setTodos(json.data ?? []);
     } catch (err) {
       console.error('[TodosView] fetchTodos:', err);
     } finally {
@@ -86,8 +104,8 @@ export default function TodosView() {
         credentials: 'include',
       });
       if (!res.ok) return;
-      const data = await res.json();
-      setStats(data);
+      const json = await res.json();
+      setStats(json.data ?? {});
     } catch (err) {
       console.error('[TodosView] fetchStats:', err);
     }
@@ -95,25 +113,38 @@ export default function TodosView() {
 
   const fetchProjects = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/agenda/tasks/form/projects`, {
+      const res = await fetch(`${API_URL}/api/todos/projects`, {
         credentials: 'include',
       });
       if (!res.ok) return;
-      const data = await res.json();
-      setProjects(Array.isArray(data) ? data : data.projects ?? []);
+      const json = await res.json();
+      setProjects(json.data ?? []);
     } catch (err) {
       console.error('[TodosView] fetchProjects:', err);
     }
   }, []);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchFavoriteProjects = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/users`, {
+      const res = await fetch(`${API_URL}/api/todos/favorite-projects`, {
         credentials: 'include',
       });
       if (!res.ok) return;
-      const data = await res.json();
-      setUsers(Array.isArray(data) ? data : data.users ?? []);
+      const json = await res.json();
+      setFavoriteProjects(json.data ?? []);
+    } catch (err) {
+      console.error('[TodosView] fetchFavoriteProjects:', err);
+    }
+  }, []);
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/todos/users`, {
+        credentials: 'include',
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      setUsers(json.data ?? []);
     } catch (err) {
       console.error('[TodosView] fetchUsers:', err);
     }
@@ -140,9 +171,10 @@ export default function TodosView() {
   useEffect(() => {
     fetchStats();
     fetchProjects();
+    fetchFavoriteProjects();
     fetchUsers();
     fetchTeams();
-  }, [fetchStats, fetchProjects, fetchUsers, fetchTeams]);
+  }, [fetchStats, fetchProjects, fetchFavoriteProjects, fetchUsers, fetchTeams]);
 
   // Refresh stats whenever todos change
   useEffect(() => {
@@ -224,6 +256,18 @@ export default function TodosView() {
     [fetchTodos],
   );
 
+  const handleKanbanDrop = useCallback(
+    (todoId, columnKey) => {
+      if (groupBy === 'status') {
+        handleUpdate(todoId, { status: columnKey });
+      } else if (groupBy === 'due_date') {
+        if (columnKey === 'overdue') return;
+        handleUpdate(todoId, { due_date: columnKey });
+      }
+    },
+    [groupBy, handleUpdate],
+  );
+
   // --- Stat badges ---
 
   const statBadges = [
@@ -265,6 +309,12 @@ export default function TodosView() {
         projects={projects}
         users={users}
         teams={teams}
+        weekLabel={weekLabel}
+        onWeekPrev={goToPreviousWeek}
+        onWeekNext={goToNextWeek}
+        onWeekToday={goToToday}
+        showClosedInDate={showClosedInDate}
+        onShowClosedInDateChange={setShowClosedInDate}
       />
 
       <div className="todos-view__content">
@@ -292,6 +342,8 @@ export default function TodosView() {
         {!loading && viewMode === 'kanban' && (
           <TodoKanbanView
             todos={todos}
+            groupBy={groupBy}
+            weekRef={weekRef}
             onComplete={handleComplete}
             onSelect={setSelectedTodo}
             onEdit={(todo) => {
@@ -299,6 +351,8 @@ export default function TodosView() {
               setShowCreateDialog(true);
             }}
             onStatusChange={(id, status) => handleUpdate(id, { status })}
+            onDrop={handleKanbanDrop}
+            showClosedTasks={showClosedInDate}
             loading={loading}
           />
         )}
@@ -308,6 +362,7 @@ export default function TodosView() {
         <TodoCreateDialog
           todo={editingTodo}
           projects={projects}
+          favoriteProjects={favoriteProjects}
           users={users}
           onSave={
             editingTodo

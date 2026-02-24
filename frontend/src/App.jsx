@@ -379,6 +379,14 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">Agenda</span>
       </Link>
       <Link
+        to="/todos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/todos') ? 'nav-link-active' : ''}`}
+        title={linkTitle("ToDo's")}
+      >
+        <span className="nav-icon">{icons.todos}</span>
+        <span className="nav-text">ToDo's</span>
+      </Link>
+      <Link
         to="/horas"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/horas') ? 'nav-link-active' : ''}`}
         title={linkTitle('Horas')}
@@ -417,22 +425,6 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.feedbacks}</span>
         <span className="nav-text">Feedbacks</span>
-      </Link>
-      <Link
-        to="/agenda"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/agenda') ? 'nav-link-active' : ''}`}
-        title={linkTitle('Agenda')}
-      >
-        <span className="nav-icon">{icons.agenda}</span>
-        <span className="nav-text">Agenda</span>
-      </Link>
-      <Link
-        to="/todos"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/todos') ? 'nav-link-active' : ''}`}
-        title={linkTitle("ToDo's")}
-      >
-        <span className="nav-icon">{icons.todos}</span>
-        <span className="nav-text">ToDo's</span>
       </Link>
       <Link
         to="/demandas-apoio"

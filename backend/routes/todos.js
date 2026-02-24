@@ -5,6 +5,7 @@
  */
 
 import express from 'express';
+import { getSupabaseClient } from '../supabase.js';
 import { SupabaseTodoRepository } from '../infrastructure/repositories/SupabaseTodoRepository.js';
 import {
   CreateTodo,
@@ -77,6 +78,77 @@ function createRoutes(requireAuth, logAction) {
     } catch (error) {
       console.error('Erro ao buscar times:', error);
       res.status(500).json({ success: false, error: error.message || 'Erro ao buscar times' });
+    }
+  });
+
+  /**
+   * GET /api/todos/users
+   * Lista usuários ativos para seleção de responsável
+   */
+  router.get('/users', requireAuth, async (req, res) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('users_otus')
+        .select('id, name, email')
+        .eq('status', 'ativo')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      res.json({ success: true, data: data || [] });
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao buscar usuários' });
+    }
+  });
+
+  /**
+   * GET /api/todos/projects
+   * Lista todos os projetos disponíveis
+   */
+  router.get('/projects', requireAuth, async (req, res) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, project_code, comercial_name, status, team_id')
+        .order('comercial_name', { ascending: true });
+
+      if (error) throw error;
+      res.json({ success: true, data: data || [] });
+    } catch (error) {
+      console.error('Erro ao buscar projetos:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao buscar projetos' });
+    }
+  });
+
+  /**
+   * GET /api/todos/favorite-projects
+   * Lista projetos favoritados pelo usuário
+   */
+  router.get('/favorite-projects', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Usuário não autenticado' });
+      }
+
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('project_favorites')
+        .select('project_id, projects(id, name, project_code, comercial_name, status, sector, team_id)')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      const projects = (data || [])
+        .map(row => row.projects)
+        .filter(Boolean);
+
+      res.json({ success: true, data: projects });
+    } catch (error) {
+      console.error('Erro ao buscar projetos favoritos:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao buscar projetos favoritos' });
     }
   });
 

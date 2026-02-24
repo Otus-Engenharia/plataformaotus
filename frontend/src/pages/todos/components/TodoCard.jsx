@@ -8,15 +8,19 @@ function getInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+const SHORT_MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
-  const date = new Date(dateStr + 'T00:00:00');
+  const raw = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
+  const date = new Date(raw + 'T00:00:00');
+  if (isNaN(date.getTime())) return null;
   const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const month = SHORT_MONTHS[date.getMonth()];
   return `${day}/${month}`;
 }
 
-export default function TodoCard({ todo, onComplete, onSelect, onEdit }) {
+export default function TodoCard({ todo, onComplete, onSelect, onEdit, draggable, onDragStart }) {
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
     if (onComplete) onComplete(todo.id);
@@ -51,6 +55,8 @@ export default function TodoCard({ todo, onComplete, onSelect, onEdit }) {
       className={cardClass}
       style={{ borderLeftColor: todo.priority_color || '#e4e4e7' }}
       onClick={handleCardClick}
+      draggable={draggable || false}
+      onDragStart={onDragStart}
     >
       <div className="todo-card__header">
         <span className={nameClass}>{todo.name}</span>

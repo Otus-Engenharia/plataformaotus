@@ -16,15 +16,15 @@ const PRIORITY_OPTIONS = [
   { value: 'alta', label: 'Alta', color: '#ef4444' },
 ];
 
-export default function TodoCreateDialog({ todo, projects, users, onSave, onClose }) {
+export default function TodoCreateDialog({ todo, projects, favoriteProjects = [], users, onSave, onClose }) {
   const isEdit = !!todo;
+  const [showFavorites, setShowFavorites] = useState(favoriteProjects.length > 0);
 
   const [formData, setFormData] = useState({
     name: todo?.name || '',
     description: todo?.description || '',
     priority: todo?.priority || 'média',
     status: todo?.status || 'backlog',
-    start_date: todo?.start_date ? todo.start_date.split('T')[0] : '',
     due_date: todo?.due_date ? todo.due_date.split('T')[0] : '',
     assignee: todo?.assignee || '',
     project_id: todo?.project_id || '',
@@ -138,26 +138,15 @@ export default function TodoCreateDialog({ todo, projects, users, onSave, onClos
           </div>
         )}
 
-        {/* Datas lado a lado */}
-        <div className="todo-dialog__row">
-          <div className="todo-dialog__field" style={{ flex: 1 }}>
-            <label htmlFor="todo-start-date">Data inicio</label>
-            <input
-              id="todo-start-date"
-              type="date"
-              value={formData.start_date}
-              onChange={(e) => handleChange('start_date', e.target.value)}
-            />
-          </div>
-          <div className="todo-dialog__field" style={{ flex: 1 }}>
-            <label htmlFor="todo-due-date">Data limite</label>
-            <input
-              id="todo-due-date"
-              type="date"
-              value={formData.due_date}
-              onChange={(e) => handleChange('due_date', e.target.value)}
-            />
-          </div>
+        {/* Data limite */}
+        <div className="todo-dialog__field">
+          <label htmlFor="todo-due-date">Data limite</label>
+          <input
+            id="todo-due-date"
+            type="date"
+            value={formData.due_date}
+            onChange={(e) => handleChange('due_date', e.target.value)}
+          />
         </div>
 
         {/* Responsavel */}
@@ -179,18 +168,48 @@ export default function TodoCreateDialog({ todo, projects, users, onSave, onClos
 
         {/* Projeto */}
         <div className="todo-dialog__field">
-          <label htmlFor="todo-project">Projeto</label>
+          <div className="todo-dialog__project-header">
+            <label htmlFor="todo-project">Projeto</label>
+            <div className="todo-dialog__project-toggle">
+              <button
+                type="button"
+                className={`todo-dialog__toggle-btn${showFavorites ? ' is-active' : ''}`}
+                onClick={() => setShowFavorites(true)}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill={showFavorites ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                Favoritos
+              </button>
+              <button
+                type="button"
+                className={`todo-dialog__toggle-btn${!showFavorites ? ' is-active' : ''}`}
+                onClick={() => setShowFavorites(false)}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" />
+                  <rect x="14" y="3" width="7" height="7" />
+                  <rect x="14" y="14" width="7" height="7" />
+                  <rect x="3" y="14" width="7" height="7" />
+                </svg>
+                Todos
+              </button>
+            </div>
+          </div>
           <select
             id="todo-project"
             value={formData.project_id}
             onChange={(e) => handleChange('project_id', e.target.value)}
           >
             <option value="">Selecione um projeto</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
+            {(showFavorites ? favoriteProjects : projects)
+              .slice()
+              .sort((a, b) => (a.comercial_name || a.name || '').localeCompare(b.comercial_name || b.name || '', 'pt-BR'))
+              .map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.comercial_name ? `${project.name} (${project.comercial_name})` : project.name}
+                </option>
+              ))}
           </select>
         </div>
 

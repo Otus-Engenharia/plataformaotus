@@ -58,3 +58,34 @@
   border: 1px dashed #e4e4e7;
   border-radius: 8px;
 }
+
+/* Today column highlight */
+.todo-kanban__column--today {
+  background: #f0f7ff;
+  border-color: rgba(59, 130, 246, 0.15);
+}
+
+/* Overdue column */
+.todo-kanban__column--overdue .todo-kanban__column-count {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.todo-kanban__column--overdue .todo-kanban__column-title {
+  color: #dc2626;
+}
+
+/* Drag and drop feedback */
+.todo-kanban__column--drag-over {
+  background: rgba(59, 130, 246, 0.05);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.todo-card[draggable="true"] {
+  cursor: grab;
+}
+
+.todo-card[draggable="true"]:active {
+  cursor: grabbing;
+  opacity: 0.7;
+}

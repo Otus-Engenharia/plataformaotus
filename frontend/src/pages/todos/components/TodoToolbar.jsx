@@ -1,4 +1,5 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
+import SearchableSelect from '../../../components/SearchableSelect';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -17,11 +18,17 @@ const PRIORITY_OPTIONS = [
   { value: 'alta', label: 'Alta' },
 ];
 
-const GROUP_BY_OPTIONS = [
+const LIST_GROUP_BY_OPTIONS = [
   { value: 'none', label: 'Sem agrupamento' },
   { value: 'status', label: 'Por Status' },
   { value: 'priority', label: 'Por Prioridade' },
   { value: 'project', label: 'Por Projeto' },
+];
+
+const KANBAN_GROUP_BY_OPTIONS = [
+  { value: 'status', label: 'Por Status' },
+  { value: 'project', label: 'Por Projeto' },
+  { value: 'due_date', label: 'Por Data' },
 ];
 
 const styles = {
@@ -123,6 +130,74 @@ const styles = {
     fontSize: '13px',
     whiteSpace: 'nowrap',
   },
+  weekNav: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  weekNavBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '28px',
+    height: '28px',
+    border: '1px solid #d4d4d8',
+    borderRadius: '50%',
+    background: '#fff',
+    cursor: 'pointer',
+    fontSize: '16px',
+    color: '#52525b',
+    padding: 0,
+    lineHeight: 1,
+  },
+  weekNavLabel: {
+    fontSize: '13px',
+    fontWeight: 500,
+    color: '#18181b',
+    minWidth: '150px',
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+  },
+  weekNavToday: {
+    border: '1px solid #d4d4d8',
+    borderRadius: '6px',
+    background: '#fff',
+    cursor: 'pointer',
+    fontSize: '12px',
+    color: '#52525b',
+    padding: '4px 10px',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+  },
+  toggleBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    border: '1px solid #d4d4d8',
+    borderRadius: '6px',
+    background: '#fff',
+    cursor: 'pointer',
+    fontSize: '12px',
+    color: '#52525b',
+    padding: '5px 10px',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+  },
+  toggleBtnActive: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    border: '1px solid #3b82f6',
+    borderRadius: '6px',
+    background: '#eff6ff',
+    cursor: 'pointer',
+    fontSize: '12px',
+    color: '#2563eb',
+    padding: '5px 10px',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+  },
 };
 
 const SearchIcon = () => (
@@ -189,8 +264,27 @@ export default function TodoToolbar({
   projects = [],
   users = [],
   teams = [],
+  weekLabel = '',
+  onWeekPrev,
+  onWeekNext,
+  onWeekToday,
+  showClosedInDate = false,
+  onShowClosedInDateChange,
 }) {
   const debounceRef = useRef(null);
+
+  const projectOptions = useMemo(() => {
+    const sorted = projects
+      .slice()
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    return [
+      { value: '', label: 'Todos' },
+      ...sorted.map((p) => ({
+        value: String(p.id),
+        label: p.comercial_name ? `${p.name} (${p.comercial_name})` : p.name,
+      })),
+    ];
+  }, [projects]);
 
   const handleSearchChange = useCallback(
     (e) => {
@@ -264,20 +358,15 @@ export default function TodoToolbar({
       </div>
 
       {/* Project filter */}
-      <div className="todo-toolbar__filter" style={styles.filterGroup}>
+      <div className="todo-toolbar__filter" style={{ ...styles.filterGroup, width: '200px' }}>
         <span style={styles.filterLabel}>Projeto</span>
-        <select
+        <SearchableSelect
+          id="todo-filter-project"
           value={filters.projectId || ''}
           onChange={handleFilterChange('projectId')}
-          style={styles.select}
-        >
-          <option value="">Todos</option>
-          {projects.map((proj) => (
-            <option key={proj.id} value={proj.id}>
-              {proj.name}
-            </option>
-          ))}
-        </select>
+          options={projectOptions}
+          placeholder="Todos"
+        />
       </div>
 
       {/* Team filter */}
@@ -314,21 +403,37 @@ export default function TodoToolbar({
         </select>
       </div>
 
-      {/* Group By (only in list mode) */}
-      {viewMode === 'list' && (
-        <div className="todo-toolbar__filter" style={styles.filterGroup}>
-          <span style={styles.filterLabel}>Agrupar</span>
-          <select
-            value={groupBy || 'none'}
-            onChange={(e) => onGroupByChange(e.target.value)}
-            style={styles.select}
+      {/* Group By */}
+      <div className="todo-toolbar__filter" style={styles.filterGroup}>
+        <span style={styles.filterLabel}>Agrupar</span>
+        <select
+          value={groupBy || 'none'}
+          onChange={(e) => onGroupByChange(e.target.value)}
+          style={styles.select}
+        >
+          {(viewMode === 'kanban' ? KANBAN_GROUP_BY_OPTIONS : LIST_GROUP_BY_OPTIONS).map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Week navigation (kanban + due_date only) */}
+      {viewMode === 'kanban' && groupBy === 'due_date' && (
+        <div className="todo-toolbar__week-nav" style={styles.weekNav}>
+          <button type="button" style={styles.weekNavBtn} onClick={onWeekPrev} title="Semana anterior">‹</button>
+          <span style={styles.weekNavLabel}>{weekLabel}</span>
+          <button type="button" style={styles.weekNavBtn} onClick={onWeekNext} title="Próxima semana">›</button>
+          <button type="button" style={styles.weekNavToday} onClick={onWeekToday}>Hoje</button>
+          <button
+            type="button"
+            style={showClosedInDate ? styles.toggleBtnActive : styles.toggleBtn}
+            onClick={() => onShowClosedInDateChange && onShowClosedInDateChange(!showClosedInDate)}
+            title={showClosedInDate ? 'Mostrando todas as tarefas' : 'Mostrando apenas tarefas abertas'}
           >
-            {GROUP_BY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            {showClosedInDate ? 'Todas' : 'Abertas'}
+          </button>
         </div>
       )}
 

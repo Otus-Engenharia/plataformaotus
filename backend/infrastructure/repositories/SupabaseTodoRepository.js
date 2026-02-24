@@ -108,12 +108,21 @@ class SupabaseTodoRepository extends TodoRepository {
    * Salva um novo ToDo
    */
   async save(todo) {
-    const persistData = todo.toPersistence();
-    delete persistData.id;
+    const insertData = {
+      name: todo.name,
+      description: todo.description || null,
+      status: todo.status.value || todo.status,
+      priority: todo.priority.value || todo.priority,
+      due_date: todo.dueDate?.toISOString() || null,
+      assignee: todo.assignee || null,
+      created_by: todo.createdBy || null,
+      project_id: todo.projectId || null,
+      agenda_task_id: todo.agendaTaskId || null,
+    };
 
     const { data, error } = await this.#supabase
       .from(TASKS_TABLE)
-      .insert(persistData)
+      .insert(insertData)
       .select()
       .single();
 
@@ -128,15 +137,21 @@ class SupabaseTodoRepository extends TodoRepository {
    * Atualiza um ToDo existente
    */
   async update(todo) {
-    const persistData = todo.toPersistence();
-    const { id, ...updateData } = persistData;
-
-    updateData.updated_at = new Date().toISOString();
+    const updateData = {
+      name: todo.name,
+      description: todo.description || null,
+      status: todo.status.value || todo.status,
+      priority: todo.priority.value || todo.priority,
+      due_date: todo.dueDate?.toISOString() || null,
+      assignee: todo.assignee || null,
+      project_id: todo.projectId || null,
+      closed_at: todo.closedAt?.toISOString() || null,
+    };
 
     const { data, error } = await this.#supabase
       .from(TASKS_TABLE)
       .update(updateData)
-      .eq('id', id)
+      .eq('id', todo.id)
       .select()
       .single();
 
