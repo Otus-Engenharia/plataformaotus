@@ -301,6 +301,7 @@ function BaselinesView() {
         {showCreateModal && (
           <CreateBaselineModal
             projectName={selectedProject?.project_name || selectedProjectCode}
+            project={selectedProject}
             nextRevision={baselines.length}
             onConfirm={handleCreate}
             onCancel={() => setShowCreateModal(false)}

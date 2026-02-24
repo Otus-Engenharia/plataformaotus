@@ -80,6 +80,9 @@ const KeyResultDetail = lazy(() => import('./pages/okrs/KeyResultDetail'));
 const CheckInMeeting = lazy(() => import('./pages/okrs/CheckInMeeting'));
 const HistoryOKRs = lazy(() => import('./pages/okrs/HistoryOKRs'));
 
+// Whiteboard (Excalidraw)
+const WhiteboardView = lazy(() => import('./pages/whiteboard/WhiteboardView'));
+
 const icons = {
   indicadoresLideranca: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -221,6 +224,11 @@ const icons = {
       <path d="M8 12h2M12 12h2M8 16h2M12 16h2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   ),
+  whiteboard: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 3h18v14H3V3zm2 2v10h14V5H5zm-2 14h18v2H3v-2z" />
+    </svg>
+  ),
 };
 
 function Sidebar({ collapsed, onToggle, area }) {
@@ -237,6 +245,9 @@ function Sidebar({ collapsed, onToggle, area }) {
   const [workspaceSectorsExpanded, setWorkspaceSectorsExpanded] = useState(true);
   const [workspaceProjects, setWorkspaceProjects] = useState({});
   const [expandedSectors, setExpandedSectors] = useState({});
+
+  // State para badge de solicitações pendentes de baseline
+  const [pendingBaselineCount, setPendingBaselineCount] = useState(0);
 
   // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
@@ -277,6 +288,18 @@ function Sidebar({ collapsed, onToggle, area }) {
         .catch(err => console.error('Error loading workspace sectors:', err));
     }
   }, [area]);
+
+  // Buscar contagem de solicitações pendentes de baseline (para badge)
+  useEffect(() => {
+    if (!isPrivileged) return;
+    axios.get('/api/baseline-requests/pending', { withCredentials: true })
+      .then(res => {
+        if (res.data.success) {
+          setPendingBaselineCount((res.data.data || []).length);
+        }
+      })
+      .catch(() => {}); // silencioso - 403 para não-privilegiados
+  }, [isPrivileged, location.pathname]);
 
   // Função para carregar projetos de um setor (lazy load)
   const loadSectorProjects = useCallback((sectorId) => {
@@ -454,6 +477,9 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.indicadoresLideranca}</span>
         <span className="nav-text">Baselines</span>
+        {pendingBaselineCount > 0 && (
+          <span className="nav-notification-badge">{pendingBaselineCount}</span>
+        )}
       </Link>
       {isPrivileged && (
         <Link
@@ -652,6 +678,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.auditoria}</span>
         <span className="nav-text">Auditoria Custos</span>
+      </Link>
+      <Link
+        to="/quadro"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/quadro') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Quadro')}
+      >
+        <span className="nav-icon">{icons.whiteboard}</span>
+        <span className="nav-text">Quadro</span>
       </Link>
     </>
   );
@@ -1049,7 +1083,7 @@ function AppContent() {
         path.startsWith('/agenda')) {
       return 'projetos';
     }
-    if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos')) {
+    if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos') || path.startsWith('/quadro')) {
       return 'configuracoes';
     }
     if (path.startsWith('/ind')) {
@@ -1128,7 +1162,7 @@ function AppContent() {
             area={currentArea}
           />
         )}
-        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
+        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') && !location.pathname.startsWith('/quadro') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
             {/* Redirect antigo /indicadores-lideranca para nova área */}
             <Route
@@ -1384,6 +1418,18 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? <AuditoriaCustosView /> : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/quadro"
+              element={
+                <ProtectedRoute>
+                  {canAccessConfiguracoesArea ? (
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <WhiteboardView />
+                    </Suspense>
+                  ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />
