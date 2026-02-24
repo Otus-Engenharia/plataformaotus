@@ -454,6 +454,10 @@
   overflow: hidden;
 }
 
+.baselines-modal-wide {
+  max-width: 560px;
+}
+
 .baselines-modal-header {
   display: flex;
   justify-content: space-between;
@@ -581,4 +585,189 @@
 .btn-modal-cancel:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* --- Review Request Modal --- */
+
+.review-request-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-modal-body {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.review-section {
+  margin-bottom: 1.25rem;
+}
+
+.review-section:last-of-type {
+  margin-bottom: 0.5rem;
+}
+
+.review-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.review-field {
+  margin-bottom: 0.4rem;
+}
+
+.review-field-row {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.review-field-row .review-field {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.review-label {
+  display: block;
+  font-size: 0.7rem;
+  color: #999;
+  margin-bottom: 0.1rem;
+}
+
+.review-value {
+  font-size: 0.85rem;
+  color: #333;
+}
+
+.review-description {
+  display: block;
+  white-space: pre-wrap;
+  font-size: 0.8rem;
+  color: #555;
+  background: #fafafa;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+}
+
+.review-dates-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1.5rem;
+}
+
+.review-date-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.review-date-value {
+  font-size: 0.85rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.review-date-highlight {
+  background: #fafafa;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  border-left: 3px solid #f57f17;
+}
+
+.review-no-project {
+  font-size: 0.8rem;
+  color: #999;
+  font-style: italic;
+  padding: 0.75rem;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+.review-reject-textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #e57373;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  box-sizing: border-box;
+}
+
+.review-reject-textarea:focus {
+  outline: none;
+  border-color: #c62828;
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.1);
+}
+
+.review-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #eee;
+  background: #fafafa;
+}
+
+.review-btn-approve {
+  background: #2e7d32;
+  border: none;
+  color: white;
+  padding: 0.55rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.review-btn-approve:hover {
+  background: #1b5e20;
+}
+
+.review-btn-reject {
+  background: #c62828;
+  border: none;
+  color: white;
+  padding: 0.55rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.review-btn-reject:hover {
+  background: #b71c1c;
+}
+
+.review-btn-approve:disabled,
+.review-btn-reject:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Create Baseline Indicators --- */
+
+.create-baseline-indicators {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
 }
