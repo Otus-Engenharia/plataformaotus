@@ -1,10 +1,8 @@
 /**
- * Componente: Marcos do Projeto
+ * Componente: Marcos do Projeto - Timeline Vertical
  *
- * Tabela de marcos (milestones) do projeto.
- * Recebe dados como props - desacoplado da fonte de dados.
- * Agora: derivado do cronograma (CaminhoCriticoMarco).
- * Futuro: tabela Supabase marcos_projeto com vínculo ao cronograma.
+ * Exibe marcos como stepper vertical com dots coloridos por status.
+ * Mais legível e visual que a tabela anterior.
  */
 
 import React from 'react';
@@ -16,13 +14,18 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-function getStatusInfo(status) {
+function getStatusInfo(status, variacaoDias) {
   if (!status) return { label: '-', className: 'pendente' };
   const s = String(status).toLowerCase().trim();
+
   if (s === 'complete' || s === 'completo' || s === 'concluído' || s === 'concluido') {
     return { label: 'feito', className: 'feito' };
   }
   if (s === 'in progress' || s === 'em andamento' || s === 'em progresso') {
+    // Se está em andamento mas atrasado, mostra como atrasado
+    if (variacaoDias != null && variacaoDias > 0) {
+      return { label: 'atrasado', className: 'atrasado' };
+    }
     return { label: 'andamento', className: 'andamento' };
   }
   if (s === 'not started' || s === 'não iniciado' || s === 'nao iniciado') {
@@ -48,59 +51,51 @@ function MarcosProjetoSection({ marcos, loading }) {
       <div className="vc-marcos-header">
         <div>
           <h4>Marcos do Projeto</h4>
-          <span className="vc-marcos-subtitle">
-            (destacados em amarelo = alterados no último mês)
-          </span>
         </div>
       </div>
 
       {!marcos || marcos.length === 0 ? (
         <div className="vc-marcos-empty">Nenhum marco encontrado para este projeto.</div>
       ) : (
-        <table className="vc-marcos-table">
-          <thead>
-            <tr>
-              <th>Marco</th>
-              <th>Status</th>
-              <th>Prazo atual</th>
-              <th>Prazo base</th>
-              <th>Variação (dias)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {marcos.map((marco, idx) => {
-              const statusInfo = getStatusInfo(marco.status);
-              const variacao = marco.variacaoDias;
-              const isChanged = marco.alteradoRecente;
+        <div className="vc-marcos-timeline">
+          {marcos.map((marco, idx) => {
+            const statusInfo = getStatusInfo(marco.status, marco.variacaoDias);
+            const variacao = marco.variacaoDias;
+            const isChanged = marco.alteradoRecente;
+            const isLast = idx === marcos.length - 1;
 
-              return (
-                <tr key={idx} className={isChanged ? 'vc-marco-changed' : ''}>
-                  <td>
-                    <span className="vc-marco-nome" title={marco.nome}>
-                      {marco.nome}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`vc-marco-status ${statusInfo.className}`}>
+            return (
+              <div
+                key={idx}
+                className={`vc-marco-item ${isChanged ? 'vc-marco-changed' : ''}`}
+              >
+                {/* Rail: dot + connector line */}
+                <div className="vc-marco-rail">
+                  <div className={`vc-marco-dot ${statusInfo.className}`} />
+                  {!isLast && <div className="vc-marco-line" />}
+                </div>
+
+                {/* Content */}
+                <div className="vc-marco-content">
+                  <div className="vc-marco-name">{marco.nome}</div>
+                  <div className="vc-marco-meta">
+                    <span className={`vc-marco-status-badge ${statusInfo.className}`}>
                       {statusInfo.label}
                     </span>
-                  </td>
-                  <td>{formatDate(marco.prazoAtual)}</td>
-                  <td>{formatDate(marco.prazoBase)}</td>
-                  <td>
-                    {variacao != null && variacao !== 0 ? (
-                      <span className={`vc-marco-variacao ${variacao > 0 ? 'positiva' : 'negativa'}`}>
-                        {variacao > 0 ? '+' : ''}{variacao}
+                    <span className="vc-marco-date">
+                      {formatDate(marco.prazoAtual)}
+                    </span>
+                    {variacao != null && variacao !== 0 && (
+                      <span className={`vc-marco-var ${variacao > 0 ? 'atrasado' : 'adiantado'}`}>
+                        {variacao > 0 ? '+' : ''}{variacao}d
                       </span>
-                    ) : (
-                      <span style={{ color: '#9ca3af' }}>-</span>
                     )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
