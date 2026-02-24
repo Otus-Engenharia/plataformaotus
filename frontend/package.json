@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.0",
     "@supabase/supabase-js": "^2.93.3",
     "axios": "^1.6.2",
     "chart.js": "^4.4.0",

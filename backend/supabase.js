@@ -5511,3 +5511,58 @@ export async function resolveRecipientEmails(construflowId, disciplinaName) {
 
   return emails;
 }
+
+// ==================== WHITEBOARD ====================
+
+/**
+ * Busca o quadro compartilhado
+ * @returns {Promise<Object>} - { elements, app_state, files, updated_at, updated_by }
+ */
+export async function fetchWhiteboard() {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from('whiteboard')
+    .select('*')
+    .eq('id', 'shared')
+    .single();
+
+  if (error) {
+    // Se não existe, retorna vazio
+    if (error.code === 'PGRST116') {
+      return { elements: [], app_state: {}, files: {} };
+    }
+    throw new Error(`Erro ao buscar whiteboard: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Salva o quadro compartilhado
+ * @param {Array} elements - Elementos do Excalidraw
+ * @param {Object} appState - Estado da aplicação
+ * @param {Object} files - Arquivos (imagens) do Excalidraw
+ * @param {string} updatedBy - Email do usuário que salvou
+ * @returns {Promise<Object>}
+ */
+export async function saveWhiteboard(elements, appState, files, updatedBy) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from('whiteboard')
+    .upsert({
+      id: 'shared',
+      elements,
+      app_state: appState,
+      files,
+      updated_at: new Date().toISOString(),
+      updated_by: updatedBy,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao salvar whiteboard: ${error.message}`);
+  }
+
+  return data;
+}

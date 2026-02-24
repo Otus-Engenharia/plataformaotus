@@ -73,7 +73,9 @@ import {
   // Portfolio - Edicao inline
   fetchPortfolioEditOptions, updateProjectField,
   // OAuth tokens (Gmail Draft)
-  getUserOAuthTokens, resolveRecipientEmails
+  getUserOAuthTokens, resolveRecipientEmails,
+  // Whiteboard
+  fetchWhiteboard, saveWhiteboard
 } from './supabase.js';
 import { createGmailDraft } from './gmail.js';
 
@@ -6994,6 +6996,35 @@ app.get('/api/contatos/filtros/projetos', requireAuth, async (req, res) => {
     res.json({ success: true, data });
   } catch (error) {
     console.error('❌ Erro ao buscar projetos para filtro:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== WHITEBOARD ====================
+
+/**
+ * GET /api/whiteboard
+ * Busca o quadro compartilhado
+ */
+app.get('/api/whiteboard', requireAuth, async (req, res) => {
+  try {
+    const data = await fetchWhiteboard();
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/whiteboard
+ * Salva o quadro compartilhado (limite de 10MB para desenhos grandes)
+ */
+app.put('/api/whiteboard', requireAuth, express.json({ limit: '10mb' }), async (req, res) => {
+  try {
+    const { elements, appState, files } = req.body;
+    const data = await saveWhiteboard(elements, appState, files, req.user.email);
+    res.json({ success: true, data });
+  } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
