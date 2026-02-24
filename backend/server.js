@@ -802,6 +802,17 @@ app.get('/api/portfolio', requireAuth, withBqCache(900), async (req, res) => {
 
     try {
       data = await fetchPortfolioRealtime(leaderName);
+
+      // Valida se dados críticos de cronograma estão presentes no Supabase
+      if (data.length > 0) {
+        const hasDateData = data.some(row =>
+          row.data_inicio_cronograma != null || row.data_termino_cronograma != null
+        );
+        if (!hasDateData) {
+          console.warn('⚠️ Supabase sem dados de cronograma, usando BigQuery...');
+          data = await queryPortfolio(leaderName);
+        }
+      }
     } catch (supabaseError) {
       console.warn('⚠️ Supabase falhou, usando BigQuery:', supabaseError.message);
       data = await queryPortfolio(leaderName);
