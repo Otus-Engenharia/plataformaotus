@@ -13,7 +13,7 @@ const STATUS_COLUMNS = [
   { status: 'cancelado', label: 'Cancelado', color: '#6b7280' },
 ];
 
-function buildColumns(todos, groupBy, weekRef, showClosedTasks) {
+function buildColumns(todos, groupBy, weekRef) {
   if (groupBy === 'project') {
     const projectMap = {};
     todos.forEach((todo) => {
@@ -56,8 +56,6 @@ function buildColumns(todos, groupBy, weekRef, showClosedTasks) {
     const startKey = format(start, 'yyyy-MM-dd');
 
     todos.forEach((todo) => {
-      if (!showClosedTasks && (todo.status === 'finalizado' || todo.status === 'cancelado')) return;
-
       const rawDue = todo.due_date
         ? (typeof todo.due_date === 'string' ? todo.due_date.split('T')[0] : todo.due_date)
         : null;
@@ -102,12 +100,11 @@ export default function TodoKanbanView({
   onEdit,
   onStatusChange,
   onDrop,
-  showClosedTasks = false,
   loading,
 }) {
   const columns = useMemo(
-    () => buildColumns(todos, groupBy, weekRef || new Date(), showClosedTasks),
-    [todos, groupBy, weekRef, showClosedTasks],
+    () => buildColumns(todos, groupBy, weekRef || new Date()),
+    [todos, groupBy, weekRef],
   );
 
   const isDraggable = groupBy !== 'project';
