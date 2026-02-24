@@ -1565,6 +1565,19 @@ const USERS_OTUS_TABLE = 'users_otus';
 const CHECK_INS_TABLE = 'indicadores_check_ins';
 const RECOVERY_PLANS_TABLE = 'recovery_plans';
 
+// Valid metric types accepted by the indicadores table constraint
+const VALID_METRIC_TYPES = ['number', 'integer', 'percentage', 'boolean', 'currency'];
+
+/**
+ * Sanitiza metric_type para garantir compatibilidade com a constraint do banco.
+ * Retorna 'number' como fallback seguro se o valor for invalido.
+ */
+function sanitizeMetricType(value) {
+  if (value && VALID_METRIC_TYPES.includes(value)) return value;
+  console.warn(`[sanitizeMetricType] Valor invalido: "${value}" — usando 'number'`);
+  return 'number';
+}
+
 // --- SETORES ---
 
 /**
@@ -2048,7 +2061,7 @@ export async function createIndicadorFromTemplate(templateId, personEmail, ciclo
       threshold_120: template.default_threshold_120,
       is_inverse: template.is_inverse || false,
       consolidation_type: template.consolidation_type || 'last_value',
-      metric_type: template.metric_type || 'number',
+      metric_type: sanitizeMetricType(template.metric_type),
       monthly_targets: template.monthly_targets || {},
       active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
     }])
@@ -2118,31 +2131,80 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
     .eq('id', positionId)
     .single();
 
-  // 4. Para cada usuario, verifica quais indicadores faltam e cria
+  // 4. Para cada usuario, verifica quais indicadores faltam e cria/atualiza
   let created = 0;
-  let skipped = 0;
+  let updated = 0;
   const details = [];
   const errors = [];
 
   for (const user of users) {
-    // Busca indicadores existentes do usuario para este ciclo/ano
+    // Busca indicadores existentes do usuario para este ciclo/ano (com dados para merge)
     const { data: existingIndicators } = await supabase
       .from(INDICADORES_TABLE)
-      .select('template_id')
+      .select('id, template_id, monthly_targets')
       .eq('person_email', user.email)
       .eq('ciclo', ciclo)
       .eq('ano', ano);
 
-    const existingTemplateIds = new Set((existingIndicators || []).map(i => i.template_id));
+    const existingByTemplateId = new Map(
+      (existingIndicators || []).map(i => [i.template_id, i])
+    );
 
-    // Cria indicadores faltantes
     for (const template of templates) {
-      if (existingTemplateIds.has(template.id)) {
-        skipped++;
+      const existing = existingByTemplateId.get(template.id);
+
+      if (existing) {
+        // UPDATE: indicador ja existe — atualizar campos do template,
+        // preservando monthly_targets de meses que ja tem check-in
+        try {
+          const checkIns = await fetchCheckIns(existing.id);
+          const monthsWithCheckIns = new Set(
+            checkIns.filter(ci => ci.ano === ano).map(ci => String(ci.mes))
+          );
+
+          // Merge monthly_targets: template para meses sem check-in, existente para meses com check-in
+          const templateTargets = template.monthly_targets || {};
+          const existingTargets = existing.monthly_targets || {};
+          const mergedTargets = { ...templateTargets };
+          for (const month of monthsWithCheckIns) {
+            if (existingTargets[month] !== undefined) {
+              mergedTargets[month] = existingTargets[month];
+            }
+          }
+
+          const { error: updateError } = await supabase
+            .from(INDICADORES_TABLE)
+            .update({
+              nome: template.title,
+              descricao: template.description,
+              meta: template.default_target,
+              threshold_80: template.default_threshold_80,
+              threshold_120: template.default_threshold_120,
+              peso: template.default_weight ?? 1,
+              is_inverse: template.is_inverse || false,
+              consolidation_type: template.consolidation_type || 'last_value',
+              metric_type: sanitizeMetricType(template.metric_type),
+              monthly_targets: mergedTargets,
+              active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id);
+
+          if (updateError) {
+            console.error(`Erro ao atualizar indicador para ${user.email}:`, updateError);
+            errors.push({ user: user.name, indicator: template.title, error: updateError.message });
+          } else {
+            updated++;
+            details.push({ user: user.name, indicator: template.title, action: 'updated' });
+          }
+        } catch (err) {
+          console.error(`Erro ao processar atualização para ${user.email}:`, err);
+          errors.push({ user: user.name, indicator: template.title, error: err.message });
+        }
         continue;
       }
 
-      // Cria o indicador (campos alinhados com createIndicadorFromTemplate)
+      // CREATE: indicador nao existe — criar novo
       const { error: createError } = await supabase
         .from(INDICADORES_TABLE)
         .insert({
@@ -2167,7 +2229,7 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
           threshold_120: template.default_threshold_120,
           is_inverse: template.is_inverse || false,
           consolidation_type: template.consolidation_type || 'last_value',
-          metric_type: template.metric_type || 'number',
+          metric_type: sanitizeMetricType(template.metric_type),
           monthly_targets: template.monthly_targets || {},
           active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
         });
@@ -2177,19 +2239,19 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
         errors.push({ user: user.name, indicator: template.title, error: createError.message });
       } else {
         created++;
-        details.push({ user: user.name, indicator: template.title });
+        details.push({ user: user.name, indicator: template.title, action: 'created' });
       }
     }
   }
 
   return {
     created,
-    skipped,
+    updated,
     usersProcessed: users.length,
     templatesCount: templates.length,
     details,
     errors,
-    message: `${created} indicadores criados, ${skipped} ja existentes`
+    message: `${created} indicadores criados, ${updated} atualizados`
   };
 }
 
@@ -2201,10 +2263,14 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
  */
 export async function updateIndicadorIndividual(indicadorId, updateData) {
   const supabase = getSupabaseClient();
+  const sanitizedData = { ...updateData };
+  if (sanitizedData.metric_type !== undefined) {
+    sanitizedData.metric_type = sanitizeMetricType(sanitizedData.metric_type);
+  }
   const { data, error } = await supabase
     .from(INDICADORES_TABLE)
     .update({
-      ...updateData,
+      ...sanitizedData,
       updated_at: new Date().toISOString(),
     })
     .eq('id', indicadorId)

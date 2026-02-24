@@ -4899,7 +4899,7 @@ app.delete('/api/ind/positions/:posId/indicators/:indId', requireAuth, async (re
 /**
  * Rota: POST /api/ind/positions/:id/sync-indicators
  * Sincroniza indicadores do cargo com usuarios que possuem esse cargo
- * Cria apenas indicadores faltantes, sem sobrescrever existentes
+ * Cria indicadores faltantes e atualiza existentes (preservando meses com check-in)
  * Body: { ciclo, ano, leader_id (opcional) }
  */
 app.post('/api/ind/positions/:id/sync-indicators', requireAuth, async (req, res) => {
@@ -4926,7 +4926,7 @@ app.post('/api/ind/positions/:id/sync-indicators', requireAuth, async (req, res)
       'sync',
       'position_indicators',
       req.params.id,
-      `Sincronizacao: ${result.created} criados, ${result.skipped} ignorados`
+      `Sincronizacao: ${result.created} criados, ${result.updated} atualizados`
     );
 
     res.json({ success: true, data: result });
