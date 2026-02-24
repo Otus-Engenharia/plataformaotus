@@ -62,6 +62,9 @@ const FeedbackAdminView = lazy(() => import('./pages/feedbacks/FeedbackAdminView
 // Lazy load da página de Agenda
 const AgendaView = lazy(() => import('./pages/agenda/AgendaView'));
 
+// Lazy load da página de ToDo's
+const TodosView = lazy(() => import('./pages/todos/TodosView'));
+
 // Lazy load das páginas de Workspace (Gestao de Tarefas)
 const WorkspaceView = lazy(() => import('./pages/workspace/WorkspaceView'));
 const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
@@ -238,6 +241,12 @@ const icons = {
       <polyline points="9 22 9 12 15 12 15 22" />
     </svg>
   ),
+  todos: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 11l3 3L22 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
 function Sidebar({ collapsed, onToggle, area }) {
@@ -400,6 +409,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.agenda}</span>
         <span className="nav-text">Agenda</span>
+      </Link>
+      <Link
+        to="/todos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/todos') ? 'nav-link-active' : ''}`}
+        title={linkTitle("ToDo's")}
+      >
+        <span className="nav-icon">{icons.todos}</span>
+        <span className="nav-text">ToDo's</span>
       </Link>
       <Link
         to="/horas"
@@ -1118,7 +1135,8 @@ function AppContent() {
         path.startsWith('/contatos') ||
         path.startsWith('/feedbacks') ||
         path.startsWith('/demandas-apoio') ||
-        path.startsWith('/agenda')) {
+        path.startsWith('/agenda') ||
+        path.startsWith('/todos')) {
       return 'projetos';
     }
     if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos') || path.startsWith('/quadro')) {
@@ -1202,7 +1220,7 @@ function AppContent() {
             area={currentArea}
           />
         )}
-        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') && !location.pathname.startsWith('/quadro') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
+        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') && !location.pathname.startsWith('/quadro') && !location.pathname.startsWith('/todos') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') || location.pathname.startsWith('/todos') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
             {/* Redirect antigo /indicadores-lideranca para nova área */}
             <Route
@@ -1407,6 +1425,16 @@ function AppContent() {
                 <ProtectedRoute>
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                     <AgendaView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/todos"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <TodosView />
                   </Suspense>
                 </ProtectedRoute>
               }
