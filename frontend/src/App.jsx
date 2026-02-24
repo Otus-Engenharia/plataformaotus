@@ -362,23 +362,31 @@ function Sidebar({ collapsed, onToggle, area }) {
   const projetosLinks = (
     <>
       <Link
-        to="/horas" 
+        to="/agenda"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/agenda') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Agenda')}
+      >
+        <span className="nav-icon">{icons.agenda}</span>
+        <span className="nav-text">Agenda</span>
+      </Link>
+      <Link
+        to="/horas"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/horas') ? 'nav-link-active' : ''}`}
         title={linkTitle('Horas')}
       >
         <span className="nav-icon">{icons.horas}</span>
         <span className="nav-text">Horas</span>
       </Link>
-      <Link 
-        to="/projetos" 
+      <Link
+        to="/projetos"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/projetos') ? 'nav-link-active' : ''}`}
         title={linkTitle('Projetos')}
       >
         <span className="nav-icon">{icons.projetos}</span>
         <span className="nav-text">Projetos</span>
       </Link>
-      <Link 
-        to="/cs" 
+      <Link
+        to="/cs"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/cs') ? 'nav-link-active' : ''}`}
         title={linkTitle('CS')}
       >
@@ -386,7 +394,7 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">CS</span>
       </Link>
       <Link
-        to="/contatos" 
+        to="/contatos"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/contatos') ? 'nav-link-active' : ''}`}
         title={linkTitle('Contatos')}
       >
@@ -400,14 +408,6 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.feedbacks}</span>
         <span className="nav-text">Feedbacks</span>
-      </Link>
-      <Link
-        to="/agenda"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/agenda') ? 'nav-link-active' : ''}`}
-        title={linkTitle('Agenda')}
-      >
-        <span className="nav-icon">{icons.agenda}</span>
-        <span className="nav-text">Agenda</span>
       </Link>
       <Link
         to="/demandas-apoio"

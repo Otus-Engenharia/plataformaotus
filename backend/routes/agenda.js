@@ -14,6 +14,7 @@ import {
   DeleteAgendaTask,
   MaterializeRecurringTasks,
   DeleteRecurringInstance,
+  DuplicateAgendaTask,
 } from '../application/use-cases/agenda/index.js';
 import { AgendaTaskStatus } from '../domain/agenda/value-objects/AgendaTaskStatus.js';
 import { AgendaRecurrence } from '../domain/agenda/value-objects/AgendaRecurrence.js';
@@ -290,13 +291,26 @@ function createRoutes(requireAuth, logAction) {
       const task = await getTask.execute(parseInt(id, 10));
 
       let standardAgendaTaskName = null;
+      let standardAgendaTaskPosition = null;
       if (task?.standard_agenda_task) {
         const { data: sat } = await supabase
           .from('standard_agenda_task')
-          .select('name')
+          .select('name, position')
           .eq('id', task.standard_agenda_task)
           .single();
         standardAgendaTaskName = sat?.name || null;
+        standardAgendaTaskPosition = sat?.position || null;
+      }
+
+      // Buscar nome da disciplina relacionada (verificação)
+      let relatedDisciplineName = null;
+      if (task?.related_discipline_id) {
+        const { data: disc } = await supabase
+          .from('standard_disciplines')
+          .select('discipline_name')
+          .eq('id', task.related_discipline_id)
+          .single();
+        relatedDisciplineName = disc?.discipline_name || null;
       }
 
       // Buscar projetos vinculados via agenda_projects
@@ -313,6 +327,8 @@ function createRoutes(requireAuth, logAction) {
         success: true,
         data: {
           standard_agenda_task_name: standardAgendaTaskName,
+          standard_agenda_task_position: standardAgendaTaskPosition,
+          related_discipline_name: relatedDisciplineName,
           projects,
         },
       });
@@ -496,6 +512,36 @@ function createRoutes(requireAuth, logAction) {
   });
 
   /**
+   * POST /api/agenda/tasks/:id/duplicate
+   * Duplica uma tarefa para outro dia/horário
+   * Body: { start_date, due_date, copy_projects }
+   */
+  router.post('/:id/duplicate', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { start_date, due_date, copy_projects } = req.body;
+
+      const duplicateTask = new DuplicateAgendaTask(repository);
+      const task = await duplicateTask.execute({
+        sourceId: parseInt(id, 10),
+        startDate: start_date,
+        dueDate: due_date,
+        userId: req.user.id,
+        copyProjects: copy_projects !== false,
+      });
+
+      if (logAction) {
+        await logAction(req, 'create', 'agenda_task', task.id, 'Tarefa de agenda duplicada', { source_id: id });
+      }
+
+      res.status(201).json({ success: true, data: task });
+    } catch (error) {
+      console.error('❌ Erro ao duplicar tarefa de agenda:', error);
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * PUT /api/agenda/tasks/:id
    * Atualiza uma tarefa (drag & drop, resize, edição de campos)
    * Body pode conter:
@@ -507,7 +553,7 @@ function createRoutes(requireAuth, logAction) {
   router.put('/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { reschedule, resize, status, start_date, due_date, name, recurrence, recurrence_scope } = req.body;
+      const { reschedule, resize, status, start_date, due_date, name, recurrence, recurrence_scope, recurrence_until, recurrence_count, recurrence_copy_projects, standard_agenda_task, standard_agenda_task_name, coompat_task_kind, related_discipline_id, phase } = req.body;
 
       if (status && !AgendaTaskStatus.isValid(status)) {
         return res.status(400).json({
@@ -531,9 +577,17 @@ function createRoutes(requireAuth, logAction) {
         dueDate: due_date,
         status,
         recurrence,
+        recurrenceUntil: recurrence_until,
+        recurrenceCount: recurrence_count,
+        recurrenceCopyProjects: recurrence_copy_projects,
         reschedule,
         resize,
         recurrenceScope: recurrence_scope,
+        standardAgendaTask: standard_agenda_task,
+        standardAgendaTaskName: standard_agenda_task_name,
+        compactTaskKind: coompat_task_kind,
+        relatedDisciplineId: related_discipline_id,
+        phase,
       });
 
       res.json({ success: true, data: task });

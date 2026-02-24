@@ -185,6 +185,17 @@ class AgendaRepository {
   async updateParentRecurrenceFields(parentId, fields) {
     throw new Error('Método updateParentRecurrenceFields deve ser implementado');
   }
+
+  /**
+   * Atualiza o grupo de atividade e nome de múltiplas instâncias
+   * @param {number[]} ids
+   * @param {number} standardAgendaTaskId
+   * @param {string} name
+   * @returns {Promise<void>}
+   */
+  async updateGroupForInstances(ids, standardAgendaTaskId, name) {
+    throw new Error('Método updateGroupForInstances deve ser implementado');
+  }
 }
 
 export { AgendaRepository };
