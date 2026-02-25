@@ -20,15 +20,27 @@ class SupabaseFeedbackRepository extends FeedbackRepository {
   }
 
   /**
-   * Busca todos os feedbacks
+   * Busca todos os feedbacks com filtros opcionais
    */
   async findAll(options = {}) {
-    const { userId } = options;
+    const { userId, area = null, viewerRoleLevel = null } = options;
 
-    const { data, error } = await this.#supabase
+    let query = this.#supabase
       .from(FEEDBACKS_TABLE)
       .select('*')
       .order('created_at', { ascending: false });
+
+    // Filtro por área: inclui feedbacks da área OU sem área (globais/legados)
+    if (area) {
+      query = query.or(`area.eq.${area},area.is.null`);
+    }
+
+    // Filtro por hierarquia de role: user(5) vê só de users, leader(4) vê de users+leaders
+    if (viewerRoleLevel !== null && viewerRoleLevel > 3) {
+      query = query.gte('author_role_level', viewerRoleLevel);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(`Erro ao buscar feedbacks: ${error.message}`);

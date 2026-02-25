@@ -15,11 +15,13 @@ class ListFeedbacks {
    * Executa o use case
    * @param {Object} options
    * @param {string} options.userId - ID do usuário logado (para ordenar próprios primeiro)
+   * @param {string|null} options.area - Área para filtrar
+   * @param {number|null} options.viewerRoleLevel - Nível de acesso do viewer para filtro hierárquico
    * @returns {Promise<Array>}
    */
-  async execute({ userId = null } = {}) {
-    // Busca todos os feedbacks
-    const feedbacks = await this.#feedbackRepository.findAll({ userId });
+  async execute({ userId = null, area = null, viewerRoleLevel = null } = {}) {
+    // Busca feedbacks com filtros
+    const feedbacks = await this.#feedbackRepository.findAll({ userId, area, viewerRoleLevel });
 
     // Coleta IDs únicos de autores e resolvedores
     const authorIds = [...new Set(feedbacks.map(f => f.authorId).filter(Boolean))];

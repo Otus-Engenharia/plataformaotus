@@ -14,8 +14,10 @@ import {
   UpdateFeedback,
   GetFeedbackStats,
 } from '../application/use-cases/feedbacks/index.js';
+import { FeedbackArea } from '../domain/feedbacks/value-objects/FeedbackArea.js';
 import { FeedbackType } from '../domain/feedbacks/value-objects/FeedbackType.js';
 import { FeedbackStatus } from '../domain/feedbacks/value-objects/FeedbackStatus.js';
+import { getUserAccessLevel } from '../supabase.js';
 
 const router = express.Router();
 
@@ -44,8 +46,26 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   router.get('/', requireAuth, async (req, res) => {
     try {
       const userId = req.user?.id || null;
+      const area = req.query.area || null;
+      const adminMode = req.query.admin === 'true';
+
+      // Nível de acesso do viewer
+      const viewerRoleLevel = getUserAccessLevel(req.user?.role);
+
+      // Modo admin: só para users com full access (level <= 3)
+      if (adminMode && viewerRoleLevel > 3) {
+        return res.status(403).json({
+          success: false,
+          error: 'Acesso negado ao modo admin',
+        });
+      }
+
       const listFeedbacks = new ListFeedbacks(repository);
-      const feedbacks = await listFeedbacks.execute({ userId });
+      const feedbacks = await listFeedbacks.execute({
+        userId,
+        area: adminMode ? null : area,
+        viewerRoleLevel: adminMode ? null : viewerRoleLevel,
+      });
 
       res.json({
         success: true,
@@ -118,10 +138,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    */
   router.post('/', requireAuth, async (req, res) => {
     try {
-      const { type, titulo, descricao, feedback_text, page_url, screenshot_url } = req.body;
-
-      // DEBUG: Log do author_id para diagnóstico
-      console.log('🔍 DEBUG - Creating feedback with author_id:', req.user.id, 'email:', req.user.email);
+      const { type, titulo, descricao, feedback_text, page_url, screenshot_url, area } = req.body;
 
       // Aceita tanto 'descricao' (legacy) quanto 'feedback_text' (novo)
       const text = feedback_text || descricao;
@@ -141,6 +158,17 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
         });
       }
 
+      // Valida área se fornecida
+      if (area && !FeedbackArea.isValid(area)) {
+        return res.status(400).json({
+          success: false,
+          error: `Área inválida. Valores permitidos: ${FeedbackArea.VALID_VALUES.join(', ')}`,
+        });
+      }
+
+      // Nível de acesso do autor no momento da criação
+      const authorRoleLevel = getUserAccessLevel(req.user?.role);
+
       const createFeedback = new CreateFeedback(repository);
       const feedback = await createFeedback.execute({
         type,
@@ -149,6 +177,8 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
         authorId: req.user.id,
         pageUrl: page_url || null,
         screenshotUrl: screenshot_url || null,
+        area: area || null,
+        authorRoleLevel,
       });
 
       // Registra a criação do feedback
