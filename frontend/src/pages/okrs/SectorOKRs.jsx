@@ -6,7 +6,7 @@ import { calculateKRProgress, calculateKRProgressVsMeta } from '../../utils/indi
 import './DashboardOKRs.css';
 
 // Objective Card Component
-function ObjectiveCard({ objective, checkIns = [], index, editingWeight, setEditingWeight, tempWeight, setTempWeight, onSaveWeight, isPrivileged }) {
+function ObjectiveCard({ objective, checkIns = [], index, editingWeight, setEditingWeight, tempWeight, setTempWeight, onSaveWeight, isPrivileged, initiativesProgress }) {
   const { progress, progressVsMeta, statusCounts } = useMemo(() => {
     const krs = objective.key_results || [];
     if (krs.length === 0) return { progress: null, progressVsMeta: null, statusCounts: { completed: 0, delayed: 0, at_risk: 0 } };
@@ -172,16 +172,41 @@ function ObjectiveCard({ objective, checkIns = [], index, editingWeight, setEdit
             </span>
           )}
         </div>
+
+        {initiativesProgress && (
+          <div className="okr-objective-card__metric">
+            <span className="okr-objective-card__metric-label">Iniciativas</span>
+            <span className={`okr-objective-card__metric-value okr-objective-card__metric-value--${getProgressColor(initiativesProgress.avg_progress)}`}>
+              {initiativesProgress.avg_progress === null ? '—' : `${initiativesProgress.avg_progress}%`}
+            </span>
+            <div className="okr-objective-card__metric-bar">
+              <div
+                className={`okr-objective-card__metric-bar-fill okr-objective-card__metric-bar-fill--${getProgressColor(initiativesProgress.avg_progress)}`}
+                style={{ width: `${Math.min(initiativesProgress.avg_progress || 0, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      {(objective.key_results?.length || 0) > 0 && (
+      {((objective.key_results?.length || 0) > 0 || initiativesProgress) && (
         <div className="okr-objective-card__footer">
-          <div className="okr-objective-card__stat">
-            <svg viewBox="0 0 24 24" width="14" height="14">
-              <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-            </svg>
-            <span>{objective.key_results.length} KR{objective.key_results.length !== 1 ? 's' : ''}</span>
-          </div>
+          {(objective.key_results?.length || 0) > 0 && (
+            <div className="okr-objective-card__stat">
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              <span>{objective.key_results.length} KR{objective.key_results.length !== 1 ? 's' : ''}</span>
+            </div>
+          )}
+          {initiativesProgress && (
+            <div className="okr-objective-card__stat">
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+              </svg>
+              <span>{initiativesProgress.completed}/{initiativesProgress.total} iniciativa{initiativesProgress.total !== 1 ? 's' : ''}</span>
+            </div>
+          )}
           {statusCounts.completed > 0 && (
             <div className="okr-objective-card__stat okr-objective-card__stat--success">
               <svg viewBox="0 0 24 24" width="14" height="14">
@@ -395,6 +420,7 @@ export default function SectorOKRs() {
   const [sector, setSector] = useState(null);
   const [objectives, setObjectives] = useState([]);
   const [checkIns, setCheckIns] = useState([]);
+  const [initiativesProgressMap, setInitiativesProgressMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -455,6 +481,16 @@ export default function SectorOKRs() {
           withCredentials: true
         });
         setCheckIns(checkInsResponse.data.data || []);
+      }
+
+      // Fetch initiatives progress for all objectives
+      const allObjIds = filteredObjectives.map(obj => obj.id);
+      if (allObjIds.length > 0) {
+        const initProgressResponse = await axios.get('/api/okrs/initiatives-progress', {
+          params: { objectiveIds: allObjIds.join(',') },
+          withCredentials: true
+        });
+        setInitiativesProgressMap(initProgressResponse.data.data || {});
       }
     } catch (err) {
       console.error('Error fetching sector OKRs:', err);
@@ -642,6 +678,7 @@ export default function SectorOKRs() {
                 setTempWeight={setTempWeight}
                 onSaveWeight={handleSaveWeight}
                 isPrivileged={isPrivileged}
+                initiativesProgress={initiativesProgressMap[objective.id] || null}
               />
             ))}
           </div>
