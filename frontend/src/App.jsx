@@ -66,6 +66,9 @@ const AgendaView = lazy(() => import('./pages/agenda/AgendaView'));
 // Lazy load da página de ToDo's
 const TodosView = lazy(() => import('./pages/todos/TodosView'));
 
+// Lazy load da página de Configurações do Usuário
+const ConfiguracoesUsuarioView = lazy(() => import('./pages/configuracoes-usuario/ConfiguracoesUsuarioView'));
+
 // Lazy load das páginas de Workspace (Gestao de Tarefas)
 const WorkspaceView = lazy(() => import('./pages/workspace/WorkspaceView'));
 const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
@@ -467,6 +470,15 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.demandas}</span>
         <span className="nav-text">Demandas Apoio</span>
+      </Link>
+      <div className="nav-section-divider"></div>
+      <Link
+        to="/configuracoes-usuario"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/configuracoes-usuario') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Configurações')}
+      >
+        <span className="nav-icon">{icons.settings}</span>
+        <span className="nav-text">Configurações</span>
       </Link>
     </>
   );
@@ -1137,7 +1149,8 @@ function AppContent() {
         path.startsWith('/feedbacks') ||
         path.startsWith('/demandas-apoio') ||
         path.startsWith('/agenda') ||
-        path.startsWith('/todos')) {
+        path.startsWith('/todos') ||
+        path.startsWith('/configuracoes-usuario')) {
       return 'projetos';
     }
     if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos') || path.startsWith('/quadro')) {
@@ -1437,6 +1450,16 @@ function AppContent() {
                 <ProtectedRoute>
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                     <TodosView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/configuracoes-usuario"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <ConfiguracoesUsuarioView />
                   </Suspense>
                 </ProtectedRoute>
               }
