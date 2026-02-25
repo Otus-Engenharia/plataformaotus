@@ -59,9 +59,23 @@
   font-family: 'DM Sans', sans-serif;
 }
 
+/* Cada metade ocupa 50% do espaço disponível */
+.day-summary__half {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.day-summary__half--unlinked {
+  border-top: 1px solid #dadce0;
+}
+
 .day-summary__events {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: #dadce0 transparent;
 }
@@ -241,4 +255,97 @@
   color: #9aa0a6;
   font-family: 'DM Sans', sans-serif;
   margin-top: 1px;
+}
+
+/* ============================
+   Drag-over highlight na atividade
+   ============================ */
+
+.day-summary__activity-row.is-drag-over {
+  background: #e8f0fe;
+  outline: 2px dashed #1a73e8;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* ============================
+   Seção de ToDo's desvinculados
+   ============================ */
+
+.day-summary__unlinked-divider {
+  height: 1px;
+  background: #dadce0;
+  margin: 4px 16px;
+  flex-shrink: 0;
+}
+
+.day-summary__unlinked-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #dadce0 transparent;
+  padding-bottom: 8px;
+}
+
+.day-summary__unlinked-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.day-summary__unlinked-list::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 2px;
+}
+
+.day-summary__unlinked-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: grab;
+  transition: background 0.12s ease, opacity 0.12s ease;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.day-summary__unlinked-item:last-child {
+  border-bottom: none;
+}
+
+.day-summary__unlinked-item:hover {
+  background: #f8f9fa;
+}
+
+.day-summary__unlinked-item:active {
+  cursor: grabbing;
+  opacity: 0.6;
+}
+
+.day-summary__unlinked-priority {
+  width: 4px;
+  min-height: 24px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.day-summary__unlinked-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.day-summary__unlinked-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.3;
+}
+
+.day-summary__unlinked-project {
+  display: block;
+  font-size: 10px;
+  color: #9aa0a6;
+  font-family: 'DM Sans', sans-serif;
+  margin-top: 2px;
 }

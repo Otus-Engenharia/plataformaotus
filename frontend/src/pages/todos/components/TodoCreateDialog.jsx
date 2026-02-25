@@ -16,7 +16,7 @@ const PRIORITY_OPTIONS = [
   { value: 'alta', label: 'Alta', color: '#ef4444' },
 ];
 
-export default function TodoCreateDialog({ todo, projects, favoriteProjects = [], users, onSave, onClose }) {
+export default function TodoCreateDialog({ todo, projects, favoriteProjects = [], users, onSave, onClose, defaultAssignee }) {
   const isEdit = !!todo;
   const [showFavorites, setShowFavorites] = useState(favoriteProjects.length > 0);
 
@@ -26,7 +26,7 @@ export default function TodoCreateDialog({ todo, projects, favoriteProjects = []
     priority: todo?.priority || 'média',
     status: todo?.status || 'backlog',
     due_date: todo?.due_date ? todo.due_date.split('T')[0] : '',
-    assignee: todo?.assignee || '',
+    assignee: todo?.assignee || defaultAssignee || '',
     project_id: todo?.project_id || '',
   });
 

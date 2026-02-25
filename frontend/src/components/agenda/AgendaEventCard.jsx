@@ -180,6 +180,7 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
   return (
     <div
       ref={cardRef}
+      data-task-id={task.id}
       className={`agenda-event-card ${statusClass}`}
       style={{ top: topPx, height: heightPx }}
       onMouseDown={handleBodyMouseDown}

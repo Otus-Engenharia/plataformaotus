@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   startOfWeek,
   endOfWeek,
@@ -89,6 +89,8 @@ function AgendaView() {
   const [createModal, setCreateModal] = useState({ isOpen: false, date: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, task: null });
   const [pendingScopeAction, setPendingScopeAction] = useState(null);
+  const [todosRefreshKey, setTodosRefreshKey] = useState(0);
+  const dropHighlightRef = useRef(null);
 
   const weekDays = getWeekDays(currentWeekRef);
 
@@ -169,6 +171,74 @@ function AgendaView() {
     }
   }, [pendingScopeAction, loadTasks]);
 
+  const handleTodoLinked = useCallback((todoId, agendaTaskId) => {
+    // Recarregar tasks da agenda e lista de desvinculados
+    loadTasks();
+    setTodosRefreshKey(k => k + 1);
+  }, [loadTasks]);
+
+  // ===== Drag & Drop de ToDo's para event cards no calendário =====
+
+  const handleBodyDragOver = useCallback((e) => {
+    // Permitir drop em qualquer lugar do body (necessário para o browser aceitar o drop)
+    const eventCard = e.target.closest('[data-task-id]');
+    if (eventCard) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      // Visual feedback: highlight no event card
+      if (dropHighlightRef.current && dropHighlightRef.current !== eventCard) {
+        dropHighlightRef.current.classList.remove('is-todo-drop-target');
+      }
+      eventCard.classList.add('is-todo-drop-target');
+      dropHighlightRef.current = eventCard;
+    } else {
+      // Limpa highlight quando sai de um event card
+      if (dropHighlightRef.current) {
+        dropHighlightRef.current.classList.remove('is-todo-drop-target');
+        dropHighlightRef.current = null;
+      }
+    }
+  }, []);
+
+  const handleBodyDragLeave = useCallback((e) => {
+    // Limpa highlight se sair do body
+    if (!e.currentTarget.contains(e.relatedTarget) && dropHighlightRef.current) {
+      dropHighlightRef.current.classList.remove('is-todo-drop-target');
+      dropHighlightRef.current = null;
+    }
+  }, []);
+
+  const handleBodyDrop = useCallback(async (e) => {
+    // Limpa highlight
+    if (dropHighlightRef.current) {
+      dropHighlightRef.current.classList.remove('is-todo-drop-target');
+      dropHighlightRef.current = null;
+    }
+
+    const eventCard = e.target.closest('[data-task-id]');
+    if (!eventCard) return;
+
+    e.preventDefault();
+    const agendaTaskId = eventCard.dataset.taskId;
+    const todoId = e.dataTransfer.getData('text/plain');
+
+    if (!todoId || !agendaTaskId) return;
+
+    try {
+      const res = await axios.put(`/api/todos/${todoId}`, {
+        agenda_task_id: agendaTaskId,
+      }, { withCredentials: true });
+
+      if (res.data.success) {
+        loadTasks();
+        setTodosRefreshKey(k => k + 1);
+      }
+    } catch (err) {
+      console.error('Erro ao vincular ToDo à agenda:', err);
+    }
+  }, [loadTasks]);
+
   const handleSlotClick = useCallback((date) => {
     setCreateModal({ isOpen: true, date });
   }, []);
@@ -188,7 +258,12 @@ function AgendaView() {
 
   return (
     <div className="agenda-view">
-      <div className="agenda-view__body">
+      <div
+        className="agenda-view__body"
+        onDragOver={handleBodyDragOver}
+        onDragLeave={handleBodyDragLeave}
+        onDrop={handleBodyDrop}
+      >
         {isLoading ? (
           <div className="agenda-view__loading">
             <div className="agenda-view__loading-spinner" />
@@ -268,6 +343,9 @@ function AgendaView() {
               selectedDay={selectedDay}
               tasks={tasks}
               onEventClick={handleEventClick}
+              onTodoLinked={handleTodoLinked}
+              userId={user?.id}
+              refreshKey={todosRefreshKey}
             />
           </>
         )}
