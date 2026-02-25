@@ -23,10 +23,16 @@ class GetTodo {
       projectData = projectsMap.get(todo.projectId) || null;
     }
 
+    let agendaTaskData = null;
+    if (todo.agendaTaskId) {
+      agendaTaskData = await this.#todoRepository.getAgendaTaskById(todo.agendaTaskId);
+    }
+
     return todo.toResponse(
       usersMap.get(todo.assignee) || null,
       usersMap.get(todo.createdBy) || null,
-      projectData
+      projectData,
+      agendaTaskData
     );
   }
 }

@@ -238,7 +238,7 @@ function createRoutes(requireAuth, logAction) {
   router.put('/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, status, priority, start_date, due_date, assignee, project_id } = req.body;
+      const { name, description, status, priority, start_date, due_date, assignee, project_id, agenda_task_id } = req.body;
 
       if (status && !TaskStatus.isValid(status)) {
         return res.status(400).json({
@@ -265,6 +265,7 @@ function createRoutes(requireAuth, logAction) {
         dueDate: due_date,
         assignee,
         projectId: project_id !== undefined ? (project_id ? parseInt(project_id, 10) : null) : undefined,
+        agendaTaskId: agenda_task_id !== undefined ? (agenda_task_id ? parseInt(agenda_task_id, 10) : null) : undefined,
         userId: req.user?.id,
       });
 

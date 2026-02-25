@@ -10,7 +10,7 @@ class UpdateTodo {
     this.#todoRepository = todoRepository;
   }
 
-  async execute({ id, name, description, status, priority, startDate, dueDate, assignee, projectId, userId }) {
+  async execute({ id, name, description, status, priority, startDate, dueDate, assignee, projectId, agendaTaskId, userId }) {
     const todo = await this.#todoRepository.findById(id);
     if (!todo) {
       throw new Error('ToDo não encontrado');
@@ -37,7 +37,16 @@ class UpdateTodo {
       todo.linkToProject(projectId);
     }
 
+    if (agendaTaskId !== undefined) {
+      todo.linkToAgendaTask(agendaTaskId);
+    }
+
     const updated = await this.#todoRepository.update(todo);
+
+    // Garante que o projeto do ToDo esteja vinculado à agenda
+    if (updated.agendaTaskId && updated.projectId) {
+      await this.#todoRepository.ensureAgendaProjectLink(updated.agendaTaskId, updated.projectId);
+    }
 
     // Enriquece resposta
     const userIds = [updated.assignee, updated.createdBy].filter(Boolean);
@@ -49,10 +58,16 @@ class UpdateTodo {
       projectData = projectsMap.get(updated.projectId) || null;
     }
 
+    let agendaTaskData = null;
+    if (updated.agendaTaskId) {
+      agendaTaskData = await this.#todoRepository.getAgendaTaskById(updated.agendaTaskId);
+    }
+
     return updated.toResponse(
       usersMap.get(updated.assignee) || null,
       usersMap.get(updated.createdBy) || null,
-      projectData
+      projectData,
+      agendaTaskData
     );
   }
 }
