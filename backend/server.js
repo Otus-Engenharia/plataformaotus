@@ -3404,6 +3404,89 @@ app.put('/api/okrs/key-results/:id', requireAuth, async (req, res) => {
 });
 
 /**
+ * Rota: GET /api/okrs/initiatives-progress
+ * Retorna progresso de DoD das iniciativas agrupado por objetivo
+ * Query params: objectiveIds (comma-separated UUIDs)
+ */
+app.get('/api/okrs/initiatives-progress', requireAuth, async (req, res) => {
+  try {
+    const objectiveIds = req.query.objectiveIds
+      ? req.query.objectiveIds.split(',')
+      : [];
+
+    if (objectiveIds.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    // Buscar todas as iniciativas dos objetivos
+    const { data: initiatives, error: initError } = await supabase
+      .from('okr_initiatives')
+      .select('id, objective_id, status')
+      .in('objective_id', objectiveIds);
+
+    if (initError) throw initError;
+    if (!initiatives || initiatives.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+
+    // Buscar todos os DoD items dessas iniciativas
+    const initIds = initiatives.map(i => i.id);
+    const { data: dodItems, error: dodError } = await supabase
+      .from('initiative_dod_items')
+      .select('initiative_id, completed')
+      .in('initiative_id', initIds);
+
+    if (dodError) throw dodError;
+
+    // Calcular progresso por iniciativa
+    const initProgressMap = {};
+    for (const init of initiatives) {
+      const items = (dodItems || []).filter(d => d.initiative_id === init.id);
+      const total = items.length;
+      const completed = items.filter(d => d.completed).length;
+      initProgressMap[init.id] = {
+        total,
+        completed,
+        progress: total > 0 ? Math.round((completed / total) * 100) : null,
+      };
+    }
+
+    // Agregar por objetivo
+    const result = {};
+    for (const objId of objectiveIds) {
+      const objInits = initiatives.filter(i => i.objective_id === objId);
+      if (objInits.length === 0) continue;
+
+      let sumProgress = 0;
+      let measuredCount = 0;
+      for (const init of objInits) {
+        const p = initProgressMap[init.id];
+        if (p && p.progress !== null) {
+          sumProgress += p.progress;
+          measuredCount++;
+        }
+      }
+
+      result[objId] = {
+        total: objInits.length,
+        completed: objInits.filter(i => i.status === 'completed').length,
+        avg_progress: measuredCount > 0 ? Math.round(sumProgress / measuredCount) : null,
+      };
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Erro ao buscar progresso de iniciativas:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar progresso de iniciativas',
+    });
+  }
+});
+
+/**
  * Rota: GET /api/okrs/initiatives/:objectiveId
  * Retorna iniciativas de um objetivo
  */
