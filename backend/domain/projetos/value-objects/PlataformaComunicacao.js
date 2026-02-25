@@ -11,6 +11,7 @@ const VALID_TYPES = Object.freeze({
   EXCEL: 'excel',
   CONSTRUCODE: 'construcode',
   QICLOUD: 'qicloud',
+  OUTROS: 'outros',
 });
 
 const TYPE_LABELS = Object.freeze({
@@ -21,6 +22,7 @@ const TYPE_LABELS = Object.freeze({
   [VALID_TYPES.EXCEL]: 'Excel',
   [VALID_TYPES.CONSTRUCODE]: 'Construcode',
   [VALID_TYPES.QICLOUD]: 'QICloud',
+  [VALID_TYPES.OUTROS]: 'Outros',
 });
 
 class PlataformaComunicacao {

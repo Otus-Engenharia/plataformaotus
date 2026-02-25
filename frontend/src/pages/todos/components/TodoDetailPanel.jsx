@@ -1,5 +1,7 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './TodoDetailPanel.css';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 function formatDate(isoString) {
   if (!isoString) return '-';
@@ -33,7 +35,10 @@ const PRIORITY_CONFIG = {
   'alta': { label: 'Alta', color: '#ef4444' }
 };
 
-export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onDelete }) {
+export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onDelete, onLinkAgenda }) {
+  const [agendaTasks, setAgendaTasks] = useState([]);
+  const [loadingAgenda, setLoadingAgenda] = useState(false);
+
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') {
       onClose();
@@ -44,6 +49,43 @@ export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onD
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // Busca atividades da agenda para o dia do due_date do responsavel
+  useEffect(() => {
+    if (!todo?.due_date || !todo?.assignee) {
+      setAgendaTasks([]);
+      return;
+    }
+
+    const fetchAgendaTasks = async () => {
+      setLoadingAgenda(true);
+      try {
+        const dayStr = todo.due_date.split('T')[0];
+        const startDate = `${dayStr}T00:00:00.000Z`;
+        const endDate = `${dayStr}T23:59:59.999Z`;
+
+        const params = new URLSearchParams({
+          userId: todo.assignee,
+          startDate,
+          endDate,
+        });
+
+        const res = await fetch(`${API_URL}/api/agenda/tasks?${params}`, {
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error('Erro ao buscar atividades');
+        const json = await res.json();
+        setAgendaTasks(json.data ?? []);
+      } catch (err) {
+        console.error('Erro ao buscar atividades de agenda:', err);
+        setAgendaTasks([]);
+      } finally {
+        setLoadingAgenda(false);
+      }
+    };
+
+    fetchAgendaTasks();
+  }, [todo?.due_date, todo?.assignee]);
 
   if (!todo) return null;
 
@@ -127,6 +169,35 @@ export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onD
               <span className="todo-detail__field-value">
                 {todo.project_name || 'Sem projeto'}
               </span>
+            </div>
+
+            <div className="todo-detail__field todo-detail__field--agenda">
+              <span className="todo-detail__field-label">Atividade de Agenda</span>
+              {todo.due_date && todo.assignee ? (
+                <select
+                  className="todo-detail__agenda-select"
+                  value={todo.agenda_task_id || ''}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseInt(e.target.value, 10) : null;
+                    onLinkAgenda(todo.id, value);
+                  }}
+                  disabled={loadingAgenda}
+                >
+                  <option value="">Sem vinculo</option>
+                  {agendaTasks.map((task) => (
+                    <option key={task.id} value={task.id}>
+                      {task.name}
+                      {task.start_date
+                        ? ` (${new Date(task.start_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`
+                        : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="todo-detail__agenda-hint">
+                  Defina data limite e responsavel para vincular
+                </span>
+              )}
             </div>
 
             <div className="todo-detail__field">

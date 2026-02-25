@@ -1119,12 +1119,13 @@ app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, re
       return res.json({ success: true, count: 0, data: [] });
     }
 
-    // Buscar portfolio (BigQuery), custos (BigQuery) e area_efetiva (Supabase projects) em paralelo
+    // Buscar portfolio (BigQuery), custos (BigQuery), area_efetiva (Supabase projects) e data_venda (Supabase comercial_infos) em paralelo
     const supabase = getSupabaseClient();
-    const [portfolioData, custosData, projectsResult] = await Promise.all([
+    const [portfolioData, custosData, projectsResult, comercialResult] = await Promise.all([
       queryPortfolio(leaderName),
       queryCustosAgregadosProjeto(),
-      supabase.from('projects').select('project_code, area_efetiva, area_construida')
+      supabase.from('projects').select('project_code, area_efetiva, area_construida'),
+      supabase.from('project_comercial_infos').select('data_venda, projects!inner(project_code)')
     ]);
 
     // Indexar custos por project_code
@@ -1141,6 +1142,15 @@ app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, re
       }
     }
 
+    // Indexar data_venda por project_code (Supabase comercial_infos → projects)
+    const comercialMap = {};
+    if (comercialResult.data) {
+      for (const c of comercialResult.data) {
+        const code = c.projects?.project_code;
+        if (code) comercialMap[String(code)] = c;
+      }
+    }
+
     // Merge e calcular derivados
     const merged = portfolioData
       .filter(p => p.project_code_norm || p.project_code)
@@ -1148,6 +1158,7 @@ app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, re
         const code = String(p.project_code_norm || p.project_code);
         const custos = custosMap[code] || {};
         const proj = projectsMap[code] || {};
+        const comercial = comercialMap[code] || {};
         const ticket = Number(p.valor_total_contrato_mais_aditivos) || 0;
         const tempoTotal = Number(p.duracao_total_meses) || 0;
         const custoTotal = Number(custos.custo_total) || 0;
@@ -1160,6 +1171,7 @@ app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, re
           lider: p.lider,
           nome_time: p.nome_time,
           status: p.status,
+          data_venda: comercial.data_venda || null,
           area_efetiva: proj.area_efetiva != null ? Number(proj.area_efetiva) : null,
           area_total: proj.area_construida != null ? Number(proj.area_construida) : null,
           custo_total: custoTotal,
@@ -3399,6 +3411,89 @@ app.put('/api/okrs/key-results/:id', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Erro ao atualizar Key Result',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/initiatives-progress
+ * Retorna progresso de DoD das iniciativas agrupado por objetivo
+ * Query params: objectiveIds (comma-separated UUIDs)
+ */
+app.get('/api/okrs/initiatives-progress', requireAuth, async (req, res) => {
+  try {
+    const objectiveIds = req.query.objectiveIds
+      ? req.query.objectiveIds.split(',')
+      : [];
+
+    if (objectiveIds.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    // Buscar todas as iniciativas dos objetivos
+    const { data: initiatives, error: initError } = await supabase
+      .from('okr_initiatives')
+      .select('id, objective_id, status')
+      .in('objective_id', objectiveIds);
+
+    if (initError) throw initError;
+    if (!initiatives || initiatives.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+
+    // Buscar todos os DoD items dessas iniciativas
+    const initIds = initiatives.map(i => i.id);
+    const { data: dodItems, error: dodError } = await supabase
+      .from('initiative_dod_items')
+      .select('initiative_id, completed')
+      .in('initiative_id', initIds);
+
+    if (dodError) throw dodError;
+
+    // Calcular progresso por iniciativa
+    const initProgressMap = {};
+    for (const init of initiatives) {
+      const items = (dodItems || []).filter(d => d.initiative_id === init.id);
+      const total = items.length;
+      const completed = items.filter(d => d.completed).length;
+      initProgressMap[init.id] = {
+        total,
+        completed,
+        progress: total > 0 ? Math.round((completed / total) * 100) : null,
+      };
+    }
+
+    // Agregar por objetivo
+    const result = {};
+    for (const objId of objectiveIds) {
+      const objInits = initiatives.filter(i => i.objective_id === objId);
+      if (objInits.length === 0) continue;
+
+      let sumProgress = 0;
+      let measuredCount = 0;
+      for (const init of objInits) {
+        const p = initProgressMap[init.id];
+        if (p && p.progress !== null) {
+          sumProgress += p.progress;
+          measuredCount++;
+        }
+      }
+
+      result[objId] = {
+        total: objInits.length,
+        completed: objInits.filter(i => i.status === 'completed').length,
+        avg_progress: measuredCount > 0 ? Math.round(sumProgress / measuredCount) : null,
+      };
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Erro ao buscar progresso de iniciativas:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar progresso de iniciativas',
     });
   }
 });

@@ -189,6 +189,13 @@ export default function TodosView() {
           body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error('Erro ao atualizar todo');
+        const json = await res.json();
+
+        // Atualiza o todo selecionado no painel de detalhe
+        if (selectedTodo?.id === id && json.data) {
+          setSelectedTodo(json.data);
+        }
+
         setShowCreateDialog(false);
         setEditingTodo(null);
         await fetchTodos();
@@ -196,7 +203,14 @@ export default function TodosView() {
         console.error('[TodosView] handleUpdate:', err);
       }
     },
-    [fetchTodos],
+    [fetchTodos, selectedTodo],
+  );
+
+  const handleLinkAgenda = useCallback(
+    async (id, agendaTaskId) => {
+      await handleUpdate(id, { agenda_task_id: agendaTaskId });
+    },
+    [handleUpdate],
   );
 
   const handleComplete = useCallback(
@@ -371,6 +385,7 @@ export default function TodosView() {
           }}
           onComplete={handleComplete}
           onDelete={handleDelete}
+          onLinkAgenda={handleLinkAgenda}
         />
       )}
     </div>
