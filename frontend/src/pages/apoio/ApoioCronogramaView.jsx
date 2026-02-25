@@ -32,6 +32,7 @@ function ApoioCronogramaView() {
   const [disciplinaFilter, setDisciplinaFilter] = useState(['Coordenação']);
   const [searchTerm, setSearchTerm] = useState('Veri');
   const [tipoVerificacaoFilter, setTipoVerificacaoFilter] = useState('todas');
+  const [tipoModelagemFilter, setTipoModelagemFilter] = useState('todas');
   const [viewMode, setViewMode] = useState('table');
 
   const [projetoDropdownOpen, setProjetoDropdownOpen] = useState(false);
@@ -212,9 +213,17 @@ function ApoioCronogramaView() {
           if (!tarefa.includes('ajuste')) return false;
         }
       }
+      if (tipoModelagemFilter !== 'todas') {
+        const tarefa = String(item.NomeDaTarefa || '').toLowerCase();
+        if (tipoModelagemFilter === 'otus') {
+          if (!tarefa.includes('otus')) return false;
+        } else if (tipoModelagemFilter === 'externas') {
+          if (!tarefa.includes('extern')) return false;
+        }
+      }
       return true;
     });
-  }, [tarefas, projetoFilter, disciplinaFilter, searchTerm, tipoVerificacaoFilter]);
+  }, [tarefas, projetoFilter, disciplinaFilter, searchTerm, tipoVerificacaoFilter, tipoModelagemFilter]);
 
   const tarefasAgrupadas = useMemo(() => {
     if (!tarefasFiltradas || tarefasFiltradas.length === 0) return [];
@@ -423,6 +432,19 @@ function ApoioCronogramaView() {
             <option value="todas">Todas</option>
             <option value="lancamento">Lançamento</option>
             <option value="ajustes">Ajustes</option>
+          </select>
+        </div>
+
+        <div className="apoio-filter-group">
+          <label className="apoio-filter-label">Modelagem:</label>
+          <select
+            className="apoio-weeks-select"
+            value={tipoModelagemFilter}
+            onChange={(e) => setTipoModelagemFilter(e.target.value)}
+          >
+            <option value="todas">Todas</option>
+            <option value="otus">Otus</option>
+            <option value="externas">Externas</option>
           </select>
         </div>
 
