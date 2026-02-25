@@ -12,6 +12,7 @@ const VALID_TYPES = Object.freeze({
   QICLOUD: 'qicloud',
   CONSTRUMANAGER: 'construmanager',
   DROPBOX: 'dropbox',
+  OUTROS: 'outros',
 });
 
 const TYPE_LABELS = Object.freeze({
@@ -23,6 +24,7 @@ const TYPE_LABELS = Object.freeze({
   [VALID_TYPES.QICLOUD]: 'QICloud',
   [VALID_TYPES.CONSTRUMANAGER]: 'Construmanager',
   [VALID_TYPES.DROPBOX]: 'DropBox',
+  [VALID_TYPES.OUTROS]: 'Outros',
 });
 
 class PlataformaACD {

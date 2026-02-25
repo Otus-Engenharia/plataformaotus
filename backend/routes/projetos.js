@@ -147,6 +147,23 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction) {
             { value: 'Cliente', label: 'Cliente' },
             { value: 'Otus', label: 'Otus' },
           ],
+          fase_entrada: [
+            { value: 'Estudo Preliminar', label: 'Estudo Preliminar' },
+            { value: 'Anteprojeto', label: 'Anteprojeto' },
+            { value: 'Projeto Legal', label: 'Projeto Legal' },
+            { value: 'Projeto Executivo', label: 'Projeto Executivo' },
+            { value: 'Obra', label: 'Obra' },
+          ],
+          valor_cliente: [
+            { value: 'prazo', label: 'Prazo - Tem deadline rígido, atraso é inaceitável' },
+            { value: 'reducao_custo', label: 'Redução de custo de obra - Quer economizar em construção' },
+            { value: 'maximizar_vgv', label: 'Maximizar VGV - Quer mais m², mais vagas, mais unidades' },
+            { value: 'qualidade_tecnica', label: 'Qualidade/sofisticação técnica - Projeto complexo/premium' },
+            { value: 'evitar_retrabalho', label: 'Evitar retrabalho - Já teve problema antes, quer garantia' },
+            { value: 'aprovacao_orgaos', label: 'Aprovação em órgãos - Precisa passar na prefeitura/bombeiros' },
+            { value: 'industrializacao', label: 'Industrialização/replicação - Vai construir muitas vezes' },
+            { value: 'preco_servico', label: 'Preço do serviço - Sensível ao custo da coordenação' },
+          ],
         },
       });
     } catch (error) {
@@ -175,6 +192,9 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction) {
         responsavel_plataforma_comunicacao, responsavel_acd,
         link_contrato_ger, link_escopo_descritivo, link_proposta_ger,
         fase_entrada, vgv_empreendimento,
+        visao_empresa, visao_projeto_riscos, principais_dores,
+        valor_cliente, coordenacao_externa, info_contrato,
+        info_adicional_confidencial,
         service_ids, plataforma_comunicacao, plataforma_acd,
       } = req.body;
 
@@ -251,6 +271,13 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction) {
         linkPropostaGer: link_proposta_ger || null,
         faseEntrada: fase_entrada || null,
         vgvEmpreendimento: vgv_empreendimento || null,
+        visaoEmpresa: visao_empresa || null,
+        visaoProjetoRiscos: visao_projeto_riscos || null,
+        principaisDores: principais_dores || null,
+        valorCliente: valor_cliente || [],
+        coordenacaoExterna: coordenacao_externa || false,
+        infoContrato: info_contrato || null,
+        infoAdicionalConfidencial: info_adicional_confidencial || null,
         serviceIds: service_ids || [],
         plataformaComunicacao: plataforma_comunicacao || null,
         plataformaACD: plataforma_acd || null,
