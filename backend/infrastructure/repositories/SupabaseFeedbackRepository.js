@@ -30,7 +30,7 @@ class SupabaseFeedbackRepository extends FeedbackRepository {
       .select('*')
       .order('created_at', { ascending: false });
 
-    // Filtro estrito por área (feedbacks legados sem área devem ser classificados via backfill/admin)
+    // Filtro estrito por área (todos feedbacks já classificados via backfill)
     if (area) {
       query = query.eq('area', area);
     }

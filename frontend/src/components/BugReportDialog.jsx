@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 const BUG_TYPES = [
   { value: 'bug', label: 'Bug', icon: '🐛', description: 'Funciona, mas faz algo errado' },
   { value: 'erro', label: 'Erro', icon: '❌', description: 'Não funciona ou trava' },
-  { value: 'sugestao', label: 'Sugestão', icon: '💡', description: 'Ideia para melhorar' },
+  { value: 'sugestao', label: 'Feedbacks', icon: '💡', description: 'Ideia para melhorar' },
   { value: 'outro', label: 'Outro', icon: '📝', description: 'Dúvida ou outro assunto' }
 ];
 
@@ -217,9 +217,12 @@ export default function BugReportDialog({ onClose }) {
           {/* Suggestion Category - only shown when type is 'sugestao' */}
           {type === 'sugestao' && (
             <div className="bug-dialog__field">
-              <label className="bug-dialog__label">Categoria da Sugestão</label>
+              <label className="bug-dialog__label">Categoria do Feedback</label>
               <div className="bug-dialog__category-grid">
-                {SUGGESTION_CATEGORIES.map(cat => (
+                {(currentPage.area === 'projetos'
+                  ? SUGGESTION_CATEGORIES
+                  : SUGGESTION_CATEGORIES.filter(c => c.value !== 'processo')
+                ).map(cat => (
                   <button
                     key={cat.value}
                     type="button"

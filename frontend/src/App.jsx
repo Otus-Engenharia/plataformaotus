@@ -946,12 +946,12 @@ function Sidebar({ collapsed, onToggle, area }) {
       <div className="sidebar-lower">
         {area && area !== 'vista_cliente' && (
           <Link
-            to={`/feedbacks?area=${area}`}
+            to={area === 'configuracoes' ? '/feedbacks' : `/feedbacks?area=${area}`}
             className={`nav-link nav-link-modern nav-link-compact ${location.pathname.startsWith('/feedbacks') ? 'nav-link-active' : ''}`}
-            title={linkTitle('Feedbacks')}
+            title={linkTitle(area === 'configuracoes' ? 'Gestão de Feedbacks' : 'Feedbacks')}
           >
             <span className="nav-icon">{icons.feedbacks}</span>
-            {!collapsed && <span className="nav-text">Feedbacks</span>}
+            {!collapsed && <span className="nav-text">{area === 'configuracoes' ? 'Gestão de Feedbacks' : 'Feedbacks'}</span>}
           </Link>
         )}
         {!collapsed && (
@@ -1124,9 +1124,10 @@ function AppContent() {
       return 'vendas';
     }
     // Feedbacks: area vem do query param (ex: /feedbacks?area=apoio)
+    // Sem param = Gestão de Feedbacks (acessado via Configurações)
     if (path.startsWith('/feedbacks')) {
       const areaParam = new URLSearchParams(location.search).get('area');
-      return areaParam || 'projetos';
+      return areaParam || 'configuracoes';
     }
     if (path.startsWith('/horas') ||
         path.startsWith('/projetos') ||
@@ -1399,7 +1400,7 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <FeedbackKanbanView area={new URLSearchParams(location.search).get('area') || currentArea || 'projetos'} />
+                    <FeedbackKanbanView area={new URLSearchParams(location.search).get('area') || null} />
                   </Suspense>
                 </ProtectedRoute>
               }
