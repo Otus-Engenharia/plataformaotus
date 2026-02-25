@@ -223,7 +223,7 @@ export default function FeedbackAdminView({ category = 'all' }) {
     try {
       // Buscar feedbacks e usuários em paralelo
       const [feedbacksRes, usersRes] = await Promise.all([
-        fetch(`${API_URL}/api/feedbacks`, { credentials: 'include' }),
+        fetch(`${API_URL}/api/feedbacks?admin=true`, { credentials: 'include' }),
         fetch(`${API_URL}/api/ind/admin/users`, { credentials: 'include' }),
       ]);
 

@@ -1402,7 +1402,7 @@ function AppContent() {
                 <ProtectedRoute>
                   {canAccessProjetosArea ? (
                     <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <FeedbackKanbanView />
+                      <FeedbackKanbanView area="projetos" />
                     </Suspense>
                   ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
@@ -1535,7 +1535,7 @@ function AppContent() {
               <Route path="equipe" element={isPrivileged ? <TeamView /> : <Navigate to="/ind" replace />} />
               <Route path="visao-geral" element={isPrivileged ? <OverviewIndicadores /> : <Navigate to="/ind" replace />} />
               <Route path="historico" element={isPrivileged ? <HistoryView /> : <Navigate to="/ind" replace />} />
-              <Route path="feedbacks" element={<FeedbackKanbanView />} />
+              <Route path="feedbacks" element={<FeedbackKanbanView area="indicadores" />} />
               <Route path="pessoa/:id" element={<PersonDetailView />} />
               <Route path="indicador/:id" element={<IndicatorDetailView />} />
               <Route path="admin/setores" element={isPrivileged ? <AdminSetores /> : <Navigate to="/ind" replace />} />
