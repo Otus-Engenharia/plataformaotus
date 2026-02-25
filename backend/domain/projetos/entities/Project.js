@@ -45,6 +45,13 @@ class Project {
   #linkPropostaGer;
   #faseEntrada;
   #vgvEmpreendimento;
+  #visaoEmpresa;
+  #visaoProjetoRiscos;
+  #principaisDores;
+  #valorCliente;
+  #coordenacaoExterna;
+  #infoContrato;
+  #infoAdicionalConfidencial;
 
   // --- project_features ---
   #plataformaComunicacao;
@@ -83,6 +90,13 @@ class Project {
     linkPropostaGer = null,
     faseEntrada = null,
     vgvEmpreendimento = null,
+    visaoEmpresa = null,
+    visaoProjetoRiscos = null,
+    principaisDores = null,
+    valorCliente = null,
+    coordenacaoExterna = false,
+    infoContrato = null,
+    infoAdicionalConfidencial = null,
     plataformaComunicacao = null,
     plataformaACD = null,
     serviceIds = [],
@@ -149,6 +163,13 @@ class Project {
     this.#linkPropostaGer = linkPropostaGer?.trim() || null;
     this.#faseEntrada = faseEntrada?.trim() || null;
     this.#vgvEmpreendimento = vgvEmpreendimento?.trim() || null;
+    this.#visaoEmpresa = visaoEmpresa?.trim() || null;
+    this.#visaoProjetoRiscos = visaoProjetoRiscos?.trim() || null;
+    this.#principaisDores = principaisDores?.trim() || null;
+    this.#valorCliente = Array.isArray(valorCliente) ? valorCliente : (valorCliente ? JSON.parse(valorCliente) : []);
+    this.#coordenacaoExterna = Boolean(coordenacaoExterna);
+    this.#infoContrato = infoContrato?.trim() || null;
+    this.#infoAdicionalConfidencial = infoAdicionalConfidencial?.trim() || null;
 
     // --- project_features ---
     this.#plataformaComunicacao = plataformaComunicacao
@@ -190,6 +211,13 @@ class Project {
   get tipoPagamento() { return this.#tipoPagamento; }
   get plataformaComunicacao() { return this.#plataformaComunicacao; }
   get plataformaACD() { return this.#plataformaACD; }
+  get visaoEmpresa() { return this.#visaoEmpresa; }
+  get visaoProjetoRiscos() { return this.#visaoProjetoRiscos; }
+  get principaisDores() { return this.#principaisDores; }
+  get valorCliente() { return this.#valorCliente; }
+  get coordenacaoExterna() { return this.#coordenacaoExterna; }
+  get infoContrato() { return this.#infoContrato; }
+  get infoAdicionalConfidencial() { return this.#infoAdicionalConfidencial; }
   get serviceIds() { return this.#serviceIds; }
   get contactIds() { return this.#contactIds; }
 
@@ -235,6 +263,13 @@ class Project {
         link_proposta_ger: this.#linkPropostaGer,
         fase_entrada: this.#faseEntrada,
         vgv_empreendimento: this.#vgvEmpreendimento,
+        visao_empresa: this.#visaoEmpresa,
+        visao_projeto_riscos: this.#visaoProjetoRiscos,
+        principais_dores: this.#principaisDores,
+        valor_cliente: this.#valorCliente.length > 0 ? JSON.stringify(this.#valorCliente) : null,
+        coordenacao_externa: this.#coordenacaoExterna,
+        info_contrato: this.#infoContrato,
+        info_adicional_confidencial: this.#infoAdicionalConfidencial,
       },
       features: {
         plataforma_comunicacao: this.#plataformaComunicacao?.value || null,
@@ -278,6 +313,13 @@ class Project {
       link_proposta_ger: this.#linkPropostaGer,
       fase_entrada: this.#faseEntrada,
       vgv_empreendimento: this.#vgvEmpreendimento,
+      visao_empresa: this.#visaoEmpresa,
+      visao_projeto_riscos: this.#visaoProjetoRiscos,
+      principais_dores: this.#principaisDores,
+      valor_cliente: this.#valorCliente,
+      coordenacao_externa: this.#coordenacaoExterna,
+      info_contrato: this.#infoContrato,
+      info_adicional_confidencial: this.#infoAdicionalConfidencial,
       plataforma_comunicacao: this.#plataformaComunicacao?.value || null,
       plataforma_acd: this.#plataformaACD?.value || null,
       created_at: this.#createdAt?.toISOString(),
@@ -322,6 +364,13 @@ class Project {
       linkPropostaGer: data.link_proposta_ger,
       faseEntrada: data.fase_entrada,
       vgvEmpreendimento: data.vgv_empreendimento,
+      visaoEmpresa: data.visao_empresa,
+      visaoProjetoRiscos: data.visao_projeto_riscos,
+      principaisDores: data.principais_dores,
+      valorCliente: data.valor_cliente,
+      coordenacaoExterna: data.coordenacao_externa,
+      infoContrato: data.info_contrato,
+      infoAdicionalConfidencial: data.info_adicional_confidencial,
       plataformaComunicacao: data.plataforma_comunicacao,
       plataformaACD: data.plataforma_acd,
     });

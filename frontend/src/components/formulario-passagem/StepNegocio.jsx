@@ -19,6 +19,9 @@ function StepNegocio({ formData, updateFormData, formOptions }) {
   }, []);
 
   const serviceOptions = services.map(s => ({ value: s.id, label: s.name }));
+  const valorClienteOptions = (formOptions.valor_cliente || []).map(opt => ({
+    value: opt.value, label: opt.label,
+  }));
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -110,26 +113,106 @@ function StepNegocio({ formData, updateFormData, formOptions }) {
         </div>
         <div className="form-group">
           <label htmlFor="fase_entrada">Fase de entrada</label>
-          <input
-            type="text"
+          <select
             id="fase_entrada"
             name="fase_entrada"
             value={formData.fase_entrada}
             onChange={handleChange}
-            placeholder=""
-          />
+          >
+            <option value="">Selecione...</option>
+            {(formOptions.fase_entrada || []).map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
+      {/* Novos campos - Contexto do Cliente (FB-209) */}
       <div className="form-group">
-        <label htmlFor="vgv_empreendimento">VGV do empreendimento</label>
-        <input
-          type="text"
-          id="vgv_empreendimento"
-          name="vgv_empreendimento"
-          value={formData.vgv_empreendimento}
+        <label htmlFor="visao_empresa">Visão da empresa</label>
+        <textarea
+          id="visao_empresa"
+          name="visao_empresa"
+          value={formData.visao_empresa}
           onChange={handleChange}
-          placeholder=""
+          rows="3"
+          placeholder="Como é a empresa, cultura, porte..."
+        />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="visao_projeto_riscos">Visão do projeto e riscos envolvidos</label>
+        <textarea
+          id="visao_projeto_riscos"
+          name="visao_projeto_riscos"
+          value={formData.visao_projeto_riscos}
+          onChange={handleChange}
+          rows="3"
+          placeholder="Características do projeto, riscos identificados..."
+        />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="principais_dores">Principais dores que levaram à contratação da Otus</label>
+        <textarea
+          id="principais_dores"
+          name="principais_dores"
+          value={formData.principais_dores}
+          onChange={handleChange}
+          rows="3"
+          placeholder="Por que o cliente buscou a Otus..."
+        />
+      </div>
+
+      <div className="form-group">
+        <label>O que é valor para este cliente</label>
+        <MultiSelectDropdown
+          options={valorClienteOptions}
+          selectedValues={formData.valor_cliente}
+          onChange={(values) => updateFormData({ valor_cliente: values })}
+          placeholder="Selecione o que é valor para o cliente..."
+          emptyMessage="Nenhuma opção disponível"
+        />
+      </div>
+
+      <div className="form-group">
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            name="coordenacao_externa"
+            checked={formData.coordenacao_externa}
+            onChange={(e) => updateFormData({ coordenacao_externa: e.target.checked })}
+          />
+          <span>Já trabalha com coordenação externa em outros projetos</span>
+        </label>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="info_contrato">Informações importantes do contrato</label>
+        <textarea
+          id="info_contrato"
+          name="info_contrato"
+          value={formData.info_contrato}
+          onChange={handleChange}
+          rows="3"
+          placeholder="Caso vendedor não tenha na passagem, líder pode preencher depois..."
+        />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="info_adicional_confidencial">
+          Informação adicional confidencial
+          <small style={{ display: 'block', fontWeight: 'normal', color: '#888', marginTop: '2px' }}>
+            Informação que vendas acha importante o líder saber e que não deve chegar diretamente na equipe
+          </small>
+        </label>
+        <textarea
+          id="info_adicional_confidencial"
+          name="info_adicional_confidencial"
+          value={formData.info_adicional_confidencial}
+          onChange={handleChange}
+          rows="3"
+          placeholder="Informações sensíveis visíveis apenas para o líder..."
         />
       </div>
 
@@ -164,7 +247,7 @@ function StepNegocio({ formData, updateFormData, formOptions }) {
           </select>
         </div>
         <div className="form-group">
-          <label htmlFor="responsavel_plataforma_comunicacao">Responsável pela plataforma</label>
+          <label htmlFor="responsavel_plataforma_comunicacao">Responsável pelo pagamento e contratação das plataformas</label>
           <select
             id="responsavel_plataforma_comunicacao"
             name="responsavel_plataforma_comunicacao"
