@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import FeedbackCard, { STATUS_CONFIG, TYPE_CONFIG, CATEGORY_CONFIG } from '../../components/feedbacks/FeedbackCard';
 import FeedbackDetailDialog from '../../components/feedbacks/FeedbackDetailDialog';
 import MentionInput from '../../components/feedbacks/MentionInput';
 import './FeedbackKanbanView.css';
+
+const FeedbackAnalyticsView = lazy(() => import('./FeedbackAnalyticsView'));
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -25,7 +27,26 @@ const PLATFORM_PAGES = [
   { value: 'gestao-tarefas', label: 'Gestão de Tarefas' },
   { value: 'configuracoes', label: 'Configurações' },
   { value: 'admin-financeiro', label: 'Admin & Financeiro' },
+  { value: 'vendas', label: 'Vendas' },
+  { value: 'vista-cliente', label: 'Vista do Cliente' },
 ];
+
+/**
+ * Mapeamento de area prop → page_url para pré-preencher o dropdown
+ */
+const AREA_TO_PAGE = {
+  projetos: 'projetos',
+  lideres: 'lideres-projeto',
+  cs: 'cs',
+  apoio: 'apoio-projetos',
+  admin_financeiro: 'admin-financeiro',
+  indicadores: 'indicadores',
+  okrs: 'okrs',
+  workspace: 'gestao-tarefas',
+  configuracoes: 'configuracoes',
+  vendas: 'vendas',
+  vista_cliente: 'vista-cliente',
+};
 
 /**
  * Agrupamento de status para as colunas do Kanban
@@ -67,16 +88,24 @@ export default function FeedbackKanbanView({ area = null }) {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('todos'); // 'todos' ou 'meus'
   const [categoryFilter, setCategoryFilter] = useState(''); // Filtro por categoria
+  const [authorFilter, setAuthorFilter] = useState(''); // Filtro por autor
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'indicadores'
+  const isGestao = !area; // Gestão de Feedbacks (sem filtro de área)
+
+  // Tipo Processo só disponível na vista de Projetos
+  const showProcessType = area === 'projetos';
+  const defaultType = showProcessType ? 'feedback_processo' : 'feedback_plataforma';
+  const defaultPage = AREA_TO_PAGE[area] || null;
 
   // Form state
   const [formData, setFormData] = useState({
-    type: 'feedback_processo',
+    type: defaultType,
     titulo: '',
     feedback_text: '',
     screenshot_url: null,
-    page_url: null
+    page_url: defaultType === 'feedback_plataforma' ? defaultPage : null
   });
   const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -148,7 +177,7 @@ export default function FeedbackKanbanView({ area = null }) {
       }
 
       // Reset form and refresh
-      setFormData({ type: 'feedback_processo', titulo: '', feedback_text: '', screenshot_url: null, page_url: null });
+      setFormData({ type: defaultType, titulo: '', feedback_text: '', screenshot_url: null, page_url: defaultType === 'feedback_plataforma' ? defaultPage : null });
       setScreenshotPreview(null);
       setShowCreateForm(false);
       fetchFeedbacks();
@@ -186,6 +215,18 @@ export default function FeedbackKanbanView({ area = null }) {
   if (categoryFilter) {
     filteredFeedbacks = filteredFeedbacks.filter(f => f.category === categoryFilter);
   }
+
+  // Apply author filter
+  if (authorFilter) {
+    filteredFeedbacks = filteredFeedbacks.filter(f => f.author_id === authorFilter);
+  }
+
+  // Unique authors for filter dropdown
+  const uniqueAuthors = [...new Map(
+    visibleFeedbacks
+      .filter(f => f.author_id)
+      .map(f => [f.author_id, { id: f.author_id, name: f.author_name || f.author_email?.split('@')[0] || 'Desconhecido' }])
+  ).values()].sort((a, b) => a.name.localeCompare(b.name));
 
   // Group feedbacks by Kanban column
   const getColumnFeedbacks = (column) => {
@@ -233,8 +274,35 @@ export default function FeedbackKanbanView({ area = null }) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          <h1>Feedbacks</h1>
+          <h1>{isGestao ? 'Gestão de Feedbacks' : 'Feedbacks'}</h1>
         </div>
+
+        {isGestao && (
+          <div className="feedback-kanban__view-toggle">
+            <button
+              className={`feedback-kanban__view-btn ${viewMode === 'kanban' ? 'active' : ''}`}
+              onClick={() => setViewMode('kanban')}
+              title="Quadro Kanban"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="5" height="18" rx="1"/>
+                <rect x="10" y="3" width="5" height="12" rx="1"/>
+                <rect x="17" y="3" width="5" height="8" rx="1"/>
+              </svg>
+            </button>
+            <button
+              className={`feedback-kanban__view-btn ${viewMode === 'indicadores' ? 'active' : ''}`}
+              onClick={() => setViewMode('indicadores')}
+              title="Indicadores"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </button>
+          </div>
+        )}
 
         <div className="feedback-kanban__tabs">
           <button
@@ -262,6 +330,18 @@ export default function FeedbackKanbanView({ area = null }) {
           <option value="">Todas categorias</option>
           {Object.entries(CATEGORY_CONFIG).map(([value, config]) => (
             <option key={value} value={value}>{config.label}</option>
+          ))}
+        </select>
+
+        <select
+          className="feedback-kanban__category-filter"
+          value={authorFilter}
+          onChange={(e) => setAuthorFilter(e.target.value)}
+          title="Filtrar por autor"
+        >
+          <option value="">Todos autores</option>
+          {uniqueAuthors.map(author => (
+            <option key={author.id} value={author.id}>{author.name}</option>
           ))}
         </select>
 
@@ -297,40 +377,46 @@ export default function FeedbackKanbanView({ area = null }) {
         </div>
       )}
 
-      {/* Kanban Board */}
-      <div className="feedback-kanban__board">
-        {KANBAN_COLUMNS.map(column => {
-          const columnFeedbacks = getColumnFeedbacks(column);
-          return (
-            <div key={column.id} className="feedback-kanban__column">
-              <div
-                className="feedback-kanban__column-header"
-                style={{ '--column-color': column.color }}
-              >
-                <h3>{column.title}</h3>
-                <span className="feedback-kanban__column-count">{columnFeedbacks.length}</span>
+      {/* View: Kanban ou Indicadores */}
+      {viewMode === 'indicadores' && isGestao ? (
+        <Suspense fallback={<div className="feedback-kanban__loading"><div className="spinner"></div></div>}>
+          <FeedbackAnalyticsView feedbacks={feedbacks} />
+        </Suspense>
+      ) : (
+        <div className="feedback-kanban__board">
+          {KANBAN_COLUMNS.map(column => {
+            const columnFeedbacks = getColumnFeedbacks(column);
+            return (
+              <div key={column.id} className="feedback-kanban__column">
+                <div
+                  className="feedback-kanban__column-header"
+                  style={{ '--column-color': column.color }}
+                >
+                  <h3>{column.title}</h3>
+                  <span className="feedback-kanban__column-count">{columnFeedbacks.length}</span>
+                </div>
+                <div className="feedback-kanban__column-content">
+                  {columnFeedbacks.length === 0 ? (
+                    <div className="feedback-kanban__empty">
+                      Nenhum feedback
+                    </div>
+                  ) : (
+                    columnFeedbacks.map(feedback => (
+                      <FeedbackCard
+                        key={feedback.id}
+                        feedback={feedback}
+                        isOwn={isOwnFeedback(feedback)}
+                        onClick={() => setSelectedFeedback(feedback)}
+                        onMentionClick={handleMentionClick}
+                      />
+                    ))
+                  )}
+                </div>
               </div>
-              <div className="feedback-kanban__column-content">
-                {columnFeedbacks.length === 0 ? (
-                  <div className="feedback-kanban__empty">
-                    Nenhum feedback
-                  </div>
-                ) : (
-                  columnFeedbacks.map(feedback => (
-                    <FeedbackCard
-                      key={feedback.id}
-                      feedback={feedback}
-                      isOwn={isOwnFeedback(feedback)}
-                      onClick={() => setSelectedFeedback(feedback)}
-                      onMentionClick={handleMentionClick}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Detail Dialog */}
       {selectedFeedback && (
@@ -370,6 +456,7 @@ export default function FeedbackKanbanView({ area = null }) {
                 <div className="feedback-dialog__type-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                   {Object.entries(TYPE_CONFIG)
                     .filter(([value]) => !HIDDEN_TYPES.has(value))
+                    .filter(([value]) => showProcessType || value !== 'feedback_processo')
                     .map(([value, config]) => (
                       <button
                         key={value}
@@ -378,7 +465,7 @@ export default function FeedbackKanbanView({ area = null }) {
                         onClick={() => setFormData(prev => ({
                           ...prev,
                           type: value,
-                          page_url: value === 'feedback_plataforma' ? prev.page_url : null
+                          page_url: value === 'feedback_plataforma' ? (prev.page_url || defaultPage) : null
                         }))}
                       >
                         <span className="feedback-dialog__type-icon">{config.icon}</span>

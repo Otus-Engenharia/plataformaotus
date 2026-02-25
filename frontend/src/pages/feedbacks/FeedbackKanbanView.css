@@ -584,6 +584,50 @@
 }
 
 /* ========================================
+   VIEW MODE TOGGLE (Kanban / Indicadores)
+   ======================================== */
+
+.feedback-kanban__view-toggle {
+  display: inline-flex;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.feedback-kanban__view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.feedback-kanban__view-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.feedback-kanban__view-btn:hover {
+  color: var(--color-text-primary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.feedback-kanban__view-btn.active {
+  background: var(--color-accent);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
    NEW FEEDBACK DIALOG (style matching BugReportDialog)
    ======================================== */
 
