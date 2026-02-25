@@ -25,7 +25,26 @@ const PLATFORM_PAGES = [
   { value: 'gestao-tarefas', label: 'Gestão de Tarefas' },
   { value: 'configuracoes', label: 'Configurações' },
   { value: 'admin-financeiro', label: 'Admin & Financeiro' },
+  { value: 'vendas', label: 'Vendas' },
+  { value: 'vista-cliente', label: 'Vista do Cliente' },
 ];
+
+/**
+ * Mapeamento de area prop → page_url para pré-preencher o dropdown
+ */
+const AREA_TO_PAGE = {
+  projetos: 'projetos',
+  lideres: 'lideres-projeto',
+  cs: 'cs',
+  apoio: 'apoio-projetos',
+  admin_financeiro: 'admin-financeiro',
+  indicadores: 'indicadores',
+  okrs: 'okrs',
+  workspace: 'gestao-tarefas',
+  configuracoes: 'configuracoes',
+  vendas: 'vendas',
+  vista_cliente: 'vista-cliente',
+};
 
 /**
  * Agrupamento de status para as colunas do Kanban
@@ -70,13 +89,18 @@ export default function FeedbackKanbanView({ area = null }) {
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
+  // Tipo Processo só disponível na vista de Projetos
+  const showProcessType = area === 'projetos';
+  const defaultType = showProcessType ? 'feedback_processo' : 'feedback_plataforma';
+  const defaultPage = AREA_TO_PAGE[area] || null;
+
   // Form state
   const [formData, setFormData] = useState({
-    type: 'feedback_processo',
+    type: defaultType,
     titulo: '',
     feedback_text: '',
     screenshot_url: null,
-    page_url: null
+    page_url: defaultType === 'feedback_plataforma' ? defaultPage : null
   });
   const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -148,7 +172,7 @@ export default function FeedbackKanbanView({ area = null }) {
       }
 
       // Reset form and refresh
-      setFormData({ type: 'feedback_processo', titulo: '', feedback_text: '', screenshot_url: null, page_url: null });
+      setFormData({ type: defaultType, titulo: '', feedback_text: '', screenshot_url: null, page_url: defaultType === 'feedback_plataforma' ? defaultPage : null });
       setScreenshotPreview(null);
       setShowCreateForm(false);
       fetchFeedbacks();
@@ -370,6 +394,7 @@ export default function FeedbackKanbanView({ area = null }) {
                 <div className="feedback-dialog__type-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                   {Object.entries(TYPE_CONFIG)
                     .filter(([value]) => !HIDDEN_TYPES.has(value))
+                    .filter(([value]) => showProcessType || value !== 'feedback_processo')
                     .map(([value, config]) => (
                       <button
                         key={value}
@@ -378,7 +403,7 @@ export default function FeedbackKanbanView({ area = null }) {
                         onClick={() => setFormData(prev => ({
                           ...prev,
                           type: value,
-                          page_url: value === 'feedback_plataforma' ? prev.page_url : null
+                          page_url: value === 'feedback_plataforma' ? (prev.page_url || defaultPage) : null
                         }))}
                       >
                         <span className="feedback-dialog__type-icon">{config.icon}</span>

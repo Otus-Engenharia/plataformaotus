@@ -30,9 +30,9 @@ class SupabaseFeedbackRepository extends FeedbackRepository {
       .select('*')
       .order('created_at', { ascending: false });
 
-    // Filtro por área: inclui feedbacks da área OU sem área (globais/legados)
+    // Filtro estrito por área (feedbacks legados sem área devem ser classificados via backfill/admin)
     if (area) {
-      query = query.or(`area.eq.${area},area.is.null`);
+      query = query.eq('area', area);
     }
 
     // Filtro por hierarquia de role: user(5) vê só de users, leader(4) vê de users+leaders

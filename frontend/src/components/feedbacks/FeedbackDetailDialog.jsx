@@ -7,6 +7,22 @@ import './FeedbackDetailDialog.css';
 import './FeedbackMention.css';
 
 /**
+ * Áreas válidas para o dropdown de edição de "Local"
+ */
+const AREA_OPTIONS = [
+  { value: 'projetos', label: 'Projetos' },
+  { value: 'lideres', label: 'Líderes de Projeto' },
+  { value: 'cs', label: 'CS' },
+  { value: 'apoio', label: 'Apoio de Projetos' },
+  { value: 'admin_financeiro', label: 'Admin & Financeiro' },
+  { value: 'vendas', label: 'Vendas' },
+  { value: 'workspace', label: 'Gestão de Tarefas' },
+  { value: 'indicadores', label: 'Indicadores' },
+  { value: 'okrs', label: 'OKRs' },
+  { value: 'configuracoes', label: 'Configurações' },
+];
+
+/**
  * Formata data para exibição
  */
 function formatDate(dateStr) {
@@ -76,6 +92,9 @@ function getPageName(url) {
     'gestao-tarefas': 'Gestão de Tarefas',
     'configuracoes': 'Configurações',
     'admin-financeiro': 'Admin & Financeiro',
+    'vendas': 'Vendas',
+    'vista-cliente': 'Vista do Cliente',
+    'cs-area': 'CS',
   };
   // Chave simples (novo formato do dropdown)
   if (PAGE_NAMES[url]) return PAGE_NAMES[url];
@@ -127,6 +146,7 @@ export default function FeedbackDetailDialog({
 }) {
   const [status, setStatus] = useState(feedback.status);
   const [category, setCategory] = useState(feedback.category || '');
+  const [feedbackArea, setFeedbackArea] = useState(feedback.area || '');
   const [adminAnalysis, setAdminAnalysis] = useState(feedback.admin_analysis || '');
   const [adminAction, setAdminAction] = useState(feedback.admin_action || '');
   const [loading, setLoading] = useState(false);
@@ -141,22 +161,28 @@ export default function FeedbackDetailDialog({
     const changed =
       status !== feedback.status ||
       category !== (feedback.category || '') ||
+      feedbackArea !== (feedback.area || '') ||
       adminAnalysis !== (feedback.admin_analysis || '') ||
       adminAction !== (feedback.admin_action || '');
     setHasChanges(changed);
-  }, [status, category, adminAnalysis, adminAction, feedback]);
+  }, [status, category, feedbackArea, adminAnalysis, adminAction, feedback]);
 
   const handleSave = async () => {
     if (!onUpdate) return;
 
     setLoading(true);
     try {
-      await onUpdate(feedback.id, {
+      const updateData = {
         status,
         category: category || null,
         admin_analysis: adminAnalysis || null,
         admin_action: adminAction || null
-      });
+      };
+      // Incluir area apenas se mudou
+      if (feedbackArea !== (feedback.area || '')) {
+        updateData.area = feedbackArea || null;
+      }
+      await onUpdate(feedback.id, updateData);
       onClose();
     } catch (err) {
       alert('Erro ao salvar: ' + err.message);
@@ -300,6 +326,20 @@ export default function FeedbackDetailDialog({
                 >
                   {Object.entries(STATUS_CONFIG).map(([value, config]) => (
                     <option key={value} value={value}>{config.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="feedback-area">Local (Área)</label>
+                <select
+                  id="feedback-area"
+                  value={feedbackArea}
+                  onChange={(e) => setFeedbackArea(e.target.value)}
+                >
+                  <option value="">Sem área</option>
+                  {AREA_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               </div>

@@ -17,6 +17,27 @@ const SUGGESTION_CATEGORIES = [
 ];
 
 /**
+ * Detecta a página atual a partir do pathname.
+ * Retorna { key, label, area } para exibição, envio e classificação por área.
+ */
+function detectCurrentPage() {
+  const path = window.location.pathname;
+  if (path.startsWith('/apoio-projetos')) return { key: 'apoio-projetos', label: 'Apoio de Projetos', area: 'apoio' };
+  if (path.startsWith('/lideres-projeto')) return { key: 'lideres-projeto', label: 'Líderes de Projeto', area: 'lideres' };
+  if (path.startsWith('/cs-area')) return { key: 'cs', label: 'CS', area: 'cs' };
+  if (path.startsWith('/admin-financeiro')) return { key: 'admin-financeiro', label: 'Admin & Financeiro', area: 'admin_financeiro' };
+  if (path.startsWith('/vendas')) return { key: 'vendas', label: 'Vendas', area: 'vendas' };
+  if (path.startsWith('/vista-cliente')) return { key: 'vista-cliente', label: 'Vista do Cliente', area: 'vista_cliente' };
+  if (path.startsWith('/ind')) return { key: 'indicadores', label: 'Indicadores', area: 'indicadores' };
+  if (path.startsWith('/okrs')) return { key: 'okrs', label: 'OKRs', area: 'okrs' };
+  if (path.startsWith('/workspace')) return { key: 'gestao-tarefas', label: 'Gestão de Tarefas', area: 'workspace' };
+  if (path.startsWith('/configuracoes') || path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/quadro')) return { key: 'configuracoes', label: 'Configurações', area: 'configuracoes' };
+  if (path.startsWith('/feedbacks')) return { key: 'projetos', label: 'Projetos', area: 'projetos' };
+  if (path.startsWith('/horas') || path.startsWith('/projetos') || path.startsWith('/cs') || path.startsWith('/contatos') || path.startsWith('/demandas-apoio') || path.startsWith('/agenda') || path.startsWith('/todos')) return { key: 'projetos', label: 'Projetos', area: 'projetos' };
+  return { key: path, label: path, area: 'projetos' };
+}
+
+/**
  * Dialog para criar um novo relatório de bug
  */
 export default function BugReportDialog({ onClose }) {
@@ -28,6 +49,9 @@ export default function BugReportDialog({ onClose }) {
   const [screenshots, setScreenshots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Detecta a página atual ao abrir o dialog
+  const currentPage = detectCurrentPage();
 
   const MAX_IMAGES = 3;
   const MAX_SIZE_MB = 2;
@@ -109,7 +133,8 @@ export default function BugReportDialog({ onClose }) {
           titulo: title.trim(),
           feedback_text: description.trim(),
           screenshot_url: screenshotPayload,
-          page_url: window.location.href
+          page_url: currentPage.key,
+          area: currentPage.area
         })
       });
 
@@ -290,11 +315,10 @@ export default function BugReportDialog({ onClose }) {
           {/* Page URL indicator */}
           <div className="bug-dialog__page-info">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
             </svg>
-            <span>Página atual será incluída automaticamente</span>
+            <span>Página: <strong>{currentPage.label}</strong></span>
           </div>
 
           {/* Actions */}

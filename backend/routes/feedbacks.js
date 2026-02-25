@@ -324,7 +324,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
       }
 
       const { id } = req.params;
-      const { status, admin_analysis, admin_action, category } = req.body;
+      const { status, admin_analysis, admin_action, category, area } = req.body;
 
       // Validar status se fornecido
       if (status && !FeedbackStatus.isValid(status)) {
@@ -334,7 +334,15 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
         });
       }
 
-      if (status === undefined && admin_analysis === undefined && admin_action === undefined && category === undefined) {
+      // Validar area se fornecida
+      if (area !== undefined && area !== null && !FeedbackArea.isValid(area)) {
+        return res.status(400).json({
+          success: false,
+          error: `Área deve ser uma das seguintes: ${FeedbackArea.VALID_VALUES.join(', ')}`,
+        });
+      }
+
+      if (status === undefined && admin_analysis === undefined && admin_action === undefined && category === undefined && area === undefined) {
         return res.status(400).json({
           success: false,
           error: 'Nenhum campo para atualizar foi fornecido',
@@ -348,6 +356,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
         adminAnalysis: admin_analysis,
         adminAction: admin_action,
         category,
+        area,
         resolvedById: req.user.id,
       });
 

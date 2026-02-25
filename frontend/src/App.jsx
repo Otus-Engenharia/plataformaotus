@@ -452,14 +452,6 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">Contatos</span>
       </Link>
       <Link
-        to="/feedbacks"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/feedbacks') ? 'nav-link-active' : ''}`}
-        title={linkTitle('Feedbacks')}
-      >
-        <span className="nav-icon">{icons.feedbacks}</span>
-        <span className="nav-text">Feedbacks</span>
-      </Link>
-      <Link
         to="/demandas-apoio"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/demandas-apoio') ? 'nav-link-active' : ''}`}
         title={linkTitle('Demandas Apoio')}
@@ -778,14 +770,6 @@ function Sidebar({ collapsed, onToggle, area }) {
           </Link>
         </>
       )}
-      <Link
-        to="/ind/feedbacks"
-        className={`nav-link nav-link-modern ${location.pathname === '/ind/feedbacks' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Feedbacks')}
-      >
-        <span className="nav-icon">{icons.feedbacks}</span>
-        <span className="nav-text">Feedbacks</span>
-      </Link>
       {isPrivileged && (
         <>
           <div className="nav-section-divider"></div>
@@ -960,6 +944,16 @@ function Sidebar({ collapsed, onToggle, area }) {
         </svg>
       </button>
       <div className="sidebar-lower">
+        {area && area !== 'vista_cliente' && (
+          <Link
+            to={`/feedbacks?area=${area}`}
+            className={`nav-link nav-link-modern nav-link-compact ${location.pathname.startsWith('/feedbacks') ? 'nav-link-active' : ''}`}
+            title={linkTitle('Feedbacks')}
+          >
+            <span className="nav-icon">{icons.feedbacks}</span>
+            {!collapsed && <span className="nav-text">Feedbacks</span>}
+          </Link>
+        )}
         {!collapsed && (
           <div className="sidebar-shortcuts" aria-label="Atalhos">
             {shortcuts.map((item) => (
@@ -1129,11 +1123,15 @@ function AppContent() {
     if (path.startsWith('/vendas')) {
       return 'vendas';
     }
+    // Feedbacks: area vem do query param (ex: /feedbacks?area=apoio)
+    if (path.startsWith('/feedbacks')) {
+      const areaParam = new URLSearchParams(location.search).get('area');
+      return areaParam || 'projetos';
+    }
     if (path.startsWith('/horas') ||
         path.startsWith('/projetos') ||
         path.startsWith('/cs') ||
         path.startsWith('/contatos') ||
-        path.startsWith('/feedbacks') ||
         path.startsWith('/demandas-apoio') ||
         path.startsWith('/agenda') ||
         path.startsWith('/todos')) {
@@ -1400,11 +1398,9 @@ function AppContent() {
               path="/feedbacks"
               element={
                 <ProtectedRoute>
-                  {canAccessProjetosArea ? (
-                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <FeedbackKanbanView area="projetos" />
-                    </Suspense>
-                  ) : <Navigate to="/ind" replace />}
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <FeedbackKanbanView area={new URLSearchParams(location.search).get('area') || currentArea || 'projetos'} />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
