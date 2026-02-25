@@ -1,0 +1,203 @@
+/**
+ * Estilos: Vista de Indicadores de Feedbacks
+ * Design: Consistente com FeedbackAdminView (glass-card, badges)
+ */
+
+/* ========== CONTAINER ========== */
+.fanalytics {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.fanalytics__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #737373;
+  font-size: 0.9375rem;
+}
+
+/* ========== KPI CARDS ========== */
+.fanalytics__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.fanalytics__kpi {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fanalytics__kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Color variants */
+.fanalytics__kpi--yellow {
+  border-left: 4px solid #ffdd00;
+}
+.fanalytics__kpi--yellow .fanalytics__kpi-icon {
+  background: linear-gradient(135deg, rgba(255, 221, 0, 0.2) 0%, rgba(255, 221, 0, 0.1) 100%);
+  color: #b89500;
+}
+
+.fanalytics__kpi--orange {
+  border-left: 4px solid #f59e0b;
+}
+.fanalytics__kpi--orange .fanalytics__kpi-icon {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
+  color: #f59e0b;
+}
+
+.fanalytics__kpi--green {
+  border-left: 4px solid #22c55e;
+}
+.fanalytics__kpi--green .fanalytics__kpi-icon {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.08) 100%);
+  color: #22c55e;
+}
+
+.fanalytics__kpi--blue {
+  border-left: 4px solid #3b82f6;
+}
+.fanalytics__kpi--blue .fanalytics__kpi-icon {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.08) 100%);
+  color: #3b82f6;
+}
+
+.fanalytics__kpi-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.fanalytics__kpi-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.fanalytics__kpi-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.fanalytics__kpi-value {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.fanalytics__kpi-label {
+  font-size: 0.8125rem;
+  color: #737373;
+  font-weight: 500;
+}
+
+/* ========== CHART ROWS ========== */
+.fanalytics__row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.fanalytics__row--full {
+  grid-template-columns: 1fr;
+}
+
+/* ========== CHART CARDS ========== */
+.fanalytics__card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.fanalytics__card-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 1rem;
+  letter-spacing: -0.01em;
+}
+
+/* ========== CHART CONTAINERS ========== */
+.fanalytics__chart {
+  position: relative;
+}
+
+.fanalytics__chart--doughnut {
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fanalytics__chart--bar {
+  height: 280px;
+}
+
+.fanalytics__chart--line {
+  height: 280px;
+}
+
+.fanalytics__chart--tipo {
+  height: 220px;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1000px) {
+  .fanalytics__kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .fanalytics__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .fanalytics__kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .fanalytics__kpi {
+    padding: 1rem;
+  }
+
+  .fanalytics__kpi-value {
+    font-size: 1.375rem;
+  }
+
+  .fanalytics__card {
+    padding: 1rem;
+  }
+
+  .fanalytics__chart--doughnut,
+  .fanalytics__chart--bar,
+  .fanalytics__chart--line {
+    height: 240px;
+  }
+}

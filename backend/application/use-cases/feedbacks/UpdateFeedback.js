@@ -19,10 +19,11 @@ class UpdateFeedback {
    * @param {string} input.adminAnalysis - Análise do admin (opcional)
    * @param {string} input.adminAction - Ação a tomar (opcional)
    * @param {string} input.category - Categoria (opcional)
+   * @param {string} input.area - Área do feedback (opcional)
    * @param {string} input.resolvedById - ID de quem está atualizando
    * @returns {Promise<Object>}
    */
-  async execute({ id, status, adminAnalysis, adminAction, category, resolvedById }) {
+  async execute({ id, status, adminAnalysis, adminAction, category, area, resolvedById }) {
     // Busca o feedback
     const feedback = await this.#feedbackRepository.findById(id);
 
@@ -41,6 +42,10 @@ class UpdateFeedback {
 
     if (category !== undefined) {
       feedback.setCategory(category);
+    }
+
+    if (area !== undefined) {
+      feedback.setArea(area);
     }
 
     // Persiste

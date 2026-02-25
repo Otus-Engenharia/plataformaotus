@@ -96,6 +96,9 @@ function getPageName(url) {
     'gestao-tarefas': 'Gestão de Tarefas',
     'configuracoes': 'Configurações',
     'admin-financeiro': 'Admin & Financeiro',
+    'vendas': 'Vendas',
+    'vista-cliente': 'Vista do Cliente',
+    'cs-area': 'CS',
   };
   // Chave simples (novo formato do dropdown)
   if (PAGE_NAMES[url]) return PAGE_NAMES[url];

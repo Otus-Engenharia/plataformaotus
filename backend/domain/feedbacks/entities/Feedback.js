@@ -199,6 +199,15 @@ class Feedback {
   }
 
   /**
+   * Define a área do feedback (classificação do dev)
+   * @param {string} areaValue - Área válida (projetos, lideres, cs, apoio, etc.)
+   */
+  setArea(areaValue) {
+    this.#area = new FeedbackArea(areaValue);
+    this.#updatedAt = new Date();
+  }
+
+  /**
    * Define a categoria do feedback (classificação do dev)
    * @param {string} category - Categoria (ux, bug, performance, feature, etc.)
    */
