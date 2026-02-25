@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import './WhiteboardView.css';
 
-function WhiteboardView() {
+function WhiteboardView({ boardId = 'shared' }) {
   const { user } = useAuth();
   const [initialData, setInitialData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,8 @@ function WhiteboardView() {
   useEffect(() => {
     async function load() {
       try {
-        const { data: res } = await axios.get('/api/whiteboard', { withCredentials: true });
+        const url = boardId === 'shared' ? '/api/whiteboard' : `/api/whiteboard/${boardId}`;
+        const { data: res } = await axios.get(url, { withCredentials: true });
         if (res.success && res.data) {
           setInitialData({
             elements: res.data.elements || [],
@@ -34,7 +35,7 @@ function WhiteboardView() {
       }
     }
     load();
-  }, []);
+  }, [boardId]);
 
   // Salva no backend com debounce
   const saveToServer = useCallback(async (elements, appState, files) => {
@@ -42,7 +43,8 @@ function WhiteboardView() {
     try {
       // Filtrar appState para remover campos que não devem ser persistidos
       const { collaborators, ...cleanAppState } = appState;
-      await axios.put('/api/whiteboard', {
+      const url = boardId === 'shared' ? '/api/whiteboard' : `/api/whiteboard/${boardId}`;
+      await axios.put(url, {
         elements,
         appState: cleanAppState,
         files,
@@ -51,7 +53,7 @@ function WhiteboardView() {
     } catch {
       setSaveStatus('error');
     }
-  }, []);
+  }, [boardId]);
 
   const handleChange = useCallback((elements, appState, files) => {
     // Debounce de 2 segundos
