@@ -24,7 +24,7 @@ class CreateFeedback {
    * @param {string} input.screenshotUrl - URL do screenshot (opcional)
    * @returns {Promise<Object>}
    */
-  async execute({ type, titulo, feedbackText, authorId, pageUrl, screenshotUrl }) {
+  async execute({ type, titulo, feedbackText, authorId, pageUrl, screenshotUrl, area, authorRoleLevel }) {
     // Cria a entidade com validações do domínio
     const feedback = Feedback.create({
       type,
@@ -33,6 +33,8 @@ class CreateFeedback {
       authorId,
       pageUrl,
       screenshotUrl,
+      area,
+      authorRoleLevel,
     });
 
     // Persiste

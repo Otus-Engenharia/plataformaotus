@@ -9,9 +9,11 @@
 
 class FeedbackRepository {
   /**
-   * Busca todos os feedbacks
+   * Busca todos os feedbacks com filtros opcionais
    * @param {Object} options - Opções de busca
    * @param {string} options.userId - ID do usuário logado (para ordenar próprios primeiro)
+   * @param {string|null} options.area - Área para filtrar (null = sem filtro)
+   * @param {number|null} options.viewerRoleLevel - Nível de acesso do viewer para filtro hierárquico
    * @returns {Promise<Array<Feedback>>}
    */
   async findAll(options = {}) {

@@ -60,7 +60,7 @@ const KANBAN_COLUMNS = [
 /**
  * Vista Kanban de Feedbacks para a equipe
  */
-export default function FeedbackKanbanView() {
+export default function FeedbackKanbanView({ area = null }) {
   const { user, isPrivileged } = useAuth();
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,10 @@ export default function FeedbackKanbanView() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/api/feedbacks`, {
+      const params = new URLSearchParams();
+      if (area) params.set('area', area);
+      const queryString = params.toString();
+      const response = await fetch(`${API_URL}/api/feedbacks${queryString ? '?' + queryString : ''}`, {
         credentials: 'include'
       });
       const data = await response.json();
@@ -121,7 +124,7 @@ export default function FeedbackKanbanView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [area]);
 
   useEffect(() => {
     fetchFeedbacks();
@@ -136,7 +139,7 @@ export default function FeedbackKanbanView() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, area })
       });
 
       if (!response.ok) {

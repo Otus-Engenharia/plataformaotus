@@ -5,6 +5,7 @@
  * Representa um registro de feedback sobre processos, plataforma ou outros aspectos.
  */
 
+import { FeedbackArea } from '../value-objects/FeedbackArea.js';
 import { FeedbackStatus } from '../value-objects/FeedbackStatus.js';
 import { FeedbackType } from '../value-objects/FeedbackType.js';
 
@@ -18,6 +19,8 @@ class Feedback {
   #pageUrl;
   #screenshotUrl;
   #category;
+  #area;
+  #authorRoleLevel;
   #adminAnalysis;
   #adminAction;
   #resolvedById;
@@ -36,6 +39,8 @@ class Feedback {
     pageUrl = null,
     screenshotUrl = null,
     category = null,
+    area = null,
+    authorRoleLevel = 5,
     adminAnalysis = null,
     adminAction = null,
     resolvedById = null,
@@ -63,6 +68,8 @@ class Feedback {
     this.#pageUrl = pageUrl || null;
     this.#screenshotUrl = screenshotUrl || null;
     this.#category = category || null;
+    this.#area = area instanceof FeedbackArea ? area : new FeedbackArea(area);
+    this.#authorRoleLevel = typeof authorRoleLevel === 'number' ? authorRoleLevel : 5;
     this.#adminAnalysis = adminAnalysis || null;
     this.#adminAction = adminAction || null;
     this.#resolvedById = resolvedById || null;
@@ -82,6 +89,8 @@ class Feedback {
   get pageUrl() { return this.#pageUrl; }
   get screenshotUrl() { return this.#screenshotUrl; }
   get category() { return this.#category; }
+  get area() { return this.#area; }
+  get authorRoleLevel() { return this.#authorRoleLevel; }
   get adminAnalysis() { return this.#adminAnalysis; }
   get adminAction() { return this.#adminAction; }
   get resolvedById() { return this.#resolvedById; }
@@ -118,6 +127,24 @@ class Feedback {
   // Verifica se pertence a um usuário específico
   belongsTo(userId) {
     return this.#authorId === userId;
+  }
+
+  /**
+   * Verifica se o feedback é visível para um viewer com determinado nível de acesso.
+   * admin (level <= 3): vê tudo. leader (4): vê de leaders e users. user (5): vê só de users.
+   */
+  isVisibleToRole(viewerRoleLevel) {
+    if (viewerRoleLevel <= 3) return true;
+    return this.#authorRoleLevel >= viewerRoleLevel;
+  }
+
+  /**
+   * Verifica se o feedback pertence a uma área específica.
+   * Feedbacks com área null são "globais" e pertencem a todas as áreas.
+   */
+  belongsToArea(areaValue) {
+    if (this.#area.isNull) return true;
+    return this.#area.value === areaValue;
   }
 
   // --- Comportamentos do domínio ---
@@ -206,6 +233,8 @@ class Feedback {
       page_url: this.#pageUrl,
       screenshot_url: this.#screenshotUrl,
       category: this.#category,
+      area: this.#area.value,
+      author_role_level: this.#authorRoleLevel,
       admin_analysis: this.#adminAnalysis,
       admin_action: this.#adminAction,
       resolved_by_id: this.#resolvedById,
@@ -235,6 +264,8 @@ class Feedback {
       page_url: this.#pageUrl,
       screenshot_url: this.#screenshotUrl,
       category: this.#category,
+      area: this.#area.value,
+      author_role_level: this.#authorRoleLevel,
       admin_analysis: this.#adminAnalysis,
       admin_action: this.#adminAction,
       resolved_by_id: this.#resolvedById,
@@ -264,6 +295,8 @@ class Feedback {
       pageUrl: data.page_url,
       screenshotUrl: data.screenshot_url,
       category: data.category,
+      area: data.area || null,
+      authorRoleLevel: data.author_role_level ?? 5,
       adminAnalysis: data.admin_analysis,
       adminAction: data.admin_action,
       resolvedById: data.resolved_by_id,
@@ -277,7 +310,7 @@ class Feedback {
   /**
    * Factory method: cria novo feedback
    */
-  static create({ type, titulo, feedbackText, authorId, pageUrl, screenshotUrl }) {
+  static create({ type, titulo, feedbackText, authorId, pageUrl, screenshotUrl, area, authorRoleLevel }) {
     return new Feedback({
       type,
       titulo,
@@ -285,6 +318,8 @@ class Feedback {
       authorId,
       pageUrl,
       screenshotUrl,
+      area,
+      authorRoleLevel,
     });
   }
 }
