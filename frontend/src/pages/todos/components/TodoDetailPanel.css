@@ -132,6 +132,33 @@
   color: #ef4444;
 }
 
+.todo-detail__field--agenda {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.todo-detail__agenda-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #18181b;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+.todo-detail__agenda-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.todo-detail__agenda-hint {
+  font-size: 12px;
+  color: #a1a1aa;
+  font-style: italic;
+}
+
 .todo-detail__footer {
   padding: 16px 24px;
   border-top: 1px solid #e4e4e7;

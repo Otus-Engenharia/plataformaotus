@@ -80,6 +80,24 @@ class TodoRepository {
   async getProjectsByIds(projectIds) {
     throw new Error('Método getProjectsByIds deve ser implementado');
   }
+
+  /**
+   * Busca nome de uma tarefa de agenda por ID
+   * @param {number} agendaTaskId
+   * @returns {Promise<{id: number, name: string}|null>}
+   */
+  async getAgendaTaskById(agendaTaskId) {
+    throw new Error('Método getAgendaTaskById deve ser implementado');
+  }
+
+  /**
+   * Busca nomes de múltiplas tarefas de agenda por IDs
+   * @param {Array<number>} agendaTaskIds
+   * @returns {Promise<Map<number, {id: number, name: string}>>}
+   */
+  async getAgendaTasksByIds(agendaTaskIds) {
+    throw new Error('Método getAgendaTasksByIds deve ser implementado');
+  }
 }
 
 export { TodoRepository };

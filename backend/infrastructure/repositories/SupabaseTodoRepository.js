@@ -31,8 +31,8 @@ class SupabaseTodoRepository extends TodoRepository {
       .from(TASKS_TABLE)
       .select('*');
 
-    // Filtra apenas ToDo's independentes (sem vínculo com agenda)
-    if (filters.standaloneOnly !== false) {
+    // Filtra apenas ToDo's independentes se explicitamente solicitado
+    if (filters.standaloneOnly === true) {
       query = query.is('agenda_task_id', null);
     }
 
@@ -146,6 +146,7 @@ class SupabaseTodoRepository extends TodoRepository {
       assignee: todo.assignee || null,
       project_id: todo.projectId || null,
       closed_at: todo.closedAt?.toISOString() || null,
+      agenda_task_id: todo.agendaTaskId || null,
     };
 
     const { data, error } = await this.#supabase
@@ -182,8 +183,7 @@ class SupabaseTodoRepository extends TodoRepository {
   async getStats(userId) {
     let query = this.#supabase
       .from(TASKS_TABLE)
-      .select('status, priority')
-      .is('agenda_task_id', null);
+      .select('status, priority');
 
     if (userId) {
       query = query.or(`assignee.eq.${userId},created_by.eq.${userId}`);
@@ -275,6 +275,80 @@ class SupabaseTodoRepository extends TodoRepository {
 
     return projectsMap;
   }
+  /**
+   * Garante que um projeto esteja vinculado a uma tarefa de agenda (agenda_projects)
+   * Não faz nada se já existir o vínculo
+   */
+  async ensureAgendaProjectLink(agendaTaskId, projectId) {
+    if (!agendaTaskId || !projectId) return;
+
+    const { data: existing } = await this.#supabase
+      .from('agenda_projects')
+      .select('project_id')
+      .eq('agenda_task_id', agendaTaskId)
+      .eq('project_id', projectId)
+      .maybeSingle();
+
+    if (existing) return;
+
+    const { error } = await this.#supabase
+      .from('agenda_projects')
+      .insert({ agenda_task_id: agendaTaskId, project_id: projectId });
+
+    if (error) {
+      console.error('Erro ao vincular projeto à agenda:', error);
+    }
+  }
+
+  /**
+   * Busca nome de uma tarefa de agenda por ID
+   */
+  async getAgendaTaskById(agendaTaskId) {
+    if (!agendaTaskId) return null;
+
+    const { data, error } = await this.#supabase
+      .from('agenda_tasks')
+      .select('id, name')
+      .eq('id', agendaTaskId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      console.error('Erro ao buscar agenda task:', error);
+      return null;
+    }
+
+    return data ? { id: data.id, name: data.name } : null;
+  }
+
+  /**
+   * Busca nomes de múltiplas tarefas de agenda por IDs
+   */
+  async getAgendaTasksByIds(agendaTaskIds) {
+    if (!agendaTaskIds || agendaTaskIds.length === 0) {
+      return new Map();
+    }
+
+    const uniqueIds = [...new Set(agendaTaskIds.filter(Boolean))];
+    if (uniqueIds.length === 0) return new Map();
+
+    const { data, error } = await this.#supabase
+      .from('agenda_tasks')
+      .select('id, name')
+      .in('id', uniqueIds);
+
+    if (error) {
+      console.error('Erro ao buscar agenda tasks:', error);
+      return new Map();
+    }
+
+    const map = new Map();
+    for (const item of data || []) {
+      map.set(item.id, { id: item.id, name: item.name });
+    }
+    return map;
+  }
+
   /**
    * Busca lista de times para filtro
    */

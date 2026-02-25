@@ -183,7 +183,18 @@ class Todo {
     }
 
     if (dueDate !== undefined) {
-      this.#dueDate = dueDate ? new Date(dueDate) : null;
+      const newDueDate = dueDate ? new Date(dueDate) : null;
+
+      // Auto-desvincula da agenda quando o dia muda
+      if (this.#agendaTaskId) {
+        const oldDay = this.#dueDate?.toISOString().slice(0, 10) || null;
+        const newDay = newDueDate?.toISOString().slice(0, 10) || null;
+        if (oldDay !== newDay) {
+          this.#agendaTaskId = null;
+        }
+      }
+
+      this.#dueDate = newDueDate;
     }
 
     this.#updatedAt = new Date();
@@ -204,6 +215,23 @@ class Todo {
    */
   linkToProject(projectId) {
     this.#projectId = projectId || null;
+    this.#updatedAt = new Date();
+  }
+
+  /**
+   * Vincula a uma atividade de agenda
+   * @param {number|null} agendaTaskId
+   */
+  linkToAgendaTask(agendaTaskId) {
+    this.#agendaTaskId = agendaTaskId || null;
+    this.#updatedAt = new Date();
+  }
+
+  /**
+   * Desvincula da atividade de agenda
+   */
+  unlinkFromAgendaTask() {
+    this.#agendaTaskId = null;
     this.#updatedAt = new Date();
   }
 
@@ -234,8 +262,9 @@ class Todo {
    * @param {Object} assigneeData - { name, email }
    * @param {Object} createdByData - { name, email }
    * @param {Object} projectData - { id, name }
+   * @param {Object} agendaTaskData - { id, name }
    */
-  toResponse(assigneeData = null, createdByData = null, projectData = null) {
+  toResponse(assigneeData = null, createdByData = null, projectData = null, agendaTaskData = null) {
     return {
       id: this.#id,
       name: this.#name,
@@ -256,6 +285,7 @@ class Todo {
       team_id: projectData?.team_id || null,
       team_name: projectData?.team_name || null,
       agenda_task_id: this.#agendaTaskId,
+      agenda_task_name: agendaTaskData?.name || null,
       closed_at: this.#closedAt?.toISOString() || null,
       created_at: this.#createdAt.toISOString(),
       updated_at: this.#updatedAt.toISOString(),
