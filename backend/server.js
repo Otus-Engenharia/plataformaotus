@@ -7040,6 +7040,35 @@ app.put('/api/whiteboard', requireAuth, express.json({ limit: '10mb' }), async (
   }
 });
 
+/**
+ * GET /api/whiteboard/:boardId
+ * Busca um quadro específico por ID
+ */
+app.get('/api/whiteboard/:boardId', requireAuth, async (req, res) => {
+  try {
+    const { boardId } = req.params;
+    const data = await fetchWhiteboard(boardId);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/whiteboard/:boardId
+ * Salva um quadro específico por ID (limite de 10MB)
+ */
+app.put('/api/whiteboard/:boardId', requireAuth, express.json({ limit: '10mb' }), async (req, res) => {
+  try {
+    const { boardId } = req.params;
+    const { elements, appState, files } = req.body;
+    const data = await saveWhiteboard(elements, appState, files, req.user.email, boardId);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Inicia o servidor
 const HOST = process.env.HOST || '0.0.0.0'; // Aceita conexões de qualquer IP
 app.listen(PORT, HOST, () => {

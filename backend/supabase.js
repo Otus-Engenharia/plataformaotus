@@ -5518,12 +5518,12 @@ export async function resolveRecipientEmails(construflowId, disciplinaName) {
  * Busca o quadro compartilhado
  * @returns {Promise<Object>} - { elements, app_state, files, updated_at, updated_by }
  */
-export async function fetchWhiteboard() {
+export async function fetchWhiteboard(boardId = 'shared') {
   const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase
     .from('whiteboard')
     .select('*')
-    .eq('id', 'shared')
+    .eq('id', boardId)
     .single();
 
   if (error) {
@@ -5545,12 +5545,12 @@ export async function fetchWhiteboard() {
  * @param {string} updatedBy - Email do usuário que salvou
  * @returns {Promise<Object>}
  */
-export async function saveWhiteboard(elements, appState, files, updatedBy) {
+export async function saveWhiteboard(elements, appState, files, updatedBy, boardId = 'shared') {
   const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase
     .from('whiteboard')
     .upsert({
-      id: 'shared',
+      id: boardId,
       elements,
       app_state: appState,
       files,

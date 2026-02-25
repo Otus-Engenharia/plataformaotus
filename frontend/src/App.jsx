@@ -532,6 +532,14 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.cs}</span>
         <span className="nav-text">Estudos de Custos</span>
       </Link>
+      <Link
+        to="/cs-area/quadro"
+        className={`nav-link nav-link-modern ${location.pathname === '/cs-area/quadro' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Quadro')}
+      >
+        <span className="nav-icon">{icons.whiteboard}</span>
+        <span className="nav-text">Quadro</span>
+      </Link>
     </>
   );
 
@@ -570,6 +578,14 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.projetos}</span>
         <span className="nav-text">Portfolio</span>
       </Link>
+      <Link
+        to="/apoio-projetos/quadro"
+        className={`nav-link nav-link-modern ${location.pathname === '/apoio-projetos/quadro' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Quadro')}
+      >
+        <span className="nav-icon">{icons.whiteboard}</span>
+        <span className="nav-text">Quadro</span>
+      </Link>
     </>
   );
 
@@ -597,6 +613,22 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.formularioPassagem}</span>
         <span className="nav-text">Formulário de Passagem</span>
+      </Link>
+      <Link
+        to="/vendas/curva-s"
+        className={`nav-link nav-link-modern ${location.pathname === '/vendas/curva-s' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Curva S')}
+      >
+        <span className="nav-icon">{icons.indicadoresLideranca}</span>
+        <span className="nav-text">Curva S</span>
+      </Link>
+      <Link
+        to="/vendas/indicadores-vendas"
+        className={`nav-link nav-link-modern ${location.pathname === '/vendas/indicadores-vendas' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Indicadores Vendas')}
+      >
+        <span className="nav-icon">{icons.financeiro}</span>
+        <span className="nav-text">Indicadores Vendas</span>
       </Link>
     </>
   );
@@ -1266,6 +1298,7 @@ function AppContent() {
             >
               <Route index element={<Navigate to="estudos-custos" replace />} />
               <Route path="estudos-custos" element={<EstudoCustoKanbanView />} />
+              <Route path="quadro" element={<WhiteboardView boardId="cs" />} />
             </Route>
             {/* Área Apoio de Projetos - rotas aninhadas */}
             <Route
@@ -1285,6 +1318,7 @@ function AppContent() {
               <Route path="gantt" element={<ApoioGanttView />} />
               <Route path="demandas" element={<DemandasKanbanView />} />
               <Route path="portfolio" element={<ApoioPortfolioView />} />
+              <Route path="quadro" element={<WhiteboardView boardId="apoio" />} />
             </Route>
             {/* Área Admin & Financeiro - rotas aninhadas */}
             <Route
@@ -1315,6 +1349,12 @@ function AppContent() {
             >
               <Route index element={<Navigate to="formulario-passagem" replace />} />
               <Route path="formulario-passagem" element={<FormularioPassagemView />} />
+              <Route path="curva-s" element={<CurvaSView />} />
+              <Route path="indicadores-vendas" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <IndicadoresVendasView />
+                </Suspense>
+              } />
             </Route>
             {/* Área Vista do Cliente */}
             <Route
