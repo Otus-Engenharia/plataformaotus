@@ -19,6 +19,7 @@ import '../styles/IndicadoresVendasView.css';
 const COLUMNS = [
   { key: 'project_name',        label: 'Projeto',                  type: 'text' },
   { key: 'status',              label: 'Status',                   type: 'status' },
+  { key: 'data_venda',          label: 'Data da Venda',            type: 'date' },
   { key: 'area_efetiva',        label: 'Área Efetiva',             type: 'number' },
   { key: 'area_total',          label: 'Área Total',               type: 'number' },
   { key: 'custo_total',         label: 'Custo Total',              type: 'currency' },
@@ -52,9 +53,17 @@ function formatNumber(value) {
     : num.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
 }
 
+function formatDate(value) {
+  if (!value) return '–';
+  const d = new Date(value + 'T00:00:00');
+  if (isNaN(d.getTime())) return '–';
+  return d.toLocaleDateString('pt-BR');
+}
+
 function formatCell(value, type) {
   if (type === 'currency') return formatCurrency(value);
   if (type === 'number') return formatNumber(value);
+  if (type === 'date') return formatDate(value);
   if (value === null || value === undefined) return '–';
   return String(value);
 }
@@ -71,6 +80,12 @@ function formatCellPlain(value, type) {
     const num = typeof value === 'number' ? value : parseFloat(value);
     if (isNaN(num)) return '';
     return num % 1 === 0 ? String(num) : num.toFixed(2).replace('.', ',');
+  }
+  if (type === 'date') {
+    if (!value) return '';
+    const d = new Date(value + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('pt-BR');
   }
   if (value === null || value === undefined) return '';
   return String(value);

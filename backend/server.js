@@ -1119,12 +1119,13 @@ app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, re
       return res.json({ success: true, count: 0, data: [] });
     }
 
-    // Buscar portfolio (BigQuery), custos (BigQuery) e area_efetiva (Supabase projects) em paralelo
+    // Buscar portfolio (BigQuery), custos (BigQuery), area_efetiva (Supabase projects) e data_venda (Supabase comercial_infos) em paralelo
     const supabase = getSupabaseClient();
-    const [portfolioData, custosData, projectsResult] = await Promise.all([
+    const [portfolioData, custosData, projectsResult, comercialResult] = await Promise.all([
       queryPortfolio(leaderName),
       queryCustosAgregadosProjeto(),
-      supabase.from('projects').select('project_code, area_efetiva, area_construida')
+      supabase.from('projects').select('project_code, area_efetiva, area_construida'),
+      supabase.from('project_comercial_infos').select('data_venda, projects!inner(project_code)')
     ]);
 
     // Indexar custos por project_code
@@ -1141,6 +1142,15 @@ app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, re
       }
     }
 
+    // Indexar data_venda por project_code (Supabase comercial_infos → projects)
+    const comercialMap = {};
+    if (comercialResult.data) {
+      for (const c of comercialResult.data) {
+        const code = c.projects?.project_code;
+        if (code) comercialMap[String(code)] = c;
+      }
+    }
+
     // Merge e calcular derivados
     const merged = portfolioData
       .filter(p => p.project_code_norm || p.project_code)
@@ -1148,6 +1158,7 @@ app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, re
         const code = String(p.project_code_norm || p.project_code);
         const custos = custosMap[code] || {};
         const proj = projectsMap[code] || {};
+        const comercial = comercialMap[code] || {};
         const ticket = Number(p.valor_total_contrato_mais_aditivos) || 0;
         const tempoTotal = Number(p.duracao_total_meses) || 0;
         const custoTotal = Number(custos.custo_total) || 0;
@@ -1160,6 +1171,7 @@ app.get('/api/indicadores-vendas', requireAuth, withBqCache(900), async (req, re
           lider: p.lider,
           nome_time: p.nome_time,
           status: p.status,
+          data_venda: comercial.data_venda || null,
           area_efetiva: proj.area_efetiva != null ? Number(proj.area_efetiva) : null,
           area_total: proj.area_construida != null ? Number(proj.area_construida) : null,
           custo_total: custoTotal,
