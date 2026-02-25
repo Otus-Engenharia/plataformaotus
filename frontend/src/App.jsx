@@ -18,6 +18,7 @@ import ProjetosView from './components/ProjetosView';
 import ConfiguracoesView from './components/ConfiguracoesView';
 import CSView from './components/CSView';
 import HorasView from './components/HorasView';
+import MinhasHorasView from './components/MinhasHorasView';
 import FormularioPassagemView from './components/FormularioPassagemView';
 // FeedbacksView removido - substituído por FeedbackKanbanView e FeedbackAdminView (lazy loaded)
 import ContatosView from './components/ContatosView';
@@ -420,12 +421,12 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">ToDo's</span>
       </Link>
       <Link
-        to="/horas"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/horas') ? 'nav-link-active' : ''}`}
-        title={linkTitle('Horas')}
+        to="/minhas-horas"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/minhas-horas') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Minhas Horas')}
       >
         <span className="nav-icon">{icons.horas}</span>
-        <span className="nav-text">Horas</span>
+        <span className="nav-text">Minhas Horas</span>
       </Link>
       <Link
         to="/projetos"
@@ -510,6 +511,14 @@ function Sidebar({ collapsed, onToggle, area }) {
           <span className="nav-text">Alocacao de Times</span>
         </Link>
       )}
+      <Link
+        to="/lideres-projeto/horas"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/horas' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Horas')}
+      >
+        <span className="nav-icon">{icons.horas}</span>
+        <span className="nav-text">Horas</span>
+      </Link>
       <Link
         to="/lideres-projeto/indicadores-vendas"
         className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/indicadores-vendas' ? 'nav-link-active' : ''}`}
@@ -1161,13 +1170,14 @@ function AppContent() {
       const areaParam = new URLSearchParams(location.search).get('area');
       return areaParam || 'configuracoes';
     }
-    if (path.startsWith('/horas') ||
-        path.startsWith('/projetos') ||
+    if (path.startsWith('/projetos') ||
         path.startsWith('/cs') ||
         path.startsWith('/contatos') ||
         path.startsWith('/demandas-apoio') ||
         path.startsWith('/agenda') ||
-        path.startsWith('/todos')) {
+        path.startsWith('/todos') ||
+        path.startsWith('/minhas-horas') ||
+        path.startsWith('/configuracoes-usuario')) {
       return 'projetos';
     }
     if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos') || path.startsWith('/quadro')) {
@@ -1277,6 +1287,7 @@ function AppContent() {
               <Route path="curva-s" element={<CurvaSView />} />
               <Route path="baselines" element={<BaselinesView />} />
               <Route path="alocacao-times" element={isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />} />
+              <Route path="horas" element={<HorasView />} />
               <Route path="indicadores-vendas" element={
                 <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                   <IndicadoresVendasView />
@@ -1375,11 +1386,7 @@ function AppContent() {
             </Route>
             <Route
               path="/horas"
-              element={
-                <ProtectedRoute>
-                  {canAccessProjetosArea ? <HorasView /> : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/lideres-projeto/horas" replace />}
             />
             {/* Área de OKRs */}
             <Route
@@ -1473,6 +1480,24 @@ function AppContent() {
                 <ProtectedRoute>
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                     <TodosView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/minhas-horas"
+              element={
+                <ProtectedRoute>
+                  <MinhasHorasView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/configuracoes-usuario"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <ConfiguracoesUsuarioView />
                   </Suspense>
                 </ProtectedRoute>
               }
