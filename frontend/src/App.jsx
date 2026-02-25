@@ -1176,8 +1176,7 @@ function AppContent() {
         path.startsWith('/demandas-apoio') ||
         path.startsWith('/agenda') ||
         path.startsWith('/todos') ||
-        path.startsWith('/minhas-horas') ||
-        path.startsWith('/configuracoes-usuario')) {
+        path.startsWith('/minhas-horas')) {
       return 'projetos';
     }
     if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos') || path.startsWith('/quadro')) {
@@ -1489,16 +1488,6 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <MinhasHorasView />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/configuracoes-usuario"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                    <ConfiguracoesUsuarioView />
-                  </Suspense>
                 </ProtectedRoute>
               }
             />
