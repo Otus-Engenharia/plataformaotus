@@ -2102,7 +2102,7 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
   }
 
   if (!templates || templates.length === 0) {
-    return { created: 0, skipped: 0, message: 'Nenhum template encontrado para este cargo' };
+    return { created: 0, updated: 0, usersProcessed: 0, templatesCount: 0, details: [], errors: [], message: 'Nenhum template (indicador) encontrado para este cargo. Configure indicadores no Admin de Cargos antes de sincronizar.' };
   }
 
   // 2. Busca usuarios com esse cargo (opcionalmente filtrado por lider)
@@ -2123,7 +2123,7 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
   }
 
   if (!users || users.length === 0) {
-    return { created: 0, skipped: 0, message: 'Nenhum usuario encontrado com este cargo' };
+    return { created: 0, updated: 0, usersProcessed: 0, templatesCount: templates.length, details: [], errors: [], message: 'Nenhum usuario ativo encontrado com este cargo. Verifique se ha usuarios com este cargo atribuido em Admin > Usuarios.' };
   }
 
   console.log(`[sync] Cargo ${positionId} - Encontrados ${users.length} usuarios: ${users.map(u => u.name).join(', ')}`);
