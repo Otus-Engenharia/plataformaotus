@@ -41,6 +41,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AuthLoading from './components/AuthLoading';
 import OracleChat from './components/OracleChat';
 import BugReportFAB from './components/BugReportFAB';
+import TodoCreateFAB from './components/TodoCreateFAB';
 import './styles/App.css';
 
 // Lazy load das páginas de indicadores individuais
@@ -64,6 +65,9 @@ const AgendaView = lazy(() => import('./pages/agenda/AgendaView'));
 
 // Lazy load da página de ToDo's
 const TodosView = lazy(() => import('./pages/todos/TodosView'));
+
+// Lazy load da página de Configurações do Usuário
+const ConfiguracoesUsuarioView = lazy(() => import('./pages/configuracoes-usuario/ConfiguracoesUsuarioView'));
 
 // Lazy load das páginas de Workspace (Gestao de Tarefas)
 const WorkspaceView = lazy(() => import('./pages/workspace/WorkspaceView'));
@@ -458,6 +462,15 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.demandas}</span>
         <span className="nav-text">Demandas Apoio</span>
+      </Link>
+      <div className="nav-section-divider"></div>
+      <Link
+        to="/configuracoes-usuario"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/configuracoes-usuario') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Configurações')}
+      >
+        <span className="nav-icon">{icons.settings}</span>
+        <span className="nav-text">Configurações</span>
       </Link>
     </>
   );
@@ -1167,7 +1180,8 @@ function AppContent() {
         path.startsWith('/contatos') ||
         path.startsWith('/demandas-apoio') ||
         path.startsWith('/agenda') ||
-        path.startsWith('/todos')) {
+        path.startsWith('/todos') ||
+        path.startsWith('/configuracoes-usuario')) {
       return 'projetos';
     }
     if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos') || path.startsWith('/quadro')) {
@@ -1478,6 +1492,16 @@ function AppContent() {
               }
             />
             <Route
+              path="/configuracoes-usuario"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <ConfiguracoesUsuarioView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/gerenciar-feedbacks"
               element={
                 <ProtectedRoute>
@@ -1583,6 +1607,8 @@ function AppContent() {
           </Routes>
           {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}
           {showOracle && <OracleChat />}
+          {/* ToDo Create FAB - criar tarefas rapidamente de qualquer página */}
+          <TodoCreateFAB />
           {/* Bug Report FAB - disponível em todas as páginas exceto Home/Login */}
           <BugReportFAB />
         </main>

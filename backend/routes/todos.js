@@ -39,7 +39,7 @@ function createRoutes(requireAuth, logAction) {
    */
   router.get('/', requireAuth, async (req, res) => {
     try {
-      const { status, priority, project_id, assignee, search, sort_field, sort_dir, team_id } = req.query;
+      const { status, priority, project_id, assignee, search, sort_field, sort_dir, team_id, due_date, standalone_only } = req.query;
 
       const filters = {};
       if (status) filters.status = status;
@@ -48,6 +48,8 @@ function createRoutes(requireAuth, logAction) {
       if (assignee) filters.assignee = assignee;
       if (search) filters.search = search;
       if (team_id) filters.teamId = team_id;
+      if (due_date) filters.dueDate = due_date;
+      if (standalone_only === 'true') filters.standaloneOnly = true;
 
       const sort = {};
       if (sort_field) sort.field = sort_field;
