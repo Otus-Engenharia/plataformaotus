@@ -2404,18 +2404,65 @@ app.get('/api/horas', requireAuth, withBqCache(900), async (req, res) => {
     }
     const porTime = aggregateHorasByTime(rows);
     const porProjeto = aggregateHorasByProjeto(rows);
-    
+
     // Registra o acesso
-    await logAction(req, 'view', 'horas', null, 'Horas', { 
-      dataInicio, 
+    await logAction(req, 'view', 'horas', null, 'Horas', {
+      dataInicio,
       dataFim,
-      totalApontamentos: rows.length 
+      totalApontamentos: rows.length
     });
-    
+
     res.json({ success: true, porTime, porProjeto, dataInicio, dataFim });
   } catch (err) {
     console.error('Erro ao buscar horas:', err);
     res.status(500).json({ success: false, error: err.message || 'Erro ao buscar horas' });
+  }
+});
+
+/**
+ * Rota: GET /api/horas/minhas
+ * Horas do usuário logado (timetracker). Retorna apontamentos flat filtrados pelo nome do usuário.
+ * Sempre filtra por data (últimos 12 meses) para evitar carregamento lento.
+ */
+app.get('/api/horas/minhas', requireAuth, withBqCache(900), async (req, res) => {
+  try {
+    const effectiveUser = getEffectiveUser(req);
+    const userName = (effectiveUser.name || '').trim();
+    if (!userName) {
+      return res.json({ success: true, apontamentos: [], dataInicio: null, dataFim: null });
+    }
+
+    const def = defaultHorasDateRange();
+    const dataInicio = def.dataInicio;
+    const dataFim = def.dataFim;
+
+    const rows = await queryHorasRaw(null, { dataInicio, dataFim });
+
+    const userNameLower = userName.toLowerCase();
+    const filtered = rows.filter((r) => {
+      const u = typeof r.usuario === 'string' ? r.usuario.trim().toLowerCase() : '';
+      return u === userNameLower;
+    });
+
+    const apontamentos = filtered.map((r) => ({
+      task_name: r.task_name,
+      fase: r.fase,
+      projeto: r.projeto,
+      duracao: r.duracao,
+      data_de_apontamento: toDateString(r.data_de_apontamento),
+      horas: parseDuracaoHoras(r.duracao),
+    }));
+
+    apontamentos.sort((a, b) => {
+      const da = a.data_de_apontamento || '';
+      const db = b.data_de_apontamento || '';
+      return db.localeCompare(da);
+    });
+
+    res.json({ success: true, apontamentos, dataInicio, dataFim, usuario: userName });
+  } catch (err) {
+    console.error('Erro ao buscar minhas horas:', err);
+    res.status(500).json({ success: false, error: err.message || 'Erro ao buscar minhas horas' });
   }
 });
 

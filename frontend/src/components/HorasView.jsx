@@ -628,6 +628,7 @@ function HorasView() {
           </div>
         </section>
       )}
+
     </div>
   );
 }
