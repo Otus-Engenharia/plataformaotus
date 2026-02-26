@@ -2589,10 +2589,20 @@ app.get('/api/projetos/apontamentos', requireAuth, withBqCache(900), async (req,
 });
 
 // ============================================
-// ROTAS DE FEEDBACKS (DDD)
+// ROTAS DDD
 // Migrado para arquitetura Domain Driven Design
-// Ver: backend/routes/feedbacks.js
+// Ver: backend/routes/index.js
 // ============================================
+
+// Middleware que injeta o effective user (impersonação) no req.user para rotas DDD
+// Isso garante que req.user?.id nas rotas DDD respeite a impersonação ativa
+app.use('/api', (req, res, next) => {
+  if (req.session?.impersonating && req.user) {
+    req.user = { ...req.user, ...req.session.impersonating };
+  }
+  next();
+});
+
 setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache });
 
 /**
