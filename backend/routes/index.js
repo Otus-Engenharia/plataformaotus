@@ -14,6 +14,7 @@ import { createRoutes as createBaselineRoutes } from './baselines.js';
 import { createRoutes as createRelatoRoutes } from './relatos.js';
 import { createRoutes as createBaselineRequestRoutes } from './baseline-requests.js';
 import { createRoutes as createTodoRoutes } from './todos.js';
+import { createRoutes as createUserPreferencesRoutes } from './user-preferences.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -64,5 +65,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const todoRoutes = createTodoRoutes(requireAuth, logAction);
   app.use('/api/todos', todoRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos');
+  // Rotas de Preferências do Usuário (DDD)
+  const userPreferencesRoutes = createUserPreferencesRoutes(requireAuth, logAction);
+  app.use('/api/user-preferences', userPreferencesRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences');
 }

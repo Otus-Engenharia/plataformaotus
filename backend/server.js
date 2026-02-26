@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
@@ -69,7 +69,7 @@ import {
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
   fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
   // Apoio de Projetos - Portfolio
-  fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd,
+  fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
   // Portfolio - Edicao inline
   fetchPortfolioEditOptions, updateProjectField,
   // OAuth tokens (Gmail Draft)
@@ -878,6 +878,41 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Erro ao atualizar portfolio:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/portfolio/:projectCode/tools
+ * Atualiza campo de ferramenta no Supabase (project_features)
+ * Body: { field, value, oldValue }
+ */
+app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode } = req.params;
+    const { field, value, oldValue } = req.body;
+
+    const allowedToolFields = [
+      'whatsapp_status', 'checklist_status', 'dashboard_status',
+      'dod_status', 'escopo_status', 'relatorio_semanal_status',
+      'dod_id', 'escopo_entregas_id', 'smartsheet_id', 'discord_id',
+      'capa_email_url', 'gantt_email_url', 'disciplina_email_url'
+    ];
+
+    if (!allowedToolFields.includes(field)) {
+      return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido para ferramentas` });
+    }
+
+    const result = await updateProjectToolField(projectCode, field, value);
+    await logAction(req, 'update', 'portfolio-tools', projectCode, field, { value, oldValue });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar ferramenta:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1841,6 +1876,22 @@ app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, withBqCache(900), a
 });
 
 /**
+ * Rota: GET /api/apoio-projetos/modelagem-tarefas
+ * Busca tarefas de Modelagem diretamente do SmartSheet (sem JOIN com portfolio).
+ * Query: weeksAhead (padrão: 8)
+ */
+app.get('/api/apoio-projetos/modelagem-tarefas', requireAuth, withBqCache(900), async (req, res) => {
+  try {
+    const weeksAhead = parseInt(req.query.weeksAhead) || 8;
+    const data = await queryModelagemTarefas({ weeksAhead });
+    res.json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar tarefas de modelagem:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * Rota: GET /api/apoio-projetos/portfolio
  * Retorna dados do portfolio enriquecidos com plataforma_acd e controle_apoio
  * Sem filtro por lider - usado pelo setor de Tecnologia (Apoio de Projetos)
@@ -2404,18 +2455,65 @@ app.get('/api/horas', requireAuth, withBqCache(900), async (req, res) => {
     }
     const porTime = aggregateHorasByTime(rows);
     const porProjeto = aggregateHorasByProjeto(rows);
-    
+
     // Registra o acesso
-    await logAction(req, 'view', 'horas', null, 'Horas', { 
-      dataInicio, 
+    await logAction(req, 'view', 'horas', null, 'Horas', {
+      dataInicio,
       dataFim,
-      totalApontamentos: rows.length 
+      totalApontamentos: rows.length
     });
-    
+
     res.json({ success: true, porTime, porProjeto, dataInicio, dataFim });
   } catch (err) {
     console.error('Erro ao buscar horas:', err);
     res.status(500).json({ success: false, error: err.message || 'Erro ao buscar horas' });
+  }
+});
+
+/**
+ * Rota: GET /api/horas/minhas
+ * Horas do usuário logado (timetracker). Retorna apontamentos flat filtrados pelo nome do usuário.
+ * Sempre filtra por data (últimos 12 meses) para evitar carregamento lento.
+ */
+app.get('/api/horas/minhas', requireAuth, withBqCache(900), async (req, res) => {
+  try {
+    const effectiveUser = getEffectiveUser(req);
+    const userName = (effectiveUser.name || '').trim();
+    if (!userName) {
+      return res.json({ success: true, apontamentos: [], dataInicio: null, dataFim: null });
+    }
+
+    const def = defaultHorasDateRange();
+    const dataInicio = def.dataInicio;
+    const dataFim = def.dataFim;
+
+    const rows = await queryHorasRaw(null, { dataInicio, dataFim });
+
+    const userNameLower = userName.toLowerCase();
+    const filtered = rows.filter((r) => {
+      const u = typeof r.usuario === 'string' ? r.usuario.trim().toLowerCase() : '';
+      return u === userNameLower;
+    });
+
+    const apontamentos = filtered.map((r) => ({
+      task_name: r.task_name,
+      fase: r.fase,
+      projeto: r.projeto,
+      duracao: r.duracao,
+      data_de_apontamento: toDateString(r.data_de_apontamento),
+      horas: parseDuracaoHoras(r.duracao),
+    }));
+
+    apontamentos.sort((a, b) => {
+      const da = a.data_de_apontamento || '';
+      const db = b.data_de_apontamento || '';
+      return db.localeCompare(da);
+    });
+
+    res.json({ success: true, apontamentos, dataInicio, dataFim, usuario: userName });
+  } catch (err) {
+    console.error('Erro ao buscar minhas horas:', err);
+    res.status(500).json({ success: false, error: err.message || 'Erro ao buscar minhas horas' });
   }
 });
 

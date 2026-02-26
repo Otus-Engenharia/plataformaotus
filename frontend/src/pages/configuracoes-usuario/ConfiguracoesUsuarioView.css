@@ -1,0 +1,240 @@
+/* ============================================================
+   ConfiguracoesUsuarioView
+   ============================================================ */
+
+.config-usuario {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 20px 6.5rem 12px 24px;
+  background: #f8f8f7;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+/* --- Header --- */
+
+.config-usuario__header {
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+
+.config-usuario__header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #18181b;
+  margin: 0 0 4px 0;
+}
+
+.config-usuario__header p {
+  font-size: 0.875rem;
+  color: #71717a;
+  margin: 0;
+}
+
+/* --- Section card --- */
+
+.config-usuario__section {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.config-usuario__section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #18181b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.config-usuario__section-title .count-badge {
+  background: #f4f4f5;
+  color: #71717a;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* --- Add controls --- */
+
+.config-usuario__add-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.config-usuario__add-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.config-usuario__add-row .searchable-select {
+  flex: 1;
+  max-width: 400px;
+}
+
+.config-usuario__add-row select {
+  flex: 1;
+  max-width: 300px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-family: 'DM Sans', sans-serif;
+  color: #18181b;
+  background: #fff;
+  cursor: pointer;
+}
+
+.config-usuario__add-row select:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
+}
+
+.config-usuario__btn-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #18181b;
+  background: #ffdd00;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.config-usuario__btn-team:hover {
+  background: #f5d400;
+}
+
+.config-usuario__btn-team:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Favorites list --- */
+
+.config-usuario__group {
+  margin-bottom: 16px;
+}
+
+.config-usuario__group:last-child {
+  margin-bottom: 0;
+}
+
+.config-usuario__group-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.config-usuario__favorite-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.12s;
+}
+
+.config-usuario__favorite-item:hover {
+  background: #f8f8f7;
+}
+
+.config-usuario__favorite-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.config-usuario__favorite-name {
+  font-size: 0.875rem;
+  color: #18181b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.config-usuario__favorite-comercial {
+  color: #a1a1aa;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.config-usuario__btn-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+
+.config-usuario__btn-remove:hover {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.config-usuario__btn-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- Empty state --- */
+
+.config-usuario__empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: #a1a1aa;
+  font-size: 0.875rem;
+}
+
+/* --- Loading --- */
+
+.config-usuario__loading {
+  text-align: center;
+  padding: 48px 16px;
+  color: #a1a1aa;
+  font-size: 0.875rem;
+}
+
+/* --- Label helper --- */
+
+.config-usuario__label {
+  font-size: 0.8125rem;
+  color: #71717a;
+  white-space: nowrap;
+}

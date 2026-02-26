@@ -57,6 +57,12 @@ class SupabaseTodoRepository extends TodoRepository {
       query = query.ilike('name', `%${filters.search}%`);
     }
 
+    if (filters.dueDate) {
+      const dayStart = `${filters.dueDate}T00:00:00.000Z`;
+      const dayEnd = `${filters.dueDate}T23:59:59.999Z`;
+      query = query.gte('due_date', dayStart).lte('due_date', dayEnd);
+    }
+
     // Filtro por time (via projetos do time)
     if (filters.teamId) {
       const { data: teamProjects } = await this.#supabase

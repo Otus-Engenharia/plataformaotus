@@ -18,6 +18,7 @@ import ProjetosView from './components/ProjetosView';
 import ConfiguracoesView from './components/ConfiguracoesView';
 import CSView from './components/CSView';
 import HorasView from './components/HorasView';
+import MinhasHorasView from './components/MinhasHorasView';
 import FormularioPassagemView from './components/FormularioPassagemView';
 // FeedbacksView removido - substituído por FeedbackKanbanView e FeedbackAdminView (lazy loaded)
 import ContatosView from './components/ContatosView';
@@ -41,6 +42,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AuthLoading from './components/AuthLoading';
 import OracleChat from './components/OracleChat';
 import BugReportFAB from './components/BugReportFAB';
+import TodoCreateFAB from './components/TodoCreateFAB';
 import './styles/App.css';
 
 // Lazy load das páginas de indicadores individuais
@@ -64,6 +66,9 @@ const AgendaView = lazy(() => import('./pages/agenda/AgendaView'));
 
 // Lazy load da página de ToDo's
 const TodosView = lazy(() => import('./pages/todos/TodosView'));
+
+// Lazy load da página de Configurações do Usuário
+const ConfiguracoesUsuarioView = lazy(() => import('./pages/configuracoes-usuario/ConfiguracoesUsuarioView'));
 
 // Lazy load das páginas de Workspace (Gestao de Tarefas)
 const WorkspaceView = lazy(() => import('./pages/workspace/WorkspaceView'));
@@ -268,6 +273,9 @@ function Sidebar({ collapsed, onToggle, area }) {
   // State para badge de solicitações pendentes de baseline
   const [pendingBaselineCount, setPendingBaselineCount] = useState(0);
 
+  // State para badge de feedbacks atualizados
+  const [feedbackUpdatesCount, setFeedbackUpdatesCount] = useState(0);
+
   // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
     if (area === 'okrs') {
@@ -319,6 +327,35 @@ function Sidebar({ collapsed, onToggle, area }) {
       })
       .catch(() => {}); // silencioso - 403 para não-privilegiados
   }, [isPrivileged, location.pathname]);
+
+  // Atualizar last_seen e limpar badge quando acessar feedbacks
+  useEffect(() => {
+    if (!user?.id) return;
+    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/gerenciar-feedbacks') {
+      localStorage.setItem(`feedbacks_last_seen_${user.id}`, new Date().toISOString());
+      setFeedbackUpdatesCount(0);
+    }
+  }, [user?.id, location.pathname]);
+
+  // Buscar contagem de feedbacks atualizados (para badge)
+  useEffect(() => {
+    if (!user?.id) return;
+    const lastSeenKey = `feedbacks_last_seen_${user.id}`;
+    const lastSeen = localStorage.getItem(lastSeenKey);
+    if (!lastSeen) {
+      localStorage.setItem(lastSeenKey, new Date().toISOString());
+      return;
+    }
+    // Não buscar se já está na página de feedbacks (last_seen acabou de ser atualizado)
+    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/gerenciar-feedbacks') return;
+    axios.get(`/api/feedbacks/my-updates-count?since=${encodeURIComponent(lastSeen)}`, { withCredentials: true })
+      .then(res => {
+        if (res.data.success) {
+          setFeedbackUpdatesCount(res.data.data?.count || 0);
+        }
+      })
+      .catch(() => {});
+  }, [user?.id, location.pathname]);
 
   // Função para carregar projetos de um setor (lazy load)
   const loadSectorProjects = useCallback((sectorId) => {
@@ -420,12 +457,12 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">ToDo's</span>
       </Link>
       <Link
-        to="/horas"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/horas') ? 'nav-link-active' : ''}`}
-        title={linkTitle('Horas')}
+        to="/minhas-horas"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/minhas-horas') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Minhas Horas')}
       >
         <span className="nav-icon">{icons.horas}</span>
-        <span className="nav-text">Horas</span>
+        <span className="nav-text">Minhas Horas</span>
       </Link>
       <Link
         to="/projetos"
@@ -458,6 +495,15 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.demandas}</span>
         <span className="nav-text">Demandas Apoio</span>
+      </Link>
+      <div className="nav-section-divider"></div>
+      <Link
+        to="/configuracoes-usuario"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/configuracoes-usuario') ? 'nav-link-active' : ''}`}
+        title={linkTitle('Configurações')}
+      >
+        <span className="nav-icon">{icons.settings}</span>
+        <span className="nav-text">Configurações</span>
       </Link>
     </>
   );
@@ -510,6 +556,14 @@ function Sidebar({ collapsed, onToggle, area }) {
           <span className="nav-text">Alocacao de Times</span>
         </Link>
       )}
+      <Link
+        to="/lideres-projeto/horas"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/horas' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Horas')}
+      >
+        <span className="nav-icon">{icons.horas}</span>
+        <span className="nav-text">Horas</span>
+      </Link>
       <Link
         to="/lideres-projeto/indicadores-vendas"
         className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/indicadores-vendas' ? 'nav-link-active' : ''}`}
@@ -984,6 +1038,9 @@ function Sidebar({ collapsed, onToggle, area }) {
           >
             <span className="nav-icon">{icons.feedbacks}</span>
             {!collapsed && <span className="nav-text">{area === 'configuracoes' ? 'Gestão de Feedbacks' : 'Feedbacks'}</span>}
+            {feedbackUpdatesCount > 0 && (
+              <span className="nav-notification-badge">{feedbackUpdatesCount}</span>
+            )}
           </Link>
         )}
         {!collapsed && (
@@ -1161,13 +1218,14 @@ function AppContent() {
       const areaParam = new URLSearchParams(location.search).get('area');
       return areaParam || 'configuracoes';
     }
-    if (path.startsWith('/horas') ||
-        path.startsWith('/projetos') ||
+    if (path.startsWith('/projetos') ||
         path.startsWith('/cs') ||
         path.startsWith('/contatos') ||
         path.startsWith('/demandas-apoio') ||
         path.startsWith('/agenda') ||
-        path.startsWith('/todos')) {
+        path.startsWith('/todos') ||
+        path.startsWith('/configuracoes-usuario') ||
+        path.startsWith('/minhas-horas')) {
       return 'projetos';
     }
     if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos') || path.startsWith('/quadro')) {
@@ -1277,6 +1335,7 @@ function AppContent() {
               <Route path="curva-s" element={<CurvaSView />} />
               <Route path="baselines" element={<BaselinesView />} />
               <Route path="alocacao-times" element={isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />} />
+              <Route path="horas" element={<HorasView />} />
               <Route path="indicadores-vendas" element={
                 <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                   <IndicadoresVendasView />
@@ -1375,11 +1434,7 @@ function AppContent() {
             </Route>
             <Route
               path="/horas"
-              element={
-                <ProtectedRoute>
-                  {canAccessProjetosArea ? <HorasView /> : <Navigate to="/ind" replace />}
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/lideres-projeto/horas" replace />}
             />
             {/* Área de OKRs */}
             <Route
@@ -1474,6 +1529,24 @@ function AppContent() {
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                     <TodosView />
                   </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/configuracoes-usuario"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <ConfiguracoesUsuarioView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/minhas-horas"
+              element={
+                <ProtectedRoute>
+                  <MinhasHorasView />
                 </ProtectedRoute>
               }
             />
@@ -1583,6 +1656,8 @@ function AppContent() {
           </Routes>
           {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}
           {showOracle && <OracleChat />}
+          {/* ToDo Create FAB - criar tarefas rapidamente de qualquer página */}
+          <TodoCreateFAB />
           {/* Bug Report FAB - disponível em todas as páginas exceto Home/Login */}
           <BugReportFAB />
         </main>

@@ -1,0 +1,121 @@
+/* ========================================
+   TODO CREATE FAB - Floating Action Button
+   Design: Otus Yellow (mesma paleta do BugReport/Oracle)
+   Posicionado acima do BugReportFAB
+   ======================================== */
+
+.todo-fab {
+  position: fixed;
+  bottom: 90px;
+  right: 24px;
+  z-index: 8999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+
+  height: 52px;
+  min-width: 52px;
+  padding: 0 16px;
+
+  background: linear-gradient(135deg, #ffdd00 0%, #e6c700 100%);
+  border: none;
+  border-radius: 26px;
+
+  color: #1a1a1a;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+
+  cursor: pointer;
+  box-shadow:
+    0 4px 12px rgba(255, 221, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.todo-fab:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 8px 24px rgba(255, 221, 0, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.todo-fab:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow:
+    0 2px 8px rgba(255, 221, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.todo-fab:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Icon */
+.todo-fab__icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.todo-fab:hover .todo-fab__icon {
+  transform: scale(1.1);
+}
+
+/* Text - hidden by default, shown on expand */
+.todo-fab__text {
+  max-width: 0;
+  opacity: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.todo-fab--expanded .todo-fab__text {
+  max-width: 120px;
+  opacity: 1;
+  margin-left: 10px;
+}
+
+/* Collapsed state - just icon */
+.todo-fab:not(.todo-fab--expanded) {
+  padding: 0;
+  width: 52px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .todo-fab {
+    bottom: 78px;
+    right: 16px;
+    height: 48px;
+    min-width: 48px;
+  }
+
+  .todo-fab:not(.todo-fab--expanded) {
+    width: 48px;
+  }
+
+  .todo-fab__icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .todo-fab__text {
+    font-size: 12px;
+  }
+
+  .todo-fab--expanded .todo-fab__text {
+    max-width: 100px;
+  }
+}

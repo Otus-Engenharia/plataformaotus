@@ -5394,6 +5394,44 @@ export async function updatePlataformaAcd(projectCode, plataformaAcd) {
   return data;
 }
 
+/**
+ * Atualiza um campo de ferramenta em project_features
+ * Usado pela aba Ferramentas para toggle de status e edicao de IDs/URLs
+ * @param {string} projectCode - Codigo do projeto (project_code)
+ * @param {string} field - Campo a atualizar (ex: whatsapp_status, dod_id)
+ * @param {any} value - Novo valor
+ */
+export async function updateProjectToolField(projectCode, field, value) {
+  const supabase = getSupabaseClient();
+
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('project_code', projectCode)
+    .single();
+
+  if (projectError || !project) {
+    throw new Error(`Projeto nao encontrado: ${projectCode}`);
+  }
+
+  const dbValue = value === '' || value === undefined ? null : value;
+
+  const { data, error } = await supabase
+    .from('project_features')
+    .upsert(
+      { project_id: project.id, [field]: dbValue },
+      { onConflict: 'project_id' }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar ferramenta: ${error.message}`);
+  }
+
+  return data;
+}
+
 // ============================================
 // OAUTH TOKENS (Gmail Draft)
 // ============================================

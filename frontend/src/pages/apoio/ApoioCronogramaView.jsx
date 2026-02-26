@@ -30,9 +30,7 @@ function ApoioCronogramaView() {
   const [weeksFilter, setWeeksFilter] = useState(2);
   const [projetoFilter, setProjetoFilter] = useState([]);
   const [disciplinaFilter, setDisciplinaFilter] = useState(['Coordenação']);
-  const [searchTerm, setSearchTerm] = useState('Veri');
   const [tipoVerificacaoFilter, setTipoVerificacaoFilter] = useState('todas');
-  const [tipoModelagemFilter, setTipoModelagemFilter] = useState('todas');
   const [viewMode, setViewMode] = useState('table');
 
   const [projetoDropdownOpen, setProjetoDropdownOpen] = useState(false);
@@ -198,13 +196,10 @@ function ApoioCronogramaView() {
         const disciplina = String(item.Disciplina || '').trim();
         if (!disciplinaFilter.includes(disciplina)) return false;
       }
-      if (searchTerm.trim()) {
-        const search = searchTerm.toLowerCase();
-        const tarefa = String(item.NomeDaTarefa || '').toLowerCase();
-        if (!tarefa.includes(search)) {
-          return false;
-        }
-      }
+      // Filtro fixo: sempre mostrar apenas tarefas de verificação
+      const tarefa = String(item.NomeDaTarefa || '').toLowerCase();
+      if (!tarefa.includes('veri')) return false;
+
       if (tipoVerificacaoFilter !== 'todas') {
         const tarefa = String(item.NomeDaTarefa || '').toLowerCase();
         if (tipoVerificacaoFilter === 'lancamento') {
@@ -213,17 +208,9 @@ function ApoioCronogramaView() {
           if (!tarefa.includes('ajuste')) return false;
         }
       }
-      if (tipoModelagemFilter !== 'todas') {
-        const tarefa = String(item.NomeDaTarefa || '').toLowerCase();
-        if (tipoModelagemFilter === 'otus') {
-          if (!tarefa.includes('otus')) return false;
-        } else if (tipoModelagemFilter === 'externas') {
-          if (!tarefa.includes('extern')) return false;
-        }
-      }
       return true;
     });
-  }, [tarefas, projetoFilter, disciplinaFilter, searchTerm, tipoVerificacaoFilter, tipoModelagemFilter]);
+  }, [tarefas, projetoFilter, disciplinaFilter, tipoVerificacaoFilter]);
 
   const tarefasAgrupadas = useMemo(() => {
     if (!tarefasFiltradas || tarefasFiltradas.length === 0) return [];
@@ -414,14 +401,6 @@ function ApoioCronogramaView() {
           )}
         </div>
 
-        <input
-          type="text"
-          className="apoio-search-input"
-          placeholder="Buscar no nome da tarefa..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-
         <div className="apoio-filter-group">
           <label className="apoio-filter-label">Tipo:</label>
           <select
@@ -432,19 +411,6 @@ function ApoioCronogramaView() {
             <option value="todas">Todas</option>
             <option value="lancamento">Lançamento</option>
             <option value="ajustes">Ajustes</option>
-          </select>
-        </div>
-
-        <div className="apoio-filter-group">
-          <label className="apoio-filter-label">Modelagem:</label>
-          <select
-            className="apoio-weeks-select"
-            value={tipoModelagemFilter}
-            onChange={(e) => setTipoModelagemFilter(e.target.value)}
-          >
-            <option value="todas">Todas</option>
-            <option value="otus">Otus</option>
-            <option value="externas">Externas</option>
           </select>
         </div>
 

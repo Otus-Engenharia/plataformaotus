@@ -638,16 +638,32 @@
   min-height: 400px;
 }
 
+.table-scroll-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.table-scroll-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
 .portfolio-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 10px;
+  font-size: 11px;
   min-width: 100%;
   font-family: Verdana, sans-serif;
 }
 
 .portfolio-table thead {
-  background: #f5f5f5;
+  background: #1a1a1a;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -657,8 +673,9 @@
   padding: 1rem 0.75rem;
   text-align: center;
   font-weight: bold;
-  font-size: 10px;
-  color: #1a1a1a;
+  font-size: 11px;
+  color: #ffdd00;
+  background: #1a1a1a;
   border-bottom: 2px solid #ffdd00;
   cursor: pointer;
   user-select: none;
@@ -674,7 +691,7 @@
 }
 
 .portfolio-table th:hover {
-  background: #ededed;
+  background: #2a2a2a;
 }
 
 .portfolio-table th.sort-asc,
@@ -715,6 +732,7 @@
   top: 0.25rem;
   right: 0.25rem;
   line-height: 1;
+  transition: color 150ms ease;
 }
 
 .portfolio-table th.sort-asc .sort-indicator,
@@ -738,7 +756,11 @@
 }
 
 .portfolio-table tbody tr:hover {
-  background: #f5f5f5;
+  background: #fffef5;
+}
+
+.portfolio-table tbody tr:nth-child(even) {
+  background: #fafafa;
 }
 
 .portfolio-table tbody tr:last-child td {
@@ -966,7 +988,7 @@
 }
 
 .portfolio-table th.contract-info-column {
-  background: #fff9e6 !important;
+  background: #2a2a2a !important;
 }
 
 .portfolio-table th.contract-info-first {
