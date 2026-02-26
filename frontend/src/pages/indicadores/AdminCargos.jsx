@@ -176,15 +176,20 @@ export default function AdminCargos() {
         const errorLines = r.errors?.length
           ? `\n\n❌ Erros (${r.errors.length}):\n${r.errors.slice(0, 5).map(e => `  ✗ ${e.user} → ${e.indicator}: ${e.error}`).join('\n')}${r.errors.length > 5 ? `\n  ... e mais ${r.errors.length - 5} erros` : ''}`
           : '';
+        const nothingProcessed = (r.created || 0) === 0 && (r.updated || 0) === 0 && !(r.errors?.length);
+        const warningLine = nothingProcessed && r.message
+          ? `\n\n⚠️ ${r.message}`
+          : (r.usersProcessed === 0 ? '\n\n⚠️ Nenhum usuário encontrado! Verifique se os membros da equipe têm este cargo atribuído em Admin > Usuários.' : '');
         alert(
           `Sincronização concluída!\n\n` +
-          `👥 ${r.usersProcessed} usuários encontrados com este cargo\n` +
-          `📊 ${r.created} indicadores criados\n` +
+          `👥 ${r.usersProcessed || 0} usuários encontrados com este cargo\n` +
+          `📋 ${r.templatesCount || 0} templates de indicadores\n` +
+          `📊 ${r.created || 0} indicadores criados\n` +
           `🔄 ${r.updated || 0} indicadores atualizados\n` +
           (createdNames ? `\nCriados:\n${createdNames}` : '') +
           (updatedNames ? `\nAtualizados:\n${updatedNames}` : '') +
           errorLines +
-          (r.usersProcessed === 0 ? '\n\n⚠️ Nenhum usuário encontrado! Verifique se os membros da equipe têm este cargo atribuído em Admin > Usuários.' : '')
+          warningLine
         );
       }
     } catch (err) {
