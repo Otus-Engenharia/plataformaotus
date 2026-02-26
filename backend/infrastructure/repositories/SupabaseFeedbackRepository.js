@@ -203,6 +203,24 @@ class SupabaseFeedbackRepository extends FeedbackRepository {
   }
 
   /**
+   * Conta feedbacks de um autor que foram atualizados por admin desde um timestamp
+   */
+  async countUpdatedForAuthor(authorId, sinceTimestamp) {
+    const { count, error } = await this.#supabase
+      .from(FEEDBACKS_TABLE)
+      .select('*', { count: 'exact', head: true })
+      .eq('author_id', authorId)
+      .not('resolved_by_id', 'is', null)
+      .gt('updated_at', sinceTimestamp);
+
+    if (error) {
+      throw new Error(`Erro ao contar feedbacks atualizados: ${error.message}`);
+    }
+
+    return count || 0;
+  }
+
+  /**
    * Busca dados do usuário por ID
    */
   async getUserById(userId) {

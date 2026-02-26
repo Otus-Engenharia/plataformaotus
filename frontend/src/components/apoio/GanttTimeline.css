@@ -39,14 +39,14 @@
   position: sticky;
   top: 0;
   z-index: 4;
-  background: #f9fafb;
+  background: #1a1a1a;
   padding: 0.625rem 0.5rem;
   font-size: 0.6875rem;
   font-weight: 700;
-  color: #374151;
+  color: #d1d5db;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid #ffdd00;
   border-right: 1px solid #f3f4f6;
   white-space: nowrap;
   user-select: none;
@@ -57,6 +57,7 @@
   position: sticky;
   left: 0;
   z-index: 6;
+  background: #1a1a1a;
   border-right: 1px solid #e5e7eb;
 }
 
@@ -64,6 +65,7 @@
   position: sticky;
   left: 200px;
   z-index: 6;
+  background: #1a1a1a;
   border-right: 1px solid #e5e7eb;
 }
 
@@ -71,6 +73,7 @@
   position: sticky;
   left: 290px;
   z-index: 6;
+  background: #1a1a1a;
   border-right: 1px solid #e5e7eb;
 }
 
@@ -84,20 +87,20 @@
   z-index: 3;
   font-size: 0.5625rem;
   font-weight: 600;
-  color: #6b7280;
+  color: #9ca3af;
   text-align: center;
 }
 
 .gantt-hdr--today {
-  background: #fef3c7;
-  color: #92400e;
+  background: #ffdd00;
+  color: #1a1a1a;
   font-weight: 700;
-  border-bottom-color: #f59e0b;
+  border-bottom-color: #ffdd00;
 }
 
 .gantt-hdr--weekend {
-  background: #f3f4f6;
-  color: #9ca3af;
+  background: #2a2a2a;
+  color: #6b7280;
 }
 
 /* ===== Data cells ===== */
@@ -237,7 +240,8 @@
   width: 2px;
   background: #ef4444;
   transform: translateX(-50%);
-  opacity: 0.6;
+  opacity: 1;
+  box-shadow: 0 0 6px rgba(239,68,68,0.5);
 }
 
 /* ===== Gantt bars ===== */
@@ -269,7 +273,7 @@
 .gantt-bar:hover {
   opacity: 1;
   transform: scaleY(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
   z-index: 3;
 }
 
@@ -300,6 +304,7 @@
   max-width: 320px;
   animation: gantt-tooltip-in 0.15s ease-out;
   border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
 }
 
 @keyframes gantt-tooltip-in {

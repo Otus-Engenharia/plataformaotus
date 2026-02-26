@@ -268,6 +268,9 @@ function Sidebar({ collapsed, onToggle, area }) {
   // State para badge de solicitações pendentes de baseline
   const [pendingBaselineCount, setPendingBaselineCount] = useState(0);
 
+  // State para badge de feedbacks atualizados
+  const [feedbackUpdatesCount, setFeedbackUpdatesCount] = useState(0);
+
   // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
     if (area === 'okrs') {
@@ -319,6 +322,35 @@ function Sidebar({ collapsed, onToggle, area }) {
       })
       .catch(() => {}); // silencioso - 403 para não-privilegiados
   }, [isPrivileged, location.pathname]);
+
+  // Atualizar last_seen e limpar badge quando acessar feedbacks
+  useEffect(() => {
+    if (!user?.id) return;
+    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/gerenciar-feedbacks') {
+      localStorage.setItem(`feedbacks_last_seen_${user.id}`, new Date().toISOString());
+      setFeedbackUpdatesCount(0);
+    }
+  }, [user?.id, location.pathname]);
+
+  // Buscar contagem de feedbacks atualizados (para badge)
+  useEffect(() => {
+    if (!user?.id) return;
+    const lastSeenKey = `feedbacks_last_seen_${user.id}`;
+    const lastSeen = localStorage.getItem(lastSeenKey);
+    if (!lastSeen) {
+      localStorage.setItem(lastSeenKey, new Date().toISOString());
+      return;
+    }
+    // Não buscar se já está na página de feedbacks (last_seen acabou de ser atualizado)
+    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/gerenciar-feedbacks') return;
+    axios.get(`/api/feedbacks/my-updates-count?since=${encodeURIComponent(lastSeen)}`, { withCredentials: true })
+      .then(res => {
+        if (res.data.success) {
+          setFeedbackUpdatesCount(res.data.data?.count || 0);
+        }
+      })
+      .catch(() => {});
+  }, [user?.id, location.pathname]);
 
   // Função para carregar projetos de um setor (lazy load)
   const loadSectorProjects = useCallback((sectorId) => {
@@ -984,6 +1016,9 @@ function Sidebar({ collapsed, onToggle, area }) {
           >
             <span className="nav-icon">{icons.feedbacks}</span>
             {!collapsed && <span className="nav-text">{area === 'configuracoes' ? 'Gestão de Feedbacks' : 'Feedbacks'}</span>}
+            {feedbackUpdatesCount > 0 && (
+              <span className="nav-notification-badge">{feedbackUpdatesCount}</span>
+            )}
           </Link>
         )}
         {!collapsed && (

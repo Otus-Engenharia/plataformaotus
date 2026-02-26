@@ -1708,6 +1708,51 @@ export async function queryProximasTarefasAll(leaderName = null, options = {}) {
   }
 }
 
+/**
+ * Busca tarefas de Modelagem diretamente da tabela SmartSheet.
+ * Query dedicada sem JOIN com portfolio — as planilhas de Modelagem
+ * não casam com projetos do portfolio pelo nome normalizado.
+ */
+export async function queryModelagemTarefas(options = {}) {
+  const { weeksAhead = 8 } = options;
+
+  const query = `
+    SELECT
+      ID_Projeto,
+      NomeDaPlanilha AS projeto_nome,
+      NomeDaTarefa,
+      DataDeInicio,
+      DataDeTermino,
+      Disciplina,
+      Status,
+      KPI,
+      Level,
+      rowId,
+      CaminhoCriticoMarco
+    FROM \`dadosindicadores.smartsheet.smartsheet_data_projetos\`
+    WHERE
+      LOWER(Disciplina) LIKE '%modelagem%'
+      AND DataDeInicio IS NOT NULL
+      AND DataDeTermino >= CURRENT_DATE()
+      AND DataDeInicio <= DATE_ADD(CURRENT_DATE(), INTERVAL ${weeksAhead} WEEK)
+      AND NomeDaPlanilha NOT LIKE '%(Backup%'
+      AND NomeDaPlanilha NOT LIKE '%Cópia%'
+      AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+      AND NomeDaPlanilha NOT LIKE '%Copy%'
+    ORDER BY DataDeInicio ASC, NomeDaPlanilha, Disciplina
+  `;
+
+  try {
+    console.log(`📅 [queryModelagemTarefas] Buscando tarefas de Modelagem (${weeksAhead} semanas)`);
+    const rows = await executeQuery(query);
+    console.log(`✅ Query retornou ${rows.length} tarefas de Modelagem`);
+    return rows;
+  } catch (error) {
+    console.error('❌ Erro ao buscar tarefas de Modelagem:', error.message);
+    throw new Error(`Erro ao buscar tarefas de Modelagem: ${error.message}`);
+  }
+}
+
 const CS_PROJECT = process.env.BIGQUERY_PROJECT_ID || 'dadosindicadores';
 const CS_DATASET = 'CS';
 const PORT_DATASET = 'portifolio';

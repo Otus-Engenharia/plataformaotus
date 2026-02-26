@@ -83,6 +83,16 @@ class FeedbackRepository {
   }
 
   /**
+   * Conta feedbacks de um autor que foram atualizados por admin desde um timestamp
+   * @param {string} authorId - ID do autor
+   * @param {string} sinceTimestamp - ISO timestamp de referência
+   * @returns {Promise<number>}
+   */
+  async countUpdatedForAuthor(authorId, sinceTimestamp) {
+    throw new Error('Método countUpdatedForAuthor deve ser implementado');
+  }
+
+  /**
    * Busca dados do usuário por ID
    * @param {string} userId - ID do usuário
    * @returns {Promise<{id: string, name: string, email: string}|null>}
