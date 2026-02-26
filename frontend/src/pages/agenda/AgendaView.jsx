@@ -23,7 +23,7 @@ function getWeekDays(referenceDate) {
 }
 
 function AgendaView() {
-  const { user } = useAuth();
+  const { effectiveUser: user } = useAuth();
 
   // Contém o scroll para dentro da grade horária.
   // A cadeia precisa ser fixada em todos os níveis:
@@ -105,7 +105,7 @@ function AgendaView() {
       const endDate = format(weekDays[6], "yyyy-MM-dd'T'23:59:59.999'Z'");
 
       const res = await axios.get('/api/agenda/tasks', {
-        params: { startDate, endDate },
+        params: { startDate, endDate, userId: user.id },
         withCredentials: true,
       });
 

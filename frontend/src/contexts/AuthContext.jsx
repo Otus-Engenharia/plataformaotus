@@ -238,8 +238,14 @@ export function AuthProvider({ children }) {
     checkDevMode();
   }, []);
 
+  // Usuário efetivo: quando impersonando, usa dados do target para queries de dados
+  const effectiveUser = impersonation?.active
+    ? { ...user, ...impersonation.target }
+    : user;
+
   const value = {
     user,
+    effectiveUser,
     loading,
     error,
     isAuthenticated: !!user,

@@ -26,7 +26,7 @@ const INITIAL_SORT = {
 };
 
 export default function TodosView() {
-  const { user } = useAuth();
+  const { effectiveUser: user } = useAuth();
 
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
