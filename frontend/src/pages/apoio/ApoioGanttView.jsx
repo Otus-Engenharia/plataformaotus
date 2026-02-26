@@ -5,7 +5,7 @@
  * alimentado pelo endpoint de próximas tarefas.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
 import GanttTimeline from '../../components/apoio/GanttTimeline';
@@ -15,7 +15,16 @@ export default function ApoioGanttView() {
   const [tarefas, setTarefas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [weeksFilter, setWeeksFilter] = useState(4);
+  const [weeksFilter, setWeeksFilter] = useState(8);
+  const [apenasOtus, setApenasOtus] = useState(false);
+
+  const tarefasFiltradas = useMemo(() => {
+    if (!apenasOtus) return tarefas;
+    return tarefas.filter(t => {
+      const nome = String(t.NomeDaTarefa || t.nome_tarefa || '').toLowerCase();
+      return nome.includes('otus');
+    });
+  }, [tarefas, apenasOtus]);
 
   const fetchTarefas = useCallback(async () => {
     setLoading(true);
@@ -23,7 +32,7 @@ export default function ApoioGanttView() {
 
     try {
       const response = await axios.get(
-        `${API_URL}/api/apoio-projetos/proximas-tarefas`,
+        `${API_URL}/api/apoio-projetos/modelagem-tarefas`,
         {
           params: { weeksAhead: weeksFilter },
           withCredentials: true,
@@ -75,13 +84,24 @@ export default function ApoioGanttView() {
             value={weeksFilter}
             onChange={(e) => setWeeksFilter(parseInt(e.target.value))}
           >
-            <option value={1}>1 semana</option>
             <option value={2}>2 semanas</option>
             <option value={4}>4 semanas</option>
             <option value={8}>8 semanas</option>
             <option value={12}>12 semanas</option>
+            <option value={16}>16 semanas</option>
+            <option value={24}>24 semanas</option>
           </select>
         </div>
+
+        <label className="apoio-modelagem-toggle">
+          <input
+            type="checkbox"
+            checked={apenasOtus}
+            onChange={(e) => setApenasOtus(e.target.checked)}
+          />
+          <span className="toggle-slider"></span>
+          <span className="toggle-label">Apenas Otus</span>
+        </label>
       </div>
 
       {/* Loading */}
@@ -102,7 +122,12 @@ export default function ApoioGanttView() {
 
       {/* Gantt */}
       {!loading && !error && (
-        <GanttTimeline tarefas={tarefas} weeksAhead={weeksFilter} />
+        <>
+          <div className="apoio-activity-count">
+            {tarefasFiltradas.length} atividades no período
+          </div>
+          <GanttTimeline tarefas={tarefasFiltradas} weeksAhead={weeksFilter} skipInternalFilter />
+        </>
       )}
     </div>
   );

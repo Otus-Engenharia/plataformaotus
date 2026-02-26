@@ -13,6 +13,7 @@ import {
   UpdateFeedbackStatus,
   UpdateFeedback,
   GetFeedbackStats,
+  CountMyFeedbackUpdates,
 } from '../application/use-cases/feedbacks/index.js';
 import { FeedbackArea } from '../domain/feedbacks/value-objects/FeedbackArea.js';
 import { FeedbackType } from '../domain/feedbacks/value-objects/FeedbackType.js';
@@ -98,6 +99,46 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
       res.status(500).json({
         success: false,
         error: error.message || 'Erro ao buscar estatísticas',
+      });
+    }
+  });
+
+  /**
+   * GET /api/feedbacks/my-updates-count
+   * Conta feedbacks do usuário que foram atualizados por admin desde um timestamp
+   */
+  router.get('/my-updates-count', requireAuth, async (req, res) => {
+    try {
+      const authorId = req.user?.id;
+      const since = req.query.since;
+
+      if (!since) {
+        return res.status(400).json({
+          success: false,
+          error: 'Parâmetro "since" é obrigatório (ISO timestamp)',
+        });
+      }
+
+      const sinceDate = new Date(since);
+      if (isNaN(sinceDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: 'Parâmetro "since" deve ser um timestamp ISO válido',
+        });
+      }
+
+      const countUpdates = new CountMyFeedbackUpdates(repository);
+      const count = await countUpdates.execute({ authorId, since });
+
+      res.json({
+        success: true,
+        data: { count },
+      });
+    } catch (error) {
+      console.error('❌ Erro ao contar atualizações de feedbacks:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao contar atualizações',
       });
     }
   });

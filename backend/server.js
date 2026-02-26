@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
@@ -69,7 +69,7 @@ import {
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
   fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
   // Apoio de Projetos - Portfolio
-  fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd,
+  fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
   // Portfolio - Edicao inline
   fetchPortfolioEditOptions, updateProjectField,
   // OAuth tokens (Gmail Draft)
@@ -878,6 +878,41 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Erro ao atualizar portfolio:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/portfolio/:projectCode/tools
+ * Atualiza campo de ferramenta no Supabase (project_features)
+ * Body: { field, value, oldValue }
+ */
+app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
+  try {
+    if (!hasFullAccess(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode } = req.params;
+    const { field, value, oldValue } = req.body;
+
+    const allowedToolFields = [
+      'whatsapp_status', 'checklist_status', 'dashboard_status',
+      'dod_status', 'escopo_status', 'relatorio_semanal_status',
+      'dod_id', 'escopo_entregas_id', 'smartsheet_id', 'discord_id',
+      'capa_email_url', 'gantt_email_url', 'disciplina_email_url'
+    ];
+
+    if (!allowedToolFields.includes(field)) {
+      return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido para ferramentas` });
+    }
+
+    const result = await updateProjectToolField(projectCode, field, value);
+    await logAction(req, 'update', 'portfolio-tools', projectCode, field, { value, oldValue });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar ferramenta:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1837,6 +1872,22 @@ app.get('/api/apoio-projetos/proximas-tarefas', requireAuth, withBqCache(900), a
       success: false,
       error: error.message
     });
+  }
+});
+
+/**
+ * Rota: GET /api/apoio-projetos/modelagem-tarefas
+ * Busca tarefas de Modelagem diretamente do SmartSheet (sem JOIN com portfolio).
+ * Query: weeksAhead (padrão: 8)
+ */
+app.get('/api/apoio-projetos/modelagem-tarefas', requireAuth, withBqCache(900), async (req, res) => {
+  try {
+    const weeksAhead = parseInt(req.query.weeksAhead) || 8;
+    const data = await queryModelagemTarefas({ weeksAhead });
+    res.json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar tarefas de modelagem:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -372,8 +372,9 @@ function ProjetosView() {
               setLastUpdate={setLastUpdate}
             />
           ) : activeSubview === 'ferramentas' ? (
-            <SubviewComponent 
+            <SubviewComponent
               selectedProjectId={selectedProjectId}
+              portfolio={portfolio}
             />
           ) : activeSubview === 'cronograma' ? (
             <SubviewComponent
