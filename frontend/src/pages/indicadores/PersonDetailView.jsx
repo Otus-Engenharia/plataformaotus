@@ -340,6 +340,7 @@ export default function PersonDetailView() {
     const acc = accumulatedMap[ind.id];
     return acc && (acc.planejado > 0 || ind.auto_calculate === false);
   });
+  const indicadoresOcultos = indicadoresNoCiclo.length - indicadoresVisiveis.length;
 
   // FAROL = Σ(score × peso) / Σ(peso) — indicadores sem dados contribuem score 0
   const scoreGeral = useMemo(() => {
@@ -493,7 +494,16 @@ export default function PersonDetailView() {
           </div>
         </div>
 
-        {indicadoresVisiveis.length === 0 ? (
+        {indicadoresOcultos > 0 && (
+          <div className="info-banner" style={{ padding: '8px 16px', marginBottom: 12, background: 'var(--surface-secondary, #f5f5f5)', borderRadius: 8, fontSize: '0.85rem', color: 'var(--text-secondary, #666)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" style={{ flexShrink: 0 }}>
+              <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            </svg>
+            {indicadoresOcultos} indicador{indicadoresOcultos !== 1 ? 'es' : ''} oculto{indicadoresOcultos !== 1 ? 's' : ''} (sem meta configurada neste periodo)
+          </div>
+        )}
+
+        {indicadoresVisiveis.length === 0 && indicadoresOcultos === 0 ? (
           <div className="empty-state">
             <div className="empty-state__icon">
               <svg viewBox="0 0 24 24" width="64" height="64">
@@ -503,6 +513,18 @@ export default function PersonDetailView() {
             <h3 className="empty-state__title">Nenhum indicador encontrado</h3>
             <p className="empty-state__description">
               Esta pessoa não tem indicadores para {getCycleLabel(ciclo)} de {ano}.
+            </p>
+          </div>
+        ) : indicadoresVisiveis.length === 0 && indicadoresOcultos > 0 ? (
+          <div className="empty-state">
+            <div className="empty-state__icon">
+              <svg viewBox="0 0 24 24" width="64" height="64">
+                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+            </div>
+            <h3 className="empty-state__title">Indicadores sem meta configurada</h3>
+            <p className="empty-state__description">
+              {indicadoresOcultos} indicador{indicadoresOcultos !== 1 ? 'es' : ''} encontrado{indicadoresOcultos !== 1 ? 's' : ''}, mas sem metas mensais para {getCycleLabel(ciclo)} de {ano}. Verifique a configuracao dos templates no Admin de Cargos.
             </p>
           </div>
         ) : (
