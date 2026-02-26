@@ -2064,6 +2064,10 @@ export async function createIndicadorFromTemplate(templateId, personEmail, ciclo
       metric_type: sanitizeMetricType(template.metric_type),
       monthly_targets: template.monthly_targets || {},
       active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
+      auto_calculate: template.auto_calculate !== false,
+      mes_inicio: template.mes_inicio || 1,
+      frequencia: template.frequencia || 'mensal',
+      setor_apuracao_id: template.setor_apuracao_id || null,
     }])
     .select()
     .single();
@@ -2186,6 +2190,10 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
               metric_type: sanitizeMetricType(template.metric_type),
               monthly_targets: mergedTargets,
               active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
+              auto_calculate: template.auto_calculate !== false,
+              mes_inicio: template.mes_inicio || 1,
+              frequencia: template.frequencia || 'mensal',
+              setor_apuracao_id: template.setor_apuracao_id || null,
               updated_at: new Date().toISOString(),
             })
             .eq('id', existing.id);
@@ -2232,6 +2240,10 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
           metric_type: sanitizeMetricType(template.metric_type),
           monthly_targets: template.monthly_targets || {},
           active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
+          auto_calculate: template.auto_calculate !== false,
+          mes_inicio: template.mes_inicio || 1,
+          frequencia: template.frequencia || 'mensal',
+          setor_apuracao_id: template.setor_apuracao_id || null,
         });
 
       if (createError) {
