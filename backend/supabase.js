@@ -1920,7 +1920,7 @@ export async function deletePositionIndicator(templateId) {
  * @returns {Promise<Array>}
  */
 export async function fetchIndicadoresIndividuais(filters = {}) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   let query = supabase
     .from(INDICADORES_TABLE)
     .select(`
@@ -2080,6 +2080,67 @@ export async function createIndicadorFromTemplate(templateId, personEmail, ciclo
 }
 
 /**
+ * Distribui a meta acumulada ao longo dos meses ativos
+ * (Port da funcao frontend indicator-utils.js para uso no sync)
+ */
+function distributeAccumulatedTarget(accumulated, method, activeQuarters, mesInicio = 1, metricType = 'number', frequencia = 'mensal') {
+  if (typeof activeQuarters === 'string') {
+    activeQuarters = { q1: true, q2: true, q3: true, q4: true };
+  }
+  const aq = activeQuarters || { q1: true, q2: true, q3: true, q4: true };
+  const round = (val) => metricType === 'integer' ? Math.floor(val) : Math.round(val * 100) / 100;
+
+  const FREQ_MONTHS = {
+    mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    trimestral: [3, 6, 9, 12],
+    semestral: [6, 12],
+    anual: [12],
+  };
+  const visibleMonths = FREQ_MONTHS[frequencia] || FREQ_MONTHS.mensal;
+
+  const quarterMonths = { q1: [1, 2, 3], q2: [4, 5, 6], q3: [7, 8, 9], q4: [10, 11, 12] };
+  const activeMonths = [];
+  for (const [q, months] of Object.entries(quarterMonths)) {
+    if (aq[q]) activeMonths.push(...months.filter(m => m >= mesInicio && visibleMonths.includes(m)));
+  }
+
+  const result = {};
+  const count = activeMonths.length || 1;
+  const lastActiveMonth = activeMonths[activeMonths.length - 1];
+
+  let sumBase, sumUsed;
+  if (method === 'sum') {
+    sumBase = metricType === 'integer' ? Math.floor(accumulated / count) : round(accumulated / count);
+    sumUsed = 0;
+  }
+
+  let activeIndex = 0;
+  for (let m = 1; m <= 12; m++) {
+    if (!activeMonths.includes(m)) continue;
+    switch (method) {
+      case 'sum':
+        if (m === lastActiveMonth) {
+          result[m] = metricType === 'integer' ? accumulated - sumUsed : round(accumulated - sumUsed);
+        } else if (metricType === 'integer') {
+          const intRemainder = accumulated - (sumBase * count);
+          const extraStart = count - intRemainder;
+          result[m] = activeIndex >= extraStart ? sumBase + 1 : sumBase;
+        } else {
+          result[m] = sumBase;
+        }
+        sumUsed += result[m];
+        break;
+      case 'average':
+      case 'last_value':
+        result[m] = accumulated;
+        break;
+    }
+    activeIndex++;
+  }
+  return result;
+}
+
+/**
  * Sincroniza indicadores de um cargo com os usuarios que possuem esse cargo
  * Cria apenas os indicadores faltantes, sem sobrescrever existentes
  * @param {string} positionId - ID do cargo
@@ -2089,7 +2150,7 @@ export async function createIndicadorFromTemplate(templateId, personEmail, ciclo
  * @returns {Promise<Object>} - Resultado com criados e ignorados
  */
 export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = null) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
 
   // 1. Busca todos os templates do cargo
   const { data: templates, error: templatesError } = await supabase
@@ -2142,12 +2203,11 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
   const errors = [];
 
   for (const user of users) {
-    // Busca indicadores existentes do usuario para este ciclo/ano (com dados para merge)
+    // Busca indicadores existentes do usuario para este ano (sem filtrar ciclo — indicadores sao anuais)
     const { data: existingIndicators } = await supabase
       .from(INDICADORES_TABLE)
       .select('id, template_id, monthly_targets')
       .eq('person_email', user.email)
-      .eq('ciclo', ciclo)
       .eq('ano', ano);
 
     const existingByTemplateId = new Map(
@@ -2166,10 +2226,20 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
             checkIns.filter(ci => ci.ano === ano).map(ci => String(ci.mes))
           );
 
-          // Merge monthly_targets: template para meses sem check-in, existente para meses com check-in
-          const templateTargets = template.monthly_targets || {};
+          // Regenerar monthly_targets a partir dos campos do template (nao copiar dados antigos com zeros)
+          console.log(`[sync] UPDATE "${template.title}" para ${user.email}: default_target=${template.default_target}, type=${template.consolidation_type}`);
+          const freshTargets = (template.auto_calculate !== false)
+            ? distributeAccumulatedTarget(
+                template.default_target,
+                template.consolidation_type || 'last_value',
+                template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
+                template.mes_inicio || 1,
+                template.metric_type || 'number',
+                template.frequencia || 'mensal'
+              )
+            : (template.monthly_targets || {});
           const existingTargets = existing.monthly_targets || {};
-          const mergedTargets = { ...templateTargets };
+          const mergedTargets = { ...freshTargets };
           for (const month of monthsWithCheckIns) {
             if (existingTargets[month] !== undefined) {
               mergedTargets[month] = existingTargets[month];
@@ -2194,6 +2264,8 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
               mes_inicio: template.mes_inicio || 1,
               frequencia: template.frequencia || 'mensal',
               setor_apuracao_id: template.setor_apuracao_id || null,
+              ciclo: 'anual',
+              periodo: 'anual',
               updated_at: new Date().toISOString(),
             })
             .eq('id', existing.id);
@@ -2225,8 +2297,8 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
                    template.metric_type === 'boolean' ? 'sim/não' :
                    template.metric_type === 'integer' ? 'un' : 'un',
           categoria: 'pessoas',
-          periodo: ciclo === 'anual' ? 'anual' : 'trimestral',
-          ciclo,
+          periodo: 'anual',
+          ciclo: 'anual',
           ano,
           person_email: user.email,
           cargo_id: positionId,
@@ -2238,7 +2310,16 @@ export async function syncPositionIndicators(positionId, ciclo, ano, leaderId = 
           is_inverse: template.is_inverse || false,
           consolidation_type: template.consolidation_type || 'last_value',
           metric_type: sanitizeMetricType(template.metric_type),
-          monthly_targets: template.monthly_targets || {},
+          monthly_targets: (template.auto_calculate !== false)
+            ? distributeAccumulatedTarget(
+                template.default_target,
+                template.consolidation_type || 'last_value',
+                template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
+                template.mes_inicio || 1,
+                template.metric_type || 'number',
+                template.frequencia || 'mensal'
+              )
+            : (template.monthly_targets || {}),
           active_quarters: template.active_quarters || { q1: true, q2: true, q3: true, q4: true },
           auto_calculate: template.auto_calculate !== false,
           mes_inicio: template.mes_inicio || 1,
@@ -2304,7 +2385,7 @@ export async function updateIndicadorIndividual(indicadorId, updateData) {
  * @returns {Promise<Array>}
  */
 export async function fetchCheckIns(indicadorId) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase
     .from(CHECK_INS_TABLE)
     .select('*')
@@ -2490,7 +2571,7 @@ async function updateIndicadorConsolidatedValue(indicadorId) {
  * @returns {Promise<Array>}
  */
 export async function fetchRecoveryPlans(indicadorId) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase
     .from(RECOVERY_PLANS_TABLE)
     .select('*')
