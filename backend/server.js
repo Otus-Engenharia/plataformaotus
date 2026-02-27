@@ -19,9 +19,10 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryWeeklyReportData, queryActiveProjectsForWeeklyReports } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
+import WeeklyReportGenerator from './services/weekly-report-generator.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
   fetchCobrancasFeitas, upsertCobranca, fetchTimesList, fetchUsuarioToTime,
@@ -2605,7 +2606,18 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache });
+// BigQuery client para rotas de Relatórios Semanais
+const bigqueryClient = {
+  queryPortfolio,
+  queryIssues,
+  queryCronograma,
+  queryDisciplinesCrossReference,
+  checkWeeklyReportReadiness,
+  queryWeeklyReportData,
+  queryActiveProjectsForWeeklyReports,
+};
+
+setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator: WeeklyReportGenerator });
 
 /**
  * Rota: GET /api/admin/user-views
