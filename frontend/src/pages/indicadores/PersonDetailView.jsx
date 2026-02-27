@@ -26,10 +26,12 @@ const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Se
 function getIndicatorMonthlyData(indicador, ciclo, ano) {
   const { start, end } = getCycleMonthRange(ciclo);
   const freq = indicador.frequencia || 'mensal';
+  const mesInicio = parseInt(indicador.mes_inicio) || 1;
   const months = [];
   for (let m = start; m <= end; m++) {
     // Pular meses que não são de medição (ex: semestral → só Jun e Dez)
     if (!isMeasurementMonth(m, freq)) continue;
+    if (m < mesInicio) continue;
     const checkIn = (indicador.check_ins || []).find(ci => ci.mes === m && ci.ano === ano);
     const mt = indicador.monthly_targets?.[m];
     const target = mt != null ? parseFloat(mt) : (parseFloat(indicador.meta) || 0);
@@ -335,10 +337,14 @@ export default function PersonDetailView() {
     return map;
   }, [indicadoresNoCiclo, ano, currentMonth]);
 
-  // Ocultar indicadores sem medição no período atual (planejado=0, ex: semestral no Q1)
+  // Ocultar indicadores sem meta configurada (mantém visíveis os que tem meta mas ainda não iniciaram no período)
   const indicadoresVisiveis = indicadoresNoCiclo.filter(ind => {
     const acc = accumulatedMap[ind.id];
-    return acc && (acc.planejado > 0 || ind.auto_calculate === false);
+    if (!acc) return false;
+    if (ind.auto_calculate === false) return true;
+    if (acc.planejado > 0) return true;
+    if ((parseFloat(ind.meta) || 0) > 0) return true;
+    return false;
   });
   const indicadoresOcultos = indicadoresNoCiclo.length - indicadoresVisiveis.length;
 
