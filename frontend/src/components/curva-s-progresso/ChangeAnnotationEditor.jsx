@@ -1,12 +1,13 @@
 /**
  * Componente: ChangeAnnotationEditor
- * Editor inline para anotações do coordenador sobre alterações no changelog.
+ * Editor de anotações do coordenador, renderizado dentro de um modal.
  * Para DESVIO_PRAZO, permite override do delta de dias e data de término.
  */
 
 import React, { useState } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
+import { getChangeTypeConfig } from './changeLogColors';
 
 function ChangeAnnotationEditor({ projectCode, change, monthPair, onSaved, onCancel }) {
   const existing = change.annotation;
@@ -25,6 +26,7 @@ function ChangeAnnotationEditor({ projectCode, change, monthPair, onSaved, onCan
   const isDesvio = change.type === 'DESVIO_PRAZO';
   const originalDelta = change.original_delta_days ?? change.delta_days;
   const originalTermino = change.original_data_termino ?? change.curr_data_termino;
+  const config = getChangeTypeConfig(change.type);
 
   const handleSave = async () => {
     setSaving(true);
@@ -56,7 +58,28 @@ function ChangeAnnotationEditor({ projectCode, change, monthPair, onSaved, onCan
   };
 
   return (
-    <div className="changelog-annotation-editor">
+    <div className="changelog-editor-body">
+      {/* Context info */}
+      <div className="changelog-editor-context">
+        <span
+          className="changelog-type-badge"
+          style={{ background: config.bgColor, color: config.color, borderColor: config.borderColor }}
+        >
+          {config.label}
+        </span>
+        {change.delta_days != null && (
+          <span
+            className="changelog-delta-badge"
+            style={{ color: change.delta_days > 0 ? '#EF4444' : '#10B981' }}
+          >
+            {change.delta_days > 0 ? '+' : ''}{change.delta_days} dias
+          </span>
+        )}
+        {change.disciplina && (
+          <span className="changelog-editor-discipline">{change.disciplina}</span>
+        )}
+      </div>
+
       <div className="changelog-editor-field">
         <label>Descrição (visível ao cliente)</label>
         <textarea
@@ -113,7 +136,7 @@ function ChangeAnnotationEditor({ projectCode, change, monthPair, onSaved, onCan
         </div>
       )}
 
-      <div className="changelog-editor-row">
+      <div className="changelog-editor-visibility">
         <label className="changelog-editor-checkbox">
           <input
             type="checkbox"
@@ -123,24 +146,26 @@ function ChangeAnnotationEditor({ projectCode, change, monthPair, onSaved, onCan
           />
           Visível para o cliente
         </label>
-        <div className="changelog-editor-actions">
-          <button
-            className="changelog-btn changelog-btn-secondary"
-            onClick={onCancel}
-            disabled={saving}
-          >
-            Cancelar
-          </button>
-          <button
-            className="changelog-btn changelog-btn-primary"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
-        </div>
       </div>
+
       {error && <div className="changelog-editor-error">{error}</div>}
+
+      <div className="changelog-editor-footer">
+        <button
+          className="changelog-btn changelog-btn-secondary"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancelar
+        </button>
+        <button
+          className="changelog-btn changelog-btn-primary"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Salvando...' : 'Salvar'}
+        </button>
+      </div>
     </div>
   );
 }
