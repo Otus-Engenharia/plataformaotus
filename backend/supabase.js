@@ -3086,6 +3086,25 @@ export async function updateUserAvatar(userId, avatarUrl) {
 }
 
 /**
+ * Atualiza telefone de um usuário
+ */
+export async function updateUserPhone(userId, phone) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(USERS_OTUS_TABLE)
+    .update({ phone: phone || null })
+    .eq('id', userId)
+    .select('id, name, phone')
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar telefone: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
  * Cria um novo usuario
  * @param {Object} userData - Dados do usuario
  * @param {string} userData.name - Nome (obrigatorio)
@@ -4691,6 +4710,7 @@ export async function fetchDisciplineMappings(projectId) {
       external_source,
       external_discipline_name,
       standard_discipline_id,
+      target_name,
       created_at,
       updated_at,
       created_by,
@@ -4709,24 +4729,27 @@ export async function fetchDisciplineMappings(projectId) {
 /**
  * Cria ou atualiza um mapeamento de disciplina (upsert)
  */
-export async function createOrUpdateDisciplineMapping({ projectId, externalSource, externalDisciplineName, standardDisciplineId, createdBy }) {
+export async function createOrUpdateDisciplineMapping({ projectId, externalSource, externalDisciplineName, standardDisciplineId, targetName, createdBy }) {
   const supabase = getSupabaseServiceClient();
+
+  const upsertData = {
+    project_id: projectId,
+    external_source: externalSource,
+    external_discipline_name: externalDisciplineName,
+    standard_discipline_id: standardDisciplineId || null,
+    target_name: targetName || null,
+    created_by: createdBy,
+    updated_at: new Date().toISOString()
+  };
 
   const { data, error } = await supabase
     .from('discipline_mappings')
-    .upsert({
-      project_id: projectId,
-      external_source: externalSource,
-      external_discipline_name: externalDisciplineName,
-      standard_discipline_id: standardDisciplineId,
-      created_by: createdBy,
-      updated_at: new Date().toISOString()
-    }, {
+    .upsert(upsertData, {
       onConflict: 'project_id,external_source,external_discipline_name',
       ignoreDuplicates: false
     })
     .select(`
-      id, project_id, external_source, external_discipline_name, standard_discipline_id,
+      id, project_id, external_source, external_discipline_name, standard_discipline_id, target_name,
       standard_discipline:standard_discipline_id(id, discipline_name, short_name)
     `)
     .single();
@@ -4750,6 +4773,244 @@ export async function deleteDisciplineMapping(mappingId) {
 
   if (error) {
     throw new Error(`Erro ao deletar mapeamento: ${error.message}`);
+  }
+}
+
+// ============================================
+// EQUIPE OTUS DO PROJETO (project_otus_members)
+// ============================================
+
+/**
+ * Busca a equipe Otus de um projeto baseado no time atribuído + membros manuais
+ * @param {string} projectCode - project_code do projeto
+ * @returns {Promise<Object>} { teamName, teamId, leaderId, leaderName, defaultMembers, manualMembers }
+ */
+export async function fetchOtusTeamForProject(projectCode) {
+  if (!projectCode) return { teamName: null, teamId: null, leaderId: null, leaderName: null, defaultMembers: [], manualMembers: [] };
+
+  const supabase = getSupabaseClient();
+
+  // 1. Buscar projeto com team_id e project_manager_id
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select(`
+      id, project_code, team_id, project_manager_id,
+      teams:team_id(id, team_name, team_number),
+      leader:project_manager_id(id, name, email)
+    `)
+    .eq('project_code', projectCode)
+    .single();
+
+  if (projectError || !project) {
+    return { teamName: null, teamId: null, leaderId: null, leaderName: null, defaultMembers: [], manualMembers: [] };
+  }
+
+  const teamId = project.team_id;
+  const teamName = project.teams?.team_name || null;
+  const leaderId = project.project_manager_id;
+  const leaderName = project.leader?.name || null;
+
+  // 2. Buscar membros do time padrão (users_otus onde team_id = o time do projeto)
+  let defaultMembers = [];
+  if (teamId) {
+    const { data: teamUsers, error: teamError } = await supabase
+      .from('users_otus')
+      .select(`
+        id, name, email, phone, avatar_url, is_active,
+        cargo:position_id(id, name),
+        team:team_id(id, team_name, team_number)
+      `)
+      .eq('team_id', teamId)
+      .eq('status', 'ativo')
+      .eq('is_active', true)
+      .order('name');
+
+    if (!teamError && teamUsers) {
+      defaultMembers = teamUsers;
+    }
+  }
+
+  // Se o líder não está no time padrão, buscá-lo separadamente
+  if (leaderId && !defaultMembers.find(m => m.id === leaderId)) {
+    const { data: leaderUser } = await supabase
+      .from('users_otus')
+      .select(`
+        id, name, email, phone, avatar_url, is_active,
+        cargo:position_id(id, name),
+        team:team_id(id, team_name, team_number)
+      `)
+      .eq('id', leaderId)
+      .single();
+
+    if (leaderUser) {
+      defaultMembers.unshift(leaderUser);
+    }
+  }
+
+  // 3. Buscar membros adicionados manualmente (project_otus_members onde is_from_team = false)
+  const { data: manualRows, error: manualError } = await supabase
+    .from('project_otus_members')
+    .select(`
+      id, role, is_from_team, created_at,
+      user:user_id(id, name, email, phone, avatar_url, is_active,
+        cargo:position_id(id, name),
+        team:team_id(id, team_name, team_number)
+      )
+    `)
+    .eq('project_code', projectCode)
+    .eq('is_from_team', false);
+
+  const manualMembers = (!manualError && manualRows) ? manualRows : [];
+
+  return { teamName, teamId, leaderId, leaderName, defaultMembers, manualMembers };
+}
+
+/**
+ * Adiciona um membro Otus manualmente ao projeto
+ * @param {string} projectCode
+ * @param {string} userId - UUID do users_otus
+ * @returns {Promise<Object>}
+ */
+export async function addOtusProjectMember(projectCode, userId) {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from('project_otus_members')
+    .insert({
+      project_code: projectCode,
+      user_id: userId,
+      is_from_team: false,
+      role: 'membro'
+    })
+    .select(`
+      id, role, is_from_team, created_at,
+      user:user_id(id, name, email, avatar_url,
+        cargo:position_id(id, name),
+        team:team_id(id, team_name, team_number)
+      )
+    `)
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('Este membro já está no projeto');
+    }
+    throw new Error(`Erro ao adicionar membro Otus: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Remove um membro Otus manual do projeto
+ * @param {string} memberId - UUID do project_otus_members
+ */
+export async function removeOtusProjectMember(memberId) {
+  const supabase = getSupabaseServiceClient();
+
+  const { error } = await supabase
+    .from('project_otus_members')
+    .delete()
+    .eq('id', memberId);
+
+  if (error) {
+    throw new Error(`Erro ao remover membro Otus: ${error.message}`);
+  }
+}
+
+// ============================================
+// EQUIPE DO CLIENTE (project_client_contacts)
+// ============================================
+
+/**
+ * Busca contatos do cliente do projeto + quais estão atribuídos
+ * @param {string} projectCode
+ * @returns {Promise<Object>} { companyName, companyId, allContacts, assignedIds }
+ */
+export async function fetchProjectClientContacts(projectCode) {
+  if (!projectCode) return { companyName: null, companyId: null, allContacts: [], assignedIds: [] };
+
+  const supabase = getSupabaseClient();
+
+  // 1. Buscar projeto para obter company_id
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id, project_code, company_id, companies:company_id(id, name)')
+    .eq('project_code', projectCode)
+    .single();
+
+  if (projectError || !project || !project.company_id) {
+    return { companyName: null, companyId: null, allContacts: [], assignedIds: [] };
+  }
+
+  const companyId = project.company_id;
+  const companyName = project.companies?.name || null;
+
+  // 2. Buscar todos os contatos da empresa cliente
+  const { data: contacts, error: contactsError } = await supabase
+    .from('contacts')
+    .select('id, name, email, phone, position, company_id')
+    .eq('company_id', companyId)
+    .order('name');
+
+  const allContacts = (!contactsError && contacts) ? contacts : [];
+
+  // 3. Buscar contatos atribuídos ao projeto
+  const { data: assigned, error: assignedError } = await supabase
+    .from('project_client_contacts')
+    .select('id, contact_id, role, notes, is_active, created_at')
+    .eq('project_code', projectCode)
+    .eq('is_active', true);
+
+  const assignedIds = (!assignedError && assigned) ? assigned.map(a => a.contact_id) : [];
+  const assignedRecords = (!assignedError && assigned) ? assigned : [];
+
+  return { companyName, companyId, allContacts, assignedIds, assignedRecords };
+}
+
+/**
+ * Atribui um contato do cliente ao projeto
+ * @param {Object} params
+ * @returns {Promise<Object>}
+ */
+export async function assignClientContactToProject({ projectCode, contactId, role }) {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from('project_client_contacts')
+    .upsert({
+      project_code: projectCode,
+      contact_id: contactId,
+      role: role || null,
+      is_active: true
+    }, {
+      onConflict: 'project_code,contact_id',
+      ignoreDuplicates: false
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atribuir contato: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Remove atribuição de contato do cliente do projeto
+ * @param {string} assignmentId - UUID do project_client_contacts
+ */
+export async function removeClientContactFromProject(assignmentId) {
+  const supabase = getSupabaseServiceClient();
+
+  const { error } = await supabase
+    .from('project_client_contacts')
+    .delete()
+    .eq('id', assignmentId);
+
+  if (error) {
+    throw new Error(`Erro ao remover contato do projeto: ${error.message}`);
   }
 }
 
@@ -4886,6 +5147,63 @@ export async function fetchContacts() {
   }
 
   return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Cria um novo contato vinculado a uma empresa
+ */
+export async function createContact({ name, email, phone, position, companyId }) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .insert({
+      name,
+      email: email || null,
+      phone: phone || null,
+      position: position || null,
+      company_id: companyId || null
+    })
+    .select(`
+      id, name, email, phone, position, company_id,
+      company:company_id(id, name)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar contato: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Atualiza dados de um contato existente
+ */
+export async function updateContact(contactId, { name, email, phone, position }) {
+  const supabase = getSupabaseClient();
+
+  const updateData = {};
+  if (name !== undefined) updateData.name = name;
+  if (email !== undefined) updateData.email = email || null;
+  if (phone !== undefined) updateData.phone = phone || null;
+  if (position !== undefined) updateData.position = position || null;
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .update(updateData)
+    .eq('id', contactId)
+    .select(`
+      id, name, email, phone, position, company_id,
+      company:company_id(id, name)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar contato: ${error.message}`);
+  }
+
+  return data;
 }
 
 /**

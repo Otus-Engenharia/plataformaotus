@@ -1,0 +1,381 @@
+/* EquipeClientePanel.css */
+
+.ecli-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Section */
+.ecli-section {
+  padding: 0;
+}
+
+.ecli-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.ecli-section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+}
+
+.ecli-section-header-left h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.ecli-company-badge {
+  background: #EBF5FF;
+  color: #1E40AF;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.ecli-count {
+  font-size: 13px;
+  color: #6B7280;
+}
+
+.ecli-divider {
+  height: 1px;
+  background: #E5E7EB;
+  margin: 12px 0;
+}
+
+.ecli-contact-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1F2937;
+}
+
+.ecli-row--active {
+  background: #F0FDF4;
+}
+.ecli-row--active:hover {
+  background: #ECFDF5;
+}
+
+/* Toggle Button */
+.ecli-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.ecli-toggle-track {
+  display: block;
+  width: 36px;
+  height: 20px;
+  background: #D1D5DB;
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.ecli-toggle-btn--active .ecli-toggle-track {
+  background: #22C55E;
+}
+
+.ecli-toggle-thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.ecli-toggle-btn--active .ecli-toggle-thumb {
+  transform: translateX(16px);
+}
+
+/* Loading / Empty */
+.ecli-loading {
+  padding: 20px;
+  text-align: center;
+  color: #6B7280;
+  font-size: 14px;
+}
+
+.ecli-empty-mini {
+  padding: 16px;
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 13px;
+  background: #F9FAFB;
+  border-radius: 8px;
+}
+
+/* Add Button */
+.ecli-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1.5px solid #e6e6e6;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ecli-add-btn:hover {
+  border-color: #fbbf24;
+  color: #92400E;
+}
+
+/* Table */
+.ecli-table-wrapper {
+  overflow-x: auto;
+}
+
+.ecli-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ecli-table thead th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6B7280;
+  padding: 10px 12px;
+  border-bottom: 1px solid #E5E7EB;
+  white-space: nowrap;
+}
+
+.ecli-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #F3F4F6;
+  color: #374151;
+  vertical-align: middle;
+}
+
+.ecli-table tbody tr:hover {
+  background: #FAFAFA;
+}
+
+.ecli-th-actions {
+  width: 80px;
+}
+
+.ecli-empty-row {
+  text-align: center;
+  color: #9CA3AF;
+  padding: 24px !important;
+}
+
+.ecli-discipline-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ecli-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ecli-dot--complete { background: #22C55E; }
+.ecli-dot--partial { background: #F59E0B; }
+.ecli-dot--minimal { background: #D1D5DB; }
+
+.ecli-company-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ecli-link {
+  color: #3B82F6;
+  text-decoration: none;
+  font-size: 13px;
+}
+.ecli-link:hover { text-decoration: underline; }
+
+.ecli-detail {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* Actions */
+.ecli-td-actions {
+  white-space: nowrap;
+}
+
+.ecli-action-btn {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.ecli-action-btn:hover {
+  color: #374151;
+  background: #F3F4F6;
+}
+.ecli-action-btn--danger:hover {
+  color: #EF4444;
+  background: #FEF2F2;
+}
+
+.ecli-pending-alert {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+/* Modal */
+.ecli-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.ecli-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+
+.ecli-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #F3F4F6;
+}
+.ecli-modal-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ecli-modal-close {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+}
+.ecli-modal-close:hover { color: #374151; }
+
+.ecli-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ecli-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ecli-form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.ecli-required { color: #EF4444; }
+
+.ecli-form-group select,
+.ecli-form-group input,
+.ecli-form-group textarea {
+  padding: 8px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+.ecli-form-group select:focus,
+.ecli-form-group input:focus,
+.ecli-form-group textarea:focus {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251,191,36,0.15);
+}
+
+.ecli-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ecli-readonly {
+  padding: 8px 12px;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #6B7280;
+}
+
+.ecli-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid #F3F4F6;
+}
+
+.ecli-btn-cancel {
+  padding: 8px 16px;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #374151;
+}
+.ecli-btn-cancel:hover { background: #F9FAFB; }
+
+.ecli-btn-save {
+  padding: 8px 20px;
+  background: #fbbf24;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #1F2937;
+}
+.ecli-btn-save:hover { background: #F59E0B; }
+.ecli-btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

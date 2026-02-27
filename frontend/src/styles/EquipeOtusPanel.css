@@ -1,0 +1,490 @@
+/* EquipeOtusPanel.css */
+
+.eotus-panel {
+  padding: 0;
+}
+
+.eotus-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  margin-bottom: 8px;
+}
+
+.eotus-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.eotus-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1F2937;
+  margin: 0;
+}
+
+.eotus-team-badge {
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid #FDE68A;
+}
+
+.eotus-count {
+  font-size: 13px;
+  color: #6B7280;
+}
+
+.eotus-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #fff;
+  border: 1.5px solid #e6e6e6;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.eotus-add-btn:hover {
+  border-color: #fbbf24;
+  color: #92400E;
+}
+
+/* Loading / Error / Empty */
+.eotus-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px;
+  color: #6B7280;
+  font-size: 14px;
+}
+
+.eotus-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #E5E7EB;
+  border-top-color: #fbbf24;
+  border-radius: 50%;
+  animation: eotus-spin 0.6s linear infinite;
+}
+@keyframes eotus-spin {
+  to { transform: rotate(360deg); }
+}
+
+.eotus-error {
+  padding: 16px;
+  background: #FEF2F2;
+  color: #991B1B;
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.eotus-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: #6B7280;
+  gap: 8px;
+}
+.eotus-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+.eotus-empty-hint {
+  font-size: 13px;
+  color: #9CA3AF;
+}
+
+/* Members Grid */
+.eotus-members-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.eotus-section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9CA3AF;
+  margin-bottom: 8px;
+}
+
+/* Leader Section */
+.eotus-leader-section {
+  margin-bottom: 4px;
+}
+
+/* Members List */
+.eotus-members-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+/* Member Card */
+.eotus-member-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #F3F4F6;
+  border-radius: 10px;
+  transition: border-color 0.15s;
+  position: relative;
+}
+.eotus-member-card:hover {
+  border-color: #E5E7EB;
+}
+
+.eotus-member-card--leader {
+  background: #FFFBEB;
+  border-color: #FDE68A;
+}
+.eotus-member-card--leader:hover {
+  border-color: #fbbf24;
+}
+
+.eotus-member-card--manual {
+  border-left: 3px solid #60A5FA;
+}
+
+/* Avatar */
+.eotus-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #F3F4F6;
+  color: #6B7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.eotus-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.eotus-avatar--leader {
+  background: #FEF3C7;
+  color: #92400E;
+}
+.eotus-avatar--sm {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}
+
+/* Member Info */
+.eotus-member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.eotus-member-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1F2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eotus-member-cargo {
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.eotus-member-email {
+  font-size: 12px;
+  color: #3B82F6;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eotus-member-email:hover {
+  text-decoration: underline;
+}
+
+.eotus-member-phone {
+  font-size: 12px;
+  color: #6B7280;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eotus-member-phone:hover {
+  text-decoration: underline;
+}
+
+.eotus-member-missing {
+  font-size: 11px;
+  color: #dc2626;
+  background: #fef2f2;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Inline phone edit */
+.eotus-phone-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 2px;
+  margin: -1px -2px;
+  transition: background 0.15s;
+}
+.eotus-phone-display:hover {
+  background: #F3F4F6;
+}
+.eotus-phone-display .eotus-member-phone {
+  cursor: pointer;
+}
+
+.eotus-phone-edit-icon {
+  color: #D1D5DB;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.eotus-phone-display:hover .eotus-phone-edit-icon {
+  opacity: 1;
+}
+
+.eotus-phone-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.eotus-phone-input {
+  width: 150px;
+  padding: 3px 8px;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+.eotus-phone-input:focus {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251,191,36,0.15);
+}
+
+.eotus-phone-save-btn,
+.eotus-phone-cancel-btn {
+  background: none;
+  border: none;
+  padding: 3px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #9CA3AF;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+}
+.eotus-phone-save-btn:hover {
+  color: #22C55E;
+  background: #F0FDF4;
+}
+.eotus-phone-cancel-btn:hover {
+  color: #EF4444;
+  background: #FEF2F2;
+}
+.eotus-phone-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.eotus-member-team {
+  font-size: 11px;
+  color: #9CA3AF;
+}
+
+.eotus-leader-badge {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: #F59E0B;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Remove Button */
+.eotus-remove-btn {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.eotus-remove-btn:hover {
+  color: #EF4444;
+  background: #FEF2F2;
+}
+
+/* Modal */
+.eotus-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.eotus-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 480px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+
+.eotus-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #F3F4F6;
+}
+.eotus-modal-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.eotus-modal-close {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+}
+.eotus-modal-close:hover {
+  color: #374151;
+}
+
+.eotus-modal-search {
+  padding: 12px 20px;
+  border-bottom: 1px solid #F3F4F6;
+}
+.eotus-modal-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+.eotus-modal-search input:focus {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251,191,36,0.15);
+}
+
+.eotus-modal-list {
+  overflow-y: auto;
+  max-height: 400px;
+  padding: 8px 12px;
+}
+
+.eotus-modal-empty {
+  padding: 24px;
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 14px;
+}
+
+.eotus-modal-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 0.1s;
+}
+.eotus-modal-user:hover {
+  background: #F9FAFB;
+}
+
+.eotus-modal-user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.eotus-modal-user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1F2937;
+}
+
+.eotus-modal-user-detail {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+.eotus-modal-add-btn {
+  background: none;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.eotus-modal-add-btn:hover:not(:disabled) {
+  border-color: #fbbf24;
+  background: #FFFBEB;
+  color: #92400E;
+}
+.eotus-modal-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

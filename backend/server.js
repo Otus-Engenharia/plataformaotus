@@ -39,7 +39,7 @@ import {
   fetchCheckIns, getCheckInById, createCheckIn, updateCheckIn, deleteCheckIn,
   fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan, deleteRecoveryPlan,
   fetchPeopleWithScores, getPersonById, fetchTeam,
-  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, getUserSectorByEmail, getUserByEmail, createUser,
+  fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, updateUserPhone, getUserSectorByEmail, getUserByEmail, createUser,
   fetchSectorsOverview, fetchHistoryComparison,
   // Views & Access Control
   fetchViews, createView, deleteView,
@@ -59,10 +59,14 @@ import {
   getAccessMatrix, fetchModuleOverrides, createModuleOverride, deleteModuleOverride,
   // Equipe do projeto
   fetchProjectDisciplines, fetchStandardDisciplines, fetchCompanies, fetchContacts,
+  createContact, updateContact,
   createProjectDiscipline, updateProjectDiscipline, deleteProjectDiscipline,
   getProjectIdByConstruflow,
   // Mapeamentos de disciplinas
   fetchDisciplineMappings, createOrUpdateDisciplineMapping, deleteDisciplineMapping,
+  // Equipe Otus + Cliente do projeto
+  fetchOtusTeamForProject, addOtusProjectMember, removeOtusProjectMember,
+  fetchProjectClientContacts, assignClientContactToProject, removeClientContactFromProject,
   // Batch para cobertura de disciplinas (portfolio)
   fetchProjectIdsByConstruflowBatch, fetchProjectDisciplinesBatch, fetchDisciplineMappingsBatch,
   // Vista de Contatos
@@ -935,12 +939,13 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
     return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   }
 
-  // Mapas de mapeamento customizado
+  // Mapas de mapeamento customizado (padrão + livre)
   const customMap = new Map();
   customMappings.forEach(m => {
     const normKey = normalize(m.external_discipline_name);
     customMap.set(`${m.external_source}:${normKey}`, {
-      standardName: m.standard_discipline?.discipline_name,
+      standardName: m.standard_discipline?.discipline_name || null,
+      targetName: m.target_name || null,
       mappingId: m.id,
       standardDisciplineId: m.standard_discipline_id
     });
@@ -952,10 +957,29 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
 
   const checkOtusMatch = (normKey, source) => {
     const custom = customMap.get(`${source}:${normKey}`);
-    if (custom && custom.standardName) {
-      return normalizedOtus.has(normalize(custom.standardName));
+    if (custom) {
+      // Mapeamento para disciplina padrão Otus
+      if (custom.standardName) {
+        return normalizedOtus.has(normalize(custom.standardName));
+      }
+      // Mapeamento livre (target_name) — verifica se o target_name existe na Otus
+      if (custom.targetName) {
+        return normalizedOtus.has(normalize(custom.targetName));
+      }
     }
     return normalizedOtus.has(normKey);
+  };
+
+  // Verifica se uma disciplina Otus tem mapeamento para sistemas externos
+  const checkExternalMatch = (normKey) => {
+    // Verifica se algum mapeamento livre aponta para essa disciplina Otus
+    for (const [mapKey, mapVal] of customMap) {
+      if (mapVal.targetName && normalize(mapVal.targetName) === normKey) {
+        const source = mapKey.split(':')[0];
+        return { source, mappingId: mapVal.mappingId, mappedFromName: mapVal.standardName };
+      }
+    }
+    return null;
   };
 
   const getCustomMapping = (normKey, source) => {
@@ -995,7 +1019,8 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       name: originalName, normKey, inSmartsheet, inConstruflow, inOtus,
       hasCustomMapping: !!mapping,
       mappingId: mapping?.mappingId || null,
-      mappedToName: mapping?.standardName || null
+      mappedToName: mapping?.standardName || mapping?.targetName || null,
+      isFreeMapping: !!(mapping?.targetName && !mapping?.standardName)
     };
 
     if (inSmartsheet && inConstruflow && inOtus) groups.completeInAll3.push(entry);
@@ -1027,7 +1052,11 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       completeInAll3: groups.completeInAll3.length,
       pendingCount,
       completionPercentage,
-      hasCustomMappings: customMappings.length > 0
+      hasCustomMappings: customMappings.length > 0,
+      // Contagens por sistema
+      smartsheetCount: normalizedSmartsheet.size,
+      construflowCount: normalizedConstruflow.size,
+      otusCount: normalizedOtus.size
     }
   };
 }
@@ -7009,11 +7038,18 @@ app.get('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req,
  */
 app.post('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req, res) => {
   try {
-    const { construflowId, externalSource, externalDisciplineName, standardDisciplineId } = req.body;
-    if (!construflowId || !externalSource || !externalDisciplineName || !standardDisciplineId) {
+    const { construflowId, externalSource, externalDisciplineName, standardDisciplineId, targetName } = req.body;
+    if (!construflowId || !externalSource || !externalDisciplineName) {
       return res.status(400).json({
         success: false,
-        error: 'Campos obrigatórios: construflowId, externalSource, externalDisciplineName, standardDisciplineId'
+        error: 'Campos obrigatórios: construflowId, externalSource, externalDisciplineName'
+      });
+    }
+    // Deve ter standardDisciplineId OU targetName
+    if (!standardDisciplineId && !targetName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Informe standardDisciplineId ou targetName para o mapeamento'
       });
     }
     const projectId = await getProjectIdByConstruflow(construflowId);
@@ -7024,7 +7060,8 @@ app.post('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req
       projectId,
       externalSource,
       externalDisciplineName,
-      standardDisciplineId,
+      standardDisciplineId: standardDisciplineId || null,
+      targetName: targetName || null,
       createdBy: req.user?.email || 'unknown'
     });
     res.json({ success: true, data });
@@ -7093,7 +7130,7 @@ app.post('/api/projetos/equipe', requireAuth, async (req, res) => {
 app.put('/api/projetos/equipe/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { discipline_id, company_id, contact_id, discipline_detail } = req.body;
+    const { discipline_id, company_id, contact_id, discipline_detail, email, phone, position } = req.body;
 
     if (!discipline_id) {
       return res.status(400).json({
@@ -7106,7 +7143,10 @@ app.put('/api/projetos/equipe/:id', requireAuth, async (req, res) => {
       discipline_id,
       company_id,
       contact_id,
-      discipline_detail
+      discipline_detail,
+      email,
+      phone,
+      position
     });
 
     res.json({ success: true, data });
@@ -7127,6 +7167,178 @@ app.delete('/api/projetos/equipe/:id', requireAuth, async (req, res) => {
     res.json({ success: true, message: 'Equipe removida com sucesso' });
   } catch (error) {
     console.error('❌ Erro ao remover equipe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// ROTAS: EQUIPE OTUS DO PROJETO
+// ============================================
+
+/**
+ * Rota: GET /api/projetos/equipe-otus
+ * Retorna membros da equipe Otus de um projeto (time padrão + manuais)
+ */
+app.get('/api/projetos/equipe-otus', requireAuth, async (req, res) => {
+  try {
+    const { projectCode } = req.query;
+    if (!projectCode) {
+      return res.status(400).json({ success: false, error: 'projectCode é obrigatório' });
+    }
+
+    const data = await fetchOtusTeamForProject(projectCode);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar equipe Otus:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/projetos/equipe-otus/members
+ * Adiciona um membro Otus manualmente ao projeto
+ */
+app.post('/api/projetos/equipe-otus/members', requireAuth, async (req, res) => {
+  try {
+    const { projectCode, userId } = req.body;
+    if (!projectCode || !userId) {
+      return res.status(400).json({ success: false, error: 'projectCode e userId são obrigatórios' });
+    }
+
+    const data = await addOtusProjectMember(projectCode, userId);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao adicionar membro Otus:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/projetos/equipe-otus/members/:id
+ * Remove um membro Otus manual do projeto
+ */
+app.delete('/api/projetos/equipe-otus/members/:id', requireAuth, async (req, res) => {
+  try {
+    await removeOtusProjectMember(req.params.id);
+    res.json({ success: true, message: 'Membro removido com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao remover membro Otus:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/projetos/equipe-otus/members/:id/phone
+ * Atualiza telefone de um membro da equipe Otus
+ */
+app.put('/api/projetos/equipe-otus/members/:id/phone', requireAuth, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const data = await updateUserPhone(req.params.id, phone);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar telefone:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// ROTAS: EQUIPE DO CLIENTE
+// ============================================
+
+/**
+ * Rota: GET /api/projetos/equipe-cliente
+ * Retorna contatos do cliente + quais estão atribuídos ao projeto
+ */
+app.get('/api/projetos/equipe-cliente', requireAuth, async (req, res) => {
+  try {
+    const { projectCode } = req.query;
+    if (!projectCode) {
+      return res.status(400).json({ success: false, error: 'projectCode é obrigatório' });
+    }
+
+    const data = await fetchProjectClientContacts(projectCode);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao buscar equipe do cliente:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/projetos/equipe-cliente/assign
+ * Atribui um contato do cliente ao projeto
+ */
+app.post('/api/projetos/equipe-cliente/assign', requireAuth, async (req, res) => {
+  try {
+    const { projectCode, contactId, role } = req.body;
+    if (!projectCode || !contactId) {
+      return res.status(400).json({ success: false, error: 'projectCode e contactId são obrigatórios' });
+    }
+
+    const data = await assignClientContactToProject({ projectCode, contactId, role });
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao atribuir contato:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/projetos/equipe-cliente/assign/:id
+ * Remove atribuição de contato do cliente do projeto
+ */
+app.delete('/api/projetos/equipe-cliente/assign/:id', requireAuth, async (req, res) => {
+  try {
+    await removeClientContactFromProject(req.params.id);
+    res.json({ success: true, message: 'Contato removido do projeto' });
+  } catch (error) {
+    console.error('❌ Erro ao remover contato:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/projetos/equipe/contatos
+ * Cria um novo contato vinculado a uma empresa
+ */
+app.post('/api/projetos/equipe/contatos', requireAuth, async (req, res) => {
+  try {
+    const { name, email, phone, position, companyId } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
+    }
+
+    const data = await createContact({ name: name.trim(), email, phone, position, companyId });
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao criar contato:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/projetos/equipe/contatos/:id
+ * Atualiza dados de um contato existente
+ */
+app.put('/api/projetos/equipe/contatos/:id', requireAuth, async (req, res) => {
+  try {
+    const { name, email, phone, position } = req.body;
+
+    if (name !== undefined && !name.trim()) {
+      return res.status(400).json({ success: false, error: 'Nome não pode ser vazio' });
+    }
+
+    const data = await updateContact(req.params.id, {
+      name: name?.trim(),
+      email,
+      phone,
+      position
+    });
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar contato:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
