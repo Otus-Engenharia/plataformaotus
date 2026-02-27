@@ -273,6 +273,10 @@ function Sidebar({ collapsed, onToggle, area }) {
   // State para badge de solicitações pendentes de baseline
   const [pendingBaselineCount, setPendingBaselineCount] = useState(0);
 
+  // State para badge de bugs e feedbacks pendentes (sidebar configurações)
+  const [pendingBugCount, setPendingBugCount] = useState(0);
+  const [pendingFeedbackCount, setPendingFeedbackCount] = useState(0);
+
   // State para badge de feedbacks atualizados
   const [feedbackUpdatesCount, setFeedbackUpdatesCount] = useState(0);
 
@@ -326,6 +330,19 @@ function Sidebar({ collapsed, onToggle, area }) {
         }
       })
       .catch(() => {}); // silencioso - 403 para não-privilegiados
+  }, [isPrivileged, location.pathname]);
+
+  // Buscar contagem de bugs e feedbacks pendentes (para badges na sidebar)
+  useEffect(() => {
+    if (!isPrivileged) return;
+    axios.get('/api/feedbacks/pending-counts', { withCredentials: true })
+      .then(res => {
+        if (res.data.success) {
+          setPendingBugCount(res.data.data.bugs || 0);
+          setPendingFeedbackCount(res.data.data.feedbacks || 0);
+        }
+      })
+      .catch(() => {});
   }, [isPrivileged, location.pathname]);
 
   // Atualizar last_seen e limpar badge quando acessar feedbacks
@@ -789,6 +806,9 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.bugs}</span>
         <span className="nav-text">Bug Reports</span>
+        {pendingBugCount > 0 && (
+          <span className="nav-notification-badge">{pendingBugCount}</span>
+        )}
       </Link>
       <Link
         to="/gerenciar-feedbacks"
@@ -797,6 +817,9 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.feedbacks}</span>
         <span className="nav-text">Gerenciar Feedbacks</span>
+        {pendingFeedbackCount > 0 && (
+          <span className="nav-notification-badge">{pendingFeedbackCount}</span>
+        )}
       </Link>
       <Link
         to="/auditoria-custos"
