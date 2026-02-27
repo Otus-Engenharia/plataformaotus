@@ -33,6 +33,8 @@ const TOOL_ID_FIELDS = [
   { key: 'escopo_entregas_id', name: 'Escopo Entregas', type: 'id' },
   { key: 'smartsheet_id', name: 'Smartsheet', type: 'id' },
   { key: 'discord_id', name: 'Discord', type: 'id' },
+  { key: 'construflow_id', name: 'Construflow', type: 'id' },
+  { key: 'whatsapp_id', name: 'WhatsApp', type: 'id' },
   { key: 'capa_email_url', name: 'Capa Email', type: 'url' },
   { key: 'gantt_email_url', name: 'Gantt Email', type: 'url' },
   { key: 'disciplina_email_url', name: 'Disciplina Email', type: 'url' },

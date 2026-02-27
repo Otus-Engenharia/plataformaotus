@@ -893,6 +893,7 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
       'whatsapp_status', 'checklist_status', 'dashboard_status',
       'dod_status', 'escopo_status', 'relatorio_semanal_status',
       'dod_id', 'escopo_entregas_id', 'smartsheet_id', 'discord_id',
+      'construflow_id', 'whatsapp_id',
       'capa_email_url', 'gantt_email_url', 'disciplina_email_url'
     ];
 
