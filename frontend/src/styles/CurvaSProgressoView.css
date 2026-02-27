@@ -1468,13 +1468,13 @@
 }
 
 /* ============================================================
-   Changelog Tab (full-width)
+   Changelog Tab (full-width) - Redesign Profissional
    ============================================================ */
 
 .changelog-tab-loading,
 .changelog-tab-empty {
   text-align: center;
-  padding: 40px;
+  padding: 48px 24px;
   color: #666;
   font-size: 13px;
 }
@@ -1482,24 +1482,31 @@
 /* KPI Bar */
 .changelog-kpi-bar {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .changelog-kpi {
   flex: 1;
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 8px;
+  padding: 14px 16px;
   text-align: center;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.changelog-kpi:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-color: #d1d5db;
 }
 
 .changelog-kpi-value {
   display: block;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #1a1a1a;
+  line-height: 1.2;
 }
 
 .changelog-kpi-label {
@@ -1507,60 +1514,250 @@
   font-size: 10px;
   color: #888;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-top: 2px;
+  letter-spacing: 0.4px;
+  margin-top: 4px;
 }
 
-/* Filters */
-.changelog-filters {
+/* ---- Filter Bar ---- */
+.changelog-filter-bar {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
-/* Month blocks */
+.changelog-filter-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.changelog-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 20px;
+  background: #fff;
+  color: #555;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.changelog-filter-btn:hover {
+  background: #f5f5f5;
+  border-color: #bbb;
+}
+
+.changelog-filter-btn.active {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.changelog-filter-btn.active .changelog-filter-btn-dot {
+  background: #fff !important;
+}
+
+.changelog-filter-btn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.changelog-filter-discipline {
+  font-size: 12px;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  min-width: 180px;
+  transition: border-color 0.2s ease;
+}
+
+.changelog-filter-discipline:hover {
+  border-color: #bbb;
+}
+
+.changelog-filter-discipline:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
+}
+
+/* ---- Month Sub-tabs ---- */
+.changelog-month-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.changelog-month-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.changelog-month-tabs::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.changelog-month-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: #888;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.changelog-month-tab:hover {
+  color: #555;
+}
+
+.changelog-month-tab.active {
+  color: #1a1a1a;
+  border-bottom-color: #1a1a1a;
+  font-weight: 600;
+}
+
+.changelog-month-tab-count {
+  font-size: 10px;
+  color: #aaa;
+  background: #f3f4f6;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.changelog-month-tab.active .changelog-month-tab-count {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.changelog-month-tab-discipline {
+  margin-left: auto;
+}
+
+/* ---- Scroll Container ---- */
+.changelog-months-scroll {
+  max-height: calc(100vh - 380px);
+  min-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.changelog-months-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.changelog-months-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.changelog-months-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.changelog-months-scroll::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
+
+/* ---- Month Blocks ---- */
 .changelog-months {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
 .changelog-month-block {
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
   overflow: hidden;
+}
+
+.changelog-month-block:not(:last-child) {
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .changelog-month-block-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  background: #f9fafb;
+  padding: 12px 16px;
+  background: #fafafa;
   border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .changelog-month-block-label {
   font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.changelog-month-block-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.changelog-month-stat {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
 .changelog-month-block-summary {
   font-size: 12px;
   color: #888;
+  white-space: nowrap;
 }
 
-/* Change rows (full tab) */
+/* ---- Change Rows ---- */
 .changelog-month-block-changes {
   padding: 0;
 }
 
 .changelog-change-row {
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid #f3f4f6;
   border-left: 4px solid #e5e7eb;
+  transition: background 0.15s ease;
+}
+
+.changelog-change-row:hover {
+  background: #fafafa;
 }
 
 .changelog-change-row:last-child {
@@ -1669,24 +1866,77 @@
   color: #888;
 }
 
-/* Buttons */
-.changelog-btn {
+/* ---- Edit Button ---- */
+.changelog-btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 5px 12px;
+  border-radius: 6px;
   cursor: pointer;
   border: 1px solid #d1d5db;
   background: #fff;
   color: #555;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.changelog-btn-edit:hover {
+  background: #f5f5f5;
+  border-color: #bbb;
+  color: #333;
+}
+
+.changelog-btn-edit svg {
+  flex-shrink: 0;
+}
+
+/* ---- Type Badge ---- */
+.changelog-type-badge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+/* ---- Annotation Preview ---- */
+.changelog-annotation-preview {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fffbeb;
+  border-radius: 6px;
+  border: 1px solid #fef3c7;
+}
+
+.changelog-annotation-desc {
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+.changelog-annotation-just {
+  font-size: 11px;
+  color: #b45309;
+  margin-top: 3px;
+}
+
+/* ---- Buttons (shared) ---- */
+.changelog-btn {
+  font-size: 12px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #555;
+  transition: all 0.2s ease;
 }
 
 .changelog-btn:hover {
-  background: #f9fafb;
-}
-
-.changelog-btn-sm {
-  font-size: 10px;
-  padding: 2px 8px;
+  background: #f5f5f5;
 }
 
 .changelog-btn-primary {
@@ -1708,38 +1958,118 @@
   color: #666;
 }
 
-/* Annotation Preview */
-.changelog-annotation-preview {
-  margin-top: 6px;
-  padding: 6px 10px;
-  background: #fffbeb;
-  border-radius: 4px;
-  border: 1px solid #fef3c7;
+.changelog-btn-secondary:hover {
+  background: #f5f5f5;
+  border-color: #bbb;
 }
 
-.changelog-annotation-desc {
+/* ============================================================
+   Modal Editor
+   ============================================================ */
+
+.changelog-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: changelog-overlay-appear 0.15s ease;
+}
+
+@keyframes changelog-overlay-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.changelog-modal-content {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.08);
+  animation: changelog-modal-appear 0.2s ease;
+}
+
+@keyframes changelog-modal-appear {
+  from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.changelog-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.changelog-modal-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.changelog-modal-subtitle {
   font-size: 12px;
-  color: #92400e;
-  line-height: 1.4;
-}
-
-.changelog-annotation-just {
-  font-size: 11px;
-  color: #b45309;
+  color: #888;
+  font-weight: 400;
+  display: block;
   margin-top: 2px;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Annotation Editor */
-.changelog-annotation-editor {
-  margin-top: 8px;
-  padding: 10px;
+.changelog-modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #999;
+  cursor: pointer;
+  padding: 0 0 0 12px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.changelog-modal-close:hover {
+  color: #333;
+}
+
+/* ---- Editor Body (inside modal) ---- */
+.changelog-editor-body {
+  padding: 20px 24px;
+}
+
+.changelog-editor-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
   background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border-radius: 8px;
+  border: 1px solid #f3f4f6;
+}
+
+.changelog-editor-discipline {
+  font-size: 11px;
+  color: #888;
 }
 
 .changelog-editor-field {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .changelog-editor-field label {
@@ -1747,18 +2077,20 @@
   font-size: 11px;
   font-weight: 600;
   color: #555;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 .changelog-editor-field textarea {
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 13px;
   font-family: inherit;
   resize: vertical;
-  min-height: 40px;
+  min-height: 48px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
 }
 
 .changelog-editor-field textarea:focus {
@@ -1767,18 +2099,16 @@
   box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
 }
 
-.changelog-editor-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.changelog-editor-visibility {
+  margin-bottom: 4px;
 }
 
 .changelog-editor-checkbox {
-  font-size: 11px;
+  font-size: 12px;
   color: #555;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
 }
 
@@ -1786,34 +2116,38 @@
   cursor: pointer;
 }
 
-.changelog-editor-actions {
+.changelog-editor-footer {
   display: flex;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 8px;
 }
 
 .changelog-editor-error {
-  margin-top: 6px;
-  font-size: 11px;
+  margin-top: 8px;
+  font-size: 12px;
   color: #b91c1c;
   background: #fef2f2;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
 }
 
 /* Override section in editor */
 .changelog-editor-override-section {
-  margin: 10px 0;
-  padding: 8px 10px;
+  margin: 12px 0;
+  padding: 10px 12px;
   background: #FFFBEB;
   border: 1px solid #FDE68A;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .changelog-editor-override-label {
   font-size: 11px;
   font-weight: 600;
   color: #92400E;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .changelog-editor-override-fields {
@@ -1827,12 +2161,13 @@
 
 .changelog-override-input {
   width: 100%;
-  padding: 4px 8px;
+  padding: 6px 8px;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
   font-family: inherit;
   box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .changelog-override-input:focus {
@@ -1844,7 +2179,7 @@
 .changelog-editor-override-hint {
   font-size: 10px;
   color: #92400E;
-  margin-top: 4px;
+  margin-top: 6px;
   font-style: italic;
 }
 
@@ -1860,55 +2195,132 @@
   font-weight: bold;
 }
 
-/* Discipline Summary */
-.changelog-discipline-summary {
-  margin-top: 24px;
+/* ============================================================
+   Discipline Analysis Table (main tab)
+   ============================================================ */
+
+.disc-analysis {
+  padding: 0;
+}
+
+.disc-analysis-table-wrap {
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.disc-analysis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+/* Header */
+.disc-analysis-table thead th {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: #fafafa;
+  border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+/* Cells */
+.disc-analysis-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1a1a1a;
+}
+
+/* Column types */
+.disc-col-name {
+  text-align: left;
+  min-width: 160px;
+}
+
+.disc-col-bar {
+  width: 180px;
+  min-width: 120px;
+}
+
+.disc-col-num {
+  text-align: right !important;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.disc-name-text {
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+/* Inline impact bar */
+.disc-bar-track {
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
   overflow: hidden;
 }
 
-.changelog-discipline-summary h4 {
-  margin: 0;
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
+.disc-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1a1a1a 0%, #555 100%);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  min-width: 4px;
 }
 
-.changelog-discipline-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
+/* Total cell bold */
+.disc-total-cell {
+  font-weight: 700;
 }
 
-.changelog-discipline-table th,
-.changelog-discipline-table td {
-  padding: 8px 12px;
-  text-align: left;
-  border-bottom: 1px solid #f3f4f6;
+/* Alternating rows */
+.disc-row-alt td {
+  background: #fafbfc;
 }
 
-.changelog-discipline-table th {
-  font-weight: 600;
-  color: #666;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  background: #f9fafb;
+/* Row hover */
+.disc-analysis-table tbody tr {
+  transition: background 0.15s ease;
 }
 
-.changelog-discipline-table th:not(:first-child),
-.changelog-discipline-table td:not(:first-child) {
-  text-align: right;
+.disc-analysis-table tbody tr:hover td {
+  background: #f5f5f5;
 }
 
-/* Responsive */
+.disc-analysis-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Footer totals row */
+.disc-totals-row td {
+  padding: 14px 16px;
+  background: #fafafa;
+  border-top: 2px solid #e5e7eb;
+  border-bottom: none;
+  font-size: 13px;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
 @media (max-width: 1200px) {
   .progress-kpi-strip {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .changelog-month-tabs {
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
   }
 }
 
@@ -1933,6 +2345,19 @@
     flex-wrap: wrap;
   }
 
+  .changelog-kpi {
+    min-width: calc(50% - 8px);
+  }
+
+  .changelog-filter-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .changelog-filter-discipline {
+    width: 100%;
+  }
+
   .changelog-change-row-main {
     flex-direction: column;
     align-items: flex-start;
@@ -1940,6 +2365,19 @@
 
   .changelog-change-row-left {
     min-width: unset;
+  }
+
+  .disc-analysis-table {
+    font-size: 12px;
+  }
+
+  .disc-analysis-table thead th,
+  .disc-analysis-table td {
+    padding: 8px 10px;
+  }
+
+  .disc-col-bar {
+    display: none;
   }
 
   .curva-s-pesos-layout {
@@ -1952,5 +2390,15 @@
 
   .dwa-header {
     flex-direction: column;
+  }
+
+  .changelog-modal-content {
+    max-width: 100%;
+    border-radius: 12px;
+  }
+
+  .changelog-editor-override-fields {
+    flex-direction: column;
+    gap: 8px;
   }
 }
