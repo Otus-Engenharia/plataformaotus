@@ -167,17 +167,39 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     }
   }, [projectCode, smartsheetId, projectName]);
 
+  // Carregamento inicial: dispara weights, progress e timeseries em paralelo
   useEffect(() => {
-    fetchWeights();
-  }, [fetchWeights]);
+    if (!projectCode) return;
 
-  useEffect(() => {
-    fetchProgress();
-  }, [fetchProgress]);
+    const loadAll = async () => {
+      setLoading(true);
+      setTimeseriesLoading(true);
+      setError(null);
 
-  useEffect(() => {
-    fetchTimeseries();
-  }, [fetchTimeseries]);
+      try {
+        const results = await Promise.allSettled([
+          fetchWeights(),
+          fetchProgress(),
+          fetchTimeseries(),
+        ]);
+
+        // Log erros silenciosos para debug
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') {
+            console.error(`Erro no carregamento paralelo [${i}]:`, r.reason);
+          }
+        });
+      } finally {
+        // Safety net: garantir que loading states são resetados
+        // (fetchProgress/fetchTimeseries podem retornar early sem chamar setLoading(false))
+        setLoading(false);
+        setTimeseriesLoading(false);
+      }
+    };
+
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode, smartsheetId, projectName, projectId]);
 
   // Inicializar barras de baseline: apenas última visível por padrão
   useEffect(() => {
@@ -197,7 +219,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
 
   // Lazy load changelog quando aba relevante fica ativa
   useEffect(() => {
-    if ((activeTab === 'grafico' || activeTab === 'alteracoes') && !changeLog && !changeLogLoading) {
+    if ((activeTab === 'grafico' || activeTab === 'alteracoes' || activeTab === 'disciplinas') && !changeLog && !changeLogLoading) {
       fetchChangeLog();
     }
   }, [activeTab, changeLog, changeLogLoading, fetchChangeLog]);
@@ -357,6 +379,12 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
             <span className="curva-s-tab-badge">{changeLog.overall_summary.total_changes}</span>
           )}
         </button>
+        <button
+          className={`curva-s-tab ${activeTab === 'disciplinas' ? 'active' : ''}`}
+          onClick={() => setActiveTab('disciplinas')}
+        >
+          Por Disciplina
+        </button>
       </div>
 
       {error && (
@@ -468,6 +496,13 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
             onRefresh={fetchChangeLog}
           />
         )}
+
+        {activeTab === 'disciplinas' && (
+          <DisciplineAnalysisTab
+            disciplineScores={changeLog?.discipline_scores}
+            loading={changeLogLoading}
+          />
+        )}
       </div>
     </div>
   );
@@ -528,6 +563,100 @@ function TaskWeightTable({ tasks, loading }) {
               </tr>
             ))}
           </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Tabela de análise por disciplina
+function DisciplineAnalysisTab({ disciplineScores, loading }) {
+  if (loading) {
+    return <div className="curva-s-loading">Carregando análise por disciplina...</div>;
+  }
+
+  if (!disciplineScores || disciplineScores.length === 0) {
+    return (
+      <div className="changelog-tab-empty">
+        Nenhum dado de disciplina disponível.
+        <br />
+        <span style={{ fontSize: 12, color: '#999' }}>
+          É necessário ter alterações detectadas para ver a análise por disciplina.
+        </span>
+      </div>
+    );
+  }
+
+  const maxTotal = Math.max(...disciplineScores.map(d => d.total), 1);
+  const totals = disciplineScores.reduce(
+    (acc, d) => ({
+      total: acc.total + d.total,
+      desvios: acc.desvios + (d.desvios || 0),
+      criadas: acc.criadas + (d.criadas || 0),
+      deletadas: acc.deletadas + (d.deletadas || 0),
+      dias: acc.dias + (d.total_desvio_dias || 0),
+    }),
+    { total: 0, desvios: 0, criadas: 0, deletadas: 0, dias: 0 }
+  );
+
+  return (
+    <div className="disc-analysis">
+      <div className="disc-analysis-table-wrap">
+        <table className="disc-analysis-table">
+          <thead>
+            <tr>
+              <th className="disc-col-name">Disciplina</th>
+              <th className="disc-col-bar">Impacto</th>
+              <th className="disc-col-num">Total</th>
+              <th className="disc-col-num">Desvios</th>
+              <th className="disc-col-num">Criadas</th>
+              <th className="disc-col-num">Removidas</th>
+              <th className="disc-col-num">Dias de desvio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {disciplineScores.map((d, idx) => {
+              const barPct = (d.total / maxTotal) * 100;
+              return (
+                <tr key={d.disciplina} className={idx % 2 === 1 ? 'disc-row-alt' : ''}>
+                  <td className="disc-col-name">
+                    <span className="disc-name-text">{d.disciplina}</span>
+                  </td>
+                  <td className="disc-col-bar">
+                    <div className="disc-bar-track">
+                      <div className="disc-bar-fill" style={{ width: `${barPct}%` }} />
+                    </div>
+                  </td>
+                  <td className="disc-col-num disc-total-cell">{d.total}</td>
+                  <td className="disc-col-num" style={{ color: d.desvios > 0 ? '#EF4444' : undefined }}>
+                    {d.desvios || 0}
+                  </td>
+                  <td className="disc-col-num" style={{ color: d.criadas > 0 ? '#3B82F6' : undefined }}>
+                    {d.criadas || 0}
+                  </td>
+                  <td className="disc-col-num" style={{ color: d.deletadas > 0 ? '#F97316' : undefined }}>
+                    {d.deletadas || 0}
+                  </td>
+                  <td className="disc-col-num" style={{ color: d.total_desvio_dias > 0 ? '#EF4444' : d.total_desvio_dias < 0 ? '#10B981' : undefined }}>
+                    {d.total_desvio_dias > 0 ? `+${d.total_desvio_dias}` : d.total_desvio_dias || 0}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="disc-totals-row">
+              <td className="disc-col-name"><strong>Total</strong></td>
+              <td className="disc-col-bar"></td>
+              <td className="disc-col-num"><strong>{totals.total}</strong></td>
+              <td className="disc-col-num" style={{ color: '#EF4444' }}><strong>{totals.desvios}</strong></td>
+              <td className="disc-col-num" style={{ color: '#3B82F6' }}><strong>{totals.criadas}</strong></td>
+              <td className="disc-col-num" style={{ color: '#F97316' }}><strong>{totals.deletadas}</strong></td>
+              <td className="disc-col-num" style={{ color: totals.dias > 0 ? '#EF4444' : undefined }}>
+                <strong>{totals.dias > 0 ? `+${totals.dias}` : totals.dias}</strong>
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>

@@ -320,30 +320,34 @@ function Sidebar({ collapsed, onToggle, area }) {
     }
   }, [area]);
 
-  // Buscar contagem de solicitações pendentes de baseline (para badge)
+  // Buscar contagens de badges (baselines + feedbacks) - 1x no mount + intervalo de 2 min
+  // (antes disparava a cada navegação, gerando excesso de queries com muitos usuários)
   useEffect(() => {
     if (!isPrivileged) return;
-    axios.get('/api/baseline-requests/pending', { withCredentials: true })
-      .then(res => {
-        if (res.data.success) {
-          setPendingBaselineCount((res.data.data || []).length);
-        }
-      })
-      .catch(() => {}); // silencioso - 403 para não-privilegiados
-  }, [isPrivileged, location.pathname]);
 
-  // Buscar contagem de bugs e feedbacks pendentes (para badges na sidebar)
-  useEffect(() => {
-    if (!isPrivileged) return;
-    axios.get('/api/feedbacks/pending-counts', { withCredentials: true })
-      .then(res => {
-        if (res.data.success) {
-          setPendingBugCount(res.data.data.bugs || 0);
-          setPendingFeedbackCount(res.data.data.feedbacks || 0);
-        }
-      })
-      .catch(() => {});
-  }, [isPrivileged, location.pathname]);
+    const fetchBadgeCounts = () => {
+      axios.get('/api/baseline-requests/pending', { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            setPendingBaselineCount((res.data.data || []).length);
+          }
+        })
+        .catch(() => {});
+
+      axios.get('/api/feedbacks/pending-counts', { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            setPendingBugCount(res.data.data.bugs || 0);
+            setPendingFeedbackCount(res.data.data.feedbacks || 0);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchBadgeCounts();
+    const interval = setInterval(fetchBadgeCounts, 120000); // 2 min
+    return () => clearInterval(interval);
+  }, [isPrivileged]);
 
   // Atualizar last_seen e limpar badge quando acessar feedbacks
   useEffect(() => {
@@ -354,25 +358,30 @@ function Sidebar({ collapsed, onToggle, area }) {
     }
   }, [user?.id, location.pathname]);
 
-  // Buscar contagem de feedbacks atualizados (para badge)
+  // Buscar contagem de feedbacks atualizados (para badge) - 1x no mount + intervalo de 2 min
   useEffect(() => {
     if (!user?.id) return;
-    const lastSeenKey = `feedbacks_last_seen_${user.id}`;
-    const lastSeen = localStorage.getItem(lastSeenKey);
-    if (!lastSeen) {
-      localStorage.setItem(lastSeenKey, new Date().toISOString());
-      return;
-    }
-    // Não buscar se já está na página de feedbacks (last_seen acabou de ser atualizado)
-    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/gerenciar-feedbacks') return;
-    axios.get(`/api/feedbacks/my-updates-count?since=${encodeURIComponent(lastSeen)}`, { withCredentials: true })
-      .then(res => {
-        if (res.data.success) {
-          setFeedbackUpdatesCount(res.data.data?.count || 0);
-        }
-      })
-      .catch(() => {});
-  }, [user?.id, location.pathname]);
+
+    const fetchMyUpdates = () => {
+      const lastSeenKey = `feedbacks_last_seen_${user.id}`;
+      const lastSeen = localStorage.getItem(lastSeenKey);
+      if (!lastSeen) {
+        localStorage.setItem(lastSeenKey, new Date().toISOString());
+        return;
+      }
+      axios.get(`/api/feedbacks/my-updates-count?since=${encodeURIComponent(lastSeen)}`, { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            setFeedbackUpdatesCount(res.data.data?.count || 0);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchMyUpdates();
+    const interval = setInterval(fetchMyUpdates, 120000); // 2 min
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   // Função para carregar projetos de um setor (lazy load)
   const loadSectorProjects = useCallback((sectorId) => {

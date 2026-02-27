@@ -9,3 +9,4 @@ export { UpdateFeedbackStatus } from './UpdateFeedbackStatus.js';
 export { UpdateFeedback } from './UpdateFeedback.js';
 export { GetFeedbackStats } from './GetFeedbackStats.js';
 export { CountMyFeedbackUpdates } from './CountMyFeedbackUpdates.js';
+export { GetPendingCounts } from './GetPendingCounts.js';

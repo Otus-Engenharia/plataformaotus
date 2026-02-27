@@ -5,24 +5,28 @@
 const CHANGE_TYPE_CONFIG = {
   DESVIO_PRAZO: {
     label: 'Desvio de Prazo',
+    shortLabel: 'Desvios',
     color: '#EF4444',
     bgColor: '#FEF2F2',
     borderColor: '#FECACA',
   },
   TAREFA_CRIADA: {
     label: 'Tarefa Adicionada',
+    shortLabel: 'Adicionadas',
     color: '#3B82F6',
     bgColor: '#EFF6FF',
     borderColor: '#BFDBFE',
   },
   TAREFA_DELETADA: {
     label: 'Tarefa Removida',
+    shortLabel: 'Removidas',
     color: '#F97316',
     bgColor: '#FFF7ED',
     borderColor: '#FED7AA',
   },
   TAREFA_NAO_FEITA: {
     label: 'Não Feita',
+    shortLabel: 'Não Feitas',
     color: '#8B5CF6',
     bgColor: '#F5F3FF',
     borderColor: '#DDD6FE',

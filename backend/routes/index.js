@@ -27,7 +27,7 @@ import { createRoutes as createOracleRoutes } from './oracle.js';
  */
 export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache }) {
   // Rotas de Feedbacks (DDD)
-  const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction);
+  const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction, withBqCache);
   app.use('/api/feedbacks', feedbackRoutes);
 
   // Rotas de Demandas (DDD)
@@ -59,7 +59,7 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   app.use('/api/relatos', relatoRoutes);
 
   // Rotas de Solicitações de Baseline (DDD)
-  const baselineRequestRoutes = createBaselineRequestRoutes(requireAuth, isPrivileged, logAction);
+  const baselineRequestRoutes = createBaselineRequestRoutes(requireAuth, isPrivileged, logAction, withBqCache);
   app.use('/api/baseline-requests', baselineRequestRoutes);
 
   // Rotas de ToDo's (DDD)
