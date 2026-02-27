@@ -14,6 +14,7 @@ import {
   UpdateFeedback,
   GetFeedbackStats,
   CountMyFeedbackUpdates,
+  GetPendingCounts,
 } from '../application/use-cases/feedbacks/index.js';
 import { FeedbackArea } from '../domain/feedbacks/value-objects/FeedbackArea.js';
 import { FeedbackType } from '../domain/feedbacks/value-objects/FeedbackType.js';
@@ -36,9 +37,10 @@ function getRepository() {
  * Middleware de autenticação
  * @param {Function} isPrivileged - Função para verificar se é admin/director
  */
-function createRoutes(requireAuth, isPrivileged, logAction) {
+function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
   // Garante que o repositório seja instanciado quando as rotas são criadas
   const repository = getRepository();
+  const badgeCacheMiddleware = withBqCache ? withBqCache(60) : (req, res, next) => next();
 
   /**
    * GET /api/feedbacks
@@ -104,10 +106,33 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   });
 
   /**
+   * GET /api/feedbacks/pending-counts
+   * Retorna contagens de feedbacks pendentes (bugs e feedbacks gerais)
+   * Usado para badges de notificação na sidebar
+   */
+  router.get('/pending-counts', requireAuth, badgeCacheMiddleware, async (req, res) => {
+    try {
+      const getPendingCounts = new GetPendingCounts(repository);
+      const counts = await getPendingCounts.execute();
+
+      res.json({
+        success: true,
+        data: counts,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao buscar contagens pendentes:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao buscar contagens pendentes',
+      });
+    }
+  });
+
+  /**
    * GET /api/feedbacks/my-updates-count
    * Conta feedbacks do usuário que foram atualizados por admin desde um timestamp
    */
-  router.get('/my-updates-count', requireAuth, async (req, res) => {
+  router.get('/my-updates-count', requireAuth, badgeCacheMiddleware, async (req, res) => {
     try {
       const authorId = req.user?.id;
       const since = req.query.since;

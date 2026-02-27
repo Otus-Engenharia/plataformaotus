@@ -34,23 +34,16 @@ class GetProgressTimeSeries {
    * @returns {Object} { timeseries, snapshot_curves, baseline_curve, prazos, progress, weights }
    */
   async execute({ projectCode, smartsheetId, projectName, projectId, startDate, endDate }) {
-    const queries = [
+    // BigQuery: buscar tarefas e snapshots (crítico, sem fallback)
+    const bqQueries = [
       this.#queryTasks(smartsheetId, projectName),
-      this.#repository.findDefaultPhaseWeights(),
-      this.#repository.findDefaultDisciplineWeights(),
-      this.#repository.findDefaultActivityWeights(),
-      this.#repository.findProjectOverrides(projectCode),
-      projectId ? this.#fetchDisciplineMappings(projectId) : Promise.resolve([]),
     ];
-
-    // Buscar snapshots em paralelo se disponível
     if (this.#querySnapshotTasks) {
-      queries.push(this.#querySnapshotTasks(smartsheetId, projectName));
+      bqQueries.push(this.#querySnapshotTasks(smartsheetId, projectName));
     }
-
-    const results = await Promise.all(queries);
-    const [tasks, phases, disciplines, activities, overrides, mappingsRaw] = results;
-    const rawSnapshot = results[6];
+    const bqResults = await Promise.all(bqQueries);
+    const tasks = bqResults[0];
+    const rawSnapshot = bqResults[1];
     const snapshotData = {
       rows: rawSnapshot?.rows || [],
       snapshots: rawSnapshot?.snapshots instanceof Map ? rawSnapshot.snapshots : new Map(),
@@ -58,6 +51,20 @@ class GetProgressTimeSeries {
 
     if (!tasks || tasks.length === 0) {
       return { timeseries: [], snapshot_curves: [], progress: null, weights: null };
+    }
+
+    // Supabase: pesos e mappings (fallback para arrays vazios se indisponível)
+    let phases = [], disciplines = [], activities = [], overrides = [], mappingsRaw = [];
+    try {
+      [phases, disciplines, activities, overrides, mappingsRaw] = await Promise.all([
+        this.#repository.findDefaultPhaseWeights(),
+        this.#repository.findDefaultDisciplineWeights(),
+        this.#repository.findDefaultActivityWeights(),
+        this.#repository.findProjectOverrides(projectCode),
+        projectId ? this.#fetchDisciplineMappings(projectId) : Promise.resolve([]),
+      ]);
+    } catch (err) {
+      console.warn('⚠️ Supabase indisponível para pesos (timeseries), usando defaults vazios:', err.message);
     }
 
     const defaults = WeightConfiguration.fromDefaults({ phases, disciplines, activities });

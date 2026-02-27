@@ -32,15 +32,8 @@ class CalculateProgress {
    * @returns {Object} { tasks, progress, phase_breakdown, weights }
    */
   async execute({ projectCode, smartsheetId, projectName, projectId }) {
-    // Buscar em paralelo: tarefas, pesos, mappings de disciplinas
-    const [tasks, phases, disciplines, activities, overrides, mappingsRaw] = await Promise.all([
-      this.#queryTasks(smartsheetId, projectName),
-      this.#repository.findDefaultPhaseWeights(),
-      this.#repository.findDefaultDisciplineWeights(),
-      this.#repository.findDefaultActivityWeights(),
-      this.#repository.findProjectOverrides(projectCode),
-      projectId ? this.#fetchDisciplineMappings(projectId) : Promise.resolve([]),
-    ]);
+    // BigQuery: buscar tarefas (crítico, sem fallback)
+    const tasks = await this.#queryTasks(smartsheetId, projectName);
 
     if (!tasks || tasks.length === 0) {
       return {
@@ -58,6 +51,20 @@ class CalculateProgress {
         phase_breakdown: [],
         weights: null,
       };
+    }
+
+    // Supabase: pesos e mappings (fallback para arrays vazios se indisponível)
+    let phases = [], disciplines = [], activities = [], overrides = [], mappingsRaw = [];
+    try {
+      [phases, disciplines, activities, overrides, mappingsRaw] = await Promise.all([
+        this.#repository.findDefaultPhaseWeights(),
+        this.#repository.findDefaultDisciplineWeights(),
+        this.#repository.findDefaultActivityWeights(),
+        this.#repository.findProjectOverrides(projectCode),
+        projectId ? this.#fetchDisciplineMappings(projectId) : Promise.resolve([]),
+      ]);
+    } catch (err) {
+      console.warn('⚠️ Supabase indisponível para pesos, usando defaults vazios:', err.message);
     }
 
     // Montar configuração de pesos (defaults + overrides)

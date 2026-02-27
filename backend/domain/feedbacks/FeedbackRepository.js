@@ -93,6 +93,14 @@ class FeedbackRepository {
   }
 
   /**
+   * Conta feedbacks pendentes separados por categoria (bugs vs feedbacks)
+   * @returns {Promise<{bugs: number, feedbacks: number}>}
+   */
+  async getPendingCounts() {
+    throw new Error('Método getPendingCounts deve ser implementado');
+  }
+
+  /**
    * Busca dados do usuário por ID
    * @param {string} userId - ID do usuário
    * @returns {Promise<{id: string, name: string, email: string}|null>}

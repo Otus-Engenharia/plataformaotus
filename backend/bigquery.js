@@ -145,16 +145,11 @@ async function getTableSchemaForDataset(datasetName, tableName) {
   }
 }
 
-// Cache simples das colunas do portfólio para evitar chamadas repetidas
+// Cache permanente das colunas do portfólio (schema não muda durante runtime)
 let portfolioColumnsCache = null;
-let portfolioColumnsFetchedAt = 0;
-const PORTFOLIO_COLUMNS_TTL_MS = 5 * 60 * 1000;
 
 async function getPortfolioColumns() {
-  const now = Date.now();
-  if (portfolioColumnsCache && (now - portfolioColumnsFetchedAt) < PORTFOLIO_COLUMNS_TTL_MS) {
-    return portfolioColumnsCache;
-  }
+  if (portfolioColumnsCache) return portfolioColumnsCache;
 
   const schema = await getTableSchema(tablePortfolio);
   const columns = new Set(
@@ -164,7 +159,6 @@ async function getPortfolioColumns() {
   );
 
   portfolioColumnsCache = columns;
-  portfolioColumnsFetchedAt = now;
   return columns;
 }
 
@@ -173,20 +167,14 @@ async function hasPortfolioColumn(columnName) {
   return columns.has(String(columnName || '').toLowerCase());
 }
 
-// Cache simples do schema de entradas (financeiro.entradas)
+// Cache permanente do schema de entradas (schema não muda durante runtime)
 let entradasSchemaCache = null;
-let entradasSchemaFetchedAt = 0;
-const ENTRADAS_COLUMNS_TTL_MS = 5 * 60 * 1000;
 
 async function getEntradasSchema() {
-  const now = Date.now();
-  if (entradasSchemaCache && (now - entradasSchemaFetchedAt) < ENTRADAS_COLUMNS_TTL_MS) {
-    return entradasSchemaCache;
-  }
+  if (entradasSchemaCache) return entradasSchemaCache;
 
   const schema = await getTableSchemaForDataset('financeiro', 'entradas');
   entradasSchemaCache = schema;
-  entradasSchemaFetchedAt = now;
 
   const columnsList = schema
     .map(col => String(col.column_name || ''))
@@ -506,27 +494,7 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
         PARTITION BY project_code_norm
         ORDER BY mes
         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-      ) AS margem_55_acumulado,
-      -- Margem Operacional acumulada = Margem 55% - Custo (lucro/prejuízo)
-      SUM(margem_55_mes) OVER (
-        PARTITION BY project_code_norm
-        ORDER BY mes
-        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-      ) - SUM(custo_total_mes) OVER (
-        PARTITION BY project_code_norm
-        ORDER BY mes
-        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-      ) AS margem_operacional_acumulado,
-      -- Margem acumulada legado (receita bruta acumulada - custo acumulado)
-      SUM(receita_mes) OVER (
-        PARTITION BY project_code_norm
-        ORDER BY mes
-        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-      ) - SUM(custo_total_mes) OVER (
-        PARTITION BY project_code_norm
-        ORDER BY mes
-        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-      ) AS valor_margem_acumulado
+      ) AS margem_55_acumulado
     FROM dados_combinados
     WHERE mes IS NOT NULL
       AND mes <= CURRENT_DATE()
@@ -534,7 +502,15 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
   `;
 
   console.log('📊 Query Curva S gerada. Executando...');
-  return await executeQuery(query);
+  const rows = await executeQuery(query);
+
+  // Campos derivados calculados em JS (evita window functions extras no BigQuery)
+  for (const row of rows) {
+    row.margem_operacional_acumulado = (row.margem_55_acumulado || 0) - (row.custo_total_acumulado || 0);
+    row.valor_margem_acumulado = (row.receita_bruta_acumulado || 0) - (row.custo_total_acumulado || 0);
+  }
+
+  return rows;
 }
 
 /**
@@ -2609,5 +2585,19 @@ export async function queryHorasRaw(leaderName, opts = {}) {
   } catch (e) {
     console.error('❌ Erro ao buscar horas:', e);
     throw new Error(`Erro ao buscar horas: ${e.message}`);
+  }
+}
+
+/**
+ * Pre-aquece caches de schema no startup do servidor.
+ * Evita que a primeira request pague o custo de 2 queries extras ao BigQuery.
+ */
+export async function warmupSchemaCache() {
+  try {
+    await getPortfolioColumns();
+    await getEntradasSchema();
+    console.log('✅ Schema cache pre-aquecido (portfolio + entradas)');
+  } catch (e) {
+    console.warn('⚠️ Falha ao pre-aquecer schema cache:', e.message);
   }
 }

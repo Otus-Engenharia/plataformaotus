@@ -215,6 +215,7 @@ async function getSheetsFromPortfolio() {
   log('info', `Encontrados ${rows.length} projetos com smartsheet_id no portfólio`);
 
   const sheets = [];
+  const failedSheets = [];
   for (const row of rows) {
     try {
       const sheet = await withRetry(async () => {
@@ -225,6 +226,7 @@ async function getSheetsFromPortfolio() {
       }, `getSheetMeta(${row.project_name})`);
       sheets.push({ id: Number(row.smartsheet_id), name: sheet.name });
     } catch (err) {
+      failedSheets.push({ project: row.project_name, id: row.smartsheet_id, error: err.message });
       log('warn', `Planilha ${row.smartsheet_id} (${row.project_name}) não encontrada no Smartsheet`, {
         error: err.message,
         smartsheet_id: row.smartsheet_id,
@@ -234,6 +236,11 @@ async function getSheetsFromPortfolio() {
   }
 
   log('info', `${sheets.length}/${rows.length} planilhas encontradas no Smartsheet`);
+  if (failedSheets.length > 0) {
+    log('warn', `${failedSheets.length} planilhas falharam na validação`, {
+      failed: failedSheets.map(f => `${f.project} (${f.id}): ${f.error}`).join('; '),
+    });
+  }
   return sheets;
 }
 
@@ -456,8 +463,28 @@ export async function syncSmartsheetToBigQuery(req, res) {
       failedSheets,
     });
 
-    // Inserir no BigQuery
+    // Proteção contra truncate com poucos dados
     if (CONFIG.syncMode === 'full') {
+      try {
+        const [countResult] = await bigqueryClient.query({
+          query: `SELECT COUNT(DISTINCT ID_Projeto) as cnt FROM \`${CONFIG.bigquery.projectId}.${CONFIG.bigquery.dataset}.${CONFIG.bigquery.table}\``,
+        });
+        const currentProjects = Number(countResult[0]?.cnt || 0);
+        const uniqueNewProjects = new Set(allRows.map(r => r.ID_Projeto)).size;
+
+        if (currentProjects > 10 && uniqueNewProjects < currentProjects * 0.5) {
+          const msg = `Proteção ativada: sync traria ${uniqueNewProjects} projetos mas tabela atual tem ${currentProjects}. Possível perda de acesso ao Smartsheet. Abortando truncate.`;
+          log('error', msg);
+          await sendDiscordNotification(msg, true);
+          if (res) res.status(500).json({ success: false, error: msg });
+          return { success: false, error: msg };
+        }
+
+        log('info', `Verificação de proteção OK: ${uniqueNewProjects} novos vs ${currentProjects} atuais`);
+      } catch (checkErr) {
+        log('warn', 'Não foi possível verificar contagem atual, continuando...', { error: checkErr.message });
+      }
+
       await truncateTable();
     }
 

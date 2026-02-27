@@ -33,8 +33,9 @@ function getBaselineRepository() {
   return baselineRepository;
 }
 
-function createRoutes(requireAuth, isPrivileged, logAction) {
+function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
   const repo = getRequestRepository();
+  const badgeCacheMiddleware = withBqCache ? withBqCache(60) : (req, res, next) => next();
 
   /**
    * POST /api/baseline-requests
@@ -94,7 +95,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    * GET /api/baseline-requests/pending
    * Lista solicitações pendentes (para gerentes)
    */
-  router.get('/pending', requireAuth, async (req, res) => {
+  router.get('/pending', requireAuth, badgeCacheMiddleware, async (req, res) => {
     try {
       if (!isPrivileged(req.user)) {
         return res.status(403).json({ success: false, error: 'Acesso negado' });

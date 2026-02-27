@@ -167,17 +167,39 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     }
   }, [projectCode, smartsheetId, projectName]);
 
+  // Carregamento inicial: dispara weights, progress e timeseries em paralelo
   useEffect(() => {
-    fetchWeights();
-  }, [fetchWeights]);
+    if (!projectCode) return;
 
-  useEffect(() => {
-    fetchProgress();
-  }, [fetchProgress]);
+    const loadAll = async () => {
+      setLoading(true);
+      setTimeseriesLoading(true);
+      setError(null);
 
-  useEffect(() => {
-    fetchTimeseries();
-  }, [fetchTimeseries]);
+      try {
+        const results = await Promise.allSettled([
+          fetchWeights(),
+          fetchProgress(),
+          fetchTimeseries(),
+        ]);
+
+        // Log erros silenciosos para debug
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') {
+            console.error(`Erro no carregamento paralelo [${i}]:`, r.reason);
+          }
+        });
+      } finally {
+        // Safety net: garantir que loading states são resetados
+        // (fetchProgress/fetchTimeseries podem retornar early sem chamar setLoading(false))
+        setLoading(false);
+        setTimeseriesLoading(false);
+      }
+    };
+
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode, smartsheetId, projectName, projectId]);
 
   // Inicializar barras de baseline: apenas última visível por padrão
   useEffect(() => {

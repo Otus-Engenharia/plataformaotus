@@ -5903,13 +5903,13 @@ export async function getUserOAuthTokens(userId) {
 }
 
 /**
- * Resolve emails dos responsáveis por uma disciplina em um projeto
+ * Resolve contatos completos dos responsáveis por uma disciplina em um projeto
  * Usa 3 estratégias: match exato → discipline_mappings → match parcial
  * @param {string} construflowId - ID Construflow do projeto
  * @param {string} disciplinaName - Nome da disciplina (do Smartsheet/BigQuery)
- * @returns {Promise<string[]>} - Array de emails
+ * @returns {Promise<Array<{name: string, email: string|null, phone: string|null, company: string|null}>>}
  */
-export async function resolveRecipientEmails(construflowId, disciplinaName) {
+export async function resolveRecipientContacts(construflowId, disciplinaName) {
   if (!construflowId || !disciplinaName) return [];
 
   const disciplines = await fetchProjectDisciplines(construflowId);
@@ -5949,16 +5949,33 @@ export async function resolveRecipientEmails(construflowId, disciplinaName) {
     });
   }
 
-  // Extrair emails: prefere override da project_disciplines, fallback para contact.email
-  const emails = [];
+  // Extrair contatos completos: prefere overrides da project_disciplines
+  const contacts = [];
+  const seen = new Set();
   for (const d of matched) {
-    const email = d.email || d.contact?.email;
-    if (email && !emails.includes(email)) {
-      emails.push(email);
+    const email = d.email || d.contact?.email || null;
+    const phone = d.phone || d.contact?.phone || null;
+    const name = d.contact?.name || 'Sem nome';
+    const company = d.company?.name || null;
+    const key = `${name}-${email}-${phone}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      contacts.push({ name, email, phone, company });
     }
   }
 
-  return emails;
+  return contacts;
+}
+
+/**
+ * Resolve emails dos responsáveis por uma disciplina (wrapper de resolveRecipientContacts)
+ * @param {string} construflowId - ID Construflow do projeto
+ * @param {string} disciplinaName - Nome da disciplina
+ * @returns {Promise<string[]>} - Array de emails
+ */
+export async function resolveRecipientEmails(construflowId, disciplinaName) {
+  const contacts = await resolveRecipientContacts(construflowId, disciplinaName);
+  return contacts.map(c => c.email).filter(Boolean);
 }
 
 // ==================== WHITEBOARD ====================
