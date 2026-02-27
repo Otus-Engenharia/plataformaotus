@@ -42,12 +42,13 @@ function getBaselineRepository() {
 
 function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
   const repository = getRepository();
+  const cacheMiddleware = withBqCache ? withBqCache(900) : (req, res, next) => next();
 
   /**
    * GET /api/curva-s-progresso/defaults
-   * Busca pesos padrão globais
+   * Busca pesos padrão globais (cached - pesos raramente mudam)
    */
-  router.get('/defaults', requireAuth, async (req, res) => {
+  router.get('/defaults', requireAuth, cacheMiddleware, async (req, res) => {
     try {
       const getDefaults = new GetDefaultWeights(repository);
       const data = await getDefaults.execute();
@@ -103,7 +104,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
    * GET /api/curva-s-progresso/project/:projectCode/weights
    * Busca pesos merged de um projeto (defaults + overrides)
    */
-  router.get('/project/:projectCode/weights', requireAuth, async (req, res) => {
+  router.get('/project/:projectCode/weights', requireAuth, cacheMiddleware, async (req, res) => {
     try {
       const { projectCode } = req.params;
 
@@ -185,8 +186,6 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
    * GET /api/curva-s-progresso/project/:projectCode/progress
    * Calcula o progresso atual do projeto com breakdown por tarefa e fase
    */
-  const cacheMiddleware = withBqCache ? withBqCache(900) : (req, res, next) => next();
-
   router.get('/project/:projectCode/progress', requireAuth, cacheMiddleware, async (req, res) => {
     try {
       const { projectCode } = req.params;

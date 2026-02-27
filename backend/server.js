@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache } from './bigquery.js';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import {
@@ -77,7 +77,7 @@ import {
   // Portfolio - Edicao inline
   fetchPortfolioEditOptions, updateProjectField,
   // OAuth tokens (Gmail Draft)
-  getUserOAuthTokens, resolveRecipientEmails,
+  getUserOAuthTokens, resolveRecipientEmails, resolveRecipientContacts,
   // Whiteboard
   fetchWhiteboard, saveWhiteboard
 } from './supabase.js';
@@ -122,8 +122,14 @@ const bqCache = new NodeCache({ stdTTL: 900, checkperiod: 120, useClones: false 
 function withBqCache(ttlSeconds) {
   return (req, res, next) => {
     const sortedQuery = Object.keys(req.query || {}).sort().reduce((acc, k) => { acc[k] = req.query[k]; return acc; }, {});
-    const effectiveEmail = req.session?.impersonating?.email || req.user?.email || 'anon';
-    const key = `bq:${req.path}:${effectiveEmail}:${JSON.stringify(sortedQuery)}`;
+
+    // Cache compartilhado para usuarios com acesso total (evita N queries identicas)
+    const effectiveUser = req.session?.impersonating || req.user;
+    const role = effectiveUser?.role;
+    const hasFullAccess = ['dev', 'ceo', 'director', 'admin'].includes(role);
+    const cacheIdentifier = hasFullAccess ? 'shared' : (effectiveUser?.email || 'anon');
+
+    const key = `bq:${req.path}:${cacheIdentifier}:${JSON.stringify(sortedQuery)}`;
     const cached = bqCache.get(key);
     if (cached) {
       console.log(`📦 Cache HIT: ${req.path} (${ttlSeconds}s TTL)`);
@@ -788,7 +794,7 @@ app.get(
  * Retorna os dados do portfólio de projetos
  * Filtra por líder apenas quando ?leaderFilter=true (usado na vista Portfolio)
  */
-app.get('/api/portfolio', requireAuth, withBqCache(900), async (req, res) => {
+app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
   try {
     console.log('📊 Buscando dados do portfólio...');
 
@@ -801,26 +807,9 @@ app.get('/api/portfolio', requireAuth, withBqCache(900), async (req, res) => {
       }
       leaderName = name;
     }
-    
-    let data = [];
 
-    try {
-      data = await fetchPortfolioRealtime(leaderName);
-
-      // Valida se dados críticos de cronograma estão presentes no Supabase
-      if (data.length > 0) {
-        const hasDateData = data.some(row =>
-          row.data_inicio_cronograma != null || row.data_termino_cronograma != null
-        );
-        if (!hasDateData) {
-          console.warn('⚠️ Supabase sem dados de cronograma, usando BigQuery...');
-          data = await queryPortfolio(leaderName);
-        }
-      }
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase falhou, usando BigQuery:', supabaseError.message);
-      data = await queryPortfolio(leaderName);
-    }
+    // Usa BigQuery direto (view Supabase portfolio_realtime não existe atualmente)
+    const data = await queryPortfolio(leaderName);
     
     // Registra o acesso
     await logAction(req, 'view', 'portfolio', null, 'Portfólio', { count: data.length });
@@ -844,7 +833,7 @@ app.get('/api/portfolio', requireAuth, withBqCache(900), async (req, res) => {
  * Rota: GET /api/portfolio/edit-options
  * Retorna opcoes para dropdowns de edicao (times, empresas, lideres)
  */
-app.get('/api/portfolio/edit-options', requireAuth, async (req, res) => {
+app.get('/api/portfolio/edit-options', requireAuth, withBqCache(1800), async (req, res) => {
   try {
     if (!hasFullAccess(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
@@ -1373,15 +1362,9 @@ app.get('/api/curva-s', requireAuth, withBqCache(1800), async (req, res) => {
 
     // Filtro opcional por projeto específico
     const projectCode = req.query.projectCode || null;
-    
-    let data = [];
 
-    try {
-      data = await fetchCurvaSRealtime(leaderName, projectCode);
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase falhou, usando BigQuery:', supabaseError.message);
-      data = await queryCurvaS(leaderName, projectCode);
-    }
+    // Usa BigQuery direto (view Supabase curva_s não existe atualmente)
+    const data = await queryCurvaS(leaderName, projectCode);
     
     res.json({
       success: true,
@@ -1421,14 +1404,9 @@ app.get('/api/curva-s/colaboradores', requireAuth, withBqCache(900), async (req,
     }
 
     console.log(`📊 Buscando colaboradores do projeto: ${projectCode}`);
-    let data = [];
 
-    try {
-      data = await fetchCurvaSColaboradoresRealtime(projectCode, leaderName);
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase falhou, usando BigQuery:', supabaseError.message);
-      data = await queryCurvaSColaboradores(projectCode, leaderName);
-    }
+    // Usa BigQuery direto (view Supabase colaboradores não existe atualmente)
+    const data = await queryCurvaSColaboradores(projectCode, leaderName);
     
     res.json({
       success: true,
@@ -1927,13 +1905,8 @@ app.get('/api/apoio-projetos/modelagem-tarefas', requireAuth, withBqCache(900), 
  */
 app.get('/api/apoio-projetos/portfolio', requireAuth, withBqCache(900), async (req, res) => {
   try {
-    let portfolioData = [];
-    try {
-      portfolioData = await fetchPortfolioRealtime(null);
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase falhou no apoio-projetos, usando BigQuery:', supabaseError.message);
-      portfolioData = await queryPortfolio(null);
-    }
+    // Usa BigQuery direto (view Supabase portfolio_realtime não existe atualmente)
+    const portfolioData = await queryPortfolio(null);
 
     const featuresMap = await fetchProjectFeaturesForPortfolio();
 
@@ -6920,7 +6893,7 @@ app.get('/api/projetos/equipe', requireAuth, async (req, res) => {
  * Rota: GET /api/projetos/equipe/disciplinas
  * Retorna todas as disciplinas padrão disponíveis
  */
-app.get('/api/projetos/equipe/disciplinas', requireAuth, async (req, res) => {
+app.get('/api/projetos/equipe/disciplinas', requireAuth, withBqCache(1800), async (req, res) => {
   try {
     const data = await fetchStandardDisciplines();
     res.json({ success: true, count: data.length, data });
@@ -6934,7 +6907,7 @@ app.get('/api/projetos/equipe/disciplinas', requireAuth, async (req, res) => {
  * Rota: GET /api/projetos/equipe/empresas
  * Retorna todas as empresas disponíveis
  */
-app.get('/api/projetos/equipe/empresas', requireAuth, async (req, res) => {
+app.get('/api/projetos/equipe/empresas', requireAuth, withBqCache(1800), async (req, res) => {
   try {
     const data = await fetchCompanies();
     res.json({ success: true, count: data.length, data });
@@ -6962,7 +6935,7 @@ app.get('/api/projetos/equipe/contatos', requireAuth, async (req, res) => {
  * Rota: GET /api/projetos/equipe/disciplinas-cruzadas
  * Análise cruzada de disciplinas entre Smartsheet, ConstruFlow e Otus
  */
-app.get('/api/projetos/equipe/disciplinas-cruzadas', requireAuth, async (req, res) => {
+app.get('/api/projetos/equipe/disciplinas-cruzadas', requireAuth, withBqCache(900), async (req, res) => {
   try {
     const { construflowId, smartsheetId, projectName } = req.query;
     if (!construflowId) {
@@ -7493,7 +7466,7 @@ app.put('/api/whiteboard/:boardId', requireAuth, express.json({ limit: '10mb' })
 
 // Inicia o servidor
 const HOST = process.env.HOST || '0.0.0.0'; // Aceita conexões de qualquer IP
-app.listen(PORT, HOST, () => {
+app.listen(PORT, HOST, async () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📍 Local: ${FRONTEND_URL}/api/health`);
   console.log(`🔍 Schema da tabela: ${FRONTEND_URL}/api/schema`);
@@ -7505,4 +7478,7 @@ app.listen(PORT, HOST, () => {
     console.log(`\n⚠️ Pasta public não encontrada em ${publicDir}`);
     console.log(`   Acesse /api/health para checar o backend. Frontend não disponível.`);
   }
+
+  // Pre-aquecer caches de schema BigQuery (evita latencia na primeira request)
+  warmupSchemaCache();
 });

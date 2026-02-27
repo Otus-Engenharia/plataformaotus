@@ -203,6 +203,34 @@ class SupabaseFeedbackRepository extends FeedbackRepository {
   }
 
   /**
+   * Conta feedbacks pendentes separados por tipo (bugs vs feedbacks gerais)
+   */
+  async getPendingCounts() {
+    const { data, error } = await this.#supabase
+      .from(FEEDBACKS_TABLE)
+      .select('type')
+      .eq('status', 'pendente');
+
+    if (error) {
+      throw new Error(`Erro ao buscar contagens pendentes: ${error.message}`);
+    }
+
+    const BUG_TYPES = ['bug', 'erro'];
+    let bugs = 0;
+    let feedbacks = 0;
+
+    for (const row of data || []) {
+      if (BUG_TYPES.includes(row.type)) {
+        bugs++;
+      } else {
+        feedbacks++;
+      }
+    }
+
+    return { bugs, feedbacks };
+  }
+
+  /**
    * Conta feedbacks de um autor que foram atualizados por admin desde um timestamp
    */
   async countUpdatedForAuthor(authorId, sinceTimestamp) {

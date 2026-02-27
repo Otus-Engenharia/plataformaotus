@@ -13,11 +13,16 @@ class GetDefaultWeights {
   }
 
   async execute() {
-    const [phases, disciplines, activities] = await Promise.all([
-      this.#repository.findDefaultPhaseWeights(),
-      this.#repository.findDefaultDisciplineWeights(),
-      this.#repository.findDefaultActivityWeights(),
-    ]);
+    let phases = [], disciplines = [], activities = [];
+    try {
+      [phases, disciplines, activities] = await Promise.all([
+        this.#repository.findDefaultPhaseWeights(),
+        this.#repository.findDefaultDisciplineWeights(),
+        this.#repository.findDefaultActivityWeights(),
+      ]);
+    } catch (err) {
+      console.warn('⚠️ Supabase indisponível para pesos padrão:', err.message);
+    }
 
     const config = WeightConfiguration.fromDefaults({ phases, disciplines, activities });
     return config.toResponse();

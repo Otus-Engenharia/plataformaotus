@@ -20,13 +20,18 @@ class GetProjectWeights {
       throw new Error('Código do projeto é obrigatório');
     }
 
-    // Buscar defaults e overrides em paralelo
-    const [phases, disciplines, activities, overrides] = await Promise.all([
-      this.#repository.findDefaultPhaseWeights(),
-      this.#repository.findDefaultDisciplineWeights(),
-      this.#repository.findDefaultActivityWeights(),
-      this.#repository.findProjectOverrides(projectCode),
-    ]);
+    // Buscar defaults e overrides em paralelo (fallback para vazios se Supabase indisponível)
+    let phases = [], disciplines = [], activities = [], overrides = [];
+    try {
+      [phases, disciplines, activities, overrides] = await Promise.all([
+        this.#repository.findDefaultPhaseWeights(),
+        this.#repository.findDefaultDisciplineWeights(),
+        this.#repository.findDefaultActivityWeights(),
+        this.#repository.findProjectOverrides(projectCode),
+      ]);
+    } catch (err) {
+      console.warn('⚠️ Supabase indisponível para pesos do projeto:', err.message);
+    }
 
     const defaults = WeightConfiguration.fromDefaults({ phases, disciplines, activities });
 
