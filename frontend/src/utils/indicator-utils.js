@@ -398,7 +398,6 @@ export function distributeAccumulatedTarget(accumulated, method, activeQuarters,
   for (let m = 1; m <= 12; m++) {
     const isActive = activeMonths.includes(m);
     if (!isActive) {
-      result[m] = 0;
       continue;
     }
 
@@ -422,7 +421,7 @@ export function distributeAccumulatedTarget(accumulated, method, activeQuarters,
         result[m] = accumulated;
         break;
       case 'last_value':
-        result[m] = m === lastActiveMonth ? accumulated : 0;
+        result[m] = accumulated;
         break;
       case 'manual':
       default:
@@ -556,9 +555,11 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
   const monthlyTargets = indicador.monthly_targets || {};
 
   // Calcular "Acumulado Planejado" ate o mes atual (ou inicio do ciclo se futuro)
+  const mesInicio = parseInt(indicador.mes_inicio) || 1;
   const effectiveMonth = Math.max(currentMonth, start);
   let planejado = 0;
   for (let m = start; m <= Math.min(effectiveMonth, end); m++) {
+    if (m < mesInicio) continue;
     const mt = monthlyTargets[m];
     const target = mt != null ? parseFloat(mt) : (parseFloat(indicador.meta) || 0);
     if (consolidationType === 'sum') {

@@ -5199,12 +5199,19 @@ app.get('/api/ind/indicators/my', requireAuth, async (req, res) => {
     const indicadores = await fetchIndicadoresIndividuais(filters);
 
     // Enriquecer com check-ins e recovery plans para o dashboard
+    // try/catch individual para que falha em 1 indicador não derrube o endpoint inteiro
     const enriched = await Promise.all(
       indicadores.map(async (ind) => {
-        const [checkIns, recoveryPlans] = await Promise.all([
-          fetchCheckIns(ind.id),
-          fetchRecoveryPlans(ind.id)
-        ]);
+        let checkIns = [];
+        let recoveryPlans = [];
+        try {
+          [checkIns, recoveryPlans] = await Promise.all([
+            fetchCheckIns(ind.id),
+            fetchRecoveryPlans(ind.id)
+          ]);
+        } catch (err) {
+          console.warn(`[enrichment] Falha ao enriquecer indicador ${ind.id}: ${err.message}`);
+        }
         return { ...ind, check_ins: checkIns, recovery_plans: recoveryPlans };
       })
     );
