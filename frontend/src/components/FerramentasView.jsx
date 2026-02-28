@@ -6,11 +6,15 @@
  * - Relatório Semanal: readiness, geração, pipeline, histórico
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import ReadinessChecks from './weekly-reports/ReadinessChecks';
+import ReportPipeline from './weekly-reports/ReportPipeline';
+import ReportHistory from './weekly-reports/ReportHistory';
 import '../styles/FerramentasView.css';
+import '../styles/WeeklyReport.css';
 
 // Ferramentas com toggle liga/desliga
 const TOGGLE_TOOLS = [
@@ -50,6 +54,11 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
   const [error, setError] = useState(null);
   const [tagsModal, setTagsModal] = useState(null); // { field, name, selected: Set, options: [] loading: bool }
 
+
+  // Weekly Report state
+  const [wrReady, setWrReady] = useState(false);
+  const [wrGenerating, setWrGenerating] = useState(false);
+  const [wrReportId, setWrReportId] = useState(null);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !portfolio || portfolio.length === 0) return null;
@@ -246,8 +255,9 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     }
   };
 
-  const handlePipelineComplete = useCallback(() => {
+  const handlePipelineComplete = useCallback((data) => {
     setWrGenerating(false);
+    // Keep reportId so the pipeline result stays visible
   }, []);
 
   if (!selectedProjectId) {
@@ -641,6 +651,59 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Seção: Relatório Semanal */}
+      {projectData.relatorio_semanal_status === 'ativo' && (
+        <section className="ftv-section">
+          <h4 className="ftv-section-title">Relatorio Semanal</h4>
+
+          {/* Readiness checks */}
+          <ReadinessChecks
+            projectCode={getProjectCode()}
+            onReadinessChange={handleReadinessChange}
+          />
+
+          {/* Generate button */}
+          <div className="wr-generate-area">
+            <button
+              className={`wr-generate-btn ${wrReady && !wrGenerating ? 'wr-generate-btn-ready' : 'wr-generate-btn-disabled'}`}
+              onClick={handleGenerateReport}
+              disabled={!wrReady || wrGenerating}
+            >
+              {wrGenerating ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'wr-dot-pulse 1.5s infinite' }}>
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                  Gerar Relatorio Semanal
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Pipeline progress */}
+          {wrReportId && (
+            <ReportPipeline
+              reportId={wrReportId}
+              onComplete={handlePipelineComplete}
+            />
+          )}
+
+          {/* History */}
+          <ReportHistory projectCode={getProjectCode()} />
+        </section>
       )}
     </div>
   );

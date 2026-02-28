@@ -16,6 +16,7 @@ import { createRoutes as createBaselineRequestRoutes } from './baseline-requests
 import { createRoutes as createTodoRoutes } from './todos.js';
 import { createRoutes as createUserPreferencesRoutes } from './user-preferences.js';
 import { createRoutes as createOracleRoutes } from './oracle.js';
+import { createRoutes as createWeeklyReportRoutes } from './weekly-reports.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -25,7 +26,7 @@ import { createRoutes as createOracleRoutes } from './oracle.js';
  * @param {Function} middleware.isPrivileged - Função para verificar privilégios
  * @param {Function} middleware.logAction - Função para registrar ações
  */
-export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache }) {
+export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator }) {
   // Rotas de Feedbacks (DDD)
   const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction, withBqCache);
   app.use('/api/feedbacks', feedbackRoutes);
@@ -74,5 +75,11 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const oracleRoutes = createOracleRoutes(requireAuth);
   app.use('/api/oracle', oracleRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle');
+  // Rotas de Relatórios Semanais (DDD)
+  if (bigqueryClient) {
+    const weeklyReportRoutes = createWeeklyReportRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, reportGenerator);
+    app.use('/api/weekly-reports', weeklyReportRoutes);
+  }
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports');
 }
