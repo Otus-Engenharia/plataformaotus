@@ -13,8 +13,8 @@
  * Cada etapa atualiza o current_step para feedback em tempo real.
  */
 
-import { WeeklyReport } from '../../domain/weekly-reports/entities/WeeklyReport.js';
-import { PipelineStepEnum } from '../../domain/weekly-reports/value-objects/PipelineStep.js';
+import { WeeklyReport } from '../../../domain/weekly-reports/entities/WeeklyReport.js';
+import { PipelineStepEnum } from '../../../domain/weekly-reports/value-objects/PipelineStep.js';
 
 class GenerateWeeklyReport {
   #reportRepository;
