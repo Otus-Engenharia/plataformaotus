@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import '../styles/AdminAccessView.css';
+import { formatPhoneDisplay } from '../utils/phone-utils';
 
 const ACCESS_LABELS = {
   director: 'Diretoria',
@@ -311,7 +312,7 @@ function AdminAccessView() {
                     <td>{row.lider || '-'}</td>
                     <td>{row.padrinho || '-'}</td>
                     <td>{timeLabel}</td>
-                    <td>{row.telefone || '-'}</td>
+                    <td>{row.telefone ? formatPhoneDisplay(row.telefone) : '-'}</td>
                     <td>{row.email || '-'}</td>
                     <td>{accessLabel}</td>
                     <td>{row.construflow_id || '-'}</td>
