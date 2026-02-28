@@ -5,7 +5,7 @@
  * Estrutura reutilizável para outras vistas com subvistas
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ApontamentosView from './ApontamentosView';
@@ -17,6 +17,7 @@ import CurvaSProgressoView from './CurvaSProgressoView';
 import RelatosView from './relatos/RelatosView';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import SearchableDropdown from './SearchableDropdown';
 import '../styles/ProjetosView.css';
 
 // Status que representam projetos finalizados (case-insensitive)
@@ -130,8 +131,9 @@ function ProjetosView() {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [showOnlyActiveProjects, setShowOnlyActiveProjects] = useState(true); // Padrão: ativo
-  const [showOnlyMyTeam, setShowOnlyMyTeam] = useState(false);
+  const [showOnlyMyTeam, setShowOnlyMyTeam] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState('');
+  const [selectedClient, setSelectedClient] = useState('');
   
   // Detecta subvista ativa pela URL ou usa a primeira como padrão
   const getActiveSubview = () => {
@@ -157,14 +159,26 @@ function ProjetosView() {
     async function loadPortfolio() {
       const data = await fetchPortfolio();
       setPortfolio(data);
-      
+
+      // Computa time do usuário inline (userTeam memo ainda não tem dados)
+      let inlineUserTeam = null;
+      if (user?.name) {
+        const userNameLower = user.name.toLowerCase().trim();
+        const match = data.find(p =>
+          p.lider && p.lider.toLowerCase().trim() === userNameLower
+        );
+        inlineUserTeam = match?.nome_time || null;
+      }
+
       // Filtra e ordena projetos para selecionar o primeiro alfabeticamente
-      // Aplica o filtro de projetos ativos por padrão (exclui finalizados e pausados)
       const validProjects = data
         .filter(p => {
           if (!p.project_code_norm) return false;
-          // Por padrão, exclui projetos finalizados e pausados
           if (isFinalizedStatus(p.status) || isPausedStatus(p.status)) {
+            return false;
+          }
+          // Aplica filtro de time se disponível (showOnlyMyTeam defaults to true)
+          if (inlineUserTeam && p.nome_time !== inlineUserTeam) {
             return false;
           }
           return true;
@@ -187,7 +201,7 @@ function ProjetosView() {
       }
     }
     loadPortfolio();
-  }, []);
+  }, [user?.name]);
 
   // Atualiza lastUpdate quando o projeto muda
   useEffect(() => {
@@ -224,32 +238,75 @@ function ProjetosView() {
     )].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [portfolio]);
 
-  // Ordena projetos para o select (filtra por ativos e time se necessário)
-  const sortedProjects = portfolio
-    .filter(p => {
-      if (!p.project_code_norm) return false;
-      if (showOnlyActiveProjects) {
-        if (isFinalizedStatus(p.status) || isPausedStatus(p.status)) {
+  // Projetos filtrados por ativo + time (antes do filtro de cliente)
+  const projectsBeforeClientFilter = useMemo(() => {
+    return portfolio
+      .filter(p => {
+        if (!p.project_code_norm) return false;
+        if (showOnlyActiveProjects) {
+          if (isFinalizedStatus(p.status) || isPausedStatus(p.status)) {
+            return false;
+          }
+        }
+        if (showOnlyMyTeam && effectiveTeam && p.nome_time !== effectiveTeam) {
           return false;
         }
-      }
-      if (showOnlyMyTeam && effectiveTeam && p.nome_time !== effectiveTeam) {
-        return false;
-      }
-      return true;
-    })
-    .reduce((acc, project) => {
-      const exists = acc.find(p => p.project_code_norm === project.project_code_norm);
-      if (!exists) {
-        acc.push(project);
-      }
-      return acc;
-    }, [])
-    .sort((a, b) => {
+        return true;
+      })
+      .reduce((acc, project) => {
+        const exists = acc.find(p => p.project_code_norm === project.project_code_norm);
+        if (!exists) {
+          acc.push(project);
+        }
+        return acc;
+      }, []);
+  }, [portfolio, showOnlyActiveProjects, showOnlyMyTeam, effectiveTeam]);
+
+  // Clientes únicos extraídos dos projetos filtrados
+  const uniqueClients = useMemo(() => {
+    return [...new Set(
+      projectsBeforeClientFilter.map(p => p.client).filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [projectsBeforeClientFilter]);
+
+  // Projetos finais filtrados (inclui filtro de cliente) e ordenados
+  const sortedProjects = useMemo(() => {
+    let filtered = projectsBeforeClientFilter;
+    if (selectedClient) {
+      filtered = filtered.filter(p => p.client === selectedClient);
+    }
+    return filtered.sort((a, b) => {
       const nameA = (a.project_name || a.project_code_norm || '').toLowerCase();
       const nameB = (b.project_name || b.project_code_norm || '').toLowerCase();
       return nameA.localeCompare(nameB, 'pt-BR');
     });
+  }, [projectsBeforeClientFilter, selectedClient]);
+
+  // Opções do dropdown de projetos
+  const projectOptions = useMemo(() => {
+    return sortedProjects.map(p => ({
+      value: p.project_code_norm,
+      label: p.project_name || p.project_code_norm
+    }));
+  }, [sortedProjects]);
+
+  // Limpa filtro de cliente se não existe mais na lista filtrada
+  useEffect(() => {
+    if (selectedClient && !uniqueClients.includes(selectedClient)) {
+      setSelectedClient('');
+    }
+  }, [uniqueClients, selectedClient]);
+
+  // Limpa projeto selecionado se não pertence ao cliente filtrado
+  useEffect(() => {
+    if (selectedClient && selectedProjectId) {
+      const currentProject = portfolio.find(p => p.project_code_norm === selectedProjectId);
+      if (currentProject && currentProject.client !== selectedClient) {
+        setSelectedProjectId(null);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClient]);
 
   return (
     <div className="projetos-container">
@@ -260,18 +317,22 @@ function ProjetosView() {
 
       {/* Filtro de projeto - Movido para cima das tabs */}
       <div className="projetos-project-filter">
-        <select
+        <SearchableDropdown
           value={selectedProjectId || ''}
-          onChange={(e) => setSelectedProjectId(e.target.value)}
-          className="apontamentos-project-select"
-        >
-          <option value="">Selecione um projeto</option>
-          {sortedProjects.map(project => (
-            <option key={project.project_code_norm} value={project.project_code_norm}>
-              {project.project_name || project.project_code_norm}
-            </option>
-          ))}
-        </select>
+          onChange={(val) => setSelectedProjectId(val || null)}
+          options={projectOptions}
+          placeholder="Selecione um projeto"
+          count={projectOptions.length}
+        />
+
+        <SearchableDropdown
+          value={selectedClient}
+          onChange={(val) => setSelectedClient(val || '')}
+          options={uniqueClients.map(c => ({ value: c, label: c }))}
+          placeholder="Filtrar por Cliente"
+          count={uniqueClients.length}
+          className="projetos-client-filter"
+        />
         
         {/* Toggle para mostrar apenas projetos ativos */}
         <label className="projetos-active-toggle">

@@ -413,9 +413,6 @@ app.get('/api/auth/dev-mode', (req, res) => {
     // Operação não tem acesso à plataforma por enquanto
     availableUsers: process.env.DEV_MODE === 'true' ? [
       { email: 'dev-dev@otus.dev', name: 'Dev (Full Access)', role: 'dev' },
-      { email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
-      { email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
-      { email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
     ] : []
   });
 });
@@ -424,7 +421,7 @@ app.get('/api/auth/dev-mode', (req, res) => {
  * Rota: POST /api/auth/dev-login
  * Cria sessão com usuário fake (apenas em dev mode)
  */
-app.post('/api/auth/dev-login', (req, res) => {
+app.post('/api/auth/dev-login', async (req, res) => {
   if (process.env.DEV_MODE !== 'true') {
     return res.status(403).json({
       success: false,
@@ -443,14 +440,20 @@ app.post('/api/auth/dev-login', (req, res) => {
   }
 
   // Usa um ID real existente no banco para evitar erros de FK
-  // Diego Duarte (dev) - ID real do banco users_otus
   const DEV_USER_ID = '895103f1-e355-467d-b7bf-38d4b581d4aa';
 
+  // Busca dados reais do usuário dev no banco (setor, etc.)
+  const userOtus = await getUserOtusById(DEV_USER_ID).catch(() => null);
+
   const devUsers = {
-    dev: { id: DEV_USER_ID, email: 'dev-dev@otus.dev', name: 'Dev (Full Access)', role: 'dev' },
-    director: { id: DEV_USER_ID, email: 'dev-director@otus.dev', name: 'Dev Director', role: 'director' },
-    admin: { id: DEV_USER_ID, email: 'dev-admin@otus.dev', name: 'Dev Admin', role: 'admin' },
-    leader: { id: DEV_USER_ID, email: 'dev-leader@otus.dev', name: 'Dev Leader', role: 'leader' }
+    dev: {
+      id: DEV_USER_ID,
+      email: userOtus?.email || 'dev-dev@otus.dev',
+      name: userOtus?.name || 'Dev (Full Access)',
+      role: 'dev',
+      setor_name: userOtus?.setor?.name || 'Tecnologia',
+      setor_id: userOtus?.setor_id || null,
+    },
   };
 
   const user = devUsers[role];
@@ -810,14 +813,26 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
 
     // Usa BigQuery direto (view Supabase portfolio_realtime não existe atualmente)
     const data = await queryPortfolio(leaderName);
-    
+
+    // Enriquece com dados de project_features (Supabase)
+    const featuresMap = await fetchProjectFeaturesForPortfolio();
+    const enrichedData = data.map(row => {
+      const features = featuresMap[row.project_code_norm] || {};
+      return {
+        ...row,
+        ...features,
+        // Fallback: se Supabase não tem disciplinas, usar BigQuery
+        construflow_disciplinasclientes: features.construflow_disciplinasclientes || row.disciplina_cliente || null,
+      };
+    });
+
     // Registra o acesso
-    await logAction(req, 'view', 'portfolio', null, 'Portfólio', { count: data.length });
-    
+    await logAction(req, 'view', 'portfolio', null, 'Portfólio', { count: enrichedData.length });
+
     res.json({
       success: true,
-      count: data.length,
-      data: data
+      count: enrichedData.length,
+      data: enrichedData
     });
   } catch (error) {
     console.error('❌ Erro ao buscar portfólio:', error);
@@ -890,10 +905,12 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
     const { field, value, oldValue } = req.body;
 
     const allowedToolFields = [
-      'whatsapp_status', 'checklist_status', 'dashboard_status',
+      'bot_whatsapp_status', 'checklist_status', 'dashboard_status',
       'dod_status', 'escopo_status', 'relatorio_semanal_status',
+      'construflow_id', 'whatsapp_group_id', 'pasta_emails_id',
       'dod_id', 'escopo_entregas_id', 'smartsheet_id', 'discord_id',
-      'capa_email_url', 'gantt_email_url', 'disciplina_email_url'
+      'capa_email_url', 'gantt_email_url', 'disciplina_email_url',
+      'construflow_disciplinasclientes'
     ];
 
     if (!allowedToolFields.includes(field)) {

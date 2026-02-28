@@ -5673,14 +5673,14 @@ export async function fetchPortfolioEditOptions() {
 
 /**
  * Busca dados de project_features para enriquecer portfolio
- * Retorna mapa { project_code: { plataforma_acd, controle_apoio } }
+ * Retorna mapa { project_code: { ...campos } }
  */
 export async function fetchProjectFeaturesForPortfolio() {
   const supabase = getSupabaseClient();
 
   const { data, error } = await supabase
     .from('project_features')
-    .select('project_id, plataforma_acd, controle_apoio, link_ifc, projects!inner(project_code)');
+    .select('*, projects!inner(project_code)');
 
   if (error) {
     throw new Error(`Erro ao buscar project_features: ${error.message}`);
@@ -5690,11 +5690,8 @@ export async function fetchProjectFeaturesForPortfolio() {
   (data || []).forEach(row => {
     const code = row.projects?.project_code;
     if (code) {
-      map[code] = {
-        plataforma_acd: row.plataforma_acd || null,
-        controle_apoio: row.controle_apoio || null,
-        link_ifc: row.link_ifc || null,
-      };
+      const { projects, project_id, ...fields } = row;
+      map[code] = fields;
     }
   });
 
