@@ -41,7 +41,7 @@
   flex-wrap: wrap;
 }
 
-.projetos-project-filter .apontamentos-project-select {
+.projetos-project-filter .searchable-dropdown {
   min-width: 250px;
 }
 
