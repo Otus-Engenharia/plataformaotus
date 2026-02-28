@@ -49,14 +49,14 @@ Se o usuário pedir para commitar e estiver em `main` ou `develop`:
 **SEMPRE executar antes de qualquer sync, deploy ou merge.**
 Este passo garante que nenhum trabalho fica perdido em branches e o graph fica limpo.
 
-### 0A: Incorporar branches remotos pendentes
+### 0A: Incorporar branches pendentes (remotos + locais)
 
 ```bash
 cd "e:/Git/relatorio"
 git fetch origin --prune
 ```
 
-**Detecção de branches com commits NÃO mergeados em develop:**
+**Etapa 1 — Branches REMOTOS com commits NÃO mergeados em develop:**
 ```bash
 for branch in $(git branch -r | grep -v HEAD | grep -v '/develop$' | grep -v '/main$'); do
   commits=$(git log origin/develop..$branch --oneline 2>/dev/null)
@@ -67,7 +67,18 @@ for branch in $(git branch -r | grep -v HEAD | grep -v '/develop$' | grep -v '/m
 done
 ```
 
-**Se encontrar branches pendentes:**
+**Etapa 2 — Branches LOCAIS (feature/* e hotfix/*) com commits NÃO mergeados em develop:**
+```bash
+for branch in $(git branch --format='%(refname:short)' | grep -E '^(feature|hotfix)/'); do
+  commits=$(git log develop..$branch --oneline 2>/dev/null)
+  if [ -n "$commits" ]; then
+    echo "=== $branch (local) ==="
+    echo "$commits"
+  fi
+done
+```
+
+**Se encontrar branches pendentes (remotos OU locais):**
 1. Fazer merge automaticamente de CADA branch em develop (sem perguntar)
 2. Informar ao usuário quais branches foram incorporados
 3. Se houver conflito, parar e perguntar ao usuário
@@ -75,7 +86,10 @@ done
 
 ```bash
 git checkout develop
+# Para branches remotos:
 git merge --no-ff origin/feature/nome -m "feat: merge feature/nome into develop - descrição"
+# Para branches locais:
+git merge --no-ff feature/nome -m "feat: merge feature/nome into develop - descrição"
 # Repetir para cada branch pendente
 git push origin develop
 ```
