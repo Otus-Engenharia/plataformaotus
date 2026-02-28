@@ -44,13 +44,89 @@ Se o usuário pedir para commitar e estiver em `main` ou `develop`:
 
 ---
 
+## PASSO ZERO OBRIGATÓRIO: Varredura e Limpeza de Branches
+
+**SEMPRE executar antes de qualquer sync, deploy ou merge.**
+Este passo garante que nenhum trabalho fica perdido em branches e o graph fica limpo.
+
+### 0A: Incorporar branches pendentes (remotos + locais)
+
+```bash
+cd "e:/Git/relatorio"
+git fetch origin --prune
+```
+
+**Etapa 1 — Branches REMOTOS com commits NÃO mergeados em develop:**
+```bash
+for branch in $(git branch -r | grep -v HEAD | grep -v '/develop$' | grep -v '/main$'); do
+  commits=$(git log origin/develop..$branch --oneline 2>/dev/null)
+  if [ -n "$commits" ]; then
+    echo "=== $branch ==="
+    echo "$commits"
+  fi
+done
+```
+
+**Etapa 2 — Branches LOCAIS (feature/* e hotfix/*) com commits NÃO mergeados em develop:**
+```bash
+for branch in $(git branch --format='%(refname:short)' | grep -E '^(feature|hotfix)/'); do
+  commits=$(git log develop..$branch --oneline 2>/dev/null)
+  if [ -n "$commits" ]; then
+    echo "=== $branch (local) ==="
+    echo "$commits"
+  fi
+done
+```
+
+**Se encontrar branches pendentes (remotos OU locais):**
+1. Fazer merge automaticamente de CADA branch em develop (sem perguntar)
+2. Informar ao usuário quais branches foram incorporados
+3. Se houver conflito, parar e perguntar ao usuário
+4. Push develop após todos os merges
+
+```bash
+git checkout develop
+# Para branches remotos:
+git merge --no-ff origin/feature/nome -m "feat: merge feature/nome into develop - descrição"
+# Para branches locais:
+git merge --no-ff feature/nome -m "feat: merge feature/nome into develop - descrição"
+# Repetir para cada branch pendente
+git push origin develop
+```
+
+### 0B: Limpeza de branches já mergeados
+
+**Após 0A, limpar branches que já estão 100% mergeados em develop.**
+
+**Detecção:**
+```bash
+git branch -r --merged origin/develop | grep -v HEAD | grep -v '/develop$' | grep -v '/main$'
+```
+
+**Limpeza automática (sem perguntar):**
+```bash
+# Para cada branch mergeado:
+git push origin --delete feature/nome    # Deletar remoto
+git branch -d feature/nome 2>/dev/null   # Deletar local (se existir)
+```
+
+**Regras:**
+1. NUNCA deletar `main` ou `develop`
+2. Deletar automaticamente — sem perguntar
+3. Informar ao usuário quantos branches foram limpos
+4. Se `git push --delete` falhar, apenas avisar e continuar
+
+---
+
 ## Fluxo 1: Começar a Trabalhar (Sync)
 
 **Gatilho**: "sync", "começar a trabalhar", "pull"
 
+**Executar Passo Zero (0A + 0B) primeiro.**
+
 ```bash
 cd "e:/Git/relatorio"
-git fetch origin
+git fetch origin --prune
 git status
 ```
 
@@ -241,6 +317,8 @@ git push origin --delete feature/NOME
 
 **Gatilho**: "deploy otus", "fazer deploy", "subir para produção"
 
+**Executar Passo Zero (0A + 0B) primeiro — incorporar pendentes e limpar mergeados.**
+
 ### Passo 1: Preparar main
 
 ```bash
@@ -333,7 +411,7 @@ git push origin develop
 ## Cenários de Uso
 
 ### Cenário 1: "começar a trabalhar"
-→ Executar Fluxo 1 (Sync), sugerir branch ativo ou criar novo
+→ Passo Zero (0A+0B) + Fluxo 1 (Sync), sugerir branch ativo ou criar novo
 
 ### Cenário 2: "criar feature dashboard-novo"
 → Executar Fluxo 2, criar `feature/dashboard-novo`
@@ -342,13 +420,13 @@ git push origin develop
 → Verificar branch (bloquear se main/develop), executar Fluxo 4
 
 ### Cenário 4: "deploy otus"
-→ Executar Fluxo 6 (merge develop→main, push)
+→ Passo Zero (0A+0B) + Fluxo 6 (merge develop→main, push)
 
 ### Cenário 5: "bug urgente: login quebrado"
-→ Executar Fluxo 7 (hotfix)
+→ Passo Zero (0A+0B) + Fluxo 7 (hotfix)
 
 ### Cenário 6: "finalizar feature"
-→ Executar Fluxo 5 (PR para develop)
+→ Executar Fluxo 5 (PR para develop) + limpeza do branch (0B)
 
 ---
 

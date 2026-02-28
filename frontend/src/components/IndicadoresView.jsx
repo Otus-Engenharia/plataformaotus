@@ -21,6 +21,7 @@ import {
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import CoberturaDisciplinasView from './CoberturaDisciplinasView';
 import DesviosPortfolioView from './curva-s-progresso/DesviosPortfolioView';
+import WeeklyReportsDashboard from './weekly-reports/WeeklyReportsDashboard';
 import '../styles/IndicadoresView.css';
 
 // Registra componentes do Chart.js
@@ -176,6 +177,12 @@ function IndicadoresView() {
         >
           Análise de Desvios
         </button>
+        <button
+          className={`indicadores-tab ${activeTab === 'relatorios' ? 'indicadores-tab-active' : ''}`}
+          onClick={() => setActiveTab('relatorios')}
+        >
+          Relatórios Semanais
+        </button>
       </div>
 
       {/* Filtros Principais - Sticky no topo */}
@@ -288,6 +295,10 @@ function IndicadoresView() {
 
       {activeTab === 'desvios' && (
         <DesviosPortfolioView />
+      )}
+
+      {activeTab === 'relatorios' && (
+        <WeeklyReportsDashboard leaderName={liderFilter.length === 1 ? liderFilter[0] : null} />
       )}
 
       {activeTab === 'lideres' && (

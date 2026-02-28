@@ -2592,6 +2592,169 @@ export async function queryHorasRaw(leaderName, opts = {}) {
  * Pre-aquece caches de schema no startup do servidor.
  * Evita que a primeira request pague o custo de 2 queries extras ao BigQuery.
  */
+// =========================================================================
+// WEEKLY REPORTS - Funções para Relatórios Semanais
+// =========================================================================
+
+/**
+ * Verifica se existem dados no BigQuery para gerar relatório semanal
+ * @param {string|null} construflowId - ID do projeto no Construflow
+ * @param {string|null} smartsheetId - ID da planilha no Smartsheet
+ * @returns {Promise<Object>} resultado dos checks
+ */
+export async function checkWeeklyReportReadiness(construflowId, smartsheetId) {
+  const result = {
+    construflow: { ready: false, count: 0 },
+    smartsheet: { ready: false, count: 0 },
+  };
+
+  // Check Construflow issues
+  if (construflowId) {
+    try {
+      const escapedId = String(construflowId).replace(/'/g, "''");
+      const query = `
+        SELECT COUNT(*) as total
+        FROM \`${projectId}.construflow_data.issues\`
+        WHERE CAST(projectId AS STRING) = '${escapedId}'
+          AND status = 'active'
+      `;
+      const rows = await executeQuery(query);
+      const count = rows?.[0]?.total || 0;
+      result.construflow = { ready: count > 0, count };
+    } catch (err) {
+      console.warn(`⚠️ [checkWeeklyReportReadiness] Erro ao verificar Construflow:`, err.message);
+    }
+  }
+
+  // Check Smartsheet tasks
+  if (smartsheetId) {
+    try {
+      const escapedId = String(smartsheetId).replace(/'/g, "''");
+      const query = `
+        SELECT COUNT(*) as total
+        FROM \`${projectId}.${datasetId}.smartsheet_data_projetos\`
+        WHERE CAST(ID_Projeto AS STRING) = '${escapedId}'
+      `;
+      const rows = await executeQuery(query);
+      const count = rows?.[0]?.total || 0;
+      result.smartsheet = { ready: count > 0, count };
+    } catch (err) {
+      console.warn(`⚠️ [checkWeeklyReportReadiness] Erro ao verificar Smartsheet:`, err.message);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Busca dados do BigQuery para gerar relatório semanal
+ * Combina issues do Construflow com tarefas do Smartsheet
+ * @param {string} construflowId - ID do projeto no Construflow
+ * @param {string} smartsheetId - ID da planilha no Smartsheet
+ * @param {Object} options - Opções
+ * @param {number} options.scheduleDays - Dias para cronograma futuro (default: 15)
+ * @returns {Promise<Object>} dados brutos para processamento
+ */
+export async function queryWeeklyReportData(construflowId, smartsheetId, options = {}) {
+  const { scheduleDays = 15 } = options;
+
+  let issues = [];
+  let tasks = [];
+  let disciplines = [];
+
+  // 1. Busca issues do Construflow com disciplinas
+  if (construflowId) {
+    const escapedCfId = String(construflowId).replace(/'/g, "''");
+
+    // Issues com status ativo e suas disciplinas
+    const issueQuery = `
+      SELECT
+        i.id,
+        i.code,
+        i.title,
+        i.status AS issue_status,
+        i.priority,
+        i.deadline,
+        i.createdAt,
+        i.updatedAt,
+        id2.disciplineId,
+        id2.disciplineName AS discipline_name,
+        id2.status AS discipline_status
+      FROM \`${projectId}.construflow_data.issues\` i
+      LEFT JOIN \`${projectId}.construflow_data.issues_disciplines\` id2
+        ON CAST(i.id AS STRING) = CAST(id2.issueId AS STRING)
+        AND CAST(i.projectId AS STRING) = CAST(id2.projectId AS STRING)
+      WHERE CAST(i.projectId AS STRING) = '${escapedCfId}'
+      ORDER BY i.createdAt DESC
+      LIMIT 2000
+    `;
+    issues = await executeQuery(issueQuery);
+
+    // Lista de disciplinas únicas
+    const discQuery = `
+      SELECT DISTINCT disciplineName AS name, disciplineId AS id
+      FROM \`${projectId}.construflow_data.issues_disciplines\`
+      WHERE CAST(projectId AS STRING) = '${escapedCfId}'
+        AND disciplineName IS NOT NULL
+      ORDER BY disciplineName
+    `;
+    disciplines = await executeQuery(discQuery);
+  }
+
+  // 2. Busca tarefas do Smartsheet
+  if (smartsheetId) {
+    const escapedSsId = String(smartsheetId).replace(/'/g, "''");
+
+    const taskQuery = `
+      SELECT
+        NomeDaTarefa,
+        Status,
+        Disciplina,
+        DataDeInicio,
+        DataDeTermino,
+        DataDeAtualizacao,
+        Level,
+        rowNumber,
+        CaminhoCriticoMarco
+      FROM \`${projectId}.${datasetId}.smartsheet_data_projetos\`
+      WHERE CAST(ID_Projeto AS STRING) = '${escapedSsId}'
+        AND Level = 5
+      ORDER BY rowNumber
+    `;
+    tasks = await executeQuery(taskQuery);
+  }
+
+  return { issues, tasks, disciplines };
+}
+
+/**
+ * Busca projetos ativos com relatório semanal habilitado
+ * @param {string|null} leaderName - Filtrar por líder (null = todos)
+ * @returns {Promise<Array>} projetos ativos
+ */
+export async function queryActiveProjectsForWeeklyReports(leaderName = null) {
+  let query = `
+    SELECT
+      project_code_norm AS project_code,
+      nome_comercial AS project_name,
+      lider,
+      construflow_id,
+      smartsheet_id,
+      relatorio_semanal_status
+    FROM \`${projectId}.${datasetId}.${tablePortfolio}\`
+    WHERE relatorio_semanal_status = 'ativo'
+  `;
+
+  if (leaderName) {
+    const escapedName = leaderName.replace(/'/g, "''");
+    query += ` AND LOWER(lider) = LOWER('${escapedName}')`;
+  }
+
+  query += ` ORDER BY nome_comercial`;
+
+  return await executeQuery(query);
+}
+
 export async function warmupSchemaCache() {
   try {
     await getPortfolioColumns();

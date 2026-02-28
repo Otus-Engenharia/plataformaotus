@@ -53,27 +53,57 @@ async function getAuthenticatedClient(userId) {
 /**
  * Cria um rascunho no Gmail do usuário
  * @param {string} userId - ID do users_otus
- * @param {Object} params - { to, subject, body }
+ * @param {Object} params - { to, subject, body, htmlBody }
  * @param {string[]} params.to - Array de emails destinatários
  * @param {string} params.subject - Assunto do email
  * @param {string} params.body - Corpo do email (texto simples)
+ * @param {string} [params.htmlBody] - Corpo HTML (se fornecido, envia como multipart)
  * @returns {Promise<{draftId: string, messageId: string}>}
  */
-export async function createGmailDraft(userId, { to, subject, body }) {
+export async function createGmailDraft(userId, { to, subject, body, htmlBody }) {
   const auth = await getAuthenticatedClient(userId);
   const gmail = google.gmail({ version: 'v1', auth });
 
-  // Monta mensagem RFC 2822
   const toHeader = Array.isArray(to) ? to.join(', ') : to;
-  const emailLines = [
-    `To: ${toHeader}`,
-    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
-    'Content-Type: text/plain; charset=utf-8',
-    'MIME-Version: 1.0',
-    '',
-    body,
-  ];
-  const rawEmail = emailLines.join('\r\n');
+  let rawEmail;
+
+  if (htmlBody) {
+    // Multipart email com HTML + fallback texto
+    const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const textBody = body || 'Este email requer um cliente que suporte HTML.';
+    const emailLines = [
+      `To: ${toHeader}`,
+      `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      'MIME-Version: 1.0',
+      '',
+      `--${boundary}`,
+      'Content-Type: text/plain; charset=utf-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(textBody).toString('base64'),
+      '',
+      `--${boundary}`,
+      'Content-Type: text/html; charset=utf-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(htmlBody).toString('base64'),
+      '',
+      `--${boundary}--`,
+    ];
+    rawEmail = emailLines.join('\r\n');
+  } else {
+    // Email simples em texto
+    const emailLines = [
+      `To: ${toHeader}`,
+      `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+      'Content-Type: text/plain; charset=utf-8',
+      'MIME-Version: 1.0',
+      '',
+      body,
+    ];
+    rawEmail = emailLines.join('\r\n');
+  }
 
   // Base64url encode
   const encodedMessage = Buffer.from(rawEmail)
