@@ -3,7 +3,6 @@ name: otus-deploy
 description: |
   Fluxo GitFlow de desenvolvimento e deploy para Plataforma Otus (relatorio).
   Projeto desenvolvido por 2 pessoas + IA - usa GitFlow Simplificado.
-  Notifica automaticamente no Discord após push.
 
   GATILHOS - Use este skill quando o usuário disser:
   - "começar a trabalhar" / "iniciar desenvolvimento" / "sync"
@@ -21,8 +20,6 @@ description: |
 
 Skill para desenvolvimento com GitFlow simplificado na Plataforma Otus.
 **Equipe**: 2 desenvolvedores + IA trabalhando em paralelo.
-**Notificação**: Discord automático após cada push.
-
 ## Contexto do Projeto
 
 - **Repositório local**: e:\Git\relatorio
@@ -32,12 +29,6 @@ Skill para desenvolvimento com GitFlow simplificado na Plataforma Otus.
 - **Feature branches**: feature/*
 - **Hotfix branches**: hotfix/*
 - **Stack**: React/Vite (frontend) + Node.js/Express (backend)
-
-## Discord Webhook
-
-```
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/1468331312308949034/7xQe4sb-cwZbX5xtq43FE3HrgXy2SWmeiq0ttK2Lz8HAagsUaOmnwJx_g1IT5i3jyA1F
-```
 
 ---
 
@@ -193,51 +184,7 @@ git pull --rebase origin develop  # ou main para hotfix
 git push -u origin $(git branch --show-current)
 ```
 
-### Passo 7: Notificação Discord
-
-Coletar dados e enviar:
-
-```bash
-cd "e:/Git/relatorio"
-CURRENT_BRANCH=$(git branch --show-current)
-COMMIT_HASH=$(git log -1 --pretty=format:"%h")
-COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
-COMMIT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD | head -10 | tr '\n' ', ' | sed 's/,$//')
-
-# Determinar cor e emoji pelo tipo de branch
-if [[ "$CURRENT_BRANCH" == feature/* ]]; then
-  COLOR=3447003
-  TITLE="🔧 Feature Push"
-elif [[ "$CURRENT_BRANCH" == hotfix/* ]]; then
-  COLOR=15105570
-  TITLE="🚑 Hotfix Push"
-else
-  COLOR=5763719
-  TITLE="📦 Push"
-fi
-
-curl -X POST "https://discord.com/api/webhooks/1468331312308949034/7xQe4sb-cwZbX5xtq43FE3HrgXy2SWmeiq0ttK2Lz8HAagsUaOmnwJx_g1IT5i3jyA1F" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"embeds\": [{
-      \"title\": \"$TITLE\",
-      \"color\": $COLOR,
-      \"fields\": [
-        {\"name\": \"Branch\", \"value\": \"\`$CURRENT_BRANCH\`\", \"inline\": true},
-        {\"name\": \"Commit\", \"value\": \"\`$COMMIT_HASH\`\", \"inline\": true},
-        {\"name\": \"Autor\", \"value\": \"$COMMIT_AUTHOR\", \"inline\": true},
-        {\"name\": \"Mensagem\", \"value\": \"$COMMIT_MSG\"},
-        {\"name\": \"Arquivos\", \"value\": \"\`$FILES_CHANGED\`\"}
-      ],
-      \"footer\": {\"text\": \"Plataforma Otus • $CURRENT_BRANCH\"},
-      \"timestamp\": \"$COMMIT_TIME\"
-    }]
-  }"
-```
-
-### Passo 8: Sugerir PR
+### Passo 7: Sugerir PR
 
 Após push, informar ao usuário:
 
@@ -346,36 +293,7 @@ Informar ao usuário:
 > docker compose up -d
 > ```
 
-### Passo 6: Notificação Discord (Deploy)
-
-```bash
-cd "e:/Git/relatorio"
-COMMIT_HASH=$(git log -1 --pretty=format:"%h")
-COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
-COMMIT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "sem tag")
-
-curl -X POST "https://discord.com/api/webhooks/1468331312308949034/7xQe4sb-cwZbX5xtq43FE3HrgXy2SWmeiq0ttK2Lz8HAagsUaOmnwJx_g1IT5i3jyA1F" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"embeds\": [{
-      \"title\": \"🚀 Deploy Plataforma Otus\",
-      \"color\": 5763719,
-      \"fields\": [
-        {\"name\": \"Versão\", \"value\": \"\`$TAG\`\", \"inline\": true},
-        {\"name\": \"Commit\", \"value\": \"\`$COMMIT_HASH\`\", \"inline\": true},
-        {\"name\": \"Autor\", \"value\": \"$COMMIT_AUTHOR\", \"inline\": true},
-        {\"name\": \"Mensagem\", \"value\": \"$COMMIT_MSG\"},
-        {\"name\": \"Status\", \"value\": \"Merge develop → main concluído. Deploy VPS pendente.\"}
-      ],
-      \"footer\": {\"text\": \"Plataforma Otus • main • PRODUÇÃO\"},
-      \"timestamp\": \"$COMMIT_TIME\"
-    }]
-  }"
-```
-
-### Passo 7: Sincronizar develop com main
+### Passo 6: Sincronizar develop com main
 
 ```bash
 git checkout develop
@@ -396,7 +314,7 @@ git push origin develop
    ```bash
    gh pr create --base main --head hotfix/NOME --title "fix: descrição"
    ```
-5. Após merge em main, deploy imediato (Fluxo 6, passos 4-6)
+5. Após merge em main, deploy imediato (Fluxo 6, passos 4-5)
 6. Merge hotfix para develop:
    ```bash
    git checkout develop
@@ -424,25 +342,13 @@ git push origin develop
 → Verificar branch (bloquear se main/develop), executar Fluxo 4
 
 ### Cenário 4: "deploy otus"
-→ Executar Fluxo 6 (merge develop→main, push, notificar)
+→ Executar Fluxo 6 (merge develop→main, push)
 
 ### Cenário 5: "bug urgente: login quebrado"
 → Executar Fluxo 7 (hotfix)
 
 ### Cenário 6: "finalizar feature"
 → Executar Fluxo 5 (PR para develop)
-
----
-
-## Cores Discord por Tipo de Ação
-
-| Ação | Cor | Código | Emoji |
-|------|-----|--------|-------|
-| Deploy (main) | Verde | 5763719 | 🚀 |
-| Feature push | Azul | 3447003 | 🔧 |
-| Hotfix push | Laranja | 15105570 | 🚑 |
-| Conflito resolvido | Amarelo | 16776960 | ⚠️ |
-| Erro | Vermelho | 15548997 | ❌ |
 
 ---
 
@@ -473,7 +379,6 @@ git push origin develop
 
 **Após deploy:**
 - [ ] VPS atualizada
-- [ ] Discord notificado
 - [ ] develop sincronizado com main
 
 ---

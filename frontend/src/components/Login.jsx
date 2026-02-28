@@ -14,7 +14,7 @@ function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, loading, devMode, devLogin } = useAuth();
-  const [selectedRole, setSelectedRole] = useState('director');
+  const [selectedRole, setSelectedRole] = useState('dev');
   const [devLoading, setDevLoading] = useState(false);
 
   // Verifica se há erro na URL (vindo do callback)
@@ -123,7 +123,7 @@ function Login() {
             >
               {devMode.availableUsers?.map(user => (
                 <option key={user.role} value={user.role}>
-                  {user.name} ({user.role === 'director' || user.role === 'admin' ? 'Acesso Total' : user.role === 'leader' ? 'Acesso Liderança' : 'Acesso Operação'})
+                  {user.name} ({['dev', 'director', 'admin'].includes(user.role) ? 'Acesso Total' : user.role === 'leader' ? 'Acesso Liderança' : 'Acesso Operação'})
                 </option>
               ))}
             </select>
