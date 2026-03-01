@@ -1204,28 +1204,77 @@ export function generateHtml(processedData, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Placeholder: uploadToDrive
+// Upload to Google Drive (uses service account)
 // ---------------------------------------------------------------------------
 
 /**
- * Placeholder for Google Drive upload. Returns mock URLs.
+ * Uploads client and team HTML reports to Google Drive via service account.
  *
- * @param {string} clientHtml
- * @param {string} teamHtml
+ * @param {string} clientHtml - HTML do relatório do cliente
+ * @param {string} teamHtml - HTML do relatório do time
  * @param {Object} options - { projectName, driveFolderId }
- * @returns {Promise<{ clientUrl: string, teamUrl: string }>}
+ * @returns {Promise<{ clientUrl: string|null, teamUrl: string|null }>}
  */
 export async function uploadToDrive(clientHtml, teamHtml, options = {}) {
-  const { projectName = 'Projeto', driveFolderId = '' } = options;
+  const { projectName = 'Projeto', driveFolderId } = options;
   const dateStr = new Date().toISOString().split('T')[0];
   const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, '_').toUpperCase();
 
-  // TODO: Implement actual Google Drive upload via googleapis
-  return {
-    clientUrl: `https://drive.google.com/mock/Email_cliente_${safeName}_${dateStr}.html`,
-    teamUrl: `https://drive.google.com/mock/Email_time_${safeName}_${dateStr}.html`,
-    message: 'Placeholder - Google Drive upload not yet implemented',
-  };
+  if (!driveFolderId) {
+    console.warn('[WeeklyReport] driveFolderId não fornecido — pulando upload no Drive');
+    return { clientUrl: null, teamUrl: null };
+  }
+
+  const { google } = await import('googleapis');
+  const path = await import('path');
+
+  const keyFile = path.resolve(process.cwd(), process.env.GOOGLE_APPLICATION_CREDENTIALS || './service-account-key.json');
+  const auth = new google.auth.GoogleAuth({
+    keyFile,
+    scopes: ['https://www.googleapis.com/auth/drive'],
+  });
+  const drive = google.drive({ version: 'v3', auth });
+
+  let clientUrl = null;
+  let teamUrl = null;
+
+  // Upload relatório cliente
+  if (clientHtml) {
+    const clientFile = await drive.files.create({
+      requestBody: {
+        name: `Email_cliente_${safeName}_${dateStr}.html`,
+        mimeType: 'text/html',
+        parents: [driveFolderId],
+      },
+      media: {
+        mimeType: 'text/html',
+        body: clientHtml,
+      },
+      fields: 'id, webViewLink',
+      supportsAllDrives: true,
+    });
+    clientUrl = clientFile.data.webViewLink;
+  }
+
+  // Upload relatório equipe
+  if (teamHtml) {
+    const teamFile = await drive.files.create({
+      requestBody: {
+        name: `Email_time_${safeName}_${dateStr}.html`,
+        mimeType: 'text/html',
+        parents: [driveFolderId],
+      },
+      media: {
+        mimeType: 'text/html',
+        body: teamHtml,
+      },
+      fields: 'id, webViewLink',
+      supportsAllDrives: true,
+    });
+    teamUrl = teamFile.data.webViewLink;
+  }
+
+  return { clientUrl, teamUrl };
 }
 
 // ---------------------------------------------------------------------------

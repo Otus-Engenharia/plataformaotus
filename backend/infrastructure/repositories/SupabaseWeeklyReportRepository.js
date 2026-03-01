@@ -6,7 +6,7 @@
 
 import { WeeklyReportRepository } from '../../domain/weekly-reports/WeeklyReportRepository.js';
 import { WeeklyReport } from '../../domain/weekly-reports/entities/WeeklyReport.js';
-import { getSupabaseClient } from '../../supabase.js';
+import { getSupabaseServiceClient } from '../../supabase.js';
 
 const TABLE = 'weekly_reports';
 
@@ -15,7 +15,7 @@ class SupabaseWeeklyReportRepository extends WeeklyReportRepository {
 
   constructor() {
     super();
-    this.#supabase = getSupabaseClient();
+    this.#supabase = getSupabaseServiceClient();
   }
 
   async save(report) {
@@ -103,19 +103,26 @@ class SupabaseWeeklyReportRepository extends WeeklyReportRepository {
   }
 
   async getWeeklyStats(options = {}) {
-    const { weeks = 12 } = options;
+    const { weeks = 12, projectCodes = null } = options;
 
     // Calcula a data de corte (N semanas atrás)
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - weeks * 7);
 
-    const { data, error } = await this.#supabase
+    let query = this.#supabase
       .from(TABLE)
       .select('week_year, week_number, week_text, project_code')
       .eq('status', 'completed')
       .gte('generated_at', cutoff.toISOString())
       .order('week_year', { ascending: true })
       .order('week_number', { ascending: true });
+
+    // Filtra por projetos do time se fornecido
+    if (projectCodes && projectCodes.length > 0) {
+      query = query.in('project_code', projectCodes);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(`Erro ao buscar estatísticas: ${error.message}`);

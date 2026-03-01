@@ -36,16 +36,27 @@ const ACTIVE_STATUSES = ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 
 const TOOL_ID_FIELDS = [
   { key: 'construflow_id', name: 'Construflow', type: 'id' },
   { key: 'whatsapp_group_id', name: 'WhatsApp', type: 'id' },
-  { key: 'dod_id', name: 'DOD', type: 'id' },
-  { key: 'escopo_entregas_id', name: 'Escopo Entregas', type: 'id' },
+  { key: 'dod_id', name: 'DOD', type: 'id', google: true },
+  { key: 'escopo_entregas_id', name: 'Escopo Entregas', type: 'id', google: true },
   { key: 'smartsheet_id', name: 'Smartsheet', type: 'id' },
   { key: 'discord_id', name: 'Discord', type: 'id' },
-  { key: 'pasta_emails_id', name: 'Pasta Emails', type: 'id' },
+  { key: 'pasta_emails_id', name: 'Pasta Emails', type: 'id', google: true },
   { key: 'capa_email_url', name: 'Capa Email', type: 'url' },
   { key: 'gantt_email_url', name: 'Gantt Email', type: 'url' },
   { key: 'disciplina_email_url', name: 'Disciplina Email', type: 'url' },
   { key: 'construflow_disciplinasclientes', name: 'Disciplinas Cliente', type: 'tags' },
 ];
+
+/**
+ * Extrai o ID de uma URL do Google (Docs, Sheets, Drive) ou retorna o valor original se já for um ID.
+ */
+function extractGoogleId(value) {
+  if (!value || typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed.includes('google.com')) return trimmed;
+  const match = trimmed.match(/(?:\/d\/|\/folders\/|[?&]id=)([a-zA-Z0-9_-]{10,})/);
+  return match ? match[1] : trimmed;
+}
 
 function FerramentasView({ selectedProjectId, portfolio = [] }) {
   const { hasFullAccess } = useAuth();
@@ -188,6 +199,14 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     if (!projectCode) return;
 
     const oldValue = projectData?.[field];
+    const fieldConfig = TOOL_ID_FIELDS.find(f => f.key === field);
+
+    // Normaliza URLs do Google → extrai ID automaticamente
+    let finalValue = editValue;
+    if (fieldConfig?.google && editValue) {
+      finalValue = extractGoogleId(editValue);
+      setEditValue(finalValue);
+    }
 
     setSaving(prev => ({ ...prev, [field]: true }));
     setError(null);
@@ -195,10 +214,10 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     try {
       await axios.put(
         `${API_URL}/api/portfolio/${projectCode}/tools`,
-        { field, value: editValue, oldValue },
+        { field, value: finalValue, oldValue },
         { withCredentials: true }
       );
-      setLocalOverrides(prev => ({ ...prev, [field]: editValue }));
+      setLocalOverrides(prev => ({ ...prev, [field]: finalValue }));
       setEditingField(null);
     } catch (err) {
       console.error('Erro ao salvar:', err);
@@ -307,7 +326,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
         { projectCode },
         { withCredentials: true }
       );
-      setWrReportId(response.data.reportId);
+      setWrReportId(response.data.data?.id || response.data.reportId);
     } catch (err) {
       console.error('Erro ao gerar relatorio semanal:', err);
       setError(`Erro ao iniciar geracao: ${err.response?.data?.error || err.message}`);
@@ -563,7 +582,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
                                 onChange={(e) => setEditValue(e.target.value)}
                                 onKeyDown={(e) => handleEditKeyDown(e, tool.key)}
                                 className="ftv-edit-input"
-                                placeholder={`${tool.type === 'url' ? 'URL' : 'ID'} do ${tool.name}`}
+                                placeholder={tool.google ? 'Cole o ID ou URL do Google' : `${tool.type === 'url' ? 'URL' : 'ID'} do ${tool.name}`}
                                 autoFocus
                               />
                               <div className="ftv-edit-actions">

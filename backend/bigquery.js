@@ -2672,18 +2672,19 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
         i.id,
         i.code,
         i.title,
-        i.status AS issue_status,
+        i.status AS status_x,
         i.priority,
         i.deadline,
         i.createdAt,
         i.updatedAt,
-        id2.disciplineId,
-        id2.disciplineName AS discipline_name,
-        id2.status AS discipline_status
+        id_dis.disciplineId,
+        d.name AS name,
+        id_dis.status AS status_y
       FROM \`${projectId}.construflow_data.issues\` i
-      LEFT JOIN \`${projectId}.construflow_data.issues_disciplines\` id2
-        ON CAST(i.id AS STRING) = CAST(id2.issueId AS STRING)
-        AND CAST(i.projectId AS STRING) = CAST(id2.projectId AS STRING)
+      LEFT JOIN \`${projectId}.construflow_data.issues_disciplines\` id_dis
+        ON CAST(i.id AS STRING) = CAST(id_dis.issueId AS STRING)
+      LEFT JOIN \`${projectId}.construflow_data.disciplines\` d
+        ON CAST(id_dis.disciplineId AS STRING) = CAST(d.id AS STRING)
       WHERE CAST(i.projectId AS STRING) = '${escapedCfId}'
       ORDER BY i.createdAt DESC
       LIMIT 2000
@@ -2692,11 +2693,16 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
 
     // Lista de disciplinas únicas
     const discQuery = `
-      SELECT DISTINCT disciplineName AS name, disciplineId AS id
-      FROM \`${projectId}.construflow_data.issues_disciplines\`
-      WHERE CAST(projectId AS STRING) = '${escapedCfId}'
-        AND disciplineName IS NOT NULL
-      ORDER BY disciplineName
+      SELECT DISTINCT d.name AS name, id_dis.disciplineId AS id
+      FROM \`${projectId}.construflow_data.issues_disciplines\` id_dis
+      LEFT JOIN \`${projectId}.construflow_data.disciplines\` d
+        ON CAST(id_dis.disciplineId AS STRING) = CAST(d.id AS STRING)
+      WHERE CAST(id_dis.issueId AS STRING) IN (
+        SELECT CAST(id AS STRING) FROM \`${projectId}.construflow_data.issues\`
+        WHERE CAST(projectId AS STRING) = '${escapedCfId}'
+      )
+        AND d.name IS NOT NULL
+      ORDER BY d.name
     `;
     disciplines = await executeQuery(discQuery);
   }
@@ -2707,16 +2713,18 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
 
     const taskQuery = `
       SELECT
-        NomeDaTarefa,
+        NomeDaTarefa AS \`Nome da Tarefa\`,
         Status,
         Disciplina,
-        DataDeInicio,
-        DataDeTermino,
-        DataDeAtualizacao,
+        DataDeInicio AS \`Data de Inicio\`,
+        DataDeTermino AS \`Data Termino\`,
         Level,
         rowNumber,
-        CaminhoCriticoMarco
-      FROM \`${projectId}.${datasetId}.smartsheet_data_projetos\`
+        CaminhoCriticoMarco,
+        ObservacaoOtus AS \`Observacao Otus\`,
+        Motivo_de_atraso AS \`Motivo de atraso\`,
+        DataDeFimBaselineOtus AS \`Data de Fim - Reprogramado Otus\`
+      FROM \`dadosindicadores.smartsheet.smartsheet_data_projetos\`
       WHERE CAST(ID_Projeto AS STRING) = '${escapedSsId}'
         AND Level = 5
       ORDER BY rowNumber

@@ -13,7 +13,7 @@ import {
   GetWeeklyReportStats,
   GetReportStatus,
 } from '../application/use-cases/weekly-reports/index.js';
-import { fetchProjectClientContacts, fetchProjectDisciplines, fetchUserTeamName, fetchUserTeamId, fetchActiveProjectsByTeam, fetchReportEnabledByTeam, fetchProjectFeaturesForPortfolio } from '../supabase.js';
+import { fetchProjectClientContacts, fetchProjectDisciplines, fetchUserTeamName, fetchUserTeamId, fetchActiveProjectsByTeam, fetchReportEnabledByTeam, fetchProjectFeaturesForPortfolio, getSupabaseClient } from '../supabase.js';
 import { hasFullAccess } from '../auth-config.js';
 
 const router = express.Router();
@@ -375,6 +375,84 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
       res.status(500).json({
         success: false,
         error: error.message || 'Erro ao buscar estatísticas',
+      });
+    }
+  });
+
+  /**
+   * GET /api/weekly-reports/stats/by-team
+   * Retorna KPIs de cobertura por time (para painel de Configurações)
+   * Acesso restrito a DEVs/Directors/Admins
+   */
+  router.get('/stats/by-team', requireAuth, async (req, res) => {
+    try {
+      const effectiveUser = req.session?.impersonating || req.user;
+      if (!hasFullAccess(effectiveUser)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      const weeks = parseInt(req.query.weeks) || 12;
+
+      // Busca todos os times do Supabase
+      const supabase = getSupabaseClient();
+      const { data: teams, error: teamsError } = await supabase
+        .from('teams')
+        .select('id, team_name, team_number')
+        .order('team_number');
+
+      if (teamsError) throw new Error(teamsError.message);
+
+      const getStats = new GetWeeklyReportStats(repository, bigqueryClient);
+
+      // Calcula stats para cada time em paralelo
+      const promises = (teams || []).map(async (team) => {
+        const allActive = await fetchActiveProjectsByTeam(team.id);
+        const reportEnabled = await fetchReportEnabledByTeam(team.id);
+
+        let nomeTime = null;
+        try {
+          nomeTime = await bigqueryClient.queryNomeTimeByTeamName(team.team_name);
+        } catch { /* ignore */ }
+
+        const stats = await getStats.execute({
+          weeks,
+          nomeTime,
+          allActiveProjects: allActive,
+          reportEnabledProjects: reportEnabled,
+        });
+
+        return {
+          teamId: team.id,
+          teamName: team.team_name,
+          teamNumber: team.team_number,
+          ...stats,
+        };
+      });
+
+      const teamResults = await Promise.all(promises);
+
+      // Calcula totais (todos os times)
+      const allActive = await fetchActiveProjectsByTeam(null);
+      const allEnabled = await fetchReportEnabledByTeam(null);
+      const totals = await getStats.execute({
+        weeks,
+        nomeTime: null,
+        allActiveProjects: allActive,
+        reportEnabledProjects: allEnabled,
+      });
+
+      res.json({
+        success: true,
+        data: {
+          teams: teamResults,
+          totals,
+        },
+      });
+    } catch (error) {
+      console.error('[WeeklyReports] Erro ao buscar stats por time:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao buscar estatísticas por time',
       });
     }
   });

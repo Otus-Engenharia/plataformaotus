@@ -22,6 +22,7 @@
 
 .configuracoes-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   border-bottom: 2px solid #e5e7eb;
   margin-bottom: 1.5rem;

@@ -145,6 +145,8 @@ const chartOptions = {
       ticks: {
         font: { size: 10, family: 'Verdana' },
         color: '#737373',
+        maxRotation: 45,
+        minRotation: 30,
       },
       grid: { display: false },
     },
