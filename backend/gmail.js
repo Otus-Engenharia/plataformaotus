@@ -17,7 +17,7 @@ const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL ||
  * @param {string} userId - ID do users_otus
  * @returns {Promise<OAuth2Client>}
  */
-async function getAuthenticatedClient(userId) {
+export async function getAuthenticatedClient(userId) {
   const tokens = await getUserOAuthTokens(userId);
   if (!tokens) {
     throw new Error('GMAIL_NOT_AUTHORIZED');

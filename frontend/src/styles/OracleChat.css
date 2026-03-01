@@ -13,16 +13,17 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #ffcc00;
-  border: 2px solid #ffffff;
+  background: #ffffff;
+  border: 2px solid #e6e6e6;
   color: #1a1a1a;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   z-index: 1000;
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 /* Quando o painel está aberto, esconde o botão flutuante */
@@ -31,9 +32,10 @@
 }
 
 .oracle-toggle-button:hover {
-  background: #ffd633;
-  transform: translateY(-50%) scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  background: #fafafa;
+  transform: translateY(-50%) scale(1.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  border-color: #f59e0b;
 }
 
 .oracle-toggle-button:active {
@@ -110,20 +112,12 @@ body:has(.oracle-chat-panel-open) .bug-fab {
 }
 
 .oracle-chat-header-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: #ffcc00;
+  width: 44px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #1a1a1a;
   flex-shrink: 0;
-}
-
-.oracle-chat-header-icon svg {
-  width: 20px;
-  height: 20px;
 }
 
 .oracle-chat-header-text {
@@ -370,9 +364,17 @@ body:has(.oracle-chat-panel-open) .bug-fab {
   font-size: 0.875rem;
 }
 
+/* Avatar do robô nas mensagens do bot */
+.oracle-bot-avatar {
+  flex-shrink: 0;
+  margin-right: 6px;
+  align-self: flex-end;
+}
+
 /* Mensagens */
 .oracle-message {
   display: flex;
+  align-items: flex-end;
 }
 
 .oracle-message-user {

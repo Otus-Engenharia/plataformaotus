@@ -23,14 +23,15 @@ class GetWeeklyReportStats {
    * @returns {Promise<Object>} estatísticas por semana
    */
   async execute({ weeks = 12, nomeTime = null, allActiveProjects = null, reportEnabledProjects = null } = {}) {
-    // Busca relatórios gerados por semana
-    const weeklyStats = await this.#reportRepository.getWeeklyStats({ weeks, leaderName: nomeTime });
-
     // Busca projetos com toggle ON (pré-carregados do Supabase ou fallback BigQuery)
     if (!reportEnabledProjects) {
       reportEnabledProjects = await this.#bigqueryClient.queryActiveProjectsForWeeklyReports(nomeTime);
     }
     const totalReportEnabled = reportEnabledProjects.length;
+
+    // Busca relatórios gerados por semana (filtrado pelos projetos do time)
+    const projectCodes = reportEnabledProjects.map(p => p.project_code);
+    const weeklyStats = await this.#reportRepository.getWeeklyStats({ weeks, projectCodes });
 
     // Busca TODOS os projetos ativos (pré-carregados do Supabase ou fallback BigQuery)
     if (!allActiveProjects) {
@@ -83,23 +84,8 @@ class GetWeeklyReportStats {
       const stat = statsMap.get(key);
       const isCurrentWeek = key === currentWeekKey;
 
-      if (snapshot) {
-        // Usar dados do snapshot (histórico preciso)
-        result.push({
-          weekYear,
-          weekNumber,
-          weekText: stat?.weekText || `S${weekNumber}`,
-          totalActive: snapshot.total_active_projects,
-          reportEnabled: snapshot.projects_report_enabled,
-          reportsSent: snapshot.reports_sent,
-          pctReportEnabled: parseFloat(snapshot.pct_report_enabled) || 0,
-          pctReportsSent: parseFloat(snapshot.pct_reports_sent) || 0,
-          generated: snapshot.reports_sent,
-          active: snapshot.projects_report_enabled,
-          coverage: parseFloat(snapshot.pct_reports_sent) || 0,
-        });
-      } else if (isCurrentWeek) {
-        // Semana atual: calcular com dados em tempo real
+      if (isCurrentWeek) {
+        // Semana atual: SEMPRE calcular com dados em tempo real
         const generated = stat?.generated || 0;
         const pctEnabled = totalAllActive > 0
           ? Math.round((totalReportEnabled / totalAllActive) * 1000) / 10
@@ -111,7 +97,7 @@ class GetWeeklyReportStats {
         result.push({
           weekYear,
           weekNumber,
-          weekText: stat?.weekText || `S${weekNumber}`,
+          weekText: stat?.weekText || GetWeeklyReportStats.getWeekDateRange(weekYear, weekNumber),
           totalActive: totalAllActive,
           reportEnabled: totalReportEnabled,
           reportsSent: generated,
@@ -121,12 +107,27 @@ class GetWeeklyReportStats {
           active: totalReportEnabled,
           coverage: pctSent,
         });
+      } else if (snapshot) {
+        // Semanas passadas: snapshot wins (dados históricos confiáveis)
+        result.push({
+          weekYear,
+          weekNumber,
+          weekText: stat?.weekText || GetWeeklyReportStats.getWeekDateRange(weekYear, weekNumber),
+          totalActive: snapshot.total_active_projects,
+          reportEnabled: snapshot.projects_report_enabled,
+          reportsSent: snapshot.reports_sent,
+          pctReportEnabled: parseFloat(snapshot.pct_report_enabled) || 0,
+          pctReportsSent: parseFloat(snapshot.pct_reports_sent) || 0,
+          generated: snapshot.reports_sent,
+          active: snapshot.projects_report_enabled,
+          coverage: parseFloat(snapshot.pct_reports_sent) || 0,
+        });
       } else {
         // Semana passada sem snapshot: sem dados confiáveis
         result.push({
           weekYear,
           weekNumber,
-          weekText: stat?.weekText || `S${weekNumber}`,
+          weekText: stat?.weekText || GetWeeklyReportStats.getWeekDateRange(weekYear, weekNumber),
           totalActive: null,
           reportEnabled: null,
           reportsSent: stat?.generated || null,
@@ -169,10 +170,9 @@ class GetWeeklyReportStats {
       currentWeek.weekYear, currentWeek.weekNumber, reportEnabledProjects
     ) : [];
 
-    // Auto-snapshot: se não existe para a semana atual, criar
+    // Auto-snapshot: sempre salva/atualiza para a semana atual (saveSnapshot faz upsert)
     try {
-      const exists = await this.#reportRepository.snapshotExists(currentWY, currentWN, nomeTime);
-      if (!exists && currentWeek && currentWeek.pctReportEnabled != null) {
+      if (currentWeek && currentWeek.pctReportEnabled != null) {
         await this.#reportRepository.saveSnapshot({
           weekYear: currentWY,
           weekNumber: currentWN,
@@ -186,7 +186,7 @@ class GetWeeklyReportStats {
         });
       }
     } catch (err) {
-      console.warn('[WeeklyReportStats] Erro ao criar auto-snapshot:', err.message);
+      console.warn('[WeeklyReportStats] Erro ao salvar auto-snapshot:', err.message);
     }
 
     return {
@@ -236,6 +236,23 @@ class GetWeeklyReportStats {
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     const weekNumber = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     return { weekNumber, weekYear: d.getUTCFullYear() };
+  }
+
+  /**
+   * Calcula o intervalo de datas (segunda a domingo) de uma semana ISO.
+   * Retorna no formato "DD/MM - DD/MM" (ex: "24/02 - 02/03").
+   */
+  static getWeekDateRange(weekYear, weekNumber) {
+    const jan4 = new Date(Date.UTC(weekYear, 0, 4));
+    const dayOfWeek = jan4.getUTCDay() || 7;
+    const monday1 = new Date(jan4);
+    monday1.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1);
+    const targetMonday = new Date(monday1);
+    targetMonday.setUTCDate(monday1.getUTCDate() + (weekNumber - 1) * 7);
+    const targetSunday = new Date(targetMonday);
+    targetSunday.setUTCDate(targetMonday.getUTCDate() + 6);
+    const fmt = (d) => `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    return `${fmt(targetMonday)} - ${fmt(targetSunday)}`;
   }
 }
 

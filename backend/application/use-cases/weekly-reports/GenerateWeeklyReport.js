@@ -105,39 +105,55 @@ class GenerateWeeklyReport {
       disciplinaUrl,
     } = config;
 
+    const startTime = Date.now();
+
     // Step 1: Buscar dados
     await this.#updateStep(reportId, PipelineStepEnum.FETCHING_DATA);
+    await this.#addLog(reportId, 'Iniciando geração do relatório...');
+    await this.#addLog(reportId, `Projeto: ${projectName} (${projectCode})`);
+    await this.#addLog(reportId, 'Consultando BigQuery (issues e tarefas)...');
     const rawData = await this.#bigqueryClient.queryWeeklyReportData(construflowId, smartsheetId, {
       scheduleDays,
     });
+    await this.#addLog(reportId, `Dados recebidos do BigQuery`);
 
     // Step 2: Processar dados
     await this.#updateStep(reportId, PipelineStepEnum.PROCESSING);
+    await this.#addLog(reportId, 'Processando dados e aplicando filtros...');
     const processedData = this.#reportGenerator.processData(rawData, {
       clientDisciplines,
       scheduleDays,
     });
+    const issueCount = processedData.summary?.totalActiveIssues || processedData.construflow?.totalActive || 0;
+    const taskCount = processedData.summary?.totalTasks || 0;
+    await this.#addLog(reportId, `${issueCount} issues e ${taskCount} tarefas processadas`);
 
     // Step 3: Gerar HTML
     await this.#updateStep(reportId, PipelineStepEnum.GENERATING_HTML);
+    await this.#addLog(reportId, 'Gerando HTML (versão cliente + equipe)...');
     const { clientHtml, teamHtml } = this.#reportGenerator.generateHtml(processedData, {
       projectName,
       hideDashboard,
       ganttUrl,
       disciplinaUrl,
     });
+    await this.#addLog(reportId, 'Relatórios HTML gerados com sucesso');
 
     // Step 4: Upload Drive
     let clientDriveUrl = null;
     let teamDriveUrl = null;
     if (driveFolderId) {
       await this.#updateStep(reportId, PipelineStepEnum.UPLOADING_DRIVE);
+      await this.#addLog(reportId, 'Enviando relatórios para Google Drive...');
       const driveResults = await this.#reportGenerator.uploadToDrive(clientHtml, teamHtml, {
         projectName,
         driveFolderId,
       });
       clientDriveUrl = driveResults.clientUrl;
       teamDriveUrl = driveResults.teamUrl;
+      await this.#addLog(reportId, 'Upload no Drive concluído');
+    } else {
+      await this.#addLog(reportId, 'Sem pasta do Drive configurada — pulando upload');
     }
 
     // Step 5: Criar rascunhos Gmail
@@ -145,6 +161,7 @@ class GenerateWeeklyReport {
     let teamDraftUrl = null;
     if (clientEmails.length > 0 || teamEmails.length > 0) {
       await this.#updateStep(reportId, PipelineStepEnum.CREATING_DRAFTS);
+      await this.#addLog(reportId, 'Criando rascunhos no Gmail...');
       const draftResults = await this.#reportGenerator.createGmailDrafts(clientHtml, teamHtml, {
         projectName,
         clientEmails,
@@ -153,9 +170,16 @@ class GenerateWeeklyReport {
       });
       clientDraftUrl = draftResults.clientDraftUrl;
       teamDraftUrl = draftResults.teamDraftUrl;
+      await this.#addLog(reportId, `Rascunhos criados (${clientEmails.length} cliente, ${teamEmails.length} equipe)`);
+    } else {
+      await this.#addLog(reportId, 'Sem emails configurados — pulando rascunhos');
     }
 
     // Finalizar
+    const durationMs = Date.now() - startTime;
+    const durationSec = Math.round(durationMs / 1000);
+    await this.#addLog(reportId, `Relatório concluído em ${durationSec}s`);
+
     const report = await this.#reportRepository.findById(reportId);
     report.complete({
       clientReportDriveUrl: clientDriveUrl,
@@ -163,11 +187,11 @@ class GenerateWeeklyReport {
       clientDraftUrl,
       teamDraftUrl,
       metadata: {
-        issueCount: processedData.issueCount || 0,
-        taskCount: processedData.taskCount || 0,
+        issueCount,
+        taskCount,
         clientDisciplines,
         scheduleDays,
-        duration: Date.now() - new Date(report.createdAt).getTime(),
+        duration: durationMs,
       },
     });
     await this.#reportRepository.update(report);
@@ -178,6 +202,18 @@ class GenerateWeeklyReport {
     if (report && report.isInProgress) {
       report.advanceToStep(step);
       await this.#reportRepository.update(report);
+    }
+  }
+
+  async #addLog(reportId, message) {
+    try {
+      const report = await this.#reportRepository.findById(reportId);
+      if (report) {
+        report.addLog(message);
+        await this.#reportRepository.update(report);
+      }
+    } catch (err) {
+      console.error('[WeeklyReport] Erro ao adicionar log:', err.message);
     }
   }
 

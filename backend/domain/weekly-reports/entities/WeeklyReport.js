@@ -112,6 +112,19 @@ class WeeklyReport {
   }
 
   /**
+   * Adiciona uma entrada de log ao metadata do relatório
+   */
+  addLog(message) {
+    if (!this.#metadata.logs) {
+      this.#metadata.logs = [];
+    }
+    this.#metadata.logs.push({
+      time: new Date().toISOString(),
+      msg: message,
+    });
+  }
+
+  /**
    * Marca o relatório como concluído com os links gerados
    */
   complete({ clientReportDriveUrl, teamReportDriveUrl, clientDraftUrl, teamDraftUrl, metadata }) {

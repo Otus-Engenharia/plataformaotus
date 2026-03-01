@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useOracle } from '../contexts/OracleContext';
+import RobotAnimation from './RobotAnimation';
 import '../styles/OracleChat.css';
 
 function OracleChat() {
@@ -117,6 +118,11 @@ function OracleChat() {
               key={message.id}
               className={`oracle-message oracle-message-${message.type}`}
             >
+              {message.type === 'bot' && (
+                <div className="oracle-bot-avatar">
+                  <RobotAnimation state="idle" size="sm" />
+                </div>
+              )}
               <div className="oracle-message-content">
                 <p>{message.text}</p>
                 <span className="oracle-message-time">
@@ -131,6 +137,9 @@ function OracleChat() {
         )}
         {sending && (
           <div className="oracle-message oracle-message-bot">
+            <div className="oracle-bot-avatar">
+              <RobotAnimation state="working" size="sm" />
+            </div>
             <div className="oracle-message-content oracle-typing">
               <span className="oracle-typing-dot"></span>
               <span className="oracle-typing-dot"></span>
@@ -171,9 +180,7 @@ function OracleChat() {
       <div className="oracle-chat-header">
         <div className="oracle-chat-header-content">
           <div className="oracle-chat-header-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
+            <RobotAnimation state="idle" size="lg" />
           </div>
           <div className="oracle-chat-header-text">
             <h3>Oráculo</h3>
@@ -252,12 +259,7 @@ function OracleChat() {
         aria-label={isOpen ? 'Fechar Oráculo' : 'Abrir Oráculo'}
         title={isOpen ? 'Fechar Oráculo' : 'Abrir Oráculo'}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="8" strokeWidth="1.5" fill="none" opacity="0.3" />
-          <circle cx="12" cy="12" r="4" strokeWidth="1.5" fill="none" opacity="0.5" />
-          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-          <path d="M12 4L12 8M12 16L12 20M4 12L8 12M16 12L20 12" strokeWidth="1.5" opacity="0.4" />
-        </svg>
+        <RobotAnimation state="idle" size="lg" />
       </button>
 
       {/* Painel do chat */}
