@@ -67,7 +67,7 @@ export const LEADER_TO_ULTIMO_TIME = {
 
 export function getUltimoTimeForLeader(leaderName) {
   if (!leaderName) return null;
-  return LEADER_TO_ULTIMO_TIME[leaderName] ?? leaderName;
+  return LEADER_TO_ULTIMO_TIME[leaderName] ?? null;
 }
 
 /**

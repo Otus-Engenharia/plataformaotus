@@ -13,6 +13,8 @@ import {
   GetWeeklyReportStats,
   GetReportStatus,
 } from '../application/use-cases/weekly-reports/index.js';
+import { fetchProjectClientContacts, fetchProjectDisciplines, fetchUserTeamName, fetchUserTeamId, fetchActiveProjectsByTeam, fetchReportEnabledByTeam } from '../supabase.js';
+import { hasFullAccess } from '../auth-config.js';
 
 const router = express.Router();
 
@@ -34,6 +36,104 @@ function getRepository() {
  */
 function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, reportGenerator) {
   const repository = getRepository();
+
+  /**
+   * GET /api/weekly-reports/prerequisites/:projectCode
+   * Valida os 9 campos obrigatórios para ativar o relatório semanal
+   */
+  router.get('/prerequisites/:projectCode', requireAuth, async (req, res) => {
+    try {
+      const { projectCode } = req.params;
+
+      const portfolio = await bigqueryClient.queryPortfolio();
+      const project = portfolio.find(p =>
+        p.project_code_norm === projectCode || p.project_code === projectCode
+      );
+
+      if (!project) {
+        return res.status(404).json({ success: false, error: 'Projeto não encontrado' });
+      }
+
+      // 7 campos do portfolio (BigQuery)
+      const portfolioFields = [
+        { key: 'construflow_id', label: 'Construflow ID' },
+        { key: 'smartsheet_id', label: 'Smartsheet ID' },
+        { key: 'pasta_emails_id', label: 'Pasta Emails ID' },
+        { key: 'capa_email_url', label: 'Capa Email URL' },
+        { key: 'gantt_email_url', label: 'Gantt Email URL' },
+        { key: 'disciplina_email_url', label: 'Disciplina Email URL' },
+        { key: 'construflow_disciplinasclientes', label: 'Disciplinas Cliente' },
+      ];
+
+      const fields = portfolioFields.map(f => ({
+        key: f.key,
+        label: f.label,
+        filled: !!(project[f.key] && String(project[f.key]).trim()),
+        location: 'ferramentas',
+      }));
+
+      // 8. Emails do cliente (Supabase - contatos ativos com email)
+      let clientEmailCount = 0;
+      try {
+        const clientData = await fetchProjectClientContacts(projectCode);
+        const activeContacts = (clientData.allContacts || []).filter(c =>
+          clientData.assignedIds.includes(c.id) && c.email && c.email.includes('@')
+        );
+        clientEmailCount = activeContacts.length;
+      } catch (err) {
+        console.warn('[Prerequisites] Erro ao buscar contatos do cliente:', err.message);
+      }
+
+      fields.push({
+        key: 'emails_cliente',
+        label: 'Emails do Cliente',
+        filled: clientEmailCount > 0,
+        count: clientEmailCount,
+        location: 'equipe',
+      });
+
+      // 9. Emails dos projetistas (Supabase - disciplinas com email)
+      let projetistaEmailCount = 0;
+      try {
+        if (project.construflow_id) {
+          const disciplines = await fetchProjectDisciplines(project.construflow_id);
+          const withEmail = disciplines.filter(d =>
+            (d.email && d.email.includes('@')) || (d.contact?.email && d.contact.email.includes('@'))
+          );
+          projetistaEmailCount = withEmail.length;
+        }
+      } catch (err) {
+        console.warn('[Prerequisites] Erro ao buscar disciplinas:', err.message);
+      }
+
+      fields.push({
+        key: 'emails_projetistas',
+        label: 'Emails dos Projetistas',
+        filled: projetistaEmailCount > 0,
+        count: projetistaEmailCount,
+        location: 'equipe',
+      });
+
+      const missingFields = fields
+        .filter(f => !f.filled)
+        .map(f => ({ label: f.label, location: f.location }));
+
+      res.json({
+        success: true,
+        data: {
+          canActivate: missingFields.length === 0,
+          fields,
+          missingFields,
+        },
+      });
+    } catch (error) {
+      console.error('[WeeklyReports] Erro ao verificar pré-requisitos:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao verificar pré-requisitos',
+      });
+    }
+  });
 
   /**
    * GET /api/weekly-reports/readiness/:projectCode
@@ -219,10 +319,46 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
   router.get('/stats', requireAuth, async (req, res) => {
     try {
       const weeks = parseInt(req.query.weeks) || 12;
-      const leaderName = req.query.leader || null;
+
+      // Resolver teamId e nomeTime baseado no time do usuário logado
+      let teamId = null;
+      let nomeTime = null;
+
+      if (!hasFullAccess(req.user)) {
+        teamId = await fetchUserTeamId(req.user?.email);
+        if (!teamId) {
+          return res.json({
+            success: true,
+            data: {
+              summary: {
+                currentPctEnabled: 0, currentPctSent: 0,
+                totalAllActive: 0, totalReportEnabled: 0, totalReportsSent: 0,
+                deltaPctEnabled: 0, deltaPctSent: 0,
+                trendEnabled: 'stable', trendSent: 'stable',
+              },
+              weeks: [],
+              missingCurrentWeek: [],
+            },
+          });
+        }
+        // nomeTime ainda necessário para snapshots e relatórios históricos
+        const teamName = await fetchUserTeamName(req.user?.email);
+        if (teamName) {
+          nomeTime = await bigqueryClient.queryNomeTimeByTeamName(teamName);
+        }
+      }
+
+      // Buscar projetos do Supabase (tempo real)
+      const allActiveProjects = await fetchActiveProjectsByTeam(teamId);
+      const reportEnabledProjects = await fetchReportEnabledByTeam(teamId);
 
       const getStats = new GetWeeklyReportStats(repository, bigqueryClient);
-      const stats = await getStats.execute({ weeks, leaderName });
+      const stats = await getStats.execute({
+        weeks,
+        nomeTime,
+        allActiveProjects,
+        reportEnabledProjects,
+      });
 
       res.json({
         success: true,

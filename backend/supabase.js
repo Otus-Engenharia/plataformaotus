@@ -228,6 +228,94 @@ export async function fetchUsuarioToTime() {
 }
 
 /**
+ * Retorna o team_name do usuário pelo email (via users_otus → team_id → teams).
+ * Usado para resolver o nome_time do time do usuário para filtros de KPIs.
+ * @param {string} email
+ * @returns {Promise<string|null>}
+ */
+export async function fetchUserTeamName(email) {
+  if (!email) return null;
+  const supabase = getSupabaseClient();
+  const { data } = await supabase
+    .from('users_otus')
+    .select('team:team_id(team_name)')
+    .eq('email', email)
+    .single();
+  return data?.team?.team_name || null;
+}
+
+/**
+ * Retorna o team_id do usuário pelo email (via users_otus).
+ * @param {string} email
+ * @returns {Promise<number|null>}
+ */
+export async function fetchUserTeamId(email) {
+  if (!email) return null;
+  const supabase = getSupabaseClient();
+  const { data } = await supabase
+    .from('users_otus')
+    .select('team_id')
+    .eq('email', email)
+    .single();
+  return data?.team_id || null;
+}
+
+// Status considerados ativos para KPIs de relatórios semanais
+const ACTIVE_STATUSES = ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'];
+
+function isActiveProjectStatus(status) {
+  if (!status) return false;
+  return ACTIVE_STATUSES.includes(String(status).toLowerCase().trim());
+}
+
+/**
+ * Busca projetos com status considerado ativo, filtrados opcionalmente por team_id.
+ * Filtra em JS para evitar incompatibilidade com enum project_status do PostgreSQL.
+ * @param {number|null} teamId
+ * @returns {Promise<Array>}
+ */
+export async function fetchActiveProjectsByTeam(teamId = null) {
+  const supabase = getSupabaseClient();
+  let query = supabase
+    .from('projects')
+    .select('id, project_code, status, team_id');
+
+  if (teamId) {
+    query = query.eq('team_id', teamId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []).filter(p => isActiveProjectStatus(p.status));
+}
+
+/**
+ * Busca projetos com relatório semanal ativo (toggle ON), filtrados opcionalmente por team_id.
+ * Faz join com projects para obter project_code e filtrar por team_id.
+ * @param {number|null} teamId
+ * @returns {Promise<Array>}
+ */
+export async function fetchReportEnabledByTeam(teamId = null) {
+  const supabase = getSupabaseClient();
+  let query = supabase
+    .from('project_features')
+    .select('project_id, relatorio_semanal_status, projects!inner(id, project_code, status, team_id)')
+    .eq('relatorio_semanal_status', 'ativo');
+
+  if (teamId) {
+    query = query.eq('projects.team_id', teamId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []).map(row => ({
+    project_code: row.projects.project_code,
+    status: row.projects.status,
+    team_id: row.projects.team_id,
+  }));
+}
+
+/**
  * Tabela de feedbacks
  */
 const FEEDBACKS_TABLE = 'feedbacks';

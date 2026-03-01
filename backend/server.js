@@ -19,7 +19,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryWeeklyReportData, queryActiveProjectsForWeeklyReports } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName } from './bigquery.js';
+import cron from 'node-cron';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import WeeklyReportGenerator from './services/weekly-report-generator.js';
@@ -2632,6 +2633,8 @@ const bigqueryClient = {
   checkWeeklyReportReadiness,
   queryWeeklyReportData,
   queryActiveProjectsForWeeklyReports,
+  queryAllActiveProjects,
+  queryNomeTimeByTeamName,
 };
 
 setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator: WeeklyReportGenerator });
@@ -7493,6 +7496,47 @@ app.put('/api/whiteboard/:boardId', requireAuth, express.json({ limit: '10mb' })
   }
 });
 
+// Função de snapshot semanal de KPIs de relatórios (por nomeTime)
+async function takeWeeklyKpiSnapshot(nomeTime = null) {
+  const { SupabaseWeeklyReportRepository } = await import('./infrastructure/repositories/SupabaseWeeklyReportRepository.js');
+  const { GetWeeklyReportStats } = await import('./application/use-cases/weekly-reports/GetWeeklyReportStats.js');
+
+  const repo = new SupabaseWeeklyReportRepository();
+
+  // Dados atuais filtrados por nomeTime
+  const allActive = await queryAllActiveProjects(nomeTime);
+  const reportEnabled = await queryActiveProjectsForWeeklyReports(nomeTime);
+  const { weekNumber, weekYear } = GetWeeklyReportStats.getISOWeek(new Date());
+
+  // Contar relatórios enviados na semana atual
+  const weekReports = await repo.findByWeek(weekYear, weekNumber);
+  // Filtrar relatórios pelo time se nomeTime informado
+  const enabledCodes = new Set(reportEnabled.map(p => p.project_code));
+  const filteredReports = nomeTime
+    ? weekReports.filter(r => enabledCodes.has(r.projectCode))
+    : weekReports;
+  const reportsSent = filteredReports.length;
+
+  const totalActive = allActive.length;
+  const totalEnabled = reportEnabled.length;
+  const pctEnabled = totalActive > 0 ? Math.round((totalEnabled / totalActive) * 1000) / 10 : 0;
+  const pctSent = totalEnabled > 0 ? Math.round((reportsSent / totalEnabled) * 1000) / 10 : 0;
+
+  await repo.saveSnapshot({
+    weekYear,
+    weekNumber,
+    snapshotDate: new Date().toISOString().split('T')[0],
+    totalActiveProjects: totalActive,
+    projectsReportEnabled: totalEnabled,
+    reportsSent,
+    pctReportEnabled: pctEnabled,
+    pctReportsSent: pctSent,
+    leaderName: nomeTime,
+  });
+
+  return { weekYear, weekNumber, nomeTime, totalActive, totalEnabled, reportsSent, pctEnabled, pctSent };
+}
+
 // Inicia o servidor
 const HOST = process.env.HOST || '0.0.0.0'; // Aceita conexões de qualquer IP
 app.listen(PORT, HOST, async () => {
@@ -7510,4 +7554,23 @@ app.listen(PORT, HOST, async () => {
 
   // Pre-aquecer caches de schema BigQuery (evita latencia na primeira request)
   warmupSchemaCache();
+
+  // Cron job: snapshot semanal de KPIs todo sábado às 23:59 BRT
+  // Gera snapshot global (null) + um por nome_time de cada time ativo
+  cron.schedule('59 23 * * 6', async () => {
+    console.log('[Cron] Iniciando snapshots semanais de KPIs...');
+    const allProjects = await queryAllActiveProjects(null);
+    const allTeams = [...new Set(allProjects.map(p => p.nome_time).filter(Boolean))];
+    const teams = [null, ...allTeams];
+    for (const nomeTime of teams) {
+      try {
+        const result = await takeWeeklyKpiSnapshot(nomeTime);
+        console.log(`[Cron] Snapshot criado: ${nomeTime || 'GLOBAL'} - ${result.totalEnabled}/${result.totalActive} ativos, ${result.reportsSent} enviados`);
+      } catch (err) {
+        console.error(`[Cron] Erro ao criar snapshot para ${nomeTime || 'GLOBAL'}:`, err.message);
+      }
+    }
+    console.log('[Cron] Snapshots semanais concluidos');
+  }, { timezone: 'America/Sao_Paulo' });
+  console.log('⏰ Cron job configurado: snapshot KPIs todo sábado 23:59 BRT');
 });
