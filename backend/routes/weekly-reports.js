@@ -13,7 +13,7 @@ import {
   GetWeeklyReportStats,
   GetReportStatus,
 } from '../application/use-cases/weekly-reports/index.js';
-import { fetchProjectClientContacts, fetchProjectDisciplines, fetchUserTeamName, fetchUserTeamId, fetchActiveProjectsByTeam, fetchReportEnabledByTeam } from '../supabase.js';
+import { fetchProjectClientContacts, fetchProjectDisciplines, fetchUserTeamName, fetchUserTeamId, fetchActiveProjectsByTeam, fetchReportEnabledByTeam, fetchProjectFeaturesForPortfolio } from '../supabase.js';
 import { hasFullAccess } from '../auth-config.js';
 
 const router = express.Router();
@@ -38,6 +38,22 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
   const repository = getRepository();
 
   /**
+   * Busca projeto do BigQuery e mergeia com dados do Supabase project_features.
+   * Garante que campos editáveis (pasta_emails_id, gantt_email_url, etc.) estejam atualizados.
+   */
+  async function getEnrichedProject(projectCode) {
+    const portfolio = await bigqueryClient.queryPortfolio();
+    const project = portfolio.find(p =>
+      p.project_code_norm === projectCode || p.project_code === projectCode
+    );
+    if (!project) return null;
+
+    const featuresMap = await fetchProjectFeaturesForPortfolio();
+    const features = featuresMap[projectCode] || {};
+    return { ...project, ...features };
+  }
+
+  /**
    * GET /api/weekly-reports/prerequisites/:projectCode
    * Valida os 9 campos obrigatórios para ativar o relatório semanal
    */
@@ -45,10 +61,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
     try {
       const { projectCode } = req.params;
 
-      const portfolio = await bigqueryClient.queryPortfolio();
-      const project = portfolio.find(p =>
-        p.project_code_norm === projectCode || p.project_code === projectCode
-      );
+      const project = await getEnrichedProject(projectCode);
 
       if (!project) {
         return res.status(404).json({ success: false, error: 'Projeto não encontrado' });
@@ -143,11 +156,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
     try {
       const { projectCode } = req.params;
 
-      // Busca dados do projeto no portfolio (BigQuery)
-      const portfolio = await bigqueryClient.queryPortfolio();
-      const project = portfolio.find(p =>
-        p.project_code_norm === projectCode || p.project_code === projectCode
-      );
+      const project = await getEnrichedProject(projectCode);
 
       if (!project) {
         return res.status(404).json({
@@ -202,11 +211,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
         });
       }
 
-      // Busca dados do projeto
-      const portfolio = await bigqueryClient.queryPortfolio();
-      const project = portfolio.find(p =>
-        p.project_code_norm === projectCode || p.project_code === projectCode
-      );
+      const project = await getEnrichedProject(projectCode);
 
       if (!project) {
         return res.status(404).json({
@@ -320,12 +325,13 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
     try {
       const weeks = parseInt(req.query.weeks) || 12;
 
-      // Resolver teamId e nomeTime baseado no time do usuário logado
+      // Resolver teamId e nomeTime baseado no usuário efetivo (impersonação ou real)
+      const effectiveUser = req.session?.impersonating || req.user;
       let teamId = null;
       let nomeTime = null;
 
-      if (!hasFullAccess(req.user)) {
-        teamId = await fetchUserTeamId(req.user?.email);
+      if (!hasFullAccess(effectiveUser)) {
+        teamId = await fetchUserTeamId(effectiveUser?.email);
         if (!teamId) {
           return res.json({
             success: true,
@@ -342,7 +348,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
           });
         }
         // nomeTime ainda necessário para snapshots e relatórios históricos
-        const teamName = await fetchUserTeamName(req.user?.email);
+        const teamName = await fetchUserTeamName(effectiveUser?.email);
         if (teamName) {
           nomeTime = await bigqueryClient.queryNomeTimeByTeamName(teamName);
         }

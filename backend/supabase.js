@@ -4541,7 +4541,7 @@ export async function getUserOtusByEmail(email) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(USERS_OTUS_TABLE)
-    .select('id, setor_id, position_id, name, role, setor:setor_id(id, name)')
+    .select('id, setor_id, position_id, name, role, setor:setor_id(id, name), team:team_id(team_name)')
     .eq('email', email)
     .single();
 
@@ -4558,7 +4558,7 @@ export async function getUserOtusById(userId) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from(USERS_OTUS_TABLE)
-    .select('id, name, email, role, setor:setor_id(id, name)')
+    .select('id, name, email, role, setor:setor_id(id, name), team:team_id(team_name)')
     .eq('id', userId)
     .single();
 

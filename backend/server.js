@@ -77,7 +77,7 @@ import {
   // Apoio de Projetos - Portfolio
   fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
   // Portfolio - Edicao inline
-  fetchPortfolioEditOptions, updateProjectField,
+  fetchProjectsFromSupabase, fetchPortfolioEditOptions, updateProjectField,
   // OAuth tokens (Gmail Draft)
   getUserOAuthTokens, resolveRecipientEmails, resolveRecipientContacts,
   // Whiteboard
@@ -531,6 +531,7 @@ app.post('/api/auth/dev-impersonate', requireAuth, async (req, res) => {
       name: target.name,
       role: target.role,
       setor_name: target.setor?.name || null,
+      team_name: target.team?.team_name || null,
     };
 
     req.session.save((err) => {
@@ -623,6 +624,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         userId: userOtus?.id || null, // ID interno na tabela users_otus
         setor_id: userOtus?.setor_id || null,
         setor_name: setorName,
+        team_name: userOtus?.team?.team_name || null,
         // Dados de impersonação (apenas para devs)
         impersonation: req.session?.impersonating ? {
           active: true,
@@ -813,17 +815,45 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
       leaderName = name;
     }
 
-    // Usa BigQuery direto (view Supabase portfolio_realtime não existe atualmente)
-    const data = await queryPortfolio(leaderName);
+    // 1. BigQuery: dados financeiros/schedule (base)
+    const bqData = await queryPortfolio(leaderName);
 
-    // Enriquece com dados de project_features (Supabase)
+    // 2. Supabase: campos editáveis em tempo real (status, time, líder, cliente, nome comercial)
+    const supabaseProjects = await fetchProjectsFromSupabase();
+    const supabaseMap = new Map();
+    for (const p of supabaseProjects) {
+      supabaseMap.set(p.project_code, {
+        comercial_name: p.comercial_name,
+        status: p.status,
+        nome_time: p.teams?.team_name || null,
+        lider: p.users_otus?.name || null,
+        client: p.companies?.name || null,
+        _team_id: p.team_id,
+        _company_id: p.company_id,
+        _project_manager_id: p.project_manager_id,
+      });
+    }
+
+    // 3. Supabase: project_features
     const featuresMap = await fetchProjectFeaturesForPortfolio();
-    const enrichedData = data.map(row => {
+
+    // 4. Merge: BigQuery base + Supabase editáveis + features
+    const enrichedData = bqData.map(row => {
+      const supabase = supabaseMap.get(row.project_code_norm) || {};
       const features = featuresMap[row.project_code_norm] || {};
       return {
         ...row,
+        // Supabase sobrescreve campos editáveis (tempo real)
+        ...(supabase.comercial_name != null && { comercial_name: supabase.comercial_name }),
+        ...(supabase.status != null && { status: supabase.status }),
+        ...(supabase.nome_time != null && { nome_time: supabase.nome_time }),
+        ...(supabase.lider != null && { lider: supabase.lider }),
+        ...(supabase.client != null && { client: supabase.client }),
+        ...(supabase._team_id != null && { _team_id: supabase._team_id }),
+        ...(supabase._company_id != null && { _company_id: supabase._company_id }),
+        ...(supabase._project_manager_id != null && { _project_manager_id: supabase._project_manager_id }),
+        // Features
         ...features,
-        // Fallback: se Supabase não tem disciplinas, usar BigQuery
         construflow_disciplinasclientes: features.construflow_disciplinasclientes || row.disciplina_cliente || null,
       };
     });
