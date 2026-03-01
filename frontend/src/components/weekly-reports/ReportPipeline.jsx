@@ -1,32 +1,61 @@
 /**
- * ReportPipeline - Stepper horizontal de progresso do relatorio semanal
+ * ReportPipeline - Pipeline visual de geração de relatório semanal
  *
- * Mostra 5 etapas com polling de status:
- * 1. Buscando dados  2. Processando  3. Gerando relatorios
- * 4. Salvando no Drive  5. Criando rascunhos
+ * Layout vertical com:
+ * - Robô animado CSS (cabeça com olhos piscando + engrenagem girando)
+ * - Steps verticais com ícones de progresso e tempo decorrido
+ * - Painel de logs em tempo real (auto-scroll)
+ * - Barra de progresso horizontal
  *
- * Estados: done (verde), active (laranja pulsando), pending (cinza)
+ * Polling a cada 2s para buscar status + logs do backend.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
+import RobotAnimation from '../RobotAnimation';
 
 const PIPELINE_STEPS = [
-  { key: 'fetching', label: 'Buscando dados' },
-  { key: 'processing', label: 'Processando' },
-  { key: 'generating', label: 'Gerando relatorios' },
-  { key: 'saving_drive', label: 'Salvando no Drive' },
+  { key: 'fetching_data',   label: 'Buscando dados' },
+  { key: 'processing',      label: 'Processando' },
+  { key: 'generating_html', label: 'Gerando relatórios' },
+  { key: 'uploading_drive', label: 'Salvando no Drive' },
   { key: 'creating_drafts', label: 'Criando rascunhos' },
 ];
 
 const POLL_INTERVAL = 2000;
 
+/**
+ * Formata timestamp ISO para HH:MM:SS
+ */
+function formatLogTime(isoString) {
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
 function ReportPipeline({ reportId, onComplete }) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
+  const [startTime] = useState(() => Date.now());
+  const [elapsed, setElapsed] = useState(0);
   const pollingRef = useRef(null);
+  const timerRef = useRef(null);
+  const logPanelRef = useRef(null);
 
+  // Timer de elapsed
+  useEffect(() => {
+    if (!reportId) return;
+    timerRef.current = setInterval(() => {
+      setElapsed(Date.now() - startTime);
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [reportId, startTime]);
+
+  // Polling de status
   useEffect(() => {
     if (!reportId) return;
 
@@ -36,192 +65,226 @@ function ReportPipeline({ reportId, onComplete }) {
           `${API_URL}/api/weekly-reports/status/${reportId}`,
           { withCredentials: true }
         );
-        const data = response.data;
-        setStatus(data);
+        const report = response.data?.data || response.data;
+        setStatus(report);
 
-        // Stop polling on terminal states
-        if (data.status === 'completed' || data.status === 'failed') {
-          if (pollingRef.current) {
-            clearInterval(pollingRef.current);
-            pollingRef.current = null;
-          }
-          if (onComplete) {
-            onComplete(data);
-          }
-        }
-      } catch (err) {
-        console.error('Erro ao buscar status do relatorio:', err);
-        setError(err.response?.data?.error || 'Erro ao buscar status');
-        if (pollingRef.current) {
+        if (report.status === 'completed' || report.status === 'failed') {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          if (onComplete) onComplete(report);
         }
+      } catch (err) {
+        console.error('Erro ao buscar status do relatório:', err);
+        setError(err.response?.data?.error || 'Erro ao buscar status');
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
 
-    // Initial fetch
     pollStatus();
-
-    // Start polling
     pollingRef.current = setInterval(pollStatus, POLL_INTERVAL);
 
     return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [reportId, onComplete]);
 
-  if (!reportId) return null;
+  // Auto-scroll do painel de logs
+  useEffect(() => {
+    if (logPanelRef.current) {
+      logPanelRef.current.scrollTop = logPanelRef.current.scrollHeight;
+    }
+  }, [status?.metadata?.logs]);
 
   const currentStep = status?.current_step || '';
   const isCompleted = status?.status === 'completed';
   const isFailed = status?.status === 'failed';
+  const isDone = isCompleted || isFailed;
+  const logs = status?.metadata?.logs || [];
 
-  // Determine each step's state
+  // Progresso (0-100)
+  const progress = useMemo(() => {
+    if (isCompleted) return 100;
+    const idx = PIPELINE_STEPS.findIndex(s => s.key === currentStep);
+    if (idx === -1) return 0;
+    return Math.round(((idx + 0.5) / PIPELINE_STEPS.length) * 100);
+  }, [currentStep, isCompleted]);
+
+  // Estado do robô
+  const robotState = isCompleted ? 'success' : isFailed ? 'error' : 'working';
+
+  // Estado de cada step
   const getStepState = (stepIndex) => {
     if (isCompleted) return 'done';
     if (isFailed) {
-      const failedStepIndex = PIPELINE_STEPS.findIndex(s => s.key === currentStep);
-      if (stepIndex < failedStepIndex) return 'done';
-      if (stepIndex === failedStepIndex) return 'active'; // show where it failed
+      const failedIdx = PIPELINE_STEPS.findIndex(s => s.key === currentStep);
+      if (stepIndex < failedIdx) return 'done';
+      if (stepIndex === failedIdx) return 'failed';
       return 'pending';
     }
-
-    const activeStepIndex = PIPELINE_STEPS.findIndex(s => s.key === currentStep);
-    if (activeStepIndex === -1) return stepIndex === 0 ? 'active' : 'pending';
-    if (stepIndex < activeStepIndex) return 'done';
-    if (stepIndex === activeStepIndex) return 'active';
+    const activeIdx = PIPELINE_STEPS.findIndex(s => s.key === currentStep);
+    if (activeIdx === -1) return stepIndex === 0 ? 'active' : 'pending';
+    if (stepIndex < activeIdx) return 'done';
+    if (stepIndex === activeIdx) return 'active';
     return 'pending';
   };
 
-  // Connector state: done if the step AFTER the connector is done or active
-  const getConnectorState = (afterStepIndex) => {
-    const afterState = getStepState(afterStepIndex);
-    return afterState === 'done' ? 'done' : '';
-  };
+  // Texto de status do robô
+  const statusText = isCompleted
+    ? 'Relatório gerado com sucesso!'
+    : isFailed
+      ? 'Erro ao gerar relatório'
+      : 'Trabalhando no relatório...';
 
-  // SVG icons
-  const CheckIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
+  // Elapsed formatado
+  const elapsedText = useMemo(() => {
+    const secs = Math.floor((isDone && status?.metadata?.duration ? status.metadata.duration : elapsed) / 1000);
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return m > 0 ? `${m}min ${s}s` : `${s}s`;
+  }, [elapsed, isDone, status?.metadata?.duration]);
 
-  const CircleIcon = () => (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-      <circle cx="12" cy="12" r="5" />
-    </svg>
-  );
-
-  const SpinnerIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
+  if (!reportId) return null;
 
   return (
-    <div className="wr-pipeline">
-      <div className="wr-pipeline-steps">
+    <div className={`wr-pipeline wr-pipeline-${robotState}`}>
+      {/* Barra de progresso horizontal */}
+      <div className="wr-pipeline-progress-bar">
+        <div
+          className="wr-pipeline-progress-fill"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* Header: Robô + Texto de status */}
+      <div className="wr-pipeline-header">
+        <RobotAnimation state={robotState} />
+        <div className="wr-pipeline-header-text">
+          <span className="wr-pipeline-status-text">{statusText}</span>
+          <span className="wr-pipeline-elapsed">{elapsedText}</span>
+        </div>
+      </div>
+
+      {/* Steps verticais */}
+      <div className="wr-pipeline-steps-vertical">
         {PIPELINE_STEPS.map((step, index) => {
           const state = getStepState(index);
-          const isLast = index === PIPELINE_STEPS.length - 1;
-
           return (
-            <React.Fragment key={step.key}>
-              <div className="wr-pipeline-step">
-                <div className={`wr-pipeline-step-icon wr-pipeline-step-icon-${state}`}>
-                  {state === 'done' && <CheckIcon />}
-                  {state === 'active' && <SpinnerIcon />}
-                  {state === 'pending' && <CircleIcon />}
-                </div>
-                <span className="wr-pipeline-step-label">{step.label}</span>
+            <div key={step.key} className={`wr-pipeline-vstep wr-pipeline-vstep-${state}`}>
+              <div className="wr-pipeline-vstep-indicator">
+                {state === 'done' && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+                {state === 'active' && (
+                  <svg className="wr-pipeline-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                )}
+                {state === 'failed' && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                )}
+                {state === 'pending' && (
+                  <div className="wr-pipeline-vstep-dot" />
+                )}
               </div>
-              {!isLast && (
-                <div
-                  className={`wr-pipeline-connector ${
-                    getConnectorState(index + 1) === 'done' ? 'wr-pipeline-connector-done' : ''
-                  }`}
-                />
+              {index < PIPELINE_STEPS.length - 1 && (
+                <div className={`wr-pipeline-vstep-line wr-pipeline-vstep-line-${state}`} />
               )}
-            </React.Fragment>
+              <span className="wr-pipeline-vstep-label">{step.label}</span>
+            </div>
           );
         })}
       </div>
 
-      {/* Success message */}
-      {isCompleted && (
-        <div className="wr-pipeline-result wr-pipeline-success">
-          <div className="wr-pipeline-result-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
+      {/* Painel de logs */}
+      {logs.length > 0 && (
+        <div className="wr-pipeline-log-panel">
+          <div className="wr-pipeline-log-header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
+            <span>Log de atividade</span>
           </div>
-          <div className="wr-pipeline-result-content">
-            <span className="wr-pipeline-result-text">Relatorio gerado com sucesso!</span>
-            <div className="wr-pipeline-result-links">
-              {status?.drive_url && (
-                <a href={status.drive_url} target="_blank" rel="noopener noreferrer">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                    <polyline points="15 3 21 3 21 9" />
-                    <line x1="10" y1="14" x2="21" y2="3" />
-                  </svg>
-                  Abrir no Drive
-                </a>
-              )}
-              {status?.draft_url && (
-                <a href={status.draft_url} target="_blank" rel="noopener noreferrer">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  Ver rascunho
-                </a>
-              )}
-            </div>
+          <div className="wr-pipeline-log-body" ref={logPanelRef}>
+            {logs.map((log, i) => (
+              <div key={i} className="wr-pipeline-log-entry">
+                <span className="wr-pipeline-log-time">{formatLogTime(log.time)}</span>
+                <span className="wr-pipeline-log-msg">{log.msg}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Failure message */}
-      {isFailed && (
-        <div className="wr-pipeline-result wr-pipeline-failure">
-          <div className="wr-pipeline-result-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
-          </div>
-          <div className="wr-pipeline-result-content">
-            <span className="wr-pipeline-result-text">
-              Erro ao gerar relatorio
-            </span>
-            {status?.error_message && (
-              <span style={{ fontSize: '0.78rem', opacity: 0.85 }}>
-                {status.error_message}
-              </span>
+      {/* Links de resultado (sucesso) */}
+      {isCompleted && (
+        <div className="wr-pipeline-result wr-pipeline-success">
+          <div className="wr-pipeline-result-links">
+            {(status?.client_report_drive_url || status?.team_report_drive_url) && (
+              <a
+                href={status.client_report_drive_url || status.team_report_drive_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                Abrir no Drive
+              </a>
+            )}
+            {(status?.client_draft_url || status?.team_draft_url) && (
+              <a
+                href={status.client_draft_url || status.team_draft_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                Ver rascunho
+              </a>
             )}
           </div>
         </div>
       )}
 
-      {/* Polling error */}
+      {/* Mensagem de erro */}
+      {isFailed && (
+        <div className="wr-pipeline-result wr-pipeline-failure">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{status?.error_message || 'Erro desconhecido'}</span>
+        </div>
+      )}
+
+      {/* Erro de polling */}
       {error && !isFailed && (
         <div className="wr-pipeline-result wr-pipeline-failure">
-          <div className="wr-pipeline-result-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-          </div>
-          <div className="wr-pipeline-result-content">
-            <span className="wr-pipeline-result-text">{error}</span>
-          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{error}</span>
         </div>
       )}
     </div>

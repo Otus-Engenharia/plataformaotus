@@ -14,6 +14,7 @@ import PermissoesView from './PermissoesView';
 import OperacaoView from './OperacaoView';
 import ClientesView from './ClientesView';
 import DefaultWeightsAdmin from './curva-s-progresso/DefaultWeightsAdmin';
+import ConfigWeeklyReportsView from './ConfigWeeklyReportsView';
 import '../styles/ConfiguracoesView.css';
 
 function ConfiguracoesView() {
@@ -31,6 +32,7 @@ function ConfiguracoesView() {
       { id: 'usuarios', label: 'Usuários', component: OperacaoView },
       { id: 'clientes', label: 'Clientes', component: ClientesView },
       { id: 'pesos-padrao', label: 'Pesos Padrão', component: DefaultWeightsAdmin },
+      { id: 'rel-semanais', label: 'Ind. Rel. Semanais', component: ConfigWeeklyReportsView },
     ];
     return baseTabs;
   }, []);

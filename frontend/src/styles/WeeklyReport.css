@@ -163,56 +163,116 @@
 }
 
 /* ============================= */
-/* Pipeline / Stepper            */
+/* Pipeline / Stepper (Redesign) */
 /* ============================= */
 
 .wr-pipeline {
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 10px;
-  padding: 1.25rem 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   margin-bottom: 1.25rem;
-}
-
-.wr-pipeline-steps {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  width: 100%;
-}
-
-.wr-pipeline-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
+  overflow: hidden;
   position: relative;
 }
 
-.wr-pipeline-step-icon {
-  width: 32px;
-  height: 32px;
+/* --- Progress bar (topo) --- */
+.wr-pipeline-progress-bar {
+  height: 4px;
+  background: #e5e7eb;
+  width: 100%;
+}
+.wr-pipeline-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #ffcc00);
+  border-radius: 0 2px 2px 0;
+  transition: width 600ms ease;
+}
+.wr-pipeline-success .wr-pipeline-progress-fill,
+.wr-pipeline.wr-pipeline-success .wr-pipeline-progress-fill {
+  background: #22c55e;
+}
+
+/* --- Header: robô + status --- */
+.wr-pipeline-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 0.75rem;
+}
+.wr-pipeline-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.wr-pipeline-status-text {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+.wr-pipeline-elapsed {
+  font-size: 0.72rem;
+  color: #999;
+  font-family: Verdana, sans-serif;
+}
+
+/* --- Steps verticais --- */
+.wr-pipeline-steps-vertical {
+  display: flex;
+  flex-direction: column;
+  padding: 0 1.5rem 0.5rem;
+  gap: 0;
+}
+
+.wr-pipeline-vstep {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  position: relative;
+  min-height: 32px;
+}
+
+.wr-pipeline-vstep-indicator {
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 300ms ease, box-shadow 300ms ease;
   position: relative;
   z-index: 1;
+  transition: background 300ms ease;
 }
 
-.wr-pipeline-step-icon-done {
+/* Linha vertical entre steps */
+.wr-pipeline-vstep-line {
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  width: 2px;
+  height: calc(100% + 8px);
+  z-index: 0;
+  transition: background 300ms ease;
+}
+
+.wr-pipeline-vstep-done .wr-pipeline-vstep-indicator {
   background: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+  color: #fff;
+}
+.wr-pipeline-vstep-done .wr-pipeline-vstep-line {
+  background: #22c55e;
 }
 
-.wr-pipeline-step-icon-active {
+.wr-pipeline-vstep-active .wr-pipeline-vstep-indicator {
   background: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  color: #fff;
   animation: wr-step-pulse 1.8s infinite;
+}
+.wr-pipeline-vstep-active .wr-pipeline-vstep-line {
+  background: #e5e7eb;
 }
 
 @keyframes wr-step-pulse {
@@ -220,95 +280,132 @@
   50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.1); }
 }
 
-.wr-pipeline-step-icon-pending {
-  background: #e5e5e5;
+.wr-pipeline-vstep-failed .wr-pipeline-vstep-indicator {
+  background: #ef4444;
+  color: #fff;
+}
+.wr-pipeline-vstep-failed .wr-pipeline-vstep-line {
+  background: #e5e7eb;
 }
 
-.wr-pipeline-step-icon svg {
-  color: #ffffff;
+.wr-pipeline-vstep-pending .wr-pipeline-vstep-indicator {
+  background: #f3f4f6;
+}
+.wr-pipeline-vstep-pending .wr-pipeline-vstep-line {
+  background: #e5e7eb;
 }
 
-.wr-pipeline-step-icon-pending svg {
-  color: #a3a3a3;
+.wr-pipeline-vstep-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d1d5db;
 }
 
-.wr-pipeline-step-label {
-  font-size: 0.68rem;
+.wr-pipeline-vstep-label {
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #999;
+  color: #6b7280;
   font-family: 'Inter', Verdana, sans-serif;
-  text-align: center;
-  line-height: 1.3;
-  max-width: 90px;
 }
-
-.wr-pipeline-step-icon-done + .wr-pipeline-step-label {
+.wr-pipeline-vstep-done .wr-pipeline-vstep-label {
   color: #16a34a;
 }
-
-.wr-pipeline-step-icon-active + .wr-pipeline-step-label {
+.wr-pipeline-vstep-active .wr-pipeline-vstep-label {
   color: #d97706;
 }
-
-/* Connector line between steps */
-.wr-pipeline-connector {
-  flex: 0.6;
-  height: 2px;
-  background: #e5e5e5;
-  position: relative;
-  top: -12px;
-  transition: background 300ms ease;
-}
-
-.wr-pipeline-connector-done {
-  background: #22c55e;
-}
-
-/* Pipeline result messages */
-.wr-pipeline-result {
-  margin-top: 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-family: 'Inter', Verdana, sans-serif;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-}
-
-.wr-pipeline-success {
-  background: rgba(34, 197, 94, 0.06);
-  border: 1px solid rgba(34, 197, 94, 0.2);
-  color: #15803d;
-}
-
-.wr-pipeline-failure {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+.wr-pipeline-vstep-failed .wr-pipeline-vstep-label {
   color: #dc2626;
 }
 
-.wr-pipeline-result-icon {
-  flex-shrink: 0;
-  margin-top: 1px;
+.wr-pipeline-spinner {
+  animation: wr-spin 0.8s linear infinite;
+}
+@keyframes wr-spin {
+  to { transform: rotate(360deg); }
 }
 
-.wr-pipeline-result-content {
+/* --- Painel de logs --- */
+.wr-pipeline-log-panel {
+  margin: 0.25rem 1.5rem 1.25rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+.wr-pipeline-log-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: #16213e;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: Verdana, sans-serif;
+  border-bottom: 1px solid #0f3460;
+}
+.wr-pipeline-log-body {
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+  scroll-behavior: smooth;
+}
+.wr-pipeline-log-entry {
+  display: flex;
+  gap: 0.625rem;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.72rem;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  line-height: 1.6;
+}
+.wr-pipeline-log-time {
+  color: #64748b;
+  flex-shrink: 0;
+}
+.wr-pipeline-log-msg {
+  color: #e2e8f0;
 }
 
-.wr-pipeline-result-text {
-  font-weight: 600;
+/* Scrollbar do log */
+.wr-pipeline-log-body::-webkit-scrollbar {
+  width: 5px;
+}
+.wr-pipeline-log-body::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+.wr-pipeline-log-body::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
 }
 
+/* --- Resultado (links / erro) --- */
+.wr-pipeline-result {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.82rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.wr-pipeline-success {
+  background: rgba(34, 197, 94, 0.04);
+  border-top: 1px solid rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+.wr-pipeline-failure {
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 0.78rem;
+}
 .wr-pipeline-result-links {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
-
 .wr-pipeline-result-links a {
   display: inline-flex;
   align-items: center;
@@ -319,7 +416,6 @@
   font-weight: 500;
   transition: color 150ms ease;
 }
-
 .wr-pipeline-result-links a:hover {
   color: #0052a3;
   text-decoration: underline;
@@ -954,17 +1050,16 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .wr-pipeline-steps {
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  .wr-pipeline-header {
+    padding: 1rem;
   }
 
-  .wr-pipeline-connector {
-    display: none;
+  .wr-pipeline-steps-vertical {
+    padding: 0 1rem 0.5rem;
   }
 
-  .wr-pipeline-step {
-    flex: 0 0 calc(33% - 0.5rem);
+  .wr-pipeline-log-panel {
+    margin: 0.25rem 1rem 1rem;
   }
 
   .wr-history-item {

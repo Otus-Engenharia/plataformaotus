@@ -213,11 +213,11 @@ function WeeklyReportsDashboard({ leaderName }) {
 
   // --- Chart data ---
   const chartData = {
-    labels: weeks.map((w) => w.label || `S${w.week}`),
+    labels: weeks.map((w) => w.weekText || `S${w.weekNumber}`),
     datasets: [
       {
         label: 'Projetos Ativos',
-        data: weeks.map((w) => w.active || 0),
+        data: weeks.map((w) => w.reportEnabled || 0),
         backgroundColor: 'rgba(59, 130, 246, 0.7)',
         borderColor: 'rgba(59, 130, 246, 1)',
         borderWidth: 1,
@@ -225,7 +225,7 @@ function WeeklyReportsDashboard({ leaderName }) {
       },
       {
         label: 'Relatorios Enviados',
-        data: weeks.map((w) => w.sent || 0),
+        data: weeks.map((w) => w.reportsSent || 0),
         backgroundColor: 'rgba(34, 197, 94, 0.7)',
         borderColor: 'rgba(34, 197, 94, 1)',
         borderWidth: 1,
@@ -303,6 +303,8 @@ function WeeklyReportsDashboard({ leaderName }) {
             family: 'Verdana',
           },
           color: '#737373',
+          maxRotation: 45,
+          minRotation: 30,
         },
         grid: {
           display: false,
@@ -327,7 +329,7 @@ function WeeklyReportsDashboard({ leaderName }) {
     layout: {
       padding: {
         top: 4,
-        bottom: 4,
+        bottom: 16,
         left: 4,
         right: 4,
       },
@@ -427,28 +429,28 @@ function WeeklyReportsDashboard({ leaderName }) {
               </thead>
               <tbody>
                 {weeks.map((week, index) => {
-                  const coverage =
-                    week.active > 0
-                      ? ((week.sent / week.active) * 100).toFixed(1)
-                      : '0.0';
+                  const active = week.reportEnabled || 0;
+                  const sent = week.reportsSent || 0;
+                  const coverage = active > 0
+                    ? ((sent / active) * 100).toFixed(1)
+                    : '0.0';
                   const isCurrentWeek = index === weeks.length - 1;
-                  const missing = week.missing || [];
 
                   return (
                     <tr
-                      key={week.label || index}
+                      key={`${week.weekYear}-${week.weekNumber}`}
                       className={isCurrentWeek ? 'wrd-row-current' : ''}
                     >
                       <td>
                         <span className="wrd-week-label">
-                          {week.label || `S${week.week}`}
+                          {week.weekText || `S${week.weekNumber}`}
                         </span>
                         {isCurrentWeek && (
                           <span className="wrd-badge-current">Atual</span>
                         )}
                       </td>
-                      <td className="wrd-text-right">{week.active || 0}</td>
-                      <td className="wrd-text-right">{week.sent || 0}</td>
+                      <td className="wrd-text-right">{week.reportEnabled != null ? week.reportEnabled : '—'}</td>
+                      <td className="wrd-text-right">{week.reportsSent != null ? week.reportsSent : '—'}</td>
                       <td className="wrd-text-right">
                         <span
                           className={`wrd-coverage-pill ${getCoverageColorClass(
@@ -459,14 +461,16 @@ function WeeklyReportsDashboard({ leaderName }) {
                         </span>
                       </td>
                       <td>
-                        {missing.length > 0 ? (
-                          <span className="wrd-missing-list" title={missing.join(', ')}>
-                            {missing.length <= 3
-                              ? missing.join(', ')
-                              : `${missing.slice(0, 3).join(', ')} +${missing.length - 3}`}
+                        {isCurrentWeek && missingCurrentWeek.length > 0 ? (
+                          <span className="wrd-missing-list" title={missingCurrentWeek.map(p => p.project_code).join(', ')}>
+                            {missingCurrentWeek.length <= 3
+                              ? missingCurrentWeek.map(p => p.project_code).join(', ')
+                              : `${missingCurrentWeek.slice(0, 3).map(p => p.project_code).join(', ')} +${missingCurrentWeek.length - 3}`}
                           </span>
-                        ) : (
+                        ) : sent >= active && active > 0 ? (
                           <span className="wrd-all-sent">Todos enviados</span>
+                        ) : (
+                          <span className="wrd-missing-list">—</span>
                         )}
                       </td>
                     </tr>
