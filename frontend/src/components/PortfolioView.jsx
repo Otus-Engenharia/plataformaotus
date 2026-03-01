@@ -19,7 +19,8 @@ import {
   calculateMonthDifference,
   getDifferenceStatus,
   isFinalizedStatus,
-  isPausedStatus
+  isPausedStatus,
+  isAIniciarStatus
 } from '../utils/portfolio-utils';
 import '../styles/PortfolioView.css';
 import StatusDropdown, { getStatusColor } from './StatusDropdown';
@@ -45,7 +46,9 @@ function PortfolioView() {
     setEditingCell,
     editOptions,
     fetchEditOptions,
-    updatePortfolioField
+    updatePortfolioField,
+    savedCell,
+    errorCell
   } = usePortfolio();
 
   // Estados locais para a tabela
@@ -61,6 +64,9 @@ function PortfolioView() {
   const [differenceDropdownOpen, setDifferenceDropdownOpen] = useState(false);
   const [showFinalizedProjects, setShowFinalizedProjects] = useState(false);
   const [showPausedProjects, setShowPausedProjects] = useState(true);
+  const [showAIniciar, setShowAIniciar] = useState(false);
+  const [showNoTeam, setShowNoTeam] = useState(false);
+  const [showNoLeader, setShowNoLeader] = useState(false);
   const [showContractInfoColumns, setShowContractInfoColumns] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'project_order', direction: 'asc' });
 
@@ -160,6 +166,45 @@ function PortfolioView() {
     return Array.from(clients).sort();
   }, [data]);
 
+  // Contagens para toggles
+  const finalizedCount = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.filter(row => row && isFinalizedStatus(row.status)).length;
+  }, [data]);
+
+  const pausedCount = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.filter(row => row && isPausedStatus(row.status)).length;
+  }, [data]);
+
+  const aIniciarCount = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.filter(row => row && isAIniciarStatus(row.status)).length;
+  }, [data]);
+
+  // Contagens para toggles "Sem Time" e "Sem Lider"
+  const noTeamCount = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.filter(row => {
+      if (!row || typeof row !== 'object') return false;
+      if (!showFinalizedProjects && isFinalizedStatus(row.status)) return false;
+      if (!showPausedProjects && isPausedStatus(row.status)) return false;
+      if (!showAIniciar && isAIniciarStatus(row.status)) return false;
+      return !row.nome_time || row.nome_time === '-';
+    }).length;
+  }, [data, showFinalizedProjects, showPausedProjects, showAIniciar]);
+
+  const noLeaderCount = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.filter(row => {
+      if (!row || typeof row !== 'object') return false;
+      if (!showFinalizedProjects && isFinalizedStatus(row.status)) return false;
+      if (!showPausedProjects && isPausedStatus(row.status)) return false;
+      if (!showAIniciar && isAIniciarStatus(row.status)) return false;
+      return !row.lider || row.lider === '-';
+    }).length;
+  }, [data, showFinalizedProjects, showPausedProjects, showAIniciar]);
+
   // Verifica se coluna e editavel
   const isEditableColumn = (columnKey) => {
     return activeView === 'info' && hasFullAccess && EDITABLE_COLUMNS.includes(columnKey);
@@ -170,9 +215,62 @@ function PortfolioView() {
     const value = row[col.key];
     const projectCode = row.project_code_norm;
     const isEditing = editingCell?.projectCode === projectCode && editingCell?.field === col.key;
+    const canEdit = isEditableColumn(col.key);
 
-    // Se nao e editavel, renderiza normalmente
-    if (!isEditableColumn(col.key)) {
+    // Status SEMPRE renderiza como badge colorido (edit on/off, admin/non-admin)
+    if (col.key === 'status' && activeView === 'info') {
+      if (isEditing && canEdit) {
+        return (
+          <StatusDropdown
+            value={value}
+            onChange={(newValue) => {
+              updatePortfolioField(projectCode, col.key, newValue, value);
+              setEditingCell(null);
+            }}
+            inline
+            defaultOpen
+          />
+        );
+      }
+      const statusColor = getStatusColor(value);
+      const justSaved = savedCell?.projectCode === projectCode && savedCell?.field === col.key;
+      const cellError = errorCell?.projectCode === projectCode && errorCell?.field === col.key ? errorCell : null;
+      return (
+        <span
+          className={`status-cell${canEdit ? ' editable-cell' : ''}${justSaved ? ' just-saved' : ''}${cellError ? ' has-error' : ''}`}
+          onClick={canEdit ? () => setEditingCell({ projectCode, field: col.key }) : undefined}
+          title={canEdit ? 'Clique para editar' : undefined}
+        >
+          <span
+            className="status-badge-inline"
+            style={{
+              backgroundColor: `${statusColor}15`,
+              color: statusColor,
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontSize: '10px',
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: statusColor
+            }} />
+            {value || '-'}
+          </span>
+          {justSaved && <span className="save-check">&#10003;</span>}
+          {cellError && <span className="inline-error-tooltip">{cellError.message}</span>}
+        </span>
+      );
+    }
+
+    // Demais campos: check editavel normalmente
+    if (!canEdit) {
       return formatValue(value, col.type);
     }
 
@@ -250,21 +348,6 @@ function PortfolioView() {
         );
       }
 
-      // Dropdown moderno para status com badges coloridos
-      if (col.key === 'status') {
-        return (
-          <StatusDropdown
-            value={value}
-            onChange={(newValue) => {
-              updatePortfolioField(projectCode, col.key, newValue, value);
-              setEditingCell(null);
-            }}
-            inline
-            defaultOpen
-          />
-        );
-      }
-
       // Input texto para comercial_name
       return (
         <input
@@ -288,49 +371,20 @@ function PortfolioView() {
       );
     }
 
-    // Celula clicavel (modo visualizacao)
-    // Status sempre mostra como badge colorido clicável
-    if (col.key === 'status') {
-      const statusColor = getStatusColor(value);
-      return (
-        <span
-          className="editable-cell status-cell"
-          onClick={() => setEditingCell({ projectCode, field: col.key })}
-          title="Clique para editar"
-        >
-          <span
-            className="status-badge-inline"
-            style={{
-              backgroundColor: `${statusColor}15`,
-              color: statusColor,
-              padding: '3px 8px',
-              borderRadius: '4px',
-              fontSize: '10px',
-              fontWeight: 500,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <span style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              backgroundColor: statusColor
-            }} />
-            {value || '-'}
-          </span>
-        </span>
-      );
-    }
+    // Feedback states
+    const justSaved = savedCell?.projectCode === projectCode && savedCell?.field === col.key;
+    const cellError = errorCell?.projectCode === projectCode && errorCell?.field === col.key ? errorCell : null;
 
+    // Celula clicavel (modo visualizacao)
     return (
       <span
-        className="editable-cell"
+        className={`editable-cell${justSaved ? ' just-saved' : ''}${cellError ? ' has-error' : ''}`}
         onClick={() => setEditingCell({ projectCode, field: col.key })}
         title="Clique para editar"
       >
         {formatValue(value, col.type) || <span className="placeholder-text">-</span>}
+        {justSaved && <span className="save-check">&#10003;</span>}
+        {cellError && <span className="inline-error-tooltip">{cellError.message}</span>}
       </span>
     );
   };
@@ -369,6 +423,30 @@ function PortfolioView() {
       filtered = filtered.filter(row => {
         if (!row || typeof row !== 'object') return false;
         return !isPausedStatus(row.status);
+      });
+    }
+
+    // Filtro por projetos a iniciar
+    if (!showAIniciar) {
+      filtered = filtered.filter(row => {
+        if (!row || typeof row !== 'object') return false;
+        return !isAIniciarStatus(row.status);
+      });
+    }
+
+    // Filtro por projetos sem time
+    if (showNoTeam) {
+      filtered = filtered.filter(row => {
+        if (!row || typeof row !== 'object') return false;
+        return !row.nome_time || row.nome_time === '-';
+      });
+    }
+
+    // Filtro por projetos sem lider
+    if (showNoLeader) {
+      filtered = filtered.filter(row => {
+        if (!row || typeof row !== 'object') return false;
+        return !row.lider || row.lider === '-';
       });
     }
 
@@ -460,7 +538,7 @@ function PortfolioView() {
     });
 
     return filtered;
-  }, [data, searchTerm, statusFilter, timeFilter, liderFilter, clientFilter, differenceFilter, sortConfig, showFinalizedProjects, showPausedProjects]);
+  }, [data, searchTerm, statusFilter, timeFilter, liderFilter, clientFilter, differenceFilter, sortConfig, showFinalizedProjects, showPausedProjects, showAIniciar, showNoTeam, showNoLeader]);
 
   // Handlers
   const handleSort = (columnKey) => {
@@ -787,6 +865,7 @@ function PortfolioView() {
               <span className="toggle-text">Info Contrato</span>
             </button>
           )}
+
         </div>
 
         {/* Filtros da Tabela */}
@@ -803,7 +882,7 @@ function PortfolioView() {
                                   }}
                 />
                 <span className="toggle-slider"></span>
-                <span className="toggle-label">Mostrar Projetos Finalizados</span>
+                <span className="toggle-label">Mostrar Finalizados <span className="toggle-count">{finalizedCount}</span></span>
               </label>
             </div>
 
@@ -818,7 +897,46 @@ function PortfolioView() {
                                   }}
                 />
                 <span className="toggle-slider"></span>
-                <span className="toggle-label">Mostrar Projetos Pausados</span>
+                <span className="toggle-label">Mostrar Pausados <span className="toggle-count">{pausedCount}</span></span>
+              </label>
+            </div>
+
+            {/* Toggle para projetos a iniciar */}
+            <div className="finalized-toggle-wrapper">
+              <label className="finalized-toggle">
+                <input
+                  type="checkbox"
+                  checked={showAIniciar}
+                  onChange={(e) => setShowAIniciar(e.target.checked)}
+                />
+                <span className="toggle-slider"></span>
+                <span className="toggle-label">Mostrar A Iniciar <span className="toggle-count">{aIniciarCount}</span></span>
+              </label>
+            </div>
+
+            {/* Toggle para projetos sem time */}
+            <div className="finalized-toggle-wrapper">
+              <label className="finalized-toggle">
+                <input
+                  type="checkbox"
+                  checked={showNoTeam}
+                  onChange={(e) => setShowNoTeam(e.target.checked)}
+                />
+                <span className="toggle-slider"></span>
+                <span className="toggle-label">Sem Time <span className="toggle-count">{noTeamCount}</span></span>
+              </label>
+            </div>
+
+            {/* Toggle para projetos sem lider */}
+            <div className="finalized-toggle-wrapper">
+              <label className="finalized-toggle">
+                <input
+                  type="checkbox"
+                  checked={showNoLeader}
+                  onChange={(e) => setShowNoLeader(e.target.checked)}
+                />
+                <span className="toggle-slider"></span>
+                <span className="toggle-label">Sem Lider <span className="toggle-count">{noLeaderCount}</span></span>
               </label>
             </div>
 
@@ -1054,6 +1172,9 @@ function PortfolioView() {
                     const isFirst = isContractInfo && idx > 0 && !CONTRACT_INFO_COLUMNS.includes(columns[idx - 1]?.key);
                     const isLast = isContractInfo && (idx === columns.length - 1 || !CONTRACT_INFO_COLUMNS.includes(columns[idx + 1]?.key));
 
+                    const isPrimaryEdit = (col.key === 'comercial_name' || col.key === 'status') && activeView === 'info';
+                    const isGroupStart = col.key === 'comercial_name' && activeView === 'info';
+
                     return (
                       <th
                         key={col.key}
@@ -1063,6 +1184,8 @@ function PortfolioView() {
                           ${isContractInfo ? 'contract-info-column' : ''}
                           ${isFirst ? 'contract-info-first' : ''}
                           ${isLast ? 'contract-info-last' : ''}
+                          ${isGroupStart ? 'primary-group-start' : ''}
+                          ${isPrimaryEdit ? 'primary-edit-column' : ''}
                           column-${col.key.replace(/_/g, '-')}
                         `}
                         style={col.width ? { width: col.width, minWidth: col.width, maxWidth: col.width } : {}}
@@ -1099,6 +1222,8 @@ function PortfolioView() {
                         cellClass = `cell-difference-${status}`;
                       }
 
+                      const isPrimaryEditCell = (col.key === 'comercial_name' || col.key === 'status') && activeView === 'info';
+
                       return (
                         <td
                           key={col.key}
@@ -1108,6 +1233,8 @@ function PortfolioView() {
                             ${isFirst ? 'contract-info-cell-first' : ''}
                             ${isLast ? 'contract-info-cell-last' : ''}
                             ${isEditableColumn(col.key) ? 'editable-cell-td' : ''}
+                            ${isEditableColumn(col.key) ? 'edit-mode-highlight' : ''}
+                            ${isPrimaryEditCell ? 'primary-edit-cell' : ''}
                           `}
                         >
                           {renderCell(row, col)}

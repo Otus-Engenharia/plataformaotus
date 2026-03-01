@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
-
-function formatPhone(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
+import { stripNonDigits } from '../../utils/phone-utils';
 
 function CreateContactModal({ companyId, onClose, onCreated }) {
   const [form, setForm] = useState({
@@ -22,7 +16,7 @@ function CreateContactModal({ companyId, onClose, onCreated }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'phone') {
-      setForm(prev => ({ ...prev, phone: formatPhone(value) }));
+      setForm(prev => ({ ...prev, phone: stripNonDigits(value) }));
     } else {
       setForm(prev => ({ ...prev, [name]: value }));
     }
@@ -95,12 +89,13 @@ function CreateContactModal({ companyId, onClose, onCreated }) {
           <div className="form-group">
             <label htmlFor="modal-contact-phone">Telefone</label>
             <input
-              type="text"
+              type="tel"
               id="modal-contact-phone"
               name="phone"
               value={form.phone}
               onChange={handleChange}
-              placeholder="(00) 00000-0000"
+              placeholder="00 00000-0000"
+              title="Digite apenas os números, sem parênteses ou traços"
             />
           </div>
           <div className="form-group">

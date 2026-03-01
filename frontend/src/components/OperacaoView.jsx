@@ -13,6 +13,7 @@ import axios from 'axios';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/OperacaoView.css';
+import { stripNonDigits } from '../utils/phone-utils';
 
 // === CONSTANTES ===
 const ACCESS_LABELS = {
@@ -1097,9 +1098,10 @@ function OperacaoView() {
                 <input
                   type="tel"
                   className="form-input"
-                  placeholder="(00) 00000-0000"
+                  placeholder="00 00000-0000"
+                  title="Digite apenas os números, sem parênteses ou traços"
                   value={createForm.phone}
-                  onChange={e => setCreateForm({...createForm, phone: e.target.value})}
+                  onChange={e => setCreateForm({...createForm, phone: stripNonDigits(e.target.value)})}
                 />
               </div>
 

@@ -11,11 +11,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
+import { usePortfolio } from '../contexts/PortfolioContext';
+import { useAuth } from '../contexts/AuthContext';
+import StatusDropdown, { getStatusColor } from './StatusDropdown';
 import '../styles/PortfolioProjetoView.css';
+
+// Icone de lapis SVG inline
+const PencilIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    <path d="m15 5 4 4" />
+  </svg>
+);
 
 function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
   const [projectData, setProjectData] = useState(null);
   const [error, setError] = useState(null);
+  const [editingField, setEditingField] = useState(null); // 'comercial_name' | 'status'
+
+  const { hasFullAccess } = useAuth();
+  const { updatePortfolioField, savedCell, errorCell } = usePortfolio();
+  const canEdit = hasFullAccess;
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !portfolio || portfolio.length === 0) return null;
@@ -234,6 +250,13 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
     heroData.coordinator && `Coord: ${heroData.coordinator}`,
   ].filter(Boolean);
 
+  // Feedback de edicao
+  const projectCode = heroData.code;
+  const comercialSaved = savedCell?.projectCode === projectCode && savedCell?.field === 'comercial_name';
+  const comercialError = errorCell?.projectCode === projectCode && errorCell?.field === 'comercial_name' ? errorCell : null;
+  const statusSaved = savedCell?.projectCode === projectCode && savedCell?.field === 'status';
+  const statusError = errorCell?.projectCode === projectCode && errorCell?.field === 'status' ? errorCell : null;
+
   return (
     <div className="ppv-container">
       {/* Hero Card */}
@@ -252,19 +275,87 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
           {heroMeta.length > 0 && (
             <p className="ppv-hero-meta">{heroMeta.join(' · ')}</p>
           )}
-          {heroData.comercialName && heroData.comercialName !== heroData.name && (
-            <p className="ppv-hero-comercial">{heroData.comercialName}</p>
-          )}
-          {heroLeaders.length > 0 && (
+
+          {/* Tags: Lider, Coord, Disciplina */}
+          {(heroLeaders.length > 0 || heroData.disciplinaCliente) && (
             <div className="ppv-hero-leaders">
               {heroLeaders.map((text, i) => (
-                <span key={i} className="ppv-hero-leader-tag">{text}</span>
+                <span key={i} className={`ppv-hero-leader-tag ${text.startsWith('Líder') ? 'ppv-tag-lider' : 'ppv-tag-coord'}`}>{text}</span>
               ))}
+              {heroData.disciplinaCliente && (
+                <span className="ppv-hero-leader-tag ppv-tag-disciplina">{heroData.disciplinaCliente}</span>
+              )}
             </div>
           )}
-          {heroData.disciplinaCliente && (
-            <p className="ppv-hero-discipline">Disciplina: {heroData.disciplinaCliente}</p>
-          )}
+
+          {/* Campo editavel: Nome Comercial */}
+          <div
+            className={`ppv-editable-field${comercialSaved ? ' ppv-editable-saved' : ''}${comercialError ? ' ppv-editable-error' : ''}${editingField === 'comercial_name' ? ' ppv-editable-active' : ''}`}
+            onClick={() => canEdit && editingField !== 'comercial_name' && setEditingField('comercial_name')}
+            title={canEdit ? 'Clique para editar' : ''}
+          >
+            <span className="ppv-editable-label">Nome comercial</span>
+            {editingField === 'comercial_name' ? (
+              <input
+                type="text"
+                className="ppv-editable-input"
+                defaultValue={heroData.comercialName || ''}
+                autoFocus
+                onBlur={(e) => {
+                  const newVal = e.target.value.trim();
+                  if (newVal !== (heroData.comercialName || '')) {
+                    updatePortfolioField(projectCode, 'comercial_name', newVal, heroData.comercialName);
+                  }
+                  setEditingField(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.target.blur();
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+              />
+            ) : (
+              <div className="ppv-editable-value-row">
+                <span className={heroData.comercialName ? 'ppv-editable-value' : 'ppv-editable-placeholder'}>
+                  {heroData.comercialName || 'Definir nome comercial'}
+                </span>
+                {canEdit && <span className="ppv-editable-icon"><PencilIcon /></span>}
+                {comercialSaved && <span className="ppv-editable-check">&#10003;</span>}
+                {comercialError && <span className="ppv-editable-error-msg">{comercialError.message}</span>}
+              </div>
+            )}
+          </div>
+
+          {/* Campo editavel: Fase Atual */}
+          <div
+            className={`ppv-editable-field${statusSaved ? ' ppv-editable-saved' : ''}${statusError ? ' ppv-editable-error' : ''}${editingField === 'status' ? ' ppv-editable-active' : ''}`}
+            title={canEdit ? 'Clique para editar' : ''}
+          >
+            <span className="ppv-editable-label">Fase atual</span>
+            {editingField === 'status' ? (
+              <StatusDropdown
+                value={heroData.status}
+                onChange={(newVal) => {
+                  updatePortfolioField(projectCode, 'status', newVal, heroData.status);
+                  setEditingField(null);
+                }}
+                inline
+                defaultOpen
+              />
+            ) : (
+              <div
+                className="ppv-editable-value-row"
+                onClick={() => canEdit && setEditingField('status')}
+              >
+                <span className={heroData.status ? 'ppv-editable-value' : 'ppv-editable-placeholder'}>
+                  {heroData.status || 'Definir fase'}
+                </span>
+                {canEdit && <span className="ppv-editable-icon"><PencilIcon /></span>}
+                {statusSaved && <span className="ppv-editable-check">&#10003;</span>}
+                {statusError && <span className="ppv-editable-error-msg">{statusError.message}</span>}
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
 

@@ -159,6 +159,93 @@ class SupabaseWeeklyReportRepository extends WeeklyReportRepository {
 
     return count > 0;
   }
+
+  async saveSnapshot({ weekYear, weekNumber, snapshotDate, totalActiveProjects, projectsReportEnabled, reportsSent, pctReportEnabled, pctReportsSent, leaderName = null }) {
+    const payload = {
+      week_year: weekYear,
+      week_number: weekNumber,
+      snapshot_date: snapshotDate,
+      total_active_projects: totalActiveProjects,
+      projects_report_enabled: projectsReportEnabled,
+      reports_sent: reportsSent,
+      pct_report_enabled: pctReportEnabled,
+      pct_reports_sent: pctReportsSent,
+      leader_name: leaderName,
+    };
+
+    // Check if snapshot exists
+    let query = this.#supabase
+      .from('weekly_kpi_snapshots')
+      .select('id')
+      .eq('week_year', weekYear)
+      .eq('week_number', weekNumber);
+
+    if (leaderName) {
+      query = query.eq('leader_name', leaderName);
+    } else {
+      query = query.is('leader_name', null);
+    }
+
+    const { data: existing } = await query.maybeSingle();
+
+    if (existing) {
+      const { data, error } = await this.#supabase
+        .from('weekly_kpi_snapshots')
+        .update(payload)
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw new Error(`Erro ao atualizar snapshot: ${error.message}`);
+      return data;
+    } else {
+      const { data, error } = await this.#supabase
+        .from('weekly_kpi_snapshots')
+        .insert(payload)
+        .select()
+        .single();
+      if (error) throw new Error(`Erro ao inserir snapshot: ${error.message}`);
+      return data;
+    }
+  }
+
+  async getSnapshots({ weeks = 12, leaderName = null } = {}) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - weeks * 7);
+
+    let query = this.#supabase
+      .from('weekly_kpi_snapshots')
+      .select('*')
+      .gte('snapshot_date', cutoff.toISOString().split('T')[0])
+      .order('week_year', { ascending: true })
+      .order('week_number', { ascending: true });
+
+    if (leaderName) {
+      query = query.eq('leader_name', leaderName);
+    } else {
+      query = query.is('leader_name', null);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(`Erro ao buscar snapshots: ${error.message}`);
+    return data || [];
+  }
+
+  async snapshotExists(weekYear, weekNumber, leaderName = null) {
+    let query = this.#supabase
+      .from('weekly_kpi_snapshots')
+      .select('id')
+      .eq('week_year', weekYear)
+      .eq('week_number', weekNumber);
+
+    if (leaderName) {
+      query = query.eq('leader_name', leaderName);
+    } else {
+      query = query.is('leader_name', null);
+    }
+
+    const { data } = await query.maybeSingle();
+    return !!data;
+  }
 }
 
 export { SupabaseWeeklyReportRepository };

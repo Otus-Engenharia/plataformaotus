@@ -15,7 +15,8 @@ import {
   calculateMonthDifference,
   getDifferenceStatus,
   isFinalizedStatus,
-  isPausedStatus
+  isPausedStatus,
+  isAIniciarStatus
 } from '../utils/portfolio-utils';
 
 const PortfolioContext = createContext(null);
@@ -33,6 +34,8 @@ export function PortfolioProvider({ children }) {
   // Estado de edicao inline
   const [editingCell, setEditingCell] = useState(null); // { projectCode, field }
   const [editOptions, setEditOptions] = useState(null); // { teams, companies, leaders }
+  const [savedCell, setSavedCell] = useState(null); // { projectCode, field } - feedback de sucesso
+  const [errorCell, setErrorCell] = useState(null); // { projectCode, field, message } - feedback de erro
 
   // Busca dados do portfolio
   const fetchPortfolioData = useCallback(async () => {
@@ -102,6 +105,9 @@ export function PortfolioProvider({ children }) {
       if (!response.data?.success) {
         throw new Error(response.data?.error || 'Erro ao atualizar');
       }
+      // Feedback de sucesso
+      setSavedCell({ projectCode, field });
+      setTimeout(() => setSavedCell(null), 1500);
     } catch (err) {
       // Rollback em caso de erro
       const rollbackUpdate = ['client', 'nome_time', 'lider'].includes(field)
@@ -112,7 +118,10 @@ export function PortfolioProvider({ children }) {
         row.project_code_norm === projectCode ? { ...row, ...rollbackUpdate } : row
       ));
       console.error('Erro ao atualizar portfolio:', err);
-      alert('Erro ao atualizar: ' + (err.response?.data?.error || err.message));
+      // Feedback de erro inline
+      const errorMsg = err.response?.data?.error || err.message || 'Erro ao atualizar';
+      setErrorCell({ projectCode, field, message: errorMsg });
+      setTimeout(() => setErrorCell(null), 3000);
     }
   }, []);
 
@@ -193,6 +202,7 @@ export function PortfolioProvider({ children }) {
       return {
         totalProjetos: 0,
         projetosAtivos: 0,
+        projetosAIniciar: 0,
         projetosFinalizados: 0,
         projetosPausados: 0,
         valorTotal: 0,
@@ -201,18 +211,19 @@ export function PortfolioProvider({ children }) {
     }
 
     let projetosAtivos = 0;
+    let projetosAIniciar = 0;
     let projetosFinalizados = 0;
     let projetosPausados = 0;
     let valorTotal = 0;
     let projetosEmAtraso = 0;
 
     dataForKPIs.forEach(row => {
-      if (isPausedStatus(row.status)) {
-        projetosPausados++;
-      }
-
       if (isFinalizedStatus(row.status)) {
         projetosFinalizados++;
+      } else if (isPausedStatus(row.status)) {
+        projetosPausados++;
+      } else if (isAIniciarStatus(row.status)) {
+        projetosAIniciar++;
       } else {
         projetosAtivos++;
       }
@@ -237,6 +248,7 @@ export function PortfolioProvider({ children }) {
     return {
       totalProjetos: dataForKPIs.length,
       projetosAtivos,
+      projetosAIniciar,
       projetosFinalizados,
       projetosPausados,
       valorTotal,
@@ -315,7 +327,23 @@ export function PortfolioProvider({ children }) {
 
     const statusCount = {};
     dataForKPIs.forEach(row => {
-      if (!isFinalizedStatus(row.status) && !isPausedStatus(row.status)) {
+      if (!isFinalizedStatus(row.status) && !isPausedStatus(row.status) && !isAIniciarStatus(row.status)) {
+        const status = row.status || 'Sem Status';
+        statusCount[status] = (statusCount[status] || 0) + 1;
+      }
+    });
+
+    return Object.entries(statusCount)
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [dataForKPIs]);
+
+  const projetosAIniciarPorFase = useMemo(() => {
+    if (!dataForKPIs || !Array.isArray(dataForKPIs)) return [];
+
+    const statusCount = {};
+    dataForKPIs.forEach(row => {
+      if (isAIniciarStatus(row.status)) {
         const status = row.status || 'Sem Status';
         statusCount[status] = (statusCount[status] || 0) + 1;
       }
@@ -371,6 +399,12 @@ export function PortfolioProvider({ children }) {
     return { totalGrupo, totalGeral: totalGeralProjetos };
   }, [projetosAtivosPorFase, totalGeralProjetos]);
 
+  const tabelaAIniciarData = useMemo(() => {
+    if (!projetosAIniciarPorFase || projetosAIniciarPorFase.length === 0) return null;
+    const totalGrupo = projetosAIniciarPorFase.reduce((sum, item) => sum + (item.count || 0), 0);
+    return { totalGrupo, totalGeral: totalGeralProjetos };
+  }, [projetosAIniciarPorFase, totalGeralProjetos]);
+
   const tabelaPausadosData = useMemo(() => {
     if (!projetosPausadosPorFase || projetosPausadosPorFase.length === 0) return null;
     const totalGrupo = projetosPausadosPorFase.reduce((sum, item) => sum + (item.count || 0), 0);
@@ -407,6 +441,8 @@ export function PortfolioProvider({ children }) {
     editOptions,
     fetchEditOptions,
     updatePortfolioField,
+    savedCell,
+    errorCell,
 
     // Dados filtrados (portfolio filtrado por time + lider)
     dataForKPIs,
@@ -419,9 +455,11 @@ export function PortfolioProvider({ children }) {
 
     // Dados das tabelas por fase
     projetosAtivosPorFase,
+    projetosAIniciarPorFase,
     projetosPausadosPorFase,
     projetosFinalizadosPorFase,
     tabelaAtivosData,
+    tabelaAIniciarData,
     tabelaPausadosData,
     tabelaFinalizadosData,
     totalGeralProjetos

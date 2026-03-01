@@ -10,6 +10,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import '../styles/EquipeClientePanel.css';
+import { formatPhoneDisplay, stripNonDigits } from '../utils/phone-utils';
 
 const PendingAlert = ({ tooltip }) => (
   <span className="ecli-pending-alert" title={tooltip || "Empresa com cadastro pendente"}>
@@ -297,7 +298,7 @@ function EquipeClientePanel({
                         {contact.email ? <a href={`mailto:${contact.email}`} className="ecli-link">{contact.email}</a> : '-'}
                       </td>
                       <td>
-                        {contact.phone ? <a href={`tel:${contact.phone}`} className="ecli-link">{contact.phone}</a> : '-'}
+                        {contact.phone ? <a href={`tel:${contact.phone}`} className="ecli-link">{formatPhoneDisplay(contact.phone)}</a> : '-'}
                       </td>
                       <td className="ecli-td-actions">
                         <button
@@ -410,7 +411,7 @@ function EquipeClientePanel({
                         {email ? <a href={`mailto:${email}`} className="ecli-link">{email}</a> : '-'}
                       </td>
                       <td>
-                        {phone ? <a href={`tel:${phone}`} className="ecli-link">{phone}</a> : '-'}
+                        {phone ? <a href={`tel:${phone}`} className="ecli-link">{formatPhoneDisplay(phone)}</a> : '-'}
                       </td>
                       <td>
                         <span className="ecli-detail" title={item.discipline_detail || ''}>
@@ -478,8 +479,9 @@ function EquipeClientePanel({
                   <input
                     type="tel"
                     value={contactForm.phone}
-                    onChange={e => setContactForm({ ...contactForm, phone: e.target.value })}
-                    placeholder="(00) 00000-0000"
+                    onChange={e => setContactForm({ ...contactForm, phone: stripNonDigits(e.target.value) })}
+                    placeholder="00 00000-0000"
+                    title="Digite apenas os números, sem parênteses ou traços"
                   />
                 </div>
               </div>
@@ -570,7 +572,7 @@ function EquipeClientePanel({
                 </div>
                 <div className="ecli-form-group">
                   <label>Telefone</label>
-                  <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
+                  <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: stripNonDigits(e.target.value) })} placeholder="00 00000-0000" title="Digite apenas os números, sem parênteses ou traços" />
                 </div>
               </div>
 

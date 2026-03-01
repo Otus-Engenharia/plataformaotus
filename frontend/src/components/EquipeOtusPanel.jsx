@@ -11,6 +11,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import '../styles/EquipeOtusPanel.css';
+import { formatPhoneDisplay, stripNonDigits } from '../utils/phone-utils';
 
 function getInitials(name) {
   if (!name) return '?';
@@ -145,8 +146,9 @@ function EquipeOtusPanel({ projectCode }) {
             type="tel"
             className="eotus-phone-input"
             value={phoneValue}
-            onChange={e => setPhoneValue(e.target.value)}
-            placeholder="(00) 00000-0000"
+            onChange={e => setPhoneValue(stripNonDigits(e.target.value))}
+            placeholder="00 00000-0000"
+            title="Digite apenas os números, sem parênteses ou traços"
             autoFocus
             onKeyDown={e => {
               if (e.key === 'Enter') handleSavePhone(memberId);
@@ -171,7 +173,7 @@ function EquipeOtusPanel({ projectCode }) {
     return (
       <span className="eotus-phone-display" onClick={() => startEditPhone(memberId, phone)}>
         {phone ? (
-          <span className="eotus-member-phone">{phone}</span>
+          <span className="eotus-member-phone">{formatPhoneDisplay(phone)}</span>
         ) : (
           <span className="eotus-member-missing">Sem telefone</span>
         )}
