@@ -1,0 +1,450 @@
+/**
+ * Estilos do Painel de Indicadores de Relatórios Semanais (Configurações)
+ * Prefixo: cwr-
+ * Segue padrões visuais do WeeklyReportsDashboard.css
+ */
+
+/* ============================= */
+/* Container                     */
+/* ============================= */
+
+.cwr-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 2rem;
+  font-family: Verdana, sans-serif;
+}
+
+/* ============================= */
+/* Loading / Error / Empty       */
+/* ============================= */
+
+.cwr-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #737373;
+  font-size: 0.85rem;
+  gap: 1rem;
+}
+
+.cwr-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e6e6e6;
+  border-top-color: #ffdd00;
+  border-radius: 50%;
+  animation: cwr-spin 0.8s linear infinite;
+}
+
+@keyframes cwr-spin {
+  to { transform: rotate(360deg); }
+}
+
+.cwr-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.cwr-error-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #dc2626;
+  font-size: 0.82rem;
+}
+
+.cwr-retry-btn {
+  background: none;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-family: Verdana, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms ease;
+}
+
+.cwr-retry-btn:hover {
+  background: #fee2e2;
+}
+
+.cwr-empty {
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #999;
+  font-size: 0.9rem;
+}
+
+/* ============================= */
+/* Header                        */
+/* ============================= */
+
+.cwr-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cwr-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 0.25rem 0;
+}
+
+.cwr-subtitle {
+  font-size: 0.78rem;
+  color: #737373;
+  margin: 0;
+}
+
+.cwr-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background: #f7f7f7;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-family: Verdana, sans-serif;
+  font-weight: 600;
+  color: #4b4b4b;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+  white-space: nowrap;
+}
+
+.cwr-refresh-btn:hover {
+  background: #eeeeee;
+  border-color: #ccc;
+}
+
+/* ============================= */
+/* Summary Cards                 */
+/* ============================= */
+
+.cwr-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cwr-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-left: 4px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 1.25rem 1.25rem 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.cwr-card-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.625rem;
+}
+
+.cwr-card-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.1;
+  margin-bottom: 0.375rem;
+}
+
+.cwr-card-context {
+  font-size: 0.72rem;
+  color: #999;
+}
+
+.cwr-card-green { border-left-color: #22c55e; }
+.cwr-card-green .cwr-card-value { color: #16a34a; }
+
+.cwr-card-yellow { border-left-color: #f59e0b; }
+.cwr-card-yellow .cwr-card-value { color: #d97706; }
+
+.cwr-card-red { border-left-color: #ef4444; }
+.cwr-card-red .cwr-card-value { color: #dc2626; }
+
+.cwr-card-neutral { border-left-color: #ffdd00; }
+
+/* ============================= */
+/* Team Comparison Table         */
+/* ============================= */
+
+.cwr-table-section {
+  margin-bottom: 1.5rem;
+}
+
+.cwr-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin: 0 0 0.875rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.cwr-table-wrapper {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e6e6e6;
+  overflow: auto;
+}
+
+.cwr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.cwr-table thead th {
+  background: #fafafa;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e6e6e6;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cwr-table tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+  vertical-align: middle;
+}
+
+.cwr-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cwr-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.cwr-text-right {
+  text-align: right !important;
+}
+
+.cwr-text-center {
+  text-align: center !important;
+}
+
+/* Team name column */
+.cwr-team-name {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Totals row */
+.cwr-row-totals {
+  background: #f7f7f7 !important;
+}
+
+.cwr-row-totals td {
+  font-weight: 700;
+  color: #1a1a1a;
+  border-top: 2px solid #e0e0e0;
+}
+
+/* Pills */
+.cwr-pill {
+  display: inline-block;
+  padding: 0.2rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.cwr-pill-green {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.cwr-pill-yellow {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.cwr-pill-red {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.cwr-pill-neutral {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Trend indicators */
+.cwr-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cwr-trend-up { color: #16a34a; }
+.cwr-trend-down { color: #dc2626; }
+.cwr-trend-stable { color: #6b7280; }
+
+/* Expand button */
+.cwr-expand-btn {
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-family: Verdana, sans-serif;
+  color: #666;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.cwr-expand-btn:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.cwr-expand-icon {
+  transition: transform 200ms ease;
+}
+
+.cwr-expand-icon-open {
+  transform: rotate(90deg);
+}
+
+/* ============================= */
+/* Team Detail (expanded)        */
+/* ============================= */
+
+.cwr-team-detail {
+  background: #fafafa;
+  border-top: 1px solid #e6e6e6;
+}
+
+.cwr-team-detail-inner {
+  padding: 1.25rem 1.5rem;
+}
+
+.cwr-team-detail-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 1rem 0;
+}
+
+.cwr-team-chart-wrapper {
+  position: relative;
+  height: 280px;
+  margin-bottom: 1rem;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e6e6e6;
+  padding: 1rem;
+}
+
+/* Team detail table (reuses cwr-table styles) */
+.cwr-team-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e6e6e6;
+  overflow: hidden;
+}
+
+.cwr-team-detail-table thead th {
+  background: #fafafa;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid #e6e6e6;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cwr-team-detail-table tbody td {
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+}
+
+.cwr-team-detail-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cwr-row-current {
+  background: #fffbeb !important;
+}
+
+.cwr-badge-current {
+  display: inline-block;
+  background: #ffdd00;
+  color: #333;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================= */
+/* Responsive                    */
+/* ============================= */
+
+@media (max-width: 768px) {
+  .cwr-container {
+    padding: 1rem;
+  }
+
+  .cwr-summary-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .cwr-table {
+    font-size: 0.75rem;
+  }
+
+  .cwr-table thead th,
+  .cwr-table tbody td {
+    padding: 0.5rem 0.625rem;
+  }
+}
