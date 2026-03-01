@@ -429,3 +429,11 @@ export const isPausedStatus = (status) => {
   const statusLower = status.toLowerCase().trim();
   return statusLower.includes('pausa') || statusLower.includes('pausado');
 };
+
+/**
+ * Verifica se um status e "a iniciar" (pre-execucao)
+ */
+export const isAIniciarStatus = (status) => {
+  if (!status || typeof status !== 'string') return false;
+  return status.toLowerCase().trim().includes('a iniciar');
+};

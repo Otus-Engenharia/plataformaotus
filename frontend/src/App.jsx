@@ -1493,7 +1493,11 @@ function AppContent() {
               path="/projetos"
               element={
                 <ProtectedRoute>
-                  {canAccessProjetosArea ? <ProjetosView /> : <Navigate to="/ind" replace />}
+                  {canAccessProjetosArea ? (
+                    <PortfolioProvider>
+                      <ProjetosView />
+                    </PortfolioProvider>
+                  ) : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />

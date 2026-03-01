@@ -126,7 +126,7 @@ const SUBVIEWS = {
 function ProjetosView() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, effectiveUser } = useAuth();
   const [portfolio, setPortfolio] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -160,15 +160,8 @@ function ProjetosView() {
       const data = await fetchPortfolio();
       setPortfolio(data);
 
-      // Computa time do usuário inline (userTeam memo ainda não tem dados)
-      let inlineUserTeam = null;
-      if (user?.name) {
-        const userNameLower = user.name.toLowerCase().trim();
-        const match = data.find(p =>
-          p.lider && p.lider.toLowerCase().trim() === userNameLower
-        );
-        inlineUserTeam = match?.nome_time || null;
-      }
+      // Time do usuário vem do backend (users_otus → teams)
+      const inlineUserTeam = effectiveUser?.team_name || null;
 
       // Filtra e ordena projetos para selecionar o primeiro alfabeticamente
       const validProjects = data
@@ -201,7 +194,7 @@ function ProjetosView() {
       }
     }
     loadPortfolio();
-  }, [user?.name]);
+  }, [user?.name, effectiveUser?.team_name]);
 
   // Atualiza lastUpdate quando o projeto muda
   useEffect(() => {
@@ -218,15 +211,8 @@ function ProjetosView() {
   const currentSubview = SUBVIEWS[activeSubview];
   const SubviewComponent = currentSubview?.component;
 
-  // Identifica o time do usuário logado pelo campo lider do portfolio
-  const userTeam = React.useMemo(() => {
-    if (!user?.name || portfolio.length === 0) return null;
-    const userNameLower = user.name.toLowerCase().trim();
-    const match = portfolio.find(p =>
-      p.lider && p.lider.toLowerCase().trim() === userNameLower
-    );
-    return match?.nome_time || null;
-  }, [user?.name, portfolio]);
+  // Time do usuário vem do backend (users_otus → teams)
+  const userTeam = effectiveUser?.team_name || null;
 
   // Time efetivo para filtro: auto-detectado ou selecionado manualmente
   const effectiveTeam = userTeam || selectedTeam;

@@ -3,14 +3,14 @@
  *
  * Design profissional com sub-abas:
  * - Configuração: toggles, ferramentas internas, IDs/URLs
- * - Relatório Semanal: readiness, geração, pipeline, histórico
+ * - Relatório Semanal: KPIs do time, geração, pipeline, histórico
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
-import ReadinessChecks from './weekly-reports/ReadinessChecks';
+import ReportTeamKPIs from './weekly-reports/ReportTeamKPIs';
 import ReportPipeline from './weekly-reports/ReportPipeline';
 import ReportHistory from './weekly-reports/ReportHistory';
 import '../styles/FerramentasView.css';
@@ -28,6 +28,9 @@ const DEV_TOOLS = [
   { key: 'dod_status', name: 'DOD' },
   { key: 'escopo_status', name: 'Escopo' },
 ];
+
+// Status de projetos ativos (para tabela de status dos relatórios)
+const ACTIVE_STATUSES = ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'];
 
 // Configuração dos campos de IDs e URLs (edição inline)
 const TOOL_ID_FIELDS = [
@@ -52,13 +55,17 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
   const [editValue, setEditValue] = useState('');
   const [localOverrides, setLocalOverrides] = useState({});
   const [error, setError] = useState(null);
-  const [tagsModal, setTagsModal] = useState(null); // { field, name, selected: Set, options: [] loading: bool }
-
+  const [tagsModal, setTagsModal] = useState(null);
 
   // Weekly Report state
   const [wrReady, setWrReady] = useState(false);
   const [wrGenerating, setWrGenerating] = useState(false);
   const [wrReportId, setWrReportId] = useState(null);
+
+  // Prerequisites state
+  const [prerequisites, setPrerequisites] = useState(null);
+  const [prerequisitesLoading, setPrerequisitesLoading] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !portfolio || portfolio.length === 0) return null;
@@ -72,7 +79,26 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
 
   const isRelatorioAtivo = projectData?.relatorio_semanal_status === 'ativo';
 
-  React.useEffect(() => {
+  const activeProjects = useMemo(() => {
+    if (!portfolio || portfolio.length === 0) return [];
+    const teamName = selectedProject?.nome_time;
+    const seen = new Set();
+    return portfolio
+      .filter(p => {
+        if (!p.project_code_norm || seen.has(p.project_code_norm)) return false;
+        seen.add(p.project_code_norm);
+        if (!ACTIVE_STATUSES.includes((p.status || '').toLowerCase().trim())) return false;
+        if (teamName && p.nome_time !== teamName) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const nameA = (a.nome_comercial || a.project_name || '').toLowerCase();
+        const nameB = (b.nome_comercial || b.project_name || '').toLowerCase();
+        return nameA.localeCompare(nameB, 'pt-BR');
+      });
+  }, [portfolio, selectedProject]);
+
+  useEffect(() => {
     setLocalOverrides({});
     setEditingField(null);
     setError(null);
@@ -80,7 +106,34 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     setWrGenerating(false);
     setWrReportId(null);
     setActiveTab('config');
+    setPrerequisites(null);
+    setShowTooltip(false);
   }, [selectedProjectId]);
+
+  // Fetch prerequisites when project changes
+  useEffect(() => {
+    const projectCode = selectedProject?.project_code_norm || selectedProject?.project_code;
+    if (!projectCode) return;
+
+    let cancelled = false;
+    setPrerequisitesLoading(true);
+
+    axios.get(
+      `${API_URL}/api/weekly-reports/prerequisites/${projectCode}`,
+      { withCredentials: true }
+    ).then(res => {
+      if (!cancelled) {
+        setPrerequisites(res.data?.data || null);
+      }
+    }).catch(err => {
+      console.warn('Erro ao buscar pré-requisitos:', err.message);
+      if (!cancelled) setPrerequisites(null);
+    }).finally(() => {
+      if (!cancelled) setPrerequisitesLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [selectedProject]);
 
   const getProjectCode = () => {
     return selectedProject?.project_code_norm || selectedProject?.project_code;
@@ -91,6 +144,14 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     if (!hasFullAccess) return;
     const projectCode = getProjectCode();
     if (!projectCode) return;
+
+    const isActivating = currentValue !== 'ativo';
+
+    // Validação de pré-requisitos apenas para ativação do relatório semanal
+    if (field === 'relatorio_semanal_status' && isActivating && prerequisites && !prerequisites.canActivate) {
+      setShowTooltip(true);
+      return;
+    }
 
     const newValue = currentValue === 'ativo' ? 'desativado' : 'ativo';
 
@@ -169,7 +230,6 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
 
     setTagsModal({ field, name, selected, options: [], loading: true });
 
-    // Busca disciplinas do Construflow do projeto
     const construflowId = projectData?.construflow_id;
     if (!construflowId) {
       setTagsModal(prev => prev ? { ...prev, loading: false } : null);
@@ -236,7 +296,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
 
   const handleGenerateReport = async () => {
     const projectCode = getProjectCode();
-    if (!projectCode || !wrReady || wrGenerating) return;
+    if (!projectCode || wrGenerating) return;
 
     setWrGenerating(true);
     setError(null);
@@ -255,10 +315,27 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     }
   };
 
-  const handlePipelineComplete = useCallback((data) => {
+  const handlePipelineComplete = useCallback(() => {
     setWrGenerating(false);
-    // Keep reportId so the pipeline result stays visible
   }, []);
+
+  // Fetch readiness silently for the generate button
+  useEffect(() => {
+    const projectCode = selectedProject?.project_code_norm || selectedProject?.project_code;
+    if (!projectCode || !isRelatorioAtivo) {
+      setWrReady(false);
+      return;
+    }
+
+    axios.get(
+      `${API_URL}/api/weekly-reports/readiness/${projectCode}`,
+      { withCredentials: true }
+    ).then(res => {
+      setWrReady(res.data?.data?.ready === true || res.data?.ready === true);
+    }).catch(() => {
+      setWrReady(false);
+    });
+  }, [selectedProject, isRelatorioAtivo]);
 
   if (!selectedProjectId) {
     return (
@@ -276,12 +353,11 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     );
   }
 
-  // Filtra IDs/URLs que têm valor OU que o usuário pode editar
-  const idFieldsToShow = TOOL_ID_FIELDS.filter(tool => {
-    const value = projectData[tool.key];
-    const hasValue = value !== null && value !== undefined && value !== '';
-    return hasValue || hasFullAccess;
-  });
+  const idFieldsToShow = TOOL_ID_FIELDS;
+
+  // Verifica se o toggle do relatório pode ser ativado
+  const canActivateRelatorio = prerequisites?.canActivate !== false;
+  const missingFields = prerequisites?.missingFields || [];
 
   return (
     <div className="ftv-container">
@@ -310,22 +386,20 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
             Configuração
           </button>
 
-          {isRelatorioAtivo && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('relatorio')}
-              className={`ftv-tab ${activeTab === 'relatorio' ? 'active' : ''}`}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-              Relatório Semanal
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setActiveTab('relatorio')}
+            className={`ftv-tab ${activeTab === 'relatorio' ? 'active' : ''}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            Relatório Semanal
+          </button>
         </div>
 
         <div className="ftv-tabs-content">
@@ -339,31 +413,68 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
                   {TOGGLE_TOOLS.map((tool) => {
                     const value = projectData[tool.key];
                     const isActive = value === 'ativo';
+                    const isRelatorioToggle = tool.key === 'relatorio_semanal_status';
+                    const showWarning = isRelatorioToggle && !isActive && missingFields.length > 0;
+                    const toggleDisabled = !hasFullAccess || saving[tool.key] ||
+                      (isRelatorioToggle && !isActive && !canActivateRelatorio && !prerequisitesLoading);
 
                     return (
                       <div
                         key={tool.key}
-                        className={`ftv-status-card ${isActive ? 'ftv-status-card-active' : ''}`}
+                        className={`ftv-status-card ${isActive ? 'ftv-status-card-active' : ''} ${showWarning ? 'ftv-status-card-warning' : ''}`}
                       >
                         <div className="ftv-status-card-top">
                           <span className="ftv-status-name">{tool.name}</span>
                           {saving[tool.key] && <span className="ftv-saving">Salvando...</span>}
                         </div>
                         <div className="ftv-status-card-bottom">
-                          <label className="ftv-toggle" aria-label={`${tool.name}: ${isActive ? 'ativo' : 'desativado'}`}>
-                            <input
-                              type="checkbox"
-                              checked={isActive}
-                              onChange={() => handleToggle(tool.key, value || 'desativado')}
-                              disabled={!hasFullAccess || saving[tool.key]}
-                            />
-                            <span className="ftv-toggle-track">
-                              <span className="ftv-toggle-thumb"></span>
-                            </span>
-                          </label>
-                          <span className={`ftv-status-label ${isActive ? 'ftv-label-active' : 'ftv-label-inactive'}`}>
-                            {isActive ? 'Ativo' : 'Desativado'}
-                          </span>
+                          {showWarning ? (
+                            <div
+                              className="ftv-toggle-wrapper"
+                              onMouseEnter={() => setShowTooltip(true)}
+                              onMouseLeave={() => setShowTooltip(false)}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                              </svg>
+                              <span className="ftv-status-label ftv-label-warning">Campos faltantes</span>
+                              {showTooltip && (
+                                <div className="ftv-prereq-tooltip">
+                                  <div className="ftv-prereq-tooltip-title">Campos obrigatórios faltantes:</div>
+                                  <ul className="ftv-prereq-tooltip-list">
+                                    {missingFields.map((f, i) => (
+                                      <li key={i}>
+                                        <span className="ftv-prereq-tooltip-dot" />
+                                        {f.label}
+                                        <span className="ftv-prereq-tooltip-location">
+                                          ({f.location === 'equipe' ? 'Aba Equipe' : 'IDs e URLs'})
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <>
+                              <label className="ftv-toggle" aria-label={`${tool.name}: ${isActive ? 'ativo' : 'desativado'}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={isActive}
+                                  onChange={() => handleToggle(tool.key, value || 'desativado')}
+                                  disabled={toggleDisabled}
+                                />
+                                <span className="ftv-toggle-track">
+                                  <span className="ftv-toggle-thumb"></span>
+                                </span>
+                              </label>
+                              <span className={`ftv-status-label ${isActive ? 'ftv-label-active' : 'ftv-label-inactive'}`}>
+                                {isActive ? 'Ativo' : 'Desativado'}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
@@ -526,57 +637,134 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
           )}
 
           {/* Tab: Relatório Semanal */}
-          {activeTab === 'relatorio' && isRelatorioAtivo && (
+          {activeTab === 'relatorio' && (
             <div className="ftv-tab-panel">
-              {/* Readiness checks */}
-              <ReadinessChecks
-                projectCode={getProjectCode()}
-                onReadinessChange={handleReadinessChange}
-              />
+              {/* 1. Controles do projeto (primeiro) */}
+              <div className="wr-project-section wr-project-section-first">
+                <h4 className="wr-project-section-title">
+                  {projectData?.nome_comercial || projectData?.project_name || getProjectCode()}
+                </h4>
 
-              {/* Generate button */}
-              <div className="wr-generate-area">
-                <button
-                  className={`wr-generate-btn ${wrReady && !wrGenerating ? 'wr-generate-btn-ready' : 'wr-generate-btn-disabled'}`}
-                  onClick={handleGenerateReport}
-                  disabled={!wrReady || wrGenerating}
-                >
-                  {wrGenerating ? (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'wr-dot-pulse 1.5s infinite' }}>
-                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                      </svg>
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                        <polyline points="10 9 9 9 8 9" />
-                      </svg>
-                      Gerar Relatório Semanal
-                    </>
-                  )}
-                </button>
+                {isRelatorioAtivo ? (
+                  <>
+                    {/* Generate button - destacado */}
+                    <div className="wr-generate-area">
+                      <button
+                        className={`wr-generate-btn wr-generate-btn-primary ${wrGenerating ? 'wr-generate-btn-loading' : ''}`}
+                        onClick={handleGenerateReport}
+                        disabled={wrGenerating}
+                      >
+                        {wrGenerating ? (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'wr-dot-pulse 1.5s infinite' }}>
+                              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                            </svg>
+                            Gerando...
+                          </>
+                        ) : (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="16" y1="13" x2="8" y2="13" />
+                              <line x1="16" y1="17" x2="8" y2="17" />
+                              <polyline points="10 9 9 9 8 9" />
+                            </svg>
+                            Gerar Relatório Semanal
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Pipeline progress */}
+                    {wrReportId && (
+                      <ReportPipeline
+                        reportId={wrReportId}
+                        onComplete={handlePipelineComplete}
+                      />
+                    )}
+
+                    {/* History */}
+                    <ReportHistory projectCode={getProjectCode()} />
+                  </>
+                ) : (
+                  <div className="wr-activation-alert">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <div className="wr-activation-alert-content">
+                      <strong>Relatório Semanal desativado</strong>
+                      <p>Ative o Relatório Semanal na aba Configuração para gerar relatórios.</p>
+                      {missingFields.length > 0 && (
+                        <div className="wr-activation-missing">
+                          <span>Campos faltantes para ativação:</span>
+                          <ul>
+                            {missingFields.map((f, i) => (
+                              <li key={i}>
+                                {f.label}
+                                <span className="wr-activation-missing-location">
+                                  {f.location === 'equipe' ? ' (Aba Equipe)' : ' (IDs e URLs)'}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Pipeline progress */}
-              {wrReportId && (
-                <ReportPipeline
-                  reportId={wrReportId}
-                  onComplete={handlePipelineComplete}
-                />
-              )}
+              {/* 2. KPIs do time */}
+              <ReportTeamKPIs />
 
-              {/* History */}
-              <ReportHistory projectCode={getProjectCode()} />
+              {/* 3. Tabela de status dos relatórios do time (por último) */}
+              {activeProjects.length > 0 && (
+                <div className="wr-status-section">
+                  <h4 className="wr-status-section-title">Status dos Relatórios</h4>
+                  <div className="wr-status-table-wrapper">
+                    <table className="wr-status-table">
+                      <thead>
+                        <tr>
+                          <th>Projeto</th>
+                          <th className="wr-status-table-center">Relatório Semanal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeProjects.map((project) => {
+                          const isSelected = project.project_code_norm === selectedProjectId;
+                          const isAtivo = project.relatorio_semanal_status === 'ativo';
+                          return (
+                            <tr
+                              key={project.project_code_norm}
+                              className={isSelected ? 'wr-status-row-current' : ''}
+                            >
+                              <td>
+                                <div className="wr-status-project-name">
+                                  {project.nome_comercial || project.project_name || project.project_code_norm}
+                                </div>
+                                <div className="wr-status-project-code">{project.project_code_norm}</div>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${isAtivo ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {isAtivo ? 'Ativo' : 'Desativado'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
       {/* Modal de Disciplinas */}
       {tagsModal && (
         <div className="ftv-modal-overlay" onClick={() => setTagsModal(null)}>
@@ -653,58 +841,6 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
         </div>
       )}
 
-      {/* Seção: Relatório Semanal */}
-      {projectData.relatorio_semanal_status === 'ativo' && (
-        <section className="ftv-section">
-          <h4 className="ftv-section-title">Relatorio Semanal</h4>
-
-          {/* Readiness checks */}
-          <ReadinessChecks
-            projectCode={getProjectCode()}
-            onReadinessChange={handleReadinessChange}
-          />
-
-          {/* Generate button */}
-          <div className="wr-generate-area">
-            <button
-              className={`wr-generate-btn ${wrReady && !wrGenerating ? 'wr-generate-btn-ready' : 'wr-generate-btn-disabled'}`}
-              onClick={handleGenerateReport}
-              disabled={!wrReady || wrGenerating}
-            >
-              {wrGenerating ? (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'wr-dot-pulse 1.5s infinite' }}>
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                  </svg>
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                    <polyline points="10 9 9 9 8 9" />
-                  </svg>
-                  Gerar Relatorio Semanal
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Pipeline progress */}
-          {wrReportId && (
-            <ReportPipeline
-              reportId={wrReportId}
-              onComplete={handlePipelineComplete}
-            />
-          )}
-
-          {/* History */}
-          <ReportHistory projectCode={getProjectCode()} />
-        </section>
-      )}
     </div>
   );
 }

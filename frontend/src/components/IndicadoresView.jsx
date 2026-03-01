@@ -50,9 +50,11 @@ function IndicadoresView() {
     kpis,
     differenceChartData,
     projetosAtivosPorFase,
+    projetosAIniciarPorFase,
     projetosPausadosPorFase,
     projetosFinalizadosPorFase,
     tabelaAtivosData,
+    tabelaAIniciarData,
     tabelaPausadosData,
     tabelaFinalizadosData
   } = usePortfolio();
@@ -354,6 +356,21 @@ function IndicadoresView() {
           </div>
 
           <div className="kpi-hero-card">
+            <div className="kpi-hero-label">Projetos a Iniciar</div>
+            <div className="kpi-hero-value">
+              {kpis.projetosAIniciar}
+              {kpis.totalProjetos > 0 && (
+                <span className="kpi-hero-percentage">
+                  {' '}({((kpis.projetosAIniciar / kpis.totalProjetos) * 100).toFixed(1)}%)
+                </span>
+              )}
+            </div>
+            <div className="kpi-hero-context">
+              de {kpis.totalProjetos} total
+            </div>
+          </div>
+
+          <div className="kpi-hero-card">
             <div className="kpi-hero-label">Projetos Pausados</div>
             <div className="kpi-hero-value">
               {kpis.projetosPausados}
@@ -603,7 +620,49 @@ function IndicadoresView() {
             </div>
 
             <div className="phase-tables-container">
-              {/* Tabela 1: Projetos Ativos */}
+              {/* Tabela 1: Projetos a Iniciar */}
+              {tabelaAIniciarData && projetosAIniciarPorFase && projetosAIniciarPorFase.length > 0 && (
+                <div className="phase-table-section" key="a-iniciar">
+                  <h5 className="phase-table-title">Projetos a Iniciar</h5>
+                  <div className="phase-table-wrapper">
+                    <table className="phase-table">
+                      <thead>
+                        <tr>
+                          <th>Fase</th>
+                          <th className="text-right">Quantidade</th>
+                          <th className="text-right">% do Grupo</th>
+                          <th className="text-right">% do Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {projetosAIniciarPorFase.map((item, index) => {
+                          if (!item || !tabelaAIniciarData) return null;
+                          const pctGrupo = tabelaAIniciarData.totalGrupo > 0 ? ((item.count / tabelaAIniciarData.totalGrupo) * 100).toFixed(1) : '0.0';
+                          const pctTotal = tabelaAIniciarData.totalGeral > 0 ? ((item.count / tabelaAIniciarData.totalGeral) * 100).toFixed(1) : '0.0';
+                          return (
+                            <tr key={`a-iniciar-${index}`}>
+                              <td>{item.status || 'Sem Status'}</td>
+                              <td className="phase-count text-right">{item.count || 0}</td>
+                              <td className="text-right phase-percent">{pctGrupo}%</td>
+                              <td className="text-right phase-percent">{pctTotal}%</td>
+                            </tr>
+                          );
+                        })}
+                        {tabelaAIniciarData && (
+                          <tr className="phase-total-row">
+                            <td><strong>Total</strong></td>
+                            <td className="phase-count text-right"><strong>{tabelaAIniciarData.totalGrupo || 0}</strong></td>
+                            <td className="text-right phase-percent"><strong>100.0%</strong></td>
+                            <td className="text-right phase-percent"><strong>{tabelaAIniciarData.totalGeral > 0 ? ((tabelaAIniciarData.totalGrupo / tabelaAIniciarData.totalGeral) * 100).toFixed(1) : '0.0'}%</strong></td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabela 2: Projetos Ativos */}
               {tabelaAtivosData && projetosAtivosPorFase && projetosAtivosPorFase.length > 0 && (
                 <div className="phase-table-section" key="ativos">
                   <h5 className="phase-table-title">Projetos Ativos</h5>
@@ -645,7 +704,7 @@ function IndicadoresView() {
                 </div>
               )}
 
-              {/* Tabela 2: Projetos Pausados */}
+              {/* Tabela 3: Projetos Pausados */}
               {tabelaPausadosData && projetosPausadosPorFase && projetosPausadosPorFase.length > 0 && (
                 <div className="phase-table-section" key="pausados">
                   <h5 className="phase-table-title">Projetos Pausados</h5>

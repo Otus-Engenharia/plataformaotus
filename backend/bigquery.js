@@ -2732,12 +2732,12 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
  * @param {string|null} leaderName - Filtrar por líder (null = todos)
  * @returns {Promise<Array>} projetos ativos
  */
-export async function queryActiveProjectsForWeeklyReports(leaderName = null) {
+export async function queryActiveProjectsForWeeklyReports(nomeTime = null) {
   let query = `
     SELECT
       project_code_norm AS project_code,
-      nome_comercial AS project_name,
       lider,
+      nome_time,
       construflow_id,
       smartsheet_id,
       relatorio_semanal_status
@@ -2745,14 +2745,61 @@ export async function queryActiveProjectsForWeeklyReports(leaderName = null) {
     WHERE relatorio_semanal_status = 'ativo'
   `;
 
-  if (leaderName) {
-    const escapedName = leaderName.replace(/'/g, "''");
-    query += ` AND LOWER(lider) = LOWER('${escapedName}')`;
+  if (nomeTime) {
+    const escaped = nomeTime.replace(/'/g, "''");
+    query += ` AND LOWER(nome_time) = LOWER('${escaped}')`;
   }
 
-  query += ` ORDER BY nome_comercial`;
+  query += ` ORDER BY project_code_norm`;
 
   return await executeQuery(query);
+}
+
+/**
+ * Busca TODOS os projetos ativos (independente de relatorio_semanal_status)
+ * @param {string|null} nomeTime - Filtrar por nome_time (null = todos)
+ * @returns {Promise<Array>} projetos ativos
+ */
+export async function queryAllActiveProjects(nomeTime = null) {
+  let query = `
+    SELECT
+      project_code_norm AS project_code,
+      lider,
+      nome_time,
+      status,
+      relatorio_semanal_status
+    FROM \`${projectId}.${datasetId}.${tablePortfolio}\`
+    WHERE LOWER(status) IN ('planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04')
+  `;
+
+  if (nomeTime) {
+    const escaped = nomeTime.replace(/'/g, "''");
+    query += ` AND LOWER(nome_time) = LOWER('${escaped}')`;
+  }
+
+  query += ` ORDER BY project_code_norm`;
+
+  return await executeQuery(query);
+}
+
+/**
+ * Resolve o valor exato de nome_time no BigQuery a partir do team_name do Supabase.
+ * Usa LIKE para lidar com diferenças de formato (ex: "Time André" vs "1 - Time André").
+ * @param {string|null} teamName - Nome do time no Supabase
+ * @returns {Promise<string|null>} valor exato de nome_time no BigQuery
+ */
+export async function queryNomeTimeByTeamName(teamName) {
+  if (!teamName) return null;
+  const escaped = teamName.replace(/'/g, "''");
+  const query = `
+    SELECT DISTINCT nome_time
+    FROM \`${projectId}.${datasetId}.${tablePortfolio}\`
+    WHERE LOWER(nome_time) LIKE CONCAT('%', LOWER('${escaped}'), '%')
+    AND nome_time IS NOT NULL
+    LIMIT 1
+  `;
+  const rows = await executeQuery(query);
+  return rows.length > 0 ? rows[0].nome_time : null;
 }
 
 export async function warmupSchemaCache() {
