@@ -21,6 +21,7 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
   const [unlinkedTodos, setUnlinkedTodos] = useState([]);
   const [loadingUnlinked, setLoadingUnlinked] = useState(false);
   const [dragOverTaskId, setDragOverTaskId] = useState(null);
+  const [activeTab, setActiveTab] = useState('atividades');
   const isDraggingRef = useRef(false);
 
   const dayTasks = useMemo(() =>
@@ -75,21 +76,20 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
     return () => { cancelled = true; };
   }, [dayTaskIdsKey]);
 
-  // Buscar ToDo's desvinculados para o dia selecionado (apenas do usuário)
+  // Buscar todos os ToDo's desvinculados do usuário (sem filtro de data)
   useEffect(() => {
     if (!userId) {
       setUnlinkedTodos([]);
       return;
     }
 
-    const dateStr = format(selectedDay, 'yyyy-MM-dd');
     let cancelled = false;
 
     async function fetchUnlinked() {
       setLoadingUnlinked(true);
       try {
         const res = await axios.get('/api/todos', {
-          params: { due_date: dateStr, standalone_only: 'true', assignee: userId },
+          params: { standalone_only: 'true', assignee: userId },
           withCredentials: true,
         });
 
@@ -105,7 +105,7 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
 
     fetchUnlinked();
     return () => { cancelled = true; };
-  }, [selectedDay, userId, refreshKey]);
+  }, [userId, refreshKey]);
 
   // ========== Drag & drop (event delegation no container raiz) ==========
 
@@ -113,6 +113,7 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
     e.dataTransfer.setData('text/plain', String(todoId));
     e.dataTransfer.effectAllowed = 'move';
     isDraggingRef.current = true;
+    setActiveTab('atividades');
   }, []);
 
   const handleDragEnd = useCallback(() => {
@@ -165,6 +166,7 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
     try {
       const res = await axios.put(`/api/todos/${todo.id}`, {
         agenda_task_id: agendaTaskId,
+        due_date: format(selectedDay, 'yyyy-MM-dd'),
       }, { withCredentials: true });
 
       if (res.data.success) {
@@ -199,7 +201,7 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
     } catch (err) {
       console.error('Erro ao vincular ToDo à agenda:', err);
     }
-  }, [unlinkedTodos, onTodoLinked, dayTasks]);
+  }, [unlinkedTodos, onTodoLinked, dayTasks, selectedDay]);
 
   const toggleExpand = useCallback((taskId) => {
     setExpandedIds(prev => {
@@ -260,144 +262,154 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
         )}
       </div>
 
-      {/* Metade superior: Atividades do dia */}
-      <div className="day-summary__half">
-        <div className="day-summary__section">
-          <div className="day-summary__section-title">
-            Atividades ({dayTasks.length})
-          </div>
-        </div>
+      {/* Tab bar */}
+      <div className="day-summary__tabs">
+        <button
+          className={`day-summary__tab${activeTab === 'atividades' ? ' day-summary__tab--active' : ''}`}
+          onClick={() => setActiveTab('atividades')}
+        >
+          Atividades ({dayTasks.length})
+        </button>
+        <button
+          className={`day-summary__tab${activeTab === 'todos' ? ' day-summary__tab--active' : ''}`}
+          onClick={() => setActiveTab('todos')}
+        >
+          ToDo's ({unlinkedTodos.length})
+        </button>
+      </div>
 
-        <div className="day-summary__events">
-          {dayTasks.length === 0 ? (
-            <div className="day-summary__empty">
-              Nenhuma atividade agendada
-            </div>
-          ) : (
-            dayTasks.map(task => {
-              const todos = todosByTask[task.id] || [];
-              const hasTodos = todos.length > 0;
-              const isExpanded = expandedIds.has(task.id);
-              const doneCount = todos.filter(t => t.status === 'finalizado').length;
+      {/* Tab content */}
+      <div className="day-summary__content">
+        {activeTab === 'atividades' ? (
+          <div className="day-summary__events">
+            {dayTasks.length === 0 ? (
+              <div className="day-summary__empty">
+                Nenhuma atividade agendada
+              </div>
+            ) : (
+              dayTasks.map(task => {
+                const todos = todosByTask[task.id] || [];
+                const hasTodos = todos.length > 0;
+                const isExpanded = expandedIds.has(task.id);
+                const doneCount = todos.filter(t => t.status === 'finalizado').length;
 
-              return (
-                <div key={task.id} className="day-summary__activity">
-                  <div
-                    data-task-id={task.id}
-                    className={`day-summary__activity-row${hasTodos ? ' has-todos' : ''}${dragOverTaskId === String(task.id) ? ' is-drag-over' : ''}`}
-                    onClick={() => hasTodos ? toggleExpand(task.id) : (onEventClick && onEventClick(task))}
-                  >
-                    <div className="day-summary__event-time">
-                      {formatTime(task.start_date)}
-                    </div>
+                return (
+                  <div key={task.id} className="day-summary__activity">
+                    <div
+                      data-task-id={task.id}
+                      className={`day-summary__activity-row${hasTodos ? ' has-todos' : ''}${dragOverTaskId === String(task.id) ? ' is-drag-over' : ''}`}
+                      onClick={() => hasTodos ? toggleExpand(task.id) : (onEventClick && onEventClick(task))}
+                    >
+                      <div className="day-summary__event-time">
+                        {formatTime(task.start_date)}
+                      </div>
 
-                    <div className="day-summary__event-info">
-                      <div className="day-summary__event-name">{task.name}</div>
+                      <div className="day-summary__event-info">
+                        <div className="day-summary__event-name">{task.name}</div>
+                        {hasTodos && (
+                          <span className="day-summary__todo-count">
+                            {doneCount}/{todos.length} tarefas
+                          </span>
+                        )}
+                      </div>
+
                       {hasTodos && (
-                        <span className="day-summary__todo-count">
-                          {doneCount}/{todos.length} tarefas
-                        </span>
+                        <svg
+                          className={`day-summary__chevron${isExpanded ? ' is-open' : ''}`}
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
                       )}
                     </div>
 
-                    {hasTodos && (
-                      <svg
-                        className={`day-summary__chevron${isExpanded ? ' is-open' : ''}`}
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
+                    {/* Lista de ToDo's expandida */}
+                    {isExpanded && (
+                      <ul className="day-summary__todo-list">
+                        {todos.map(todo => {
+                          const isDone = todo.status === 'finalizado';
+                          return (
+                            <li key={todo.id} className={`day-summary__todo-item${isDone ? ' is-done' : ''}`}>
+                              <button
+                                className={`day-summary__todo-check${isDone ? ' is-checked' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleTodoStatus(todo);
+                                }}
+                                title={isDone ? 'Reabrir' : 'Finalizar'}
+                              >
+                                {isDone ? (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                ) : (
+                                  <div className="day-summary__todo-check-empty" />
+                                )}
+                              </button>
+
+                              <div className="day-summary__todo-text">
+                                <span className="day-summary__todo-name">{todo.name}</span>
+                                {todo.project_name && (
+                                  <span className="day-summary__todo-project">{todo.project_name}</span>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     )}
                   </div>
-
-                  {/* Lista de ToDo's expandida */}
-                  {isExpanded && (
-                    <ul className="day-summary__todo-list">
-                      {todos.map(todo => {
-                        const isDone = todo.status === 'finalizado';
-                        return (
-                          <li key={todo.id} className={`day-summary__todo-item${isDone ? ' is-done' : ''}`}>
-                            <button
-                              className={`day-summary__todo-check${isDone ? ' is-checked' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleTodoStatus(todo);
-                              }}
-                              title={isDone ? 'Reabrir' : 'Finalizar'}
-                            >
-                              {isDone ? (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              ) : (
-                                <div className="day-summary__todo-check-empty" />
-                              )}
-                            </button>
-
-                            <div className="day-summary__todo-text">
-                              <span className="day-summary__todo-name">{todo.name}</span>
-                              {todo.project_name && (
-                                <span className="day-summary__todo-project">{todo.project_name}</span>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Metade inferior: ToDo's sem vínculo */}
-      <div className="day-summary__half day-summary__half--unlinked">
-        <div className="day-summary__section">
-          <div className="day-summary__section-title">
-            ToDo's sem vínculo ({unlinkedTodos.length})
+                );
+              })
+            )}
           </div>
-        </div>
-
-        <div className="day-summary__unlinked-list">
-          {loadingUnlinked ? (
-            <div className="day-summary__empty">Carregando...</div>
-          ) : unlinkedTodos.length === 0 ? (
-            <div className="day-summary__empty">
-              Nenhum ToDo sem vínculo para este dia
-            </div>
-          ) : (
-            unlinkedTodos.map(todo => (
-              <div
-                key={todo.id}
-                className="day-summary__unlinked-item"
-                draggable
-                onDragStart={(e) => handleDragStart(e, todo.id)}
-                onDragEnd={handleDragEnd}
-              >
-                <div
-                  className="day-summary__unlinked-priority"
-                  style={{ background: PRIORITY_COLORS[todo.priority] || '#94a3b8' }}
-                  title={todo.priority}
-                />
-                <div className="day-summary__unlinked-info">
-                  <span className="day-summary__unlinked-name">{todo.name}</span>
-                  {todo.project_name && (
-                    <span className="day-summary__unlinked-project">{todo.project_name}</span>
-                  )}
-                </div>
+        ) : (
+          <div className="day-summary__unlinked-list">
+            {loadingUnlinked ? (
+              <div className="day-summary__empty">Carregando...</div>
+            ) : unlinkedTodos.length === 0 ? (
+              <div className="day-summary__empty">
+                Nenhum ToDo sem vínculo
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              unlinkedTodos.map(todo => (
+                <div
+                  key={todo.id}
+                  className="day-summary__unlinked-item"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, todo.id)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div
+                    className="day-summary__unlinked-priority"
+                    style={{ background: PRIORITY_COLORS[todo.priority] || '#94a3b8' }}
+                    title={todo.priority}
+                  />
+                  <div className="day-summary__unlinked-info">
+                    <span className="day-summary__unlinked-name">{todo.name}</span>
+                    <span className="day-summary__unlinked-meta">
+                      {todo.due_date && (
+                        <span className="day-summary__unlinked-date">
+                          {format(new Date(todo.due_date), 'dd/MM')}
+                        </span>
+                      )}
+                      {todo.project_name && (
+                        <span className="day-summary__unlinked-project">{todo.project_name}</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
