@@ -583,7 +583,7 @@ export async function queryCustosPorUsuarioProjeto(leaderName = null, projectCod
       return [];
     }
     const escapedName = leaderName.replace(/'/g, "''");
-    portfolioFilter = `AND LOWER(p.lider) = LOWER('${escapedName}')`;
+    portfolioFilter = `AND LOWER(lider) = LOWER('${escapedName}')`;
   }
 
   let projectFilter = '';
@@ -594,14 +594,14 @@ export async function queryCustosPorUsuarioProjeto(leaderName = null, projectCod
 
   const query = `
     WITH portfolio_projects AS (
-      SELECT CAST(project_code_norm AS STRING) AS project_code_norm
+      SELECT DISTINCT CAST(project_code_norm AS STRING) AS project_code_norm
       FROM \`${projectId}.${datasetId}.${tablePortfolio}\`
       WHERE project_code_norm IS NOT NULL
       ${portfolioFilter}
     )
     SELECT
       c.usuario,
-      pp.project_code_norm AS project_code,
+      CAST(c.project_code AS STRING) AS project_code,
       c.mes,
       SUM(COALESCE(c.custo_direto_usuario_projeto_mes, 0)) AS custo_direto,
       SUM(COALESCE(c.custo_indireto_usuario_projeto_mes, 0)) AS custo_indireto,
@@ -615,8 +615,8 @@ export async function queryCustosPorUsuarioProjeto(leaderName = null, projectCod
       AND c.mes IS NOT NULL
       AND c.mes <= CURRENT_DATE()
       ${projectFilter}
-    GROUP BY c.usuario, pp.project_code_norm, c.mes
-    ORDER BY c.usuario, pp.project_code_norm, c.mes ASC
+    GROUP BY c.usuario, CAST(c.project_code AS STRING), c.mes
+    ORDER BY c.usuario, CAST(c.project_code AS STRING), c.mes ASC
   `;
 
   return await executeQuery(query);
