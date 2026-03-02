@@ -233,9 +233,9 @@ function ReportPipeline({ reportId, onComplete }) {
       {isCompleted && (
         <div className="wr-pipeline-result wr-pipeline-success">
           <div className="wr-pipeline-result-links">
-            {(status?.client_report_drive_url || status?.team_report_drive_url) && (
+            {(status?.drive_folder_url || status?.client_report_drive_url || status?.team_report_drive_url) && (
               <a
-                href={status.client_report_drive_url || status.team_report_drive_url}
+                href={status.drive_folder_url || status.client_report_drive_url || status.team_report_drive_url}
                 target="_blank"
                 rel="noopener noreferrer"
               >

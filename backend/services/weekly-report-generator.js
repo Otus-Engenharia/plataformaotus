@@ -1274,7 +1274,7 @@ export async function uploadToDrive(clientHtml, teamHtml, options = {}) {
     teamUrl = teamFile.data.webViewLink;
   }
 
-  return { clientUrl, teamUrl };
+  return { clientUrl, teamUrl, folderUrl: `https://drive.google.com/drive/folders/${driveFolderId}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -1314,7 +1314,7 @@ export async function createGmailDrafts(clientHtml, teamHtml, options = {}) {
         body: `Relatório semanal do projeto ${projectName} para o cliente.`,
         htmlBody: clientHtml,
       });
-      clientDraftUrl = `https://mail.google.com/mail/u/0/#drafts/${result.messageId}`;
+      clientDraftUrl = `https://mail.google.com/mail/u/0/#drafts?compose=${result.draftId}`;
     } catch (err) {
       console.warn(`[WeeklyReport] Erro ao criar rascunho Gmail (cliente):`, err.message);
       if (err.message === 'GMAIL_NOT_AUTHORIZED') {
@@ -1324,16 +1324,16 @@ export async function createGmailDrafts(clientHtml, teamHtml, options = {}) {
     }
   }
 
-  // Cria rascunho para o time
-  if (userId && teamEmails.length > 0 && teamHtml) {
+  // Cria rascunho para o time (inclui emails do cliente + equipe)
+  if (userId && (teamEmails.length > 0 || clientEmails.length > 0) && teamHtml) {
     try {
       const result = await createGmailDraft(userId, {
-        to: teamEmails,
+        to: [...clientEmails, ...teamEmails],
         subject: `${subject} - Equipe`,
         body: `Relatório semanal do projeto ${projectName} para a equipe.`,
         htmlBody: teamHtml,
       });
-      teamDraftUrl = `https://mail.google.com/mail/u/0/#drafts/${result.messageId}`;
+      teamDraftUrl = `https://mail.google.com/mail/u/0/#drafts?compose=${result.draftId}`;
     } catch (err) {
       console.warn(`[WeeklyReport] Erro ao criar rascunho Gmail (equipe):`, err.message);
     }
