@@ -1,30 +1,38 @@
 .todo-detail-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.08);
   z-index: 900;
 }
 
 .todo-detail-panel {
   position: fixed;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 400px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 140px);
   background: #ffffff;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 6px -2px rgba(0, 0, 0, 0.05),
+    0 12px 24px -4px rgba(0, 0, 0, 0.12),
+    0 24px 48px -8px rgba(0, 0, 0, 0.1);
   z-index: 901;
   display: flex;
   flex-direction: column;
-  animation: slideIn 0.2s ease-out;
+  animation: popupIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideIn {
+@keyframes popupIn {
   from {
-    transform: translateX(100%);
+    opacity: 0;
+    transform: translate(-50%, -47%);
   }
   to {
-    transform: translateX(0);
+    opacity: 1;
+    transform: translate(-50%, -50%);
   }
 }
 
