@@ -343,10 +343,176 @@
   box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
 }
 
-.cronograma-email-button:disabled {
-  opacity: 0.6;
+/* Estado disabled — usa classe (não atributo) para tooltip funcionar */
+.cronograma-cobranca-button.cronograma-btn-disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #d1d5db;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+.cronograma-cobranca-button.cronograma-btn-disabled:hover {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #d1d5db;
+  transform: none;
+  box-shadow: none;
+}
+
+.cronograma-email-button.cronograma-btn-disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #d1d5db;
+}
+
+.cronograma-email-button.cronograma-btn-disabled:hover {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #d1d5db;
+  box-shadow: none;
+}
+
+/* Keep :disabled for gmailLoading state */
+.cronograma-email-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Toggle para ocultar cobranças feitas */
+.cronograma-cobranca-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.cronograma-cobranca-toggle:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.cronograma-cobranca-toggle-active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.cronograma-cobranca-toggle-active:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+
+/* Modal de seleção de contato */
+.cronograma-contact-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.cronograma-contact-picker-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  min-width: 340px;
+  max-width: 480px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.cronograma-contact-picker-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.cronograma-contact-picker-subtitle {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+}
+
+.cronograma-contact-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.cronograma-contact-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.cronograma-contact-picker-item:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.cronograma-contact-picker-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.cronograma-contact-picker-company {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.cronograma-contact-picker-info {
+  font-size: 0.75rem;
+  color: #2563eb;
+}
+
+.cronograma-contact-picker-cancel {
+  display: block;
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cronograma-contact-picker-cancel:hover {
+  background: #f3f4f6;
+  color: #374151;
 }
 
 /* Feedback inline do Gmail (sucesso/erro) */

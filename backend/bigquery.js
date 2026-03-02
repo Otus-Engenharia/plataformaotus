@@ -2602,6 +2602,42 @@ export async function queryHorasRaw(leaderName, opts = {}) {
  * @param {string|null} smartsheetId - ID da planilha no Smartsheet
  * @returns {Promise<Object>} resultado dos checks
  */
+/**
+ * Conta issues ativos do ConstruFlow agrupados por disciplina
+ * @param {string} construflowId - ID do projeto no ConstruFlow
+ * @returns {Promise<Object>} { "Arquitetura": 5, "Elétrica": 3, ... }
+ */
+export async function queryConstruflowIssuesByDiscipline(construflowId) {
+  if (!construflowId) return {};
+
+  const escapedId = String(construflowId).replace(/'/g, "''");
+  const query = `
+    SELECT d.name AS discipline_name, COUNT(*) as count
+    FROM \`${projectId}.construflow_data.issues\` i
+    JOIN \`${projectId}.construflow_data.issues_disciplines\` id_dis
+      ON CAST(i.id AS STRING) = CAST(id_dis.issueId AS STRING)
+    JOIN \`${projectId}.construflow_data.disciplines\` d
+      ON CAST(id_dis.disciplineId AS STRING) = CAST(d.id AS STRING)
+    WHERE CAST(i.projectId AS STRING) = '${escapedId}'
+      AND i.status = 'active'
+    GROUP BY d.name
+  `;
+
+  try {
+    const rows = await executeQuery(query);
+    const result = {};
+    for (const row of rows || []) {
+      if (row.discipline_name) {
+        result[row.discipline_name] = Number(row.count) || 0;
+      }
+    }
+    return result;
+  } catch (err) {
+    console.warn('⚠️ [queryConstruflowIssuesByDiscipline] Erro:', err.message);
+    return {};
+  }
+}
+
 export async function checkWeeklyReportReadiness(construflowId, smartsheetId) {
   const result = {
     construflow: { ready: false, count: 0 },
