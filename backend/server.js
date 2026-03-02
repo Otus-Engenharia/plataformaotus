@@ -862,13 +862,21 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
       };
     });
 
+    // Deduplica por project_code_norm (BQ pode ter linhas duplicadas)
+    const seenCodes = new Set();
+    const deduplicatedData = enrichedData.filter(row => {
+      if (seenCodes.has(row.project_code_norm)) return false;
+      seenCodes.add(row.project_code_norm);
+      return true;
+    });
+
     // Registra o acesso
-    await logAction(req, 'view', 'portfolio', null, 'Portfólio', { count: enrichedData.length });
+    await logAction(req, 'view', 'portfolio', null, 'Portfólio', { count: deduplicatedData.length });
 
     res.json({
       success: true,
-      count: enrichedData.length,
-      data: enrichedData
+      count: deduplicatedData.length,
+      data: deduplicatedData
     });
   } catch (error) {
     console.error('❌ Erro ao buscar portfólio:', error);
