@@ -440,13 +440,22 @@ export function processData(rawData, options = {}) {
       const en = startOfDay(endDt);
       if (en >= refDate && en <= futureCutoff) inPeriod = true;
     }
-    if (!inPeriod) continue;
+
+    // Tarefa em andamento: começou antes de hoje e ainda não terminou (entrega além da janela)
+    const isInProgress = !inPeriod && startDt && endDt &&
+      startOfDay(startDt) < refDate &&
+      startOfDay(endDt) > refDate;
+
+    if (!inPeriod && !isInProgress) continue;
 
     if (isClientDiscipline(discipline)) {
+      if (isInProgress) task._emAndamento = true;
       scheduleClient.push(task);
     } else {
-      if (!scheduleTeam[discipline]) scheduleTeam[discipline] = { a_iniciar: [], programadas: [] };
-      if (statusLower === 'a fazer') {
+      if (!scheduleTeam[discipline]) scheduleTeam[discipline] = { a_iniciar: [], programadas: [], em_andamento: [] };
+      if (isInProgress) {
+        scheduleTeam[discipline].em_andamento.push(task);
+      } else if (statusLower === 'a fazer') {
         scheduleTeam[discipline].a_iniciar.push(task);
       } else {
         scheduleTeam[discipline].programadas.push(task);
@@ -468,7 +477,7 @@ export function processData(rawData, options = {}) {
     Object.values(completedClient).reduce((s, a) => s + a.length, 0) +
     Object.values(completedTeam).reduce((s, a) => s + a.length, 0);
   const totalScheduleTeam = Object.values(scheduleTeam).reduce(
-    (s, d) => s + d.a_iniciar.length + d.programadas.length,
+    (s, d) => s + d.a_iniciar.length + d.programadas.length + (d.em_andamento?.length || 0),
     0,
   );
 
@@ -757,20 +766,21 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
     return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#666;">\u2713 Nenhuma atividade prevista das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> para os pr\u00f3ximos ${days} dias.</p>`;
   }
 
-  // Group by discipline, split a_iniciar / programadas
+  // Group by discipline, split a_iniciar / programadas / em_andamento
   const byDiscipline = {};
   for (const task of schedule) {
     if (!task || typeof task !== 'object') continue;
     const discipline = task.Disciplina || task.Discipline || 'Sem Disciplina';
-    if (!byDiscipline[discipline]) byDiscipline[discipline] = { a_iniciar: [], programadas: [] };
+    if (!byDiscipline[discipline]) byDiscipline[discipline] = { a_iniciar: [], programadas: [], em_andamento: [] };
     const status = String(task.Status || '').toLowerCase().trim();
-    if (status === 'a fazer') byDiscipline[discipline].a_iniciar.push(task);
+    if (task._emAndamento) byDiscipline[discipline].em_andamento.push(task);
+    else if (status === 'a fazer') byDiscipline[discipline].a_iniciar.push(task);
     else byDiscipline[discipline].programadas.push(task);
   }
 
   let html = '';
   for (const [discipline, categories] of Object.entries(byDiscipline)) {
-    if (!categories.a_iniciar.length && !categories.programadas.length) continue;
+    if (!categories.a_iniciar.length && !categories.programadas.length && !categories.em_andamento.length) continue;
 
     html += `<div style="margin-bottom:24px;"><p style="margin:0 0 14px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #eee;padding-bottom:6px;">${esc(discipline)}</p>`;
 
@@ -808,6 +818,24 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
       }
     }
 
+    if (categories.em_andamento.length) {
+      html += `<p style="margin:14px 0 8px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:600;color:#2563EB;text-transform:uppercase;letter-spacing:1px;">\u25CF Em Andamento</p>`;
+      for (const task of categories.em_andamento) {
+        const startDate = getField(task, 'Data Inicio', 'Data de Inicio', 'Data de Início', 'Start Date');
+        const endDate = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
+        const dateStr = formatStartEndRange(startDate, endDate);
+        const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
+        const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
+
+        html += `<div style="margin-bottom:6px;padding-left:16px;">`;
+        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#2563EB;font-weight:500;background:#eff6ff;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
+        if (!isEmptyValue(observacaoOtus)) {
+          html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+        }
+        html += `</div>`;
+      }
+    }
+
     html += `</div>`;
   }
 
@@ -815,7 +843,10 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
 }
 
 function _generateCronogramaTeamSection(schedule) {
-  if (!schedule || Object.keys(schedule).length === 0) {
+  const hasContent = schedule && Object.values(schedule).some(
+    d => d.a_iniciar?.length || d.programadas?.length || d.em_andamento?.length,
+  );
+  if (!hasContent) {
     return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#666;">Nenhuma atividade prevista para as pr\u00f3ximas semanas.</p>`;
   }
 
@@ -850,6 +881,24 @@ function _generateCronogramaTeamSection(schedule) {
 
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
         html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#666;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#666;font-weight:500;background:#f5f5f5;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
+        if (!isEmptyValue(observacaoOtus)) {
+          html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+        }
+        html += `</div>`;
+      }
+    }
+
+    if (categories.em_andamento && categories.em_andamento.length) {
+      html += `<p style="margin:14px 0 8px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:600;color:#2563EB;text-transform:uppercase;letter-spacing:1px;">\u25CF Em Andamento</p>`;
+      for (const task of categories.em_andamento) {
+        const startDate = getField(task, 'Data Inicio', 'Data de Inicio', 'Data de Início', 'Start Date');
+        const endDate = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
+        const dateStr = formatStartEndRange(startDate, endDate);
+        const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
+        const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
+
+        html += `<div style="margin-bottom:6px;padding-left:16px;">`;
+        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#2563EB;font-weight:500;background:#eff6ff;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
           html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
         }
