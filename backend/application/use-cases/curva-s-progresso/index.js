@@ -11,3 +11,4 @@ export { GetProgressTimeSeries } from './GetProgressTimeSeries.js';
 export { GetChangeLog } from './GetChangeLog.js';
 export { SaveChangeAnnotation } from './SaveChangeAnnotation.js';
 export { GetPortfolioChangeLog } from './GetPortfolioChangeLog.js';
+export { GetPhaseDurations } from './GetPhaseDurations.js';

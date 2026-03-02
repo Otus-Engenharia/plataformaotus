@@ -17,6 +17,7 @@ import {
   GetChangeLog,
   SaveChangeAnnotation,
   GetPortfolioChangeLog,
+  GetPhaseDurations,
 } from '../application/use-cases/curva-s-progresso/index.js';
 import { queryCurvaSProgressoTasks, queryCurvaSSnapshotTasks, queryCurvaSAllSnapshotTasks } from '../bigquery.js';
 import { fetchDisciplineMappings } from '../supabase.js';
@@ -425,6 +426,27 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
       res.status(500).json({
         success: false,
         error: error.message || 'Erro ao remover anotação',
+      });
+    }
+  });
+
+  /**
+   * GET /api/curva-s-progresso/project/:projectCode/phase-durations
+   * Retorna durações por fase: executado + a executar (atual) e previsto por baseline.
+   */
+  router.get('/project/:projectCode/phase-durations', requireAuth, async (req, res) => {
+    const { projectCode } = req.params;
+    const { smartsheetId, projectName } = req.query;
+
+    try {
+      const useCase = new GetPhaseDurations(getBaselineRepository());
+      const data = await useCase.execute({ projectCode, smartsheetId, projectName });
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Erro ao buscar durações por fase:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao buscar durações por fase',
       });
     }
   });
