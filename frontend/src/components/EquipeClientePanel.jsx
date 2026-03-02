@@ -196,6 +196,7 @@ function EquipeClientePanel({
     try {
       if (editingItem) {
         await axios.put(`${API_URL}/api/projetos/equipe/${editingItem.id}`, {
+          discipline_id: formData.discipline_id,
           contact_id: formData.contact_id,
           discipline_detail: formData.discipline_detail,
           email: formData.email,
@@ -205,7 +206,8 @@ function EquipeClientePanel({
       } else {
         await axios.post(`${API_URL}/api/projetos/equipe`, {
           ...formData,
-          construflow_id: construflowId
+          construflow_id: construflowId,
+          project_code: projectCode
         }, { withCredentials: true });
       }
       setShowModal(false);
@@ -213,7 +215,8 @@ function EquipeClientePanel({
       if (onCrossRefChange) onCrossRefChange();
     } catch (err) {
       console.error('Erro ao salvar:', err);
-      alert('Erro ao salvar. Tente novamente.');
+      const msg = err.response?.data?.error || err.message || 'Erro ao salvar.';
+      alert(msg);
     }
   };
 

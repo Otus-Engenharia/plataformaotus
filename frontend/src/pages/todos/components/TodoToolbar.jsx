@@ -127,7 +127,8 @@ export default function TodoToolbar({
   const [expandFiltro, setExpandFiltro] = useState(true);
 
   // assigneeMode como estado local para evitar dependência de currentUserId/filtros
-  const [assigneeMode, setAssigneeMode] = useState('all');
+  const [assigneeMode, setAssigneeMode] = useState('mine');
+  const assigneeModeRef = useRef('mine');
 
   // Click outside to close
   useEffect(() => {
@@ -182,33 +183,31 @@ export default function TodoToolbar({
   const handleAssigneeModeChange = useCallback(
     (mode) => {
       if (mode === 'mine') {
+        assigneeModeRef.current = 'mine';
         setAssigneeMode('mine');
         setShowAssigneeDropdown(false);
-        if (currentUserId) {
-          onFiltersChange({ ...filters, assignee: currentUserId, teamId: '', assignees: '' });
-        } else {
-          onFiltersChange({ ...filters, assignee: '', teamId: '', assignees: '' });
-        }
+        onFiltersChange({ ...filters, assignee: currentUserId || '', teamId: '', assignees: '' });
       } else if (mode === 'team') {
+        assigneeModeRef.current = 'team';
         setAssigneeMode('team');
         setShowAssigneeDropdown(false);
-        if (currentUserTeamId) {
-          onFiltersChange({ ...filters, assignee: '', teamId: currentUserTeamId, assignees: '' });
-        } else {
+        onFiltersChange({ ...filters, assignee: '', teamId: currentUserTeamId || '', assignees: '' });
+      } else {
+        // Só limpa filtros ao ENTRAR no modo 'all' vindo de outro modo
+        if (assigneeModeRef.current !== 'all') {
           onFiltersChange({ ...filters, assignee: '', teamId: '', assignees: '' });
         }
-      } else {
+        assigneeModeRef.current = 'all';
         setAssigneeMode('all');
-        onFiltersChange({ ...filters, assignee: '', teamId: '', assignees: '' });
-        // Calcular posição do dropdown via portal
-        if (!showAssigneeDropdown && assigneeAllBtnRef.current) {
+        // Calcular posição do dropdown via portal (sempre ao abrir)
+        if (assigneeAllBtnRef.current) {
           const rect = assigneeAllBtnRef.current.getBoundingClientRect();
           setDropdownPos({ top: rect.bottom + 6, left: rect.left });
         }
         setShowAssigneeDropdown((prev) => !prev);
       }
     },
-    [filters, onFiltersChange, currentUserId, currentUserTeamId, showAssigneeDropdown],
+    [filters, onFiltersChange, currentUserId, currentUserTeamId],
   );
 
   // Multi-select: selectedUserIds derived from filters.assignees
