@@ -49,7 +49,9 @@ class SupabaseTodoRepository extends TodoRepository {
       query = query.eq('project_id', filters.projectId);
     }
 
-    if (filters.assignee) {
+    if (filters.assignees && filters.assignees.length > 0) {
+      query = query.in('assignee', filters.assignees);
+    } else if (filters.assignee) {
       query = query.eq('assignee', filters.assignee);
     }
 

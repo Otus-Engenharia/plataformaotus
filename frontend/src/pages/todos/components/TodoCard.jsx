@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
+import DueDatePicker from './DueDatePicker';
 import './TodoCard.css';
 
 function getInitials(name) {
@@ -20,10 +21,23 @@ function formatDueDate(dateStr) {
   return `${day}/${month}`;
 }
 
-export default function TodoCard({ todo, onComplete, onSelect, onEdit, draggable, onDragStart }) {
+export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateChange, draggable, onDragStart }) {
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const dateRef = useRef(null);
+
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
     if (onComplete) onComplete(todo.id);
+  };
+
+  const handleDateClick = (e) => {
+    e.stopPropagation();
+    setShowDatePicker(true);
+  };
+
+  const handleDateChange = (newDate) => {
+    if (onDateChange) onDateChange(todo.id, newDate);
+    setShowDatePicker(false);
   };
 
   const handleCardClick = () => {
@@ -75,13 +89,24 @@ export default function TodoCard({ todo, onComplete, onSelect, onEdit, draggable
       </div>
 
       <div className="todo-card__meta">
-        {todo.due_date && (
-          <span className={dueClass}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4.5 1a.5.5 0 0 1 .5.5V2h6v-.5a.5.5 0 0 1 1 0V2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h1v-.5a.5.5 0 0 1 .5-.5zM3 3a1 1 0 0 0-1 1v1h12V4a1 1 0 0 0-1-1H3zm-1 3v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6H2z"/>
-            </svg>
-            {formatDueDate(todo.due_date)}
-          </span>
+        <span
+          ref={dateRef}
+          className={`${dueClass} todo-card__due--clickable${!todo.due_date ? ' todo-card__due--empty' : ''}`}
+          onClick={handleDateClick}
+          title="Alterar data"
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M4.5 1a.5.5 0 0 1 .5.5V2h6v-.5a.5.5 0 0 1 1 0V2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h1v-.5a.5.5 0 0 1 .5-.5zM3 3a1 1 0 0 0-1 1v1h12V4a1 1 0 0 0-1-1H3zm-1 3v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6H2z"/>
+          </svg>
+          {formatDueDate(todo.due_date) || 'Data'}
+        </span>
+        {showDatePicker && (
+          <DueDatePicker
+            currentDate={todo.due_date}
+            onDateChange={handleDateChange}
+            triggerRef={dateRef}
+            onClose={() => setShowDatePicker(false)}
+          />
         )}
 
         {todo.assignee_name && (

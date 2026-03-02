@@ -70,6 +70,7 @@ class GenerateWeeklyReport {
       projectCode,
       projectName,
       userId,
+      weekText: saved.weekText,
       ...options,
     }).catch(async (err) => {
       console.error(`[WeeklyReport] Pipeline falhou para ${projectCode}:`, err);
@@ -95,6 +96,7 @@ class GenerateWeeklyReport {
       projectCode,
       projectName,
       userId,
+      weekText = '',
       scheduleDays = 15,
       hideDashboard = false,
       clientDisciplines = [],
@@ -142,6 +144,7 @@ class GenerateWeeklyReport {
     // Step 4: Upload Drive
     let clientDriveUrl = null;
     let teamDriveUrl = null;
+    let driveFolderUrl = null;
     if (driveFolderId) {
       await this.#updateStep(reportId, PipelineStepEnum.UPLOADING_DRIVE);
       await this.#addLog(reportId, 'Enviando relatórios para Google Drive...');
@@ -151,6 +154,7 @@ class GenerateWeeklyReport {
       });
       clientDriveUrl = driveResults.clientUrl;
       teamDriveUrl = driveResults.teamUrl;
+      driveFolderUrl = driveResults.folderUrl;
       await this.#addLog(reportId, 'Upload no Drive concluído');
     } else {
       await this.#addLog(reportId, 'Sem pasta do Drive configurada — pulando upload');
@@ -167,6 +171,7 @@ class GenerateWeeklyReport {
         clientEmails,
         teamEmails,
         userId,
+        weekText,
       });
       clientDraftUrl = draftResults.clientDraftUrl;
       teamDraftUrl = draftResults.teamDraftUrl;
@@ -184,6 +189,7 @@ class GenerateWeeklyReport {
     report.complete({
       clientReportDriveUrl: clientDriveUrl,
       teamReportDriveUrl: teamDriveUrl,
+      driveFolderUrl,
       clientDraftUrl,
       teamDraftUrl,
       metadata: {

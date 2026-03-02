@@ -100,6 +100,7 @@ export default function TodoKanbanView({
   onEdit,
   onStatusChange,
   onDrop,
+  onDateChange,
   loading,
 }) {
   const columns = useMemo(
@@ -186,6 +187,7 @@ export default function TodoKanbanView({
                     onComplete={onComplete}
                     onSelect={onSelect}
                     onEdit={onEdit}
+                    onDateChange={onDateChange}
                     draggable={isDraggable}
                     onDragStart={isDraggable ? (e) => handleDragStart(e, todo.id) : undefined}
                   />

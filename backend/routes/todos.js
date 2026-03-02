@@ -39,13 +39,17 @@ function createRoutes(requireAuth, logAction) {
    */
   router.get('/', requireAuth, async (req, res) => {
     try {
-      const { status, priority, project_id, assignee, search, sort_field, sort_dir, team_id, due_date, standalone_only } = req.query;
+      const { status, priority, project_id, assignee, assignees, search, sort_field, sort_dir, team_id, due_date, standalone_only } = req.query;
 
       const filters = {};
       if (status) filters.status = status;
       if (priority) filters.priority = priority;
       if (project_id) filters.projectId = parseInt(project_id, 10);
-      if (assignee) filters.assignee = assignee;
+      if (assignees) {
+        filters.assignees = assignees.split(',').filter(Boolean);
+      } else if (assignee) {
+        filters.assignee = assignee;
+      }
       if (search) filters.search = search;
       if (team_id) filters.teamId = team_id;
       if (due_date) filters.dueDate = due_date;
@@ -92,7 +96,7 @@ function createRoutes(requireAuth, logAction) {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from('users_otus')
-        .select('id, name, email')
+        .select('id, name, email, team_id')
         .eq('status', 'ativo')
         .order('name', { ascending: true });
 

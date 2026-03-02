@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
+import DueDatePicker from './DueDatePicker';
 import './TodoRow.css';
 
 const PRIORITY_COLORS = {
@@ -28,7 +29,9 @@ function getInitials(name) {
   return parts[0][0].toUpperCase();
 }
 
-function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete }) {
+function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete, onDateChange }) {
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const dateRef = useRef(null);
   const priorityColor = PRIORITY_COLORS[todo.priority_label?.toLowerCase()] || PRIORITY_COLORS[todo.priority] || '#94a3b8';
   const isClosed = todo.is_closed;
   const dueDateStr = formatDueDate(todo.due_date);
@@ -46,6 +49,11 @@ function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete }) {
   const handleDeleteClick = (e) => {
     e.stopPropagation();
     if (onDelete) onDelete(todo.id);
+  };
+
+  const handleDateClick = (e) => {
+    e.stopPropagation();
+    setShowDatePicker(true);
   };
 
   const handleRowClick = () => {
@@ -86,9 +94,25 @@ function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete }) {
         {todo.name}
       </span>
 
-      <span className={dueDateClass}>
+      <span
+        ref={dateRef}
+        className={`${dueDateClass} todo-row__due-date--clickable`}
+        onClick={handleDateClick}
+        title="Alterar data"
+      >
         {dueDateStr || '—'}
       </span>
+      {showDatePicker && (
+        <DueDatePicker
+          currentDate={todo.due_date}
+          onDateChange={(newDate) => {
+            if (onDateChange) onDateChange(todo.id, newDate);
+            setShowDatePicker(false);
+          }}
+          triggerRef={dateRef}
+          onClose={() => setShowDatePicker(false)}
+        />
+      )}
 
       <span className="todo-row__assignee-col">
         {todo.assignee_name ? (
