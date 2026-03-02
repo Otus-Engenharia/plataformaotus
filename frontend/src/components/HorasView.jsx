@@ -24,7 +24,7 @@ function formatDateBR(val) {
   try {
     const d = /^\d{4}-\d{2}-\d{2}/.test(trimmed) ? new Date(trimmed) : new Date(trimmed);
     if (Number.isNaN(d.getTime())) return trimmed;
-    return d.toLocaleDateString('pt-BR');
+    return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   } catch {
     return trimmed;
   }

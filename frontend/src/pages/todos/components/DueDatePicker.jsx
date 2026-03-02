@@ -10,8 +10,7 @@ import './DueDatePicker.css';
 
 function parseDate(dateStr) {
   if (!dateStr) return null;
-  const raw = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
-  const d = new Date(raw + 'T00:00:00');
+  const d = new Date(dateStr);
   return isNaN(d.getTime()) ? null : d;
 }
 

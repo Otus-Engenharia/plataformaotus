@@ -11,8 +11,7 @@ const PRIORITY_COLORS = {
 
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
-  const raw = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
-  const date = new Date(raw + 'T00:00:00');
+  const date = new Date(dateStr);
   if (isNaN(date.getTime())) return null;
   const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   const day = date.getDate();
