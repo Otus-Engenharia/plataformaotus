@@ -11,7 +11,7 @@ dotenv.config();
 
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { getSupabaseClient, updateUserAvatar, storeUserOAuthTokens } from './supabase.js';
+import { getSupabaseClient, getSupabaseServiceClient, updateUserAvatar, storeUserOAuthTokens } from './supabase.js';
 // Mantém auth-config.js como fallback para compatibilidade
 import { hasAccess as hasAccessLegacy, getUserRole as getUserRoleLegacy, isPrivileged as isPrivilegedLegacy, getLeaderNameFromEmail } from './auth-config.js';
 
@@ -27,7 +27,7 @@ const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'https://app.otus
  */
 async function getUserFromDatabase(email) {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseServiceClient();
     const { data, error } = await supabase
       .from('users_otus')
       .select(`

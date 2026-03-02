@@ -1120,11 +1120,18 @@ Fico à disposição.`;
                               rowSpan={rowSpanDisciplina}
                               className="cronograma-group-disciplina"
                             >
+                              {(() => { const ci = getDisciplineContacts(discGroup.disciplina); return (
                               <div className="cronograma-disciplina-wrapper">
-                                <span>{discGroup.disciplina}</span>
+                                <span className="cronograma-disciplina-nome">
+                                  {discGroup.disciplina}
+                                  {ci.contacts.length === 0 && (
+                                    <span
+                                      className="cronograma-sem-contato-tooltip"
+                                      data-tooltip="Contato não configurado. Acesse a aba Equipe para cadastrar."
+                                    >ⓘ</span>
+                                  )}
+                                </span>
                                 <div className="cronograma-disciplina-buttons">
-                                  {(() => { const ci = getDisciplineContacts(discGroup.disciplina); return (
-                                  <>
                                   <button
                                     type="button"
                                     className={`cronograma-cobranca-button${!ci.hasPhone ? ' cronograma-btn-disabled' : ''}`}
@@ -1149,8 +1156,6 @@ Fico à disposição.`;
                                     </svg>
                                     {gmailLoading === `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}` ? 'Criando...' : 'Email'}
                                   </button>
-                                  </>
-                                  ); })()}
                                 </div>
                                 {gmailFeedback?.key === `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}` && (
                                   <span className={`cronograma-gmail-feedback cronograma-gmail-feedback-${gmailFeedback.type}`}>
@@ -1158,6 +1163,7 @@ Fico à disposição.`;
                                   </span>
                                 )}
                               </div>
+                              ); })()}
                             </td>
                           )}
                           <td>{item.NomeDaTarefa || 'N/A'}</td>
@@ -1359,11 +1365,18 @@ Fico à disposição.`;
                               rowSpan={rowSpanDisciplina}
                               className="cronograma-group-disciplina"
                             >
+                              {(() => { const ci = getDisciplineContacts(discGroup.disciplina); return (
                               <div className="cronograma-disciplina-wrapper">
-                                <span>{discGroup.disciplina}</span>
+                                <span className="cronograma-disciplina-nome">
+                                  {discGroup.disciplina}
+                                  {ci.contacts.length === 0 && (
+                                    <span
+                                      className="cronograma-sem-contato-tooltip"
+                                      data-tooltip="Contato não configurado. Acesse a aba Equipe para cadastrar."
+                                    >ⓘ</span>
+                                  )}
+                                </span>
                                 <div className="cronograma-disciplina-buttons">
-                                  {(() => { const ci = getDisciplineContacts(discGroup.disciplina); return (
-                                  <>
                                   <button
                                     type="button"
                                     className={`cronograma-cobranca-button${!ci.hasPhone ? ' cronograma-btn-disabled' : ''}`}
@@ -1388,8 +1401,6 @@ Fico à disposição.`;
                                     </svg>
                                     {gmailLoading === `${discGroup.disciplina}-atraso` ? 'Criando...' : 'Email'}
                                   </button>
-                                  </>
-                                  ); })()}
                                 </div>
                                 {gmailFeedback?.key === `${discGroup.disciplina}-atraso` && (
                                   <span className={`cronograma-gmail-feedback cronograma-gmail-feedback-${gmailFeedback.type}`}>
@@ -1397,6 +1408,7 @@ Fico à disposição.`;
                                   </span>
                                 )}
                               </div>
+                              ); })()}
                             </td>
                           )}
                           <td>{item.NomeDaTarefa || 'N/A'}</td>
