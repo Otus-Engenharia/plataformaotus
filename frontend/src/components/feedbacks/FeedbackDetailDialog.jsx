@@ -151,6 +151,7 @@ export default function FeedbackDetailDialog({
   const [adminAction, setAdminAction] = useState(feedback.admin_action || '');
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
 
   const statusConfig = STATUS_CONFIG[feedback.status] || STATUS_CONFIG.pendente;
   const typeConfig = TYPE_CONFIG[feedback.type] || TYPE_CONFIG.outro;
@@ -192,6 +193,15 @@ export default function FeedbackDetailDialog({
   };
 
   return (
+    <>
+    {lightboxSrc && (
+      <div className="feedback-lightbox-overlay" onClick={() => setLightboxSrc(null)}>
+        <div className="feedback-lightbox-content" onClick={e => e.stopPropagation()}>
+          <button className="feedback-lightbox-close" onClick={() => setLightboxSrc(null)}>×</button>
+          <img src={lightboxSrc} alt="Screenshot expandido" />
+        </div>
+      </div>
+    )}
     <div className="dialog-overlay">
       <div className="dialog-content dialog-large glass-card">
         {/* Header */}
@@ -279,7 +289,7 @@ export default function FeedbackDetailDialog({
                       <img
                         src={src}
                         alt={`Imagem ${i + 1} do feedback`}
-                        onClick={() => window.open(src, '_blank')}
+                        onClick={() => setLightboxSrc(src)}
                       />
                     </div>
                   ))}
@@ -412,5 +422,6 @@ export default function FeedbackDetailDialog({
         </div>
       </div>
     </div>
+    </>
   );
 }
