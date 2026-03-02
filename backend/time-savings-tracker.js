@@ -41,6 +41,7 @@ function getUseCase() {
  */
 export async function trackTimeSaving(req, catalogId, { resourceType, resourceId, resourceName, details } = {}) {
   if (!req.isAuthenticated?.() || !req.user) return;
+  if (req.user.setor_name !== 'Operação') return;
 
   try {
     await getUseCase().execute({

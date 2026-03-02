@@ -276,11 +276,50 @@
   align-items: flex-start;
 }
 
-.cronograma-disciplina-wrapper > span {
+.cronograma-disciplina-wrapper > span,
+.cronograma-disciplina-nome {
   font-size: 1.05rem;
   font-weight: 500;
   color: #1a1a1a;
   line-height: 1.4;
+}
+
+.cronograma-disciplina-nome {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cronograma-sem-contato-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: #9ca3af;
+  font-size: 12px;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.cronograma-sem-contato-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #fff;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+
+.cronograma-sem-contato-tooltip:hover::after {
+  opacity: 1;
 }
 
 .cronograma-cobranca-button {

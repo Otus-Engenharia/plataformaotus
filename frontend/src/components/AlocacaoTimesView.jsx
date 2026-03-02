@@ -107,12 +107,7 @@ function AlocacaoTimesView() {
         withCredentials: true,
       });
       if (response.data?.success) {
-        // Filtrar apenas usuarios do setor Operacao
-        const allUsers = response.data.data || [];
-        const operacaoUsers = allUsers.filter(u =>
-          u.setor?.name?.toLowerCase().includes('opera')
-        );
-        setUsers(operacaoUsers);
+        setUsers(response.data.data || []);
       }
     } catch (err) {
       console.error('Erro ao buscar usuarios:', err);
@@ -138,12 +133,7 @@ function AlocacaoTimesView() {
         withCredentials: true,
       });
       if (response.data?.success) {
-        // Filtrar posicoes do setor Operacao
-        const allPositions = response.data.data || [];
-        const operacaoPositions = allPositions.filter(p =>
-          p.sector?.name?.toLowerCase().includes('opera')
-        );
-        setPositions(operacaoPositions);
+        setPositions(response.data.data || []);
       }
     } catch (err) {
       console.error('Erro ao buscar cargos:', err);
