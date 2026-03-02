@@ -12,16 +12,16 @@ class CreateTodo {
     this.#todoRepository = todoRepository;
   }
 
-  async execute({ name, description, priority, startDate, dueDate, assignee, createdBy, projectId }) {
+  async execute({ name, description, priority, dueDate, assignee, createdBy, projectId, agendaTaskId }) {
     const todo = Todo.create({
       name,
       description,
       priority,
-      startDate,
       dueDate,
       assignee,
       createdBy,
       projectId,
+      agendaTaskId,
     });
 
     const saved = await this.#todoRepository.save(todo);
