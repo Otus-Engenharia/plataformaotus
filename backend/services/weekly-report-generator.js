@@ -377,10 +377,9 @@ export function processData(rawData, options = {}) {
 
     const endDateStr = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
     const endDt = parseDate(endDateStr);
-    if (endDt) {
-      const endNorm = startOfDay(endDt);
-      if (endNorm < since) continue; // before reporting period
-    }
+    if (!endDt) continue; // sem data de término → não incluir
+    const endNorm = startOfDay(endDt);
+    if (endNorm < since) continue; // antes do período → não incluir
 
     const discipline = task.Disciplina || task.Discipline || 'Sem Disciplina';
     if (isClientDiscipline(discipline)) {
