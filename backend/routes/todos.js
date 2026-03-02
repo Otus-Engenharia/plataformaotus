@@ -201,7 +201,7 @@ function createRoutes(requireAuth, logAction) {
    */
   router.post('/', requireAuth, async (req, res) => {
     try {
-      const { name, description, priority, start_date, due_date, assignee, project_id } = req.body;
+      const { name, description, priority, due_date, assignee, project_id, agenda_task_id } = req.body;
 
       if (!name || !name.trim()) {
         return res.status(400).json({ success: false, error: 'Nome da tarefa é obrigatório' });
@@ -219,11 +219,11 @@ function createRoutes(requireAuth, logAction) {
         name,
         description: description || null,
         priority: priority || 'média',
-        startDate: start_date || null,
         dueDate: due_date || null,
         assignee: assignee || req.user?.id,
         createdBy: req.user?.id,
         projectId: project_id ? parseInt(project_id, 10) : null,
+        agendaTaskId: agenda_task_id ? parseInt(agenda_task_id, 10) : null,
       });
 
       if (logAction) {
@@ -244,7 +244,7 @@ function createRoutes(requireAuth, logAction) {
   router.put('/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, status, priority, start_date, due_date, assignee, project_id, agenda_task_id } = req.body;
+      const { name, description, status, priority, due_date, assignee, project_id, agenda_task_id } = req.body;
 
       if (status && !TaskStatus.isValid(status)) {
         return res.status(400).json({
@@ -267,7 +267,6 @@ function createRoutes(requireAuth, logAction) {
         description,
         status,
         priority,
-        startDate: start_date,
         dueDate: due_date,
         assignee,
         projectId: project_id !== undefined ? (project_id ? parseInt(project_id, 10) : null) : undefined,

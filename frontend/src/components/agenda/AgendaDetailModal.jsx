@@ -76,6 +76,8 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
   const [allAvailableProjects, setAllAvailableProjects] = useState([]);
   const [showAddProject, setShowAddProject] = useState(false);
   const [addingProjectId, setAddingProjectId] = useState('');
+  const [showAddTodo, setShowAddTodo] = useState(false);
+  const [newTodoName, setNewTodoName] = useState('');
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [editingTime, setEditingTime] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -299,6 +301,25 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       console.error('Erro ao atualizar ToDo:', err);
     }
   }, []);
+
+  const handleCreateTodo = useCallback(async () => {
+    if (!newTodoName.trim()) return;
+    try {
+      const dueDate = task.start_date ? task.start_date.split('T')[0] : null;
+      const res = await axios.post('/api/todos', {
+        name: newTodoName.trim(),
+        agenda_task_id: task.id,
+        due_date: dueDate,
+      }, { withCredentials: true });
+      if (res.data.success) {
+        setTodos(prev => [...prev, res.data.data]);
+        setNewTodoName('');
+        setShowAddTodo(false);
+      }
+    } catch (err) {
+      console.error('Erro ao criar ToDo:', err);
+    }
+  }, [newTodoName, task]);
 
   const handleDelete = useCallback(async () => {
     // Se é recorrente, mostrar dialog de escopo
@@ -1091,7 +1112,41 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
                     <span className="detail-modal__todo-counter">{doneCount}/{totalCount}</span>
                   )}
                 </h3>
+                <button
+                  className="detail-modal__add-btn"
+                  onClick={() => setShowAddTodo(prev => !prev)}
+                  title="Adicionar ToDo"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
               </div>
+
+              {showAddTodo && (
+                <div className="detail-modal__add-project-row">
+                  <input
+                    className="detail-modal__add-todo-input"
+                    type="text"
+                    placeholder="Nome do ToDo"
+                    value={newTodoName}
+                    onChange={(e) => setNewTodoName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateTodo();
+                      if (e.key === 'Escape') { setShowAddTodo(false); setNewTodoName(''); }
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    className="detail-modal__add-project-confirm"
+                    onClick={handleCreateTodo}
+                    disabled={!newTodoName.trim()}
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              )}
 
               {totalCount > 0 && (
                 <div className="detail-modal__progress-bar">
