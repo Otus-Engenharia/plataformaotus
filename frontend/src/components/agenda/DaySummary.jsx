@@ -79,14 +79,18 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
 
     const inWeek = (dateStr) => {
       if (!dateStr) return false;
-      return isWithinInterval(new Date(dateStr), { start: weekStart, end: weekEnd });
+      const d = new Date(dateStr);
+      return isWithinInterval(d, { start: weekStart, end: weekEnd });
     };
 
     const PRIORITY_ORDER = { alta: 0, média: 1, baixa: 2 };
     const priorityOf = (t) => PRIORITY_ORDER[t.priority] ?? 1;
 
-    const isOverdue = (todo) =>
-      todo.due_date && new Date(todo.due_date) < weekStart && todo.status !== 'finalizado';
+    const isOverdue = (todo) => {
+      if (!todo.due_date) return false;
+      const d = new Date(todo.due_date);
+      return d < weekStart && todo.status !== 'finalizado';
+    };
 
     const visible = unlinkedTodos.filter(todo => {
       if (todo.status === 'cancelado') return false;
@@ -394,9 +398,11 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
         ) : (
           filteredAndSortedTodos.map(todo => {
             const isDone = todo.status === 'finalizado';
-            const isOverdue = todo.due_date &&
-              new Date(todo.due_date) < startOfWeek(selectedDay, { weekStartsOn: 1 }) &&
-              !isDone;
+            const isOverdue = (() => {
+              if (!todo.due_date) return false;
+              const d = new Date(todo.due_date);
+              return d < startOfWeek(selectedDay, { weekStartsOn: 1 }) && !isDone;
+            })();
             return (
               <div
                 key={todo.id}

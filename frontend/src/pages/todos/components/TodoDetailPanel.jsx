@@ -8,16 +8,13 @@ function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: 'short',
-    year: 'numeric'
+    year: 'numeric',
   });
 }
 
 function isOverdue(dateString) {
   if (!dateString) return false;
-  const due = new Date(dateString);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  return due < now;
+  return new Date() > new Date(dateString);
 }
 
 const STATUS_CONFIG = {
