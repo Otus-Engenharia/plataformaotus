@@ -10,7 +10,7 @@ class UpdateTodo {
     this.#todoRepository = todoRepository;
   }
 
-  async execute({ id, name, description, status, priority, startDate, dueDate, assignee, projectId, agendaTaskId, userId }) {
+  async execute({ id, name, description, status, priority, dueDate, assignee, projectId, agendaTaskId, userId }) {
     const todo = await this.#todoRepository.findById(id);
     if (!todo) {
       throw new Error('ToDo não encontrado');
@@ -25,8 +25,8 @@ class UpdateTodo {
       todo.updatePriority(priority);
     }
 
-    if (name !== undefined || description !== undefined || startDate !== undefined || dueDate !== undefined) {
-      todo.updateDetails({ name, description, startDate, dueDate });
+    if (name !== undefined || description !== undefined || dueDate !== undefined) {
+      todo.updateDetails({ name, description, dueDate });
     }
 
     if (assignee !== undefined) {

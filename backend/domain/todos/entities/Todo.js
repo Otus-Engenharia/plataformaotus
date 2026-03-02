@@ -15,7 +15,6 @@ class Todo {
   #description;
   #status;
   #priority;
-  #startDate;
   #dueDate;
   #assignee;
   #createdBy;
@@ -32,7 +31,6 @@ class Todo {
     description = null,
     status = 'backlog',
     priority = 'média',
-    startDate = null,
     dueDate = null,
     assignee = null,
     createdBy = null,
@@ -52,7 +50,6 @@ class Todo {
     this.#description = description?.trim() || null;
     this.#status = status instanceof TaskStatus ? status : new TaskStatus(status);
     this.#priority = priority instanceof TaskPriority ? priority : new TaskPriority(priority);
-    this.#startDate = startDate ? new Date(startDate) : null;
     this.#dueDate = dueDate ? new Date(dueDate) : null;
     this.#assignee = assignee || null;
     this.#createdBy = createdBy || null;
@@ -70,7 +67,6 @@ class Todo {
   get description() { return this.#description; }
   get status() { return this.#status; }
   get priority() { return this.#priority; }
-  get startDate() { return this.#startDate; }
   get dueDate() { return this.#dueDate; }
   get assignee() { return this.#assignee; }
   get createdBy() { return this.#createdBy; }
@@ -166,7 +162,7 @@ class Todo {
    * Atualiza detalhes editáveis
    * @param {Object} details
    */
-  updateDetails({ name, description, startDate, dueDate }) {
+  updateDetails({ name, description, dueDate }) {
     if (name !== undefined) {
       if (!name || name.trim().length === 0) {
         throw new Error('O nome da tarefa é obrigatório');
@@ -176,10 +172,6 @@ class Todo {
 
     if (description !== undefined) {
       this.#description = description?.trim() || null;
-    }
-
-    if (startDate !== undefined) {
-      this.#startDate = startDate ? new Date(startDate) : null;
     }
 
     if (dueDate !== undefined) {
@@ -245,7 +237,6 @@ class Todo {
       description: this.#description,
       status: this.#status.value,
       priority: this.#priority.value,
-      start_date: this.#startDate?.toISOString() || null,
       due_date: this.#dueDate?.toISOString() || null,
       assignee: this.#assignee,
       created_by: this.#createdBy,
@@ -274,7 +265,6 @@ class Todo {
       priority: this.#priority.value,
       priority_label: this.#priority.label,
       priority_color: this.#priority.color,
-      start_date: this.#startDate?.toISOString() || null,
       due_date: this.#dueDate?.toISOString() || null,
       assignee: this.#assignee,
       assignee_name: assigneeData?.name || null,
@@ -304,7 +294,6 @@ class Todo {
       description: data.description,
       status: data.status,
       priority: data.priority || 'média',
-      startDate: data.start_date,
       dueDate: data.due_date,
       assignee: data.assignee,
       createdBy: data.created_by,
@@ -320,16 +309,16 @@ class Todo {
   /**
    * Factory: cria novo ToDo
    */
-  static create({ name, description, priority, startDate, dueDate, assignee, createdBy, projectId }) {
+  static create({ name, description, priority, dueDate, assignee, createdBy, projectId, agendaTaskId }) {
     return new Todo({
       name,
       description,
       priority: priority || 'média',
-      startDate,
       dueDate,
       assignee,
       createdBy,
       projectId,
+      agendaTaskId,
     });
   }
 }

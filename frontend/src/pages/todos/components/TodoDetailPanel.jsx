@@ -143,13 +143,6 @@ export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onD
             <div className="todo-detail__section-title">Detalhes</div>
 
             <div className="todo-detail__field">
-              <span className="todo-detail__field-label">Data inicio</span>
-              <span className="todo-detail__field-value">
-                {formatDate(todo.start_date)}
-              </span>
-            </div>
-
-            <div className="todo-detail__field">
               <span className="todo-detail__field-label">Data limite</span>
               <span className={`todo-detail__field-value${overdue ? ' todo-detail__field-value--overdue' : ''}`}>
                 {formatDate(todo.due_date)}

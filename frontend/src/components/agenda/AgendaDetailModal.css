@@ -528,6 +528,19 @@
   cursor: not-allowed;
 }
 
+.detail-modal__add-todo-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.detail-modal__add-todo-input:focus {
+  border-color: #3b82f6;
+}
+
 /* SearchableSelect overrides inside detail modal */
 .detail-modal .searchable-select-trigger {
   border: 1.5px solid #e8eaed;
