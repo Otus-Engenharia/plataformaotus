@@ -626,6 +626,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         userId: userOtus?.id || null, // ID interno na tabela users_otus
         setor_id: userOtus?.setor_id || null,
         setor_name: setorName,
+        team_id: req.user.team_id || null,
         team_name: userOtus?.team?.team_name || null,
         // Dados de impersonação (apenas para devs)
         impersonation: req.session?.impersonating ? {

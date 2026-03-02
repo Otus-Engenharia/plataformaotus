@@ -96,6 +96,17 @@
   font-weight: 500;
 }
 
+.todo-row__due-date--clickable {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+  padding: 2px 4px;
+}
+
+.todo-row__due-date--clickable:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
 /* Assignee avatar - fixed width column */
 .todo-row__assignee-col {
   width: 28px;

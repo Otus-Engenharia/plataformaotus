@@ -16,6 +16,7 @@ const INITIAL_FILTERS = {
   priority: '',
   projectId: '',
   assignee: '',
+  assignees: '',
   teamId: '',
   search: '',
 };
@@ -38,16 +39,20 @@ export default function TodosView() {
   const [sort, setSort] = useState(INITIAL_SORT);
   const [groupBy, setGroupBy] = useState('status');
   const [weekRef, setWeekRef] = useState(new Date());
-  const [showClosedInDate, setShowClosedInDate] = useState(false);
+  const [showFinalizados, setShowFinalizados] = useState(false);
+  const [showCancelados, setShowCancelados] = useState(false);
 
   const goToPreviousWeek = useCallback(() => setWeekRef(prev => subWeeks(prev, 1)), []);
   const goToNextWeek = useCallback(() => setWeekRef(prev => addWeeks(prev, 1)), []);
   const goToToday = useCallback(() => setWeekRef(new Date()), []);
 
   const filteredTodos = useMemo(() => {
-    if (showClosedInDate) return todos;
-    return todos.filter(t => t.status !== 'finalizado' && t.status !== 'cancelado');
-  }, [todos, showClosedInDate]);
+    return todos.filter(t => {
+      if (t.status === 'finalizado' && !showFinalizados) return false;
+      if (t.status === 'cancelado' && !showCancelados) return false;
+      return true;
+    });
+  }, [todos, showFinalizados, showCancelados]);
 
   const weekLabel = useMemo(() => {
     const start = startOfWeek(weekRef, { weekStartsOn: 1 });
@@ -73,7 +78,8 @@ export default function TodosView() {
       if (filters.status) params.set('status', filters.status);
       if (filters.priority) params.set('priority', filters.priority);
       if (filters.projectId) params.set('project_id', filters.projectId);
-      if (filters.assignee) params.set('assignee', filters.assignee);
+      if (filters.assignees) params.set('assignees', filters.assignees);
+      else if (filters.assignee) params.set('assignee', filters.assignee);
       if (filters.teamId) params.set('team_id', filters.teamId);
       if (filters.search) params.set('search', filters.search);
       params.set('sort_field', sort.field);
@@ -258,6 +264,13 @@ export default function TodosView() {
     [groupBy, handleUpdate],
   );
 
+  const handleDateChange = useCallback(
+    (todoId, newDate) => {
+      handleUpdate(todoId, { due_date: newDate });
+    },
+    [handleUpdate],
+  );
+
   // --- Stat badges ---
 
   const statBadges = useMemo(() => {
@@ -306,12 +319,16 @@ export default function TodosView() {
         projects={projects}
         users={users}
         teams={teams}
+        currentUserId={user?.userId || ''}
+        currentUserTeamId={user?.team_id || ''}
         weekLabel={weekLabel}
         onWeekPrev={goToPreviousWeek}
         onWeekNext={goToNextWeek}
         onWeekToday={goToToday}
-        showClosedInDate={showClosedInDate}
-        onShowClosedInDateChange={setShowClosedInDate}
+        showFinalizados={showFinalizados}
+        onShowFinalizadosChange={setShowFinalizados}
+        showCancelados={showCancelados}
+        onShowCanceladosChange={setShowCancelados}
         sort={sort}
         onSortChange={setSort}
       />
@@ -334,6 +351,7 @@ export default function TodosView() {
               setShowCreateDialog(true);
             }}
             onDelete={handleDelete}
+            onDateChange={handleDateChange}
             loading={loading}
           />
         )}
@@ -351,6 +369,7 @@ export default function TodosView() {
             }}
             onStatusChange={(id, status) => handleUpdate(id, { status })}
             onDrop={handleKanbanDrop}
+            onDateChange={handleDateChange}
             loading={loading}
           />
         )}
