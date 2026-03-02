@@ -3,6 +3,24 @@
  */
 
 /**
+ * Calcula os thresholds de score levando em conta thresholds customizados do indicador.
+ * Retorna { t80, t120 } proporcionais ao planejado acumulado.
+ * @param {Object} indicador - Indicador com meta, threshold_80, threshold_120
+ * @param {number} planejado - Valor planejado acumulado
+ * @returns {{ t80: number, t120: number }}
+ */
+export function getScoreThresholds(indicador, planejado) {
+  const metaNum = parseFloat(indicador?.meta) || 0;
+  const ratio80 = metaNum > 0
+    ? (indicador?.threshold_80 != null ? parseFloat(indicador.threshold_80) : metaNum * 0.8) / metaNum
+    : 0.8;
+  const ratio120 = metaNum > 0
+    ? (indicador?.threshold_120 != null ? parseFloat(indicador.threshold_120) : metaNum * 1.2) / metaNum
+    : 1.2;
+  return { t80: planejado * ratio80, t120: planejado * ratio120 };
+}
+
+/**
  * Calcula o score de um indicador (0-120)
  * @param {number} value - Valor atual
  * @param {number} threshold80 - Limiar de 80% (score 80)
@@ -587,17 +605,12 @@ export function calculateAccumulatedProgress(indicador, yearCheckIns, currentMon
     }
   }
 
-  // Score acumulado com thresholds proporcionais
+  // Score acumulado com thresholds customizados do indicador
   // Retorna null quando não há check-ins (sem dados) para distinguir de "zerado" (valor 0 real)
   const hasData = relevantCheckIns.length > 0;
+  const { t80, t120 } = getScoreThresholds(indicador, planejado);
   const scoreAcumulado = planejado > 0 && hasData
-    ? calculateIndicatorScore(
-        realizado,
-        planejado * 0.8,
-        planejado,
-        planejado * 1.2,
-        indicador.is_inverse
-      )
+    ? calculateIndicatorScore(realizado, t80, planejado, t120, indicador.is_inverse)
     : null;
 
   return { planejado, realizado, scoreAcumulado, hasData };
@@ -672,8 +685,7 @@ export function calculateMonthlyPersonScores(indicadores, ciclo, ano) {
       const target = parseFloat(ind.monthly_targets?.[m]) || parseFloat(ind.meta) || 0;
       if (target === 0) continue;
 
-      const t80 = target * 0.8;
-      const t120 = target * 1.2;
+      const { t80, t120 } = getScoreThresholds(ind, target);
       const score = calculateIndicatorScore(checkIn.valor, t80, target, t120, ind.is_inverse);
       const peso = ind.peso || 1;
       totalWeight += peso;

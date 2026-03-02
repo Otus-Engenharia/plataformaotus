@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   calculateIndicatorScore,
   calculateAccumulatedProgress,
+  getScoreThresholds,
   filterAtRiskIndicators,
   getIndicatorScore,
   getScoreStatus,
@@ -42,8 +43,7 @@ function getIndicatorMonthlyData(indicador, ciclo, ano) {
     const mt = indicador.monthly_targets?.[m];
     const target = mt != null ? parseFloat(mt) : (parseFloat(indicador.meta) || 0);
     const value = checkIn ? parseFloat(checkIn.valor) : null;
-    const t80 = target * 0.8;
-    const t120 = target * 1.2;
+    const { t80, t120 } = getScoreThresholds(indicador, target);
     const score = value !== null && target > 0
       ? calculateIndicatorScore(value, t80, target, t120, indicador.is_inverse)
       : null;
@@ -483,8 +483,9 @@ export default function DashboardIndicadores() {
       const realizado = isAutoCalc ? acc.realizado : (ind.realizado_acumulado ?? 0);
       const planejado = isAutoCalc ? acc.planejado : (ind.planejado_acumulado ?? 0);
       const hasCheckIns = isAutoCalc ? acc.hasData : true;
+      const { t80: accT80, t120: accT120 } = getScoreThresholds(ind, planejado);
       const score = planejado > 0 && hasCheckIns
-        ? calculateIndicatorScore(realizado, planejado * 0.8, planejado, planejado * 1.2, ind.is_inverse)
+        ? calculateIndicatorScore(realizado, accT80, planejado, accT120, ind.is_inverse)
         : null;
       map[ind.id] = { realizado, planejado, score, hasCheckIns };
     }
