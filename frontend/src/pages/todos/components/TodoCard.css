@@ -85,6 +85,25 @@
   font-weight: 500;
 }
 
+.todo-card__due--clickable {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.todo-card__due--clickable:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.todo-card__due--empty {
+  color: #d4d4d8;
+}
+
+.todo-card__due--empty:hover {
+  color: #a1a1aa;
+}
+
 .todo-card__assignee {
   width: 20px;
   height: 20px;

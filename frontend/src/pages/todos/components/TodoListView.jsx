@@ -116,7 +116,7 @@ function ListHeader() {
   );
 }
 
-function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, onEdit, onDelete, loading }) {
+function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, onEdit, onDelete, onDateChange, loading }) {
   const groups = useMemo(() => groupTodos(todos, groupBy), [todos, groupBy]);
 
   if (loading) {
@@ -175,6 +175,7 @@ function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, on
                 onSelect={onSelect}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onDateChange={onDateChange}
               />
             ))}
           </div>

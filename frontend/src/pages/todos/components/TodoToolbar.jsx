@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import SearchableSelect from '../../../components/SearchableSelect';
 import './TodoToolbar.css';
 
@@ -100,12 +101,16 @@ export default function TodoToolbar({
   projects = [],
   users = [],
   teams = [],
+  currentUserId = '',
+  currentUserTeamId = '',
   weekLabel = '',
   onWeekPrev,
   onWeekNext,
   onWeekToday,
-  showClosedInDate = false,
-  onShowClosedInDateChange,
+  showFinalizados = false,
+  onShowFinalizadosChange,
+  showCancelados = false,
+  onShowCanceladosChange,
   sort = { field: 'created_at', direction: 'desc' },
   onSortChange,
 }) {
@@ -114,8 +119,15 @@ export default function TodoToolbar({
   const triggerRef = useRef(null);
 
   const [showPanel, setShowPanel] = useState(false);
+  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+  const assigneeDropdownRef = useRef(null);
+  const assigneeAllBtnRef = useRef(null);
   const [expandClassificar, setExpandClassificar] = useState(true);
   const [expandFiltro, setExpandFiltro] = useState(true);
+
+  // assigneeMode como estado local para evitar dependência de currentUserId/filtros
+  const [assigneeMode, setAssigneeMode] = useState('all');
 
   // Click outside to close
   useEffect(() => {
@@ -142,13 +154,112 @@ export default function TodoToolbar({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showPanel]);
 
+  // Click outside to close assignee dropdown (portal)
+  useEffect(() => {
+    if (!showAssigneeDropdown) return;
+    const handleClickOutside = (e) => {
+      if (
+        assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target) &&
+        assigneeAllBtnRef.current && !assigneeAllBtnRef.current.contains(e.target)
+      ) {
+        setShowAssigneeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAssigneeDropdown]);
+
+  // Escape to close assignee dropdown
+  useEffect(() => {
+    if (!showAssigneeDropdown) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowAssigneeDropdown(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showAssigneeDropdown]);
+
+  const handleAssigneeModeChange = useCallback(
+    (mode) => {
+      if (mode === 'mine') {
+        setAssigneeMode('mine');
+        setShowAssigneeDropdown(false);
+        if (currentUserId) {
+          onFiltersChange({ ...filters, assignee: currentUserId, teamId: '', assignees: '' });
+        } else {
+          onFiltersChange({ ...filters, assignee: '', teamId: '', assignees: '' });
+        }
+      } else if (mode === 'team') {
+        setAssigneeMode('team');
+        setShowAssigneeDropdown(false);
+        if (currentUserTeamId) {
+          onFiltersChange({ ...filters, assignee: '', teamId: currentUserTeamId, assignees: '' });
+        } else {
+          onFiltersChange({ ...filters, assignee: '', teamId: '', assignees: '' });
+        }
+      } else {
+        setAssigneeMode('all');
+        onFiltersChange({ ...filters, assignee: '', teamId: '', assignees: '' });
+        // Calcular posição do dropdown via portal
+        if (!showAssigneeDropdown && assigneeAllBtnRef.current) {
+          const rect = assigneeAllBtnRef.current.getBoundingClientRect();
+          setDropdownPos({ top: rect.bottom + 6, left: rect.left });
+        }
+        setShowAssigneeDropdown((prev) => !prev);
+      }
+    },
+    [filters, onFiltersChange, currentUserId, currentUserTeamId, showAssigneeDropdown],
+  );
+
+  // Multi-select: selectedUserIds derived from filters.assignees
+  const selectedUserIds = useMemo(() => {
+    if (!filters.assignees) return [];
+    return filters.assignees.split(',').filter(Boolean);
+  }, [filters.assignees]);
+
+  const handleToggleUser = useCallback(
+    (userId) => {
+      const current = new Set(selectedUserIds);
+      if (current.has(userId)) {
+        current.delete(userId);
+      } else {
+        current.add(userId);
+      }
+      const newAssignees = Array.from(current).join(',');
+      onFiltersChange({ ...filters, assignee: '', teamId: '', assignees: newAssignees });
+    },
+    [selectedUserIds, filters, onFiltersChange],
+  );
+
+  // Group users by team for multi-select dropdown
+  const usersByTeam = useMemo(() => {
+    const teamMap = new Map();
+    teams.forEach((t) => teamMap.set(String(t.id), `${t.team_number} - ${t.team_name}`));
+
+    const groups = {};
+    users.forEach((u) => {
+      const tid = u.team_id ? String(u.team_id) : '__none__';
+      if (!groups[tid]) {
+        groups[tid] = { label: teamMap.get(tid) || 'Sem time', users: [] };
+      }
+      groups[tid].users.push(u);
+    });
+
+    // Sort: named teams first, "Sem time" last
+    return Object.entries(groups)
+      .sort(([a], [b]) => {
+        if (a === '__none__') return 1;
+        if (b === '__none__') return -1;
+        return (groups[a].label || '').localeCompare(groups[b].label || '', 'pt-BR');
+      })
+      .map(([, group]) => group);
+  }, [users, teams]);
+
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filters.status) count++;
     if (filters.priority) count++;
     if (filters.projectId) count++;
-    if (filters.teamId) count++;
-    if (filters.assignee) count++;
     return count;
   }, [filters]);
 
@@ -209,8 +320,90 @@ export default function TodoToolbar({
         </div>
       )}
 
+      {/* Assignee toggle */}
+      <div className="todo-toolbar__assignee-toggle">
+        {[
+          { key: 'mine', label: 'Minhas' },
+          { key: 'team', label: 'Meu time' },
+          { key: 'all', label: 'Todos' },
+        ].map((opt) => (
+          <button
+            key={opt.key}
+            ref={opt.key === 'all' ? assigneeAllBtnRef : undefined}
+            type="button"
+            className={`todo-toolbar__assignee-toggle-btn${assigneeMode === opt.key ? ' todo-toolbar__assignee-toggle-btn--active' : ''}`}
+            onClick={() => handleAssigneeModeChange(opt.key)}
+          >
+            {opt.label}
+            {opt.key === 'all' && (
+              <span className={`todo-toolbar__assignee-chevron${showAssigneeDropdown ? ' todo-toolbar__assignee-chevron--open' : ''}`}>&#9662;</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Dropdown de usuários via portal */}
+      {showAssigneeDropdown && ReactDOM.createPortal(
+        <div
+          ref={assigneeDropdownRef}
+          className="todo-toolbar__assignee-dropdown"
+          style={{ top: dropdownPos.top, left: dropdownPos.left }}
+        >
+          <div className="todo-toolbar__multiselect-hint">
+            {selectedUserIds.length === 0
+              ? 'Mostrando todas as tarefas'
+              : `${selectedUserIds.length} pessoa${selectedUserIds.length > 1 ? 's' : ''} selecionada${selectedUserIds.length > 1 ? 's' : ''}`}
+          </div>
+          {usersByTeam.length === 0 ? (
+            <div className="todo-toolbar__multiselect-empty">Nenhum usuário encontrado</div>
+          ) : (
+            <div className="todo-toolbar__multiselect-list">
+              {usersByTeam.map((group) => (
+                <div key={group.label} className="todo-toolbar__multiselect-group">
+                  <div className="todo-toolbar__multiselect-group-label">{group.label}</div>
+                  {group.users.map((u) => (
+                    <label key={u.id} className="todo-toolbar__multiselect-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.includes(u.id)}
+                        onChange={() => handleToggleUser(u.id)}
+                      />
+                      <span className="todo-toolbar__multiselect-check" />
+                      <span className="todo-toolbar__multiselect-name">{u.name}</span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+
       {/* Actions (right) */}
       <div className="todo-toolbar__actions">
+        {/* Pill toggles: Finalizadas / Canceladas */}
+        <button
+          type="button"
+          className={`todo-toolbar__status-pill${showFinalizados ? ' todo-toolbar__status-pill--finalizadas' : ''}`}
+          onClick={() => onShowFinalizadosChange && onShowFinalizadosChange(!showFinalizados)}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Finalizadas
+        </button>
+        <button
+          type="button"
+          className={`todo-toolbar__status-pill${showCancelados ? ' todo-toolbar__status-pill--canceladas' : ''}`}
+          onClick={() => onShowCanceladosChange && onShowCanceladosChange(!showCancelados)}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 2L8 8M8 2L2 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          Canceladas
+        </button>
+
         {/* Mostrar button + panel */}
         <div className="todo-toolbar__mostrar-wrapper">
           <button
@@ -248,21 +441,6 @@ export default function TodoToolbar({
                     <KanbanIcon />
                     Kanban
                   </button>
-                </div>
-              </div>
-
-              {/* Tarefas concluídas toggle */}
-              <div className="todo-toolbar__panel-section">
-                <div className="todo-toolbar__toggle-row">
-                  <span className="todo-toolbar__toggle-label">Tarefas concluídas</span>
-                  <label className="todo-toolbar__toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={showClosedInDate}
-                      onChange={(e) => onShowClosedInDateChange && onShowClosedInDateChange(e.target.checked)}
-                    />
-                    <span className="todo-toolbar__toggle-slider" />
-                  </label>
                 </div>
               </div>
 
@@ -366,33 +544,6 @@ export default function TodoToolbar({
                       />
                     </div>
 
-                    <div className="todo-toolbar__panel-field">
-                      <label>Time</label>
-                      <select
-                        value={filters.teamId || ''}
-                        onChange={handleFilterChange('teamId')}
-                      >
-                        <option value="">Todos</option>
-                        {teams.map((team) => (
-                          <option key={team.id} value={team.id}>
-                            {team.team_number} - {team.team_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="todo-toolbar__panel-field">
-                      <label>Responsável</label>
-                      <select
-                        value={filters.assignee || ''}
-                        onChange={handleFilterChange('assignee')}
-                      >
-                        <option value="">Todos</option>
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                      </select>
-                    </div>
                   </div>
                 )}
               </div>
