@@ -1,0 +1,433 @@
+/**
+ * Estilos: Dashboard de Economia de Horas
+ * Design: Glass-card consistente com FeedbackAnalyticsView
+ */
+
+/* ========== CONTAINER ========== */
+.ts-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.ts-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #737373;
+  font-size: 0.9375rem;
+}
+
+.ts-loading-small {
+  padding: 2rem;
+  text-align: center;
+  color: #737373;
+  font-size: 0.875rem;
+}
+
+/* ========== HEADER ========== */
+.ts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.ts-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ts-header-icon {
+  width: 40px;
+  height: 40px;
+  color: #10B981;
+  flex-shrink: 0;
+}
+
+.ts-header-title h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.ts-header-title p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.ts-period-filter {
+  display: flex;
+  gap: 0.25rem;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.ts-period-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ts-period-btn:hover {
+  color: #111827;
+}
+
+.ts-period-btn.active {
+  background: white;
+  color: #10B981;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+/* ========== KPI CARDS ========== */
+.ts-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.ts-kpi-card {
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ts-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.ts-kpi-highlight {
+  border-left: 4px solid #10B981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0.95) 100%);
+}
+
+.ts-kpi-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.ts-kpi-highlight .ts-kpi-value {
+  color: #059669;
+}
+
+.ts-kpi-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+  margin-top: 0.25rem;
+}
+
+.ts-kpi-sub {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.125rem;
+}
+
+/* ========== CHARTS ========== */
+.ts-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.ts-chart-card {
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ts-chart-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.ts-chart-card canvas {
+  flex: 1;
+  min-height: 0;
+}
+
+.ts-no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* ========== SECTIONS ========== */
+.ts-section {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  padding: 1.25rem;
+}
+
+.ts-section h3 {
+  margin: 0 0 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ========== TABLE ========== */
+.ts-table-wrapper {
+  overflow-x: auto;
+}
+
+.ts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.ts-table th {
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom: 2px solid #f3f4f6;
+  white-space: nowrap;
+}
+
+.ts-table td {
+  padding: 0.5rem 0.75rem;
+  color: #374151;
+  border-bottom: 1px solid #f9fafb;
+}
+
+.ts-table tbody tr:hover {
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.ts-rank {
+  font-weight: 700;
+  color: #10B981;
+  width: 2rem;
+  text-align: center;
+}
+
+.ts-email {
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.ts-hours {
+  font-weight: 700;
+  color: #059669;
+  text-align: right;
+}
+
+.ts-date {
+  white-space: nowrap;
+  color: #9ca3af;
+}
+
+.ts-resource {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ts-minutes {
+  font-weight: 600;
+  text-align: right;
+}
+
+.ts-desc {
+  max-width: 300px;
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.ts-inactive {
+  opacity: 0.5;
+}
+
+/* ========== EXPAND BUTTON ========== */
+.ts-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ts-expand-btn:hover {
+  color: #10B981;
+}
+
+.ts-expand-btn span {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* ========== AUDIT & CATALOG ========== */
+.ts-audit,
+.ts-catalog {
+  margin-top: 1rem;
+}
+
+.ts-catalog-info {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
+.ts-minutes-input {
+  width: 70px;
+  padding: 4px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+.ts-minutes-input:focus {
+  outline: none;
+  border-color: #10B981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+/* ========== TOGGLE ========== */
+.ts-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.ts-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.ts-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #d1d5db;
+  border-radius: 20px;
+  transition: 0.2s;
+}
+
+.ts-toggle-slider::before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.ts-toggle input:checked + .ts-toggle-slider {
+  background-color: #10B981;
+}
+
+.ts-toggle input:checked + .ts-toggle-slider::before {
+  transform: translateX(16px);
+}
+
+/* ========== PAGINATION ========== */
+.ts-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 0 0;
+}
+
+.ts-pagination button {
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.ts-pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ts-pagination button:not(:disabled):hover {
+  background: #f3f4f6;
+}
+
+.ts-pagination span {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1024px) {
+  .ts-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ts-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ts-dashboard {
+    padding: 1rem;
+  }
+  .ts-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ts-kpi-row {
+    grid-template-columns: 1fr;
+  }
+}

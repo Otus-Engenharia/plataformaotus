@@ -17,6 +17,7 @@ import { createRoutes as createTodoRoutes } from './todos.js';
 import { createRoutes as createUserPreferencesRoutes } from './user-preferences.js';
 import { createRoutes as createOracleRoutes } from './oracle.js';
 import { createRoutes as createWeeklyReportRoutes } from './weekly-reports.js';
+import { createRoutes as createTimeSavingsRoutes } from './time-savings.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -81,5 +82,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
     app.use('/api/weekly-reports', weeklyReportRoutes);
   }
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports');
+  // Rotas de Economia de Horas (DDD)
+  const timeSavingsRoutes = createTimeSavingsRoutes(requireAuth, isPrivileged, logAction);
+  app.use('/api/time-savings', timeSavingsRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings');
 }

@@ -5,6 +5,7 @@
  */
 
 import express from 'express';
+import { trackTimeSaving } from '../time-savings-tracker.js';
 import { SupabaseAgendaRepository } from '../infrastructure/repositories/SupabaseAgendaRepository.js';
 import {
   ListAgendaTasks,
@@ -502,6 +503,9 @@ function createRoutes(requireAuth, logAction) {
 
       if (logAction) {
         await logAction(req, 'create', 'agenda_task', task.id, 'Tarefa de agenda criada', { name });
+      }
+      if (recurrence && recurrence !== 'nunca') {
+        await trackTimeSaving(req, 'recurring_task_materialization', { resourceType: 'agenda_task', resourceId: String(task.id), resourceName: name });
       }
 
       res.status(201).json({ success: true, data: task });
