@@ -27,9 +27,11 @@ import StatusDropdown, { getStatusColor } from './StatusDropdown';
 
 // Colunas editaveis (apenas na vista 'info')
 const EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
+// Colunas editaveis por lideres (sem 'lider' por seguranca)
+const LEADER_EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time'];
 
 function PortfolioView() {
-  const { isPrivileged, hasFullAccess } = useAuth();
+  const { isPrivileged, hasFullAccess, canEditPortfolio } = useAuth();
   const {
     data,
     loading,
@@ -92,10 +94,10 @@ function PortfolioView() {
 
   // Busca opcoes de edicao se usuario tem acesso total
   useEffect(() => {
-    if (hasFullAccess && !editOptions) {
+    if (canEditPortfolio && !editOptions) {
       fetchEditOptions();
     }
-  }, [hasFullAccess, editOptions, fetchEditOptions]);
+  }, [canEditPortfolio, editOptions, fetchEditOptions]);
 
   // Detecta e organiza as colunas baseado na vista ativa
   const columns = useMemo(() => {
@@ -207,7 +209,10 @@ function PortfolioView() {
 
   // Verifica se coluna e editavel
   const isEditableColumn = (columnKey) => {
-    return activeView === 'info' && hasFullAccess && EDITABLE_COLUMNS.includes(columnKey);
+    if (activeView !== 'info') return false;
+    if (hasFullAccess) return EDITABLE_COLUMNS.includes(columnKey);
+    if (canEditPortfolio) return LEADER_EDITABLE_COLUMNS.includes(columnKey);
+    return false;
   };
 
   // Renderiza celula (editavel ou normal)
