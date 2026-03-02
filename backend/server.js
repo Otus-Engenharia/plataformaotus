@@ -932,7 +932,7 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
           .single();
 
         const effectiveUser = req.session?.impersonating || req.user;
-        if (!project || project.project_manager_id !== effectiveUser.userId) {
+        if (!project || project.project_manager_id !== effectiveUser.id) {
           return res.status(403).json({
             success: false,
             error: 'Voce so pode editar seus proprios projetos'
@@ -2409,7 +2409,7 @@ app.get('/api/operacao/teams', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseServiceClient();
     const { data, error } = await supabase
       .from('teams')
       .select('id, team_number, team_name, created_at')

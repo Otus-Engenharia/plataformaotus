@@ -83,7 +83,7 @@ COMMENT ON COLUMN time_savings_events.catalog_id IS 'Referência à automação 
 -- Seed: Catálogo inicial de automações
 -- ============================================================================
 INSERT INTO time_savings_catalog (id, name, description, area, default_minutes) VALUES
-  ('weekly_report_generation', 'Geração de Relatório Semanal', 'Coleta manual de dados do BigQuery, criação de HTML, upload no Drive, rascunho no Gmail', 'projetos', 120),
+  ('weekly_report_generation', 'Geração de Relatório Semanal', 'Coleta manual de dados do BigQuery, criação de HTML, upload no Drive, rascunho no Gmail', 'projetos', 30),
   ('cobranca_gmail_draft', 'Cobrança via Gmail', 'Abrir cliente de email, buscar contatos da disciplina, redigir email de cobrança', 'projetos', 15),
   ('cobranca_mark_done', 'Marcar Cobrança Feita', 'Registrar em planilha/sistema separado quais cobranças foram realizadas', 'projetos', 3),
   ('baseline_request_submit', 'Solicitar Baseline', 'Coordenação por email entre coordenador e gerente para solicitar baseline', 'projetos', 20),
