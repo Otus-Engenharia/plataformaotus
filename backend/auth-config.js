@@ -210,6 +210,17 @@ export function hasFullAccess(email) {
 }
 
 /**
+ * Verifica se um usuario pode editar campos do portfolio
+ * (Dev, CEO, Director, Admin ou Leader)
+ * @param {string|Object} emailOrUser - Email ou user object
+ * @returns {boolean}
+ */
+export function canEditPortfolio(emailOrUser) {
+  const role = getUserRole(emailOrUser);
+  return ['dev', 'ceo', 'director', 'admin', 'leader'].includes(role);
+}
+
+/**
  * Setores que podem gerenciar demandas (editar status, prioridade, etc.)
  */
 const DEMANDAS_MANAGER_SECTORS = ['Tecnologia'];

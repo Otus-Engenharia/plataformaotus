@@ -262,6 +262,7 @@ export function AuthProvider({ children }) {
     canManageDemandas: user?.canManageDemandas === true,
     canManageEstudosCustos: user?.canManageEstudosCustos === true,
     canManageApoioProjetos: user?.canManageApoioProjetos === true,
+    canEditPortfolio: user?.canEditPortfolio === true,
     effectiveViews,
     canAccessView,
     fetchEffectiveViews,
