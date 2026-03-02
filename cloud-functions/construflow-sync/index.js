@@ -196,6 +196,7 @@ async function syncIssues(graphqlConfig) {
           statusUpdatedAt: issue.statusUpdatedAt,
           creationPhase: issue.creationPhase,
           resolutionPhase: issue.resolutionPhase,
+          category: issue.category,
           visibility: issue.visibility,
           editedAt: issue.editedAt,
         });
