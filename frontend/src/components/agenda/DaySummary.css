@@ -377,3 +377,18 @@
   color: #9aa0a6;
   font-family: 'DM Sans', sans-serif;
 }
+
+/* Concluído: risco + opacidade */
+.day-summary__unlinked-item--done {
+  opacity: 0.5;
+  cursor: default;
+}
+.day-summary__unlinked-item--done .day-summary__unlinked-name {
+  text-decoration: line-through;
+}
+
+/* Atrasado: data em vermelho */
+.day-summary__unlinked-item--overdue .day-summary__unlinked-date {
+  color: #ef4444;
+  font-weight: 600;
+}
