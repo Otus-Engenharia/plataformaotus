@@ -5,6 +5,7 @@
  */
 
 import express from 'express';
+import { trackTimeSaving } from '../time-savings-tracker.js';
 import { SupabaseDemandaRepository } from '../infrastructure/repositories/SupabaseDemandaRepository.js';
 import {
   ListDemandas,
@@ -198,6 +199,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, canManageDemandas) {
           tipo_servico,
         });
       }
+      await trackTimeSaving(req, 'demanda_submission', { resourceType: 'demanda', resourceId: String(demanda.id) });
 
       res.status(201).json({
         success: true,

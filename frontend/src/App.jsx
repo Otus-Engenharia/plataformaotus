@@ -95,6 +95,9 @@ const WhiteboardView = lazy(() => import('./pages/whiteboard/WhiteboardView'));
 const VistaClienteInicioView = lazy(() => import('./pages/vista-cliente/VistaClienteInicioView'));
 const VistaClienteApontamentosView = lazy(() => import('./pages/vista-cliente/VistaClienteApontamentosView'));
 
+// Economia de Horas
+const TimeSavingsDashboardView = lazy(() => import('./pages/time-savings/TimeSavingsDashboardView'));
+
 const icons = {
   indicadoresLideranca: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1564,6 +1567,16 @@ function AppContent() {
                 <ProtectedRoute>
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                     <TodosView />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/economia-horas"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <TimeSavingsDashboardView />
                   </Suspense>
                 </ProtectedRoute>
               }

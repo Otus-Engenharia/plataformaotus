@@ -5,6 +5,7 @@
  */
 
 import express from 'express';
+import { trackTimeSaving } from '../time-savings-tracker.js';
 import { SupabaseWeeklyReportRepository } from '../infrastructure/repositories/SupabaseWeeklyReportRepository.js';
 import {
   CheckProjectReadiness,
@@ -248,6 +249,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
           weekKey: result.week_key,
         });
       }
+      await trackTimeSaving(req, 'weekly_report_generation', { resourceType: 'project', resourceId: projectCode, resourceName: project.project_name });
 
       res.status(201).json({
         success: true,
