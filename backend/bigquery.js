@@ -601,7 +601,7 @@ export async function queryCustosPorUsuarioProjeto(leaderName = null, projectCod
     )
     SELECT
       c.usuario,
-      c.project_code,
+      pp.project_code_norm AS project_code,
       c.mes,
       SUM(COALESCE(c.custo_direto_usuario_projeto_mes, 0)) AS custo_direto,
       SUM(COALESCE(c.custo_indireto_usuario_projeto_mes, 0)) AS custo_indireto,
@@ -615,8 +615,8 @@ export async function queryCustosPorUsuarioProjeto(leaderName = null, projectCod
       AND c.mes IS NOT NULL
       AND c.mes <= CURRENT_DATE()
       ${projectFilter}
-    GROUP BY c.usuario, c.project_code, c.mes
-    ORDER BY c.usuario, c.project_code, c.mes ASC
+    GROUP BY c.usuario, pp.project_code_norm, c.mes
+    ORDER BY c.usuario, pp.project_code_norm, c.mes ASC
   `;
 
   return await executeQuery(query);
