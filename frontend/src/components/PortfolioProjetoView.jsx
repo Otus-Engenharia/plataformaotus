@@ -29,9 +29,9 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
   const [error, setError] = useState(null);
   const [editingField, setEditingField] = useState(null); // 'comercial_name' | 'status'
 
-  const { hasFullAccess } = useAuth();
+  const { hasFullAccess, canEditPortfolio } = useAuth();
   const { updatePortfolioField, savedCell, errorCell } = usePortfolio();
-  const canEdit = hasFullAccess;
+  const canEdit = canEditPortfolio;
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !portfolio || portfolio.length === 0) return null;

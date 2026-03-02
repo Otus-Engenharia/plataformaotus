@@ -21,7 +21,7 @@ import NodeCache from 'node-cache';
 import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName } from './bigquery.js';
 import cron from 'node-cron';
-import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
+import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos, canEditPortfolio } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import { trackTimeSaving } from './time-savings-tracker.js';
 import WeeklyReportGenerator from './services/weekly-report-generator.js';
@@ -621,6 +621,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         canManageDemandas: canManageDemandas(req.user),
         canManageEstudosCustos: canManageEstudosCustos(req.user),
         canManageApoioProjetos: canManageApoioProjetos(req.user),
+        canEditPortfolio: canEditPortfolio(req.user),
         // Dados do users_otus para controle de acesso por setor/responsável
         userId: userOtus?.id || null, // ID interno na tabela users_otus
         setor_id: userOtus?.setor_id || null,
@@ -650,6 +651,7 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
         canManageDemandas: canManageDemandas(req.user),
         canManageEstudosCustos: canManageEstudosCustos(req.user),
         canManageApoioProjetos: canManageApoioProjetos(req.user),
+        canEditPortfolio: canEditPortfolio(req.user),
         userId: null,
         setor_id: null,
         setor_name: req.user.setor_name || null,
@@ -883,7 +885,7 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
  */
 app.get('/api/portfolio/edit-options', requireAuth, withBqCache(1800), async (req, res) => {
   try {
-    if (!hasFullAccess(req.user)) {
+    if (!canEditPortfolio(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
     const data = await fetchPortfolioEditOptions();
@@ -901,16 +903,41 @@ app.get('/api/portfolio/edit-options', requireAuth, withBqCache(1800), async (re
  */
 app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user)) {
+    if (!canEditPortfolio(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
     const { projectCode } = req.params;
     const { field, value, oldValue } = req.body;
 
-    const allowedFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
+    // Campos permitidos: admins podem editar lider, leaders nao
+    const allowedFields = hasFullAccess(req.user)
+      ? ['comercial_name', 'status', 'client', 'nome_time', 'lider']
+      : ['comercial_name', 'status', 'client', 'nome_time'];
+
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido` });
+    }
+
+    // Ownership check: lideres de Operacao so editam seus proprios projetos
+    if (!hasFullAccess(req.user)) {
+      const { leaderName } = getLeaderDataFilter(req);
+      if (leaderName) {
+        const supabase = getSupabaseClient();
+        const { data: project } = await supabase
+          .from('projects')
+          .select('project_manager_id')
+          .eq('project_code', projectCode)
+          .single();
+
+        const effectiveUser = req.session?.impersonating || req.user;
+        if (!project || project.project_manager_id !== effectiveUser.userId) {
+          return res.status(403).json({
+            success: false,
+            error: 'Voce so pode editar seus proprios projetos'
+          });
+        }
+      }
     }
 
     const result = await updateProjectField(projectCode, field, value);
