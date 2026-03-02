@@ -5,6 +5,7 @@
  */
 
 import express from 'express';
+import { trackTimeSaving } from '../time-savings-tracker.js';
 import { SupabaseBaselineRequestRepository } from '../infrastructure/repositories/SupabaseBaselineRequestRepository.js';
 import { SupabaseBaselineRepository } from '../infrastructure/repositories/SupabaseBaselineRepository.js';
 import {
@@ -62,6 +63,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
           project_code, title,
         });
       }
+      await trackTimeSaving(req, 'baseline_request_submit', { resourceType: 'baseline_request', resourceId: String(data.id), resourceName: title });
 
       res.status(201).json({ success: true, data });
     } catch (error) {
@@ -138,6 +140,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
           baseline_id: data.baseline?.id,
         });
       }
+      await trackTimeSaving(req, 'baseline_approval', { resourceType: 'baseline_request', resourceId: String(req.params.id) });
 
       res.json({ success: true, data });
     } catch (error) {

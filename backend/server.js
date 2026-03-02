@@ -19,10 +19,11 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName } from './bigquery.js';
 import cron from 'node-cron';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
+import { trackTimeSaving } from './time-savings-tracker.js';
 import WeeklyReportGenerator from './services/weekly-report-generator.js';
 import {
   getSupabaseClient, getSupabaseServiceClient, fetchPortfolioRealtime, fetchCurvaSRealtime, fetchCurvaSColaboradoresRealtime,
@@ -914,6 +915,7 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
 
     const result = await updateProjectField(projectCode, field, value);
     await logAction(req, 'update', 'portfolio', projectCode, field, { value, oldValue });
+    await trackTimeSaving(req, 'portfolio_field_update', { resourceType: 'project', resourceId: projectCode, resourceName: field });
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -1738,6 +1740,9 @@ app.put('/api/projetos/cronograma/cobrancas', requireAuth, async (req, res) => {
       });
     }
     await upsertCobranca(smartsheetId, rowId, cobrancaFeita, req.user?.email);
+    if (cobrancaFeita) {
+      await trackTimeSaving(req, 'cobranca_mark_done', { resourceType: 'task', resourceId: rowId, resourceName: smartsheetId });
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Erro ao salvar cobrança:', err);
@@ -1801,6 +1806,7 @@ app.post('/api/projetos/cronograma/gmail-draft', requireAuth, async (req, res) =
       subject,
       body,
     });
+    await trackTimeSaving(req, 'cobranca_gmail_draft', { resourceType: 'discipline', resourceId: construflowId, resourceName: disciplinaName });
 
     res.json({
       success: true,
@@ -1820,6 +1826,61 @@ app.post('/api/projetos/cronograma/gmail-draft', requireAuth, async (req, res) =
       success: false,
       error: error.message || 'Erro ao criar rascunho no Gmail',
     });
+  }
+});
+
+/**
+ * Rota: GET /api/projetos/cronograma/discipline-contacts
+ * Retorna contatos (email/phone) de cada disciplina do projeto
+ * Query: construflowId
+ */
+app.get('/api/projetos/cronograma/discipline-contacts', requireAuth, async (req, res) => {
+  try {
+    const { construflowId } = req.query;
+    if (!construflowId) {
+      return res.status(400).json({ success: false, error: 'construflowId é obrigatório' });
+    }
+
+    // Buscar disciplinas e contagem de issues em paralelo
+    const [disciplines, issuesCounts] = await Promise.all([
+      fetchProjectDisciplines(construflowId),
+      queryConstruflowIssuesByDiscipline(construflowId).catch(() => ({})),
+    ]);
+
+    // Agrupar por disciplina (pode haver múltiplos contatos por disciplina)
+    const grouped = {};
+    for (const d of disciplines) {
+      const key = d.discipline?.discipline_name || 'Sem disciplina';
+      if (!grouped[key]) {
+        grouped[key] = {
+          discipline_name: d.discipline?.discipline_name || null,
+          short_name: d.discipline?.short_name || null,
+          issue_count: issuesCounts[key] || 0,
+          contacts: [],
+        };
+      }
+      const email = d.email || d.contact?.email || null;
+      const phone = d.phone || d.contact?.phone || null;
+      const contact_name = d.contact?.name || d.discipline_detail || null;
+      // Evitar duplicatas (mesmo contato adicionado 2x)
+      const isDuplicate = grouped[key].contacts.some(c =>
+        c.contact_name === contact_name && c.email === email && c.phone === phone
+      );
+      if (!isDuplicate && (contact_name || email || phone)) {
+        grouped[key].contacts.push({
+          email,
+          phone,
+          contact_name,
+          company_name: d.company?.name || null,
+        });
+      }
+    }
+
+    const data = Object.values(grouped);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Erro ao buscar contatos das disciplinas:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

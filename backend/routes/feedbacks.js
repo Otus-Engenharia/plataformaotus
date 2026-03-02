@@ -5,6 +5,7 @@
  */
 
 import express from 'express';
+import { trackTimeSaving } from '../time-savings-tracker.js';
 import { SupabaseFeedbackRepository } from '../infrastructure/repositories/SupabaseFeedbackRepository.js';
 import {
   ListFeedbacks,
@@ -254,6 +255,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
           hasTitle: !!titulo,
         });
       }
+      await trackTimeSaving(req, 'feedback_submission', { resourceType: 'feedback', resourceId: String(feedback.id) });
 
       res.status(201).json({
         success: true,
