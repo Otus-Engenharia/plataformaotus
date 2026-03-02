@@ -56,10 +56,7 @@ function buildColumns(todos, groupBy, weekRef) {
     const startKey = format(start, 'yyyy-MM-dd');
 
     todos.forEach((todo) => {
-      const rawDue = todo.due_date
-        ? (typeof todo.due_date === 'string' ? todo.due_date.split('T')[0] : todo.due_date)
-        : null;
-      const dueDate = rawDue ? startOfDay(new Date(rawDue + 'T00:00:00')) : null;
+      const dueDate = todo.due_date ? startOfDay(new Date(todo.due_date)) : null;
 
       if (!dueDate) {
         columns[0].items.push(todo);
