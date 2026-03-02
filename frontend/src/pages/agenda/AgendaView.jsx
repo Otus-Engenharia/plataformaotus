@@ -63,6 +63,7 @@ function AgendaView() {
     }
 
     return () => {
+      // Garantir que o cleanup só execute uma vez (proteção contra React Strict Mode)
       html.style.overflow = prev.htmlOverflow;
       html.style.height = prev.htmlHeight;
       body.style.overflow = prev.bodyOverflow;
