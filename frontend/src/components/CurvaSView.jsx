@@ -605,10 +605,11 @@ function CurvaSView() {
     const allowedProjectCodes = new Set(
       filteredData.map(item => String(item.project_code))
     );
-    return custosPorCargo.filter(item =>
+    const result = custosPorCargo.filter(item =>
       allowedProjectCodes.has(String(item.project_code)) &&
       parseDate(item.mes) !== currentMonthKey
     );
+    return result;
   }, [custosPorCargo, filteredData, currentMonthKey]);
 
   // Agrupa dados de cargo por mês e cargo para datasets dos gráficos
