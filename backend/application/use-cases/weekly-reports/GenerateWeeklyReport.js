@@ -15,6 +15,7 @@
 
 import { WeeklyReport } from '../../../domain/weekly-reports/entities/WeeklyReport.js';
 import { PipelineStepEnum } from '../../../domain/weekly-reports/value-objects/PipelineStep.js';
+import { SupabaseRelatoRepository } from '../../../infrastructure/repositories/SupabaseRelatoRepository.js';
 
 class GenerateWeeklyReport {
   #reportRepository;
@@ -130,6 +131,29 @@ class GenerateWeeklyReport {
     const taskCount = processedData.summary?.totalTasks || 0;
     await this.#addLog(reportId, `${issueCount} issues e ${taskCount} tarefas processadas`);
 
+    // Step 2b: Buscar relatos da semana (não bloqueante)
+    let weekRelatos = [];
+    let tiposMap = {};
+    let prioridadesMap = {};
+    try {
+      await this.#addLog(reportId, 'Buscando relatos da semana...');
+      const relatoRepo = new SupabaseRelatoRepository();
+      const [allRelatos, tipos, prioridades] = await Promise.all([
+        relatoRepo.findByProjectCode(projectCode),
+        relatoRepo.findAllTipos(),
+        relatoRepo.findAllPrioridades(),
+      ]);
+
+      const sinceDate = new Date(Date.now() - 7 * 86400000);
+      weekRelatos = allRelatos.filter(r => new Date(r.createdAt) >= sinceDate);
+      tiposMap = Object.fromEntries(tipos.map(t => [t.slug, { label: t.label, color: t.color }]));
+      prioridadesMap = Object.fromEntries(prioridades.map(p => [p.slug, { label: p.label, color: p.color }]));
+      await this.#addLog(reportId, `${weekRelatos.length} relatos encontrados na última semana`);
+    } catch (err) {
+      console.warn('[WeeklyReport] Erro ao buscar relatos (não bloqueante):', err.message);
+      await this.#addLog(reportId, 'Aviso: não foi possível buscar relatos');
+    }
+
     // Step 3: Gerar HTML
     await this.#updateStep(reportId, PipelineStepEnum.GENERATING_HTML);
     await this.#addLog(reportId, 'Gerando HTML (versão cliente + equipe)...');
@@ -138,6 +162,9 @@ class GenerateWeeklyReport {
       hideDashboard,
       ganttUrl,
       disciplinaUrl,
+      relatos: weekRelatos,
+      tiposMap,
+      prioridadesMap,
     });
     await this.#addLog(reportId, 'Relatórios HTML gerados com sucesso');
 

@@ -863,6 +863,106 @@ function _generateCronogramaTeamSection(schedule) {
   return html;
 }
 
+// -- Relatos da Semana ----------------------------------------------------
+
+/**
+ * Gera HTML da seção "Relatos da Semana" para o relatório do cliente.
+ * @param {Array} relatos - Relatos da semana (já filtrados por data)
+ * @param {Object} tiposMap - { slug: { label, color } }
+ * @param {Object} prioridadesMap - { slug: { label, color } }
+ * @returns {string} HTML inline
+ */
+function _generateRelatosSection(relatos, tiposMap = {}, prioridadesMap = {}) {
+  if (!relatos || relatos.length === 0) {
+    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#666;">Nenhum relato registrado no per\u00edodo (\u00faltimos 7 dias).</p>`;
+  }
+
+  // Agrupar por tipo (suporta entidade Relato ou objeto plano)
+  const grouped = {};
+  for (const r of relatos) {
+    const tipoSlug = (r.tipo && typeof r.tipo === 'object' ? r.tipo.slug : null) || r.tipo_slug || 'informativo';
+    if (!grouped[tipoSlug]) grouped[tipoSlug] = [];
+    grouped[tipoSlug].push(r);
+  }
+
+  // Ordem de prioridade dos tipos
+  const tipoOrder = ['bloqueio', 'risco', 'decisao', 'informativo'];
+  const sortedSlugs = Object.keys(grouped).sort((a, b) => {
+    const ia = tipoOrder.indexOf(a);
+    const ib = tipoOrder.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+
+  let html = '';
+
+  for (const slug of sortedSlugs) {
+    const items = grouped[slug];
+    const tipoInfo = tiposMap[slug] || {};
+    const tipoLabel = tipoInfo.label || slug;
+    const tipoColor = tipoInfo.color || '#6B7280';
+
+    // Heading do tipo
+    html += `<div style="margin-bottom:20px;">`;
+    html += `<p style="margin:0 0 10px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #eee;padding-bottom:6px;">`;
+    html += `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${esc(tipoColor)};margin-right:8px;vertical-align:middle;"></span>`;
+    html += `${esc(tipoLabel)}`;
+    html += `<span style="margin-left:8px;font-size:9px;color:#888;font-weight:600;">(${items.length})</span>`;
+    html += `</p>`;
+
+    for (const r of items) {
+      const code = r.code || `RL-${r.id || ''}`;
+      const titulo = r.titulo || '';
+      const descricao = r.descricao || '';
+      const authorName = r.authorName || r.author_name || '';
+      const createdAt = r.createdAt || r.created_at;
+      const dateStr = formatDateShort(createdAt);
+      const isResolved = r.isResolved != null ? r.isResolved : (r.is_resolved || false);
+
+      const prioSlug = (r.prioridade && typeof r.prioridade === 'object' ? r.prioridade.slug : null) || r.prioridade_slug || '';
+      const prioInfo = prioridadesMap[prioSlug] || {};
+      const prioLabel = prioInfo.label || prioSlug;
+      const prioColor = prioInfo.color || '#6B7280';
+
+      // Card do relato
+      html += `<div style="margin-bottom:12px;padding:14px 16px;background:#fafafa;border-radius:4px;border-left:3px solid ${esc(tipoColor)};">`;
+
+      // Linha 1: código + título
+      html += `<p style="margin:0 0 6px;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;font-weight:500;">`;
+      html += `<span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;background:#fff3e0;color:${OTUS.orange};padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(code)}</span>`;
+      html += `${esc(titulo)}`;
+      html += `</p>`;
+
+      // Linha 2: prioridade + autor + data + status
+      html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#666;">`;
+      if (prioLabel) {
+        html += `<span style="display:inline-block;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:${esc(prioColor)};text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid ${esc(prioColor)};padding-bottom:1px;margin-right:10px;">${esc(prioLabel)}</span>`;
+      }
+      if (authorName) {
+        html += `${esc(authorName)}`;
+      }
+      if (dateStr) {
+        html += `<span style="margin-left:8px;color:#999;">${esc(dateStr)}</span>`;
+      }
+      if (isResolved) {
+        html += `<span style="margin-left:10px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:0.5px;">Resolvido</span>`;
+      }
+      html += `</p>`;
+
+      // Linha 3: descrição
+      if (descricao && descricao.trim().length > 0) {
+        const truncated = descricao.length > 200 ? descricao.substring(0, 200) + '...' : descricao;
+        html += `<p style="margin:6px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#444;line-height:1.5;padding-left:4px;">${esc(truncated)}</p>`;
+      }
+
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  return html;
+}
+
 // -- Base HTML template ---------------------------------------------------
 
 function _generateProjectImageHtml(imageBase64, projectName) {
@@ -1072,6 +1172,9 @@ export function generateHtml(processedData, options = {}) {
     disciplinaUrl = null,
     projectImageBase64 = null,
     logoBase64 = null,
+    relatos = [],
+    tiposMap = {},
+    prioridadesMap = {},
   } = options;
 
   const projectName = nameOverride || processedData.projectName || 'Projeto';
@@ -1100,41 +1203,53 @@ export function generateHtml(processedData, options = {}) {
   const atrasosClientHtml = _generateAtrasosClientSection(delaysClient);
   const cronogramaClientHtml = _generateCronogramaClientSection(scheduleClient, ganttUrl, disciplinaUrl, scheduleDays);
 
+  const relatosHtml = _generateRelatosSection(relatos, tiposMap, prioridadesMap);
+  const countRelatos = relatos.length;
+
+  const clientSections = [
+    {
+      title: 'Pend\u00eancias do Cliente',
+      count: countPendencias,
+      color: countPendencias > 0 ? '#dc2626' : '#16a34a',
+      content: pendenciasHtml,
+      open: true,
+    },
+    {
+      title: 'Atividades Conclu\u00eddas',
+      count: countConcluidasClient,
+      color: '#16a34a',
+      content: concluidasClientHtml,
+      open: false,
+    },
+    {
+      title: 'Atrasos e Desvios',
+      count: countAtrasosClient,
+      color: countAtrasosClient > 0 ? '#dc2626' : '#16a34a',
+      content: atrasosClientHtml,
+      open: false,
+    },
+    {
+      title: 'Cronograma',
+      count: countCronogramaClient,
+      color: '#64748b',
+      content: cronogramaClientHtml,
+      open: false,
+    },
+    {
+      title: 'Relatos da Semana',
+      count: countRelatos,
+      color: countRelatos > 0 ? '#f5a623' : '#16a34a',
+      content: relatosHtml,
+      open: false,
+    },
+  ];
+
   const clientHtml = _generateBaseHtml({
     projectName,
     subtitle: clientName,
     date: todayStr,
     greeting: 'Prezados,<br>Segue o status atualizado do projeto para esta semana.',
-    sections: [
-      {
-        title: 'Pend\u00eancias do Cliente',
-        count: countPendencias,
-        color: countPendencias > 0 ? '#dc2626' : '#16a34a',
-        content: pendenciasHtml,
-        open: true,
-      },
-      {
-        title: 'Atividades Conclu\u00eddas',
-        count: countConcluidasClient,
-        color: '#16a34a',
-        content: concluidasClientHtml,
-        open: false,
-      },
-      {
-        title: 'Atrasos e Desvios',
-        count: countAtrasosClient,
-        color: countAtrasosClient > 0 ? '#dc2626' : '#16a34a',
-        content: atrasosClientHtml,
-        open: false,
-      },
-      {
-        title: 'Cronograma',
-        count: countCronogramaClient,
-        color: '#64748b',
-        content: cronogramaClientHtml,
-        open: false,
-      },
-    ],
+    sections: clientSections,
     showDashboardButton: !hideDashboard,
     projectId,
     headerColor: '#0f172a',
