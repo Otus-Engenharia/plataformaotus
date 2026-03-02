@@ -45,64 +45,50 @@
   font-weight: 600;
 }
 
-/* Tab bar */
-.day-summary__tabs {
-  display: flex;
-  border-bottom: 1px solid #dadce0;
-  flex-shrink: 0;
-}
-
-.day-summary__tab {
-  flex: 1;
-  padding: 8px 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: #70757a;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-family: 'DM Sans', sans-serif;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-  text-align: center;
-}
-
-.day-summary__tab:hover {
-  color: #202124;
-  background: #f8f9fa;
-}
-
-.day-summary__tab--active {
-  color: #1a73e8;
-  border-bottom-color: #1a73e8;
-}
-
-/* Tab content area */
-.day-summary__content {
+/* Scroll container único para atividades + todos */
+.day-summary__scroll {
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.day-summary__events {
-  flex: 1;
   overflow-y: auto;
-  min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: #dadce0 transparent;
 }
 
-.day-summary__events::-webkit-scrollbar {
+.day-summary__scroll::-webkit-scrollbar {
   width: 4px;
 }
 
-.day-summary__events::-webkit-scrollbar-thumb {
+.day-summary__scroll::-webkit-scrollbar-thumb {
   background: #dadce0;
   border-radius: 2px;
+}
+
+/* Cabeçalho de seção */
+.day-summary__section-header {
+  padding: 8px 16px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #70757a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: 'DM Sans', sans-serif;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e8eaed;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Divisor entre seções */
+.day-summary__section-divider {
+  height: 1px;
+  background: #dadce0;
+  margin: 4px 0;
+}
+
+/* Atividades (mantido para compatibilidade mas sem overflow próprio) */
+.day-summary__events {
+  /* sem overflow — o pai .day-summary__scroll rola */
 }
 
 /* Estado vazio */
@@ -296,21 +282,7 @@
 }
 
 .day-summary__unlinked-list {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: #dadce0 transparent;
   padding-bottom: 8px;
-}
-
-.day-summary__unlinked-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.day-summary__unlinked-list::-webkit-scrollbar-thumb {
-  background: #dadce0;
-  border-radius: 2px;
 }
 
 .day-summary__unlinked-item {
