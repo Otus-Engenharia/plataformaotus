@@ -7664,4 +7664,24 @@ app.listen(PORT, HOST, async () => {
     console.log('[Cron] Snapshots semanais concluidos');
   }, { timezone: 'America/Sao_Paulo' });
   console.log('⏰ Cron job configurado: snapshot KPIs todo sábado 23:59 BRT');
+
+  // Cron job: scan de pastas IFC a cada 6 horas (00:00, 06:00, 12:00, 18:00 BRT)
+  cron.schedule('0 0,6,12,18 * * *', async () => {
+    console.log('[Cron] Iniciando scan automatico de pastas IFC...');
+    try {
+      const { SupabaseIfcChangeLogRepository } = await import('./infrastructure/repositories/SupabaseIfcChangeLogRepository.js');
+      const { GoogleDriveFileScanner } = await import('./infrastructure/services/GoogleDriveFileScanner.js');
+      const { ScanAllFolders } = await import('./application/use-cases/ifc-changelog/ScanAllFolders.js');
+
+      const repository = new SupabaseIfcChangeLogRepository();
+      const scanner = new GoogleDriveFileScanner();
+      const useCase = new ScanAllFolders(repository, scanner);
+      const result = await useCase.execute({ scannedBy: 'sistema-automatico' });
+
+      console.log(`[Cron] Scan IFC concluido: ${result.totalProjects} projetos, ${result.totalChanges} mudancas detectadas`);
+    } catch (err) {
+      console.error('[Cron] Erro no scan IFC:', err.message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+  console.log('⏰ Cron job configurado: scan IFC a cada 6h BRT');
 });
