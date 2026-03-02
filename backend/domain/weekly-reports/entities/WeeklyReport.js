@@ -21,7 +21,6 @@ class WeeklyReport {
   #currentStep;
   #clientReportDriveUrl;
   #teamReportDriveUrl;
-  #driveFolderUrl;
   #clientDraftUrl;
   #teamDraftUrl;
   #errorMessage;
@@ -41,7 +40,6 @@ class WeeklyReport {
     currentStep = null,
     clientReportDriveUrl = null,
     teamReportDriveUrl = null,
-    driveFolderUrl = null,
     clientDraftUrl = null,
     teamDraftUrl = null,
     errorMessage = null,
@@ -66,7 +64,6 @@ class WeeklyReport {
     this.#currentStep = currentStep instanceof PipelineStep ? currentStep : new PipelineStep(currentStep);
     this.#clientReportDriveUrl = clientReportDriveUrl || null;
     this.#teamReportDriveUrl = teamReportDriveUrl || null;
-    this.#driveFolderUrl = driveFolderUrl || null;
     this.#clientDraftUrl = clientDraftUrl || null;
     this.#teamDraftUrl = teamDraftUrl || null;
     this.#errorMessage = errorMessage || null;
@@ -87,7 +84,6 @@ class WeeklyReport {
   get currentStep() { return this.#currentStep; }
   get clientReportDriveUrl() { return this.#clientReportDriveUrl; }
   get teamReportDriveUrl() { return this.#teamReportDriveUrl; }
-  get driveFolderUrl() { return this.#driveFolderUrl; }
   get clientDraftUrl() { return this.#clientDraftUrl; }
   get teamDraftUrl() { return this.#teamDraftUrl; }
   get errorMessage() { return this.#errorMessage; }
@@ -131,7 +127,7 @@ class WeeklyReport {
   /**
    * Marca o relatório como concluído com os links gerados
    */
-  complete({ clientReportDriveUrl, teamReportDriveUrl, driveFolderUrl, clientDraftUrl, teamDraftUrl, metadata }) {
+  complete({ clientReportDriveUrl, teamReportDriveUrl, clientDraftUrl, teamDraftUrl, metadata }) {
     if (this.#status.isDone) {
       throw new Error('Relatório já está finalizado');
     }
@@ -140,7 +136,6 @@ class WeeklyReport {
     this.#currentStep = new PipelineStep(null);
     this.#clientReportDriveUrl = clientReportDriveUrl || null;
     this.#teamReportDriveUrl = teamReportDriveUrl || null;
-    this.#driveFolderUrl = driveFolderUrl || null;
     this.#clientDraftUrl = clientDraftUrl || null;
     this.#teamDraftUrl = teamDraftUrl || null;
     if (metadata) {
@@ -173,7 +168,6 @@ class WeeklyReport {
       current_step: this.#currentStep.value,
       client_report_drive_url: this.#clientReportDriveUrl,
       team_report_drive_url: this.#teamReportDriveUrl,
-      drive_folder_url: this.#driveFolderUrl,
       client_draft_url: this.#clientDraftUrl,
       team_draft_url: this.#teamDraftUrl,
       error_message: this.#errorMessage,
@@ -203,7 +197,6 @@ class WeeklyReport {
       pipeline_steps: PipelineStep.ALL_STEPS_WITH_LABELS,
       client_report_drive_url: this.#clientReportDriveUrl,
       team_report_drive_url: this.#teamReportDriveUrl,
-      drive_folder_url: this.#driveFolderUrl,
       client_draft_url: this.#clientDraftUrl,
       team_draft_url: this.#teamDraftUrl,
       error_message: this.#errorMessage,
@@ -232,7 +225,6 @@ class WeeklyReport {
       currentStep: data.current_step,
       clientReportDriveUrl: data.client_report_drive_url,
       teamReportDriveUrl: data.team_report_drive_url,
-      driveFolderUrl: data.drive_folder_url,
       clientDraftUrl: data.client_draft_url,
       teamDraftUrl: data.team_draft_url,
       errorMessage: data.error_message,

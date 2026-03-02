@@ -172,7 +172,6 @@ class GenerateWeeklyReport {
     // Step 4: Upload Drive
     let clientDriveUrl = null;
     let teamDriveUrl = null;
-    let driveFolderUrl = null;
     if (driveFolderId) {
       await this.#updateStep(reportId, PipelineStepEnum.UPLOADING_DRIVE);
       await this.#addLog(reportId, 'Enviando relatórios para Google Drive...');
@@ -182,7 +181,6 @@ class GenerateWeeklyReport {
       });
       clientDriveUrl = driveResults.clientUrl;
       teamDriveUrl = driveResults.teamUrl;
-      driveFolderUrl = driveResults.folderUrl;
       await this.#addLog(reportId, 'Upload no Drive concluído');
     } else {
       await this.#addLog(reportId, 'Sem pasta do Drive configurada — pulando upload');
@@ -217,7 +215,6 @@ class GenerateWeeklyReport {
     report.complete({
       clientReportDriveUrl: clientDriveUrl,
       teamReportDriveUrl: teamDriveUrl,
-      driveFolderUrl,
       clientDraftUrl,
       teamDraftUrl,
       metadata: {
