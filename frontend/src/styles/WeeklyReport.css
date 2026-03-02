@@ -644,6 +644,90 @@
 }
 
 /* ============================= */
+/* Period Selector               */
+/* ============================= */
+
+.wr-period-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.875rem;
+}
+
+.wr-period-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.wr-period-options {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.wr-period-btn {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: 'Inter', Verdana, sans-serif;
+  border: 1.5px solid #d1d5db;
+  border-radius: 20px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  line-height: 1.4;
+}
+
+.wr-period-btn:hover:not(:disabled) {
+  border-color: #22c55e;
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.wr-period-btn.active {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.wr-period-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wr-period-custom {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.wr-period-custom-input {
+  width: 4.5rem;
+  padding: 0.28rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  color: #374151;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.wr-period-custom-input:focus {
+  border-color: #22c55e;
+}
+
+.wr-period-custom-unit {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+/* ============================= */
 /* Generate Button - Primary     */
 /* ============================= */
 
