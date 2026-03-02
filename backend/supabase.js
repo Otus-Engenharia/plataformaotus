@@ -4555,7 +4555,7 @@ export async function getUserOtusByEmail(email) {
  * @returns {Promise<Object|null>}
  */
 export async function getUserOtusById(userId) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase
     .from(USERS_OTUS_TABLE)
     .select('id, name, email, role, setor:setor_id(id, name), team:team_id(team_name)')
