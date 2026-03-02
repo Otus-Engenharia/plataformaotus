@@ -72,6 +72,8 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
   const [wrReady, setWrReady] = useState(false);
   const [wrGenerating, setWrGenerating] = useState(false);
   const [wrReportId, setWrReportId] = useState(null);
+  const [relatosDias, setRelatosDias] = useState(7);
+  const [relatosCustomInput, setRelatosCustomInput] = useState('');
 
   // Prerequisites state
   const [prerequisites, setPrerequisites] = useState(null);
@@ -116,6 +118,8 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     setWrReady(false);
     setWrGenerating(false);
     setWrReportId(null);
+    setRelatosDias(7);
+    setRelatosCustomInput('');
     setActiveTab('config');
     setPrerequisites(null);
     setShowTooltip(false);
@@ -323,7 +327,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
     try {
       const response = await axios.post(
         `${API_URL}/api/weekly-reports/generate`,
-        { projectCode },
+        { projectCode, options: { relatosDias } },
         { withCredentials: true }
       );
       setWrReportId(response.data.data?.id || response.data.reportId);
@@ -666,6 +670,60 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
 
                 {isRelatorioAtivo ? (
                   <>
+                    {/* Seletor de período dos relatos */}
+                    <div className="wr-period-selector">
+                      <span className="wr-period-label">Período dos relatos:</span>
+                      <div className="wr-period-options">
+                        <button
+                          type="button"
+                          className={`wr-period-btn ${relatosDias === 7 ? 'active' : ''}`}
+                          onClick={() => { setRelatosDias(7); setRelatosCustomInput(''); }}
+                          disabled={wrGenerating}
+                        >
+                          1 semana
+                        </button>
+                        <button
+                          type="button"
+                          className={`wr-period-btn ${relatosDias === 14 ? 'active' : ''}`}
+                          onClick={() => { setRelatosDias(14); setRelatosCustomInput(''); }}
+                          disabled={wrGenerating}
+                        >
+                          2 semanas
+                        </button>
+                        <button
+                          type="button"
+                          className={`wr-period-btn ${![7, 14].includes(relatosDias) ? 'active' : ''}`}
+                          onClick={() => {
+                            setRelatosCustomInput(String(relatosDias));
+                            if (relatosDias === 7 || relatosDias === 14) setRelatosDias(0);
+                          }}
+                          disabled={wrGenerating}
+                        >
+                          Personalizado
+                        </button>
+                      </div>
+                      {![7, 14].includes(relatosDias) && (
+                        <div className="wr-period-custom">
+                          <input
+                            type="number"
+                            min="1"
+                            max="30"
+                            value={relatosCustomInput}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setRelatosCustomInput(val);
+                              const num = parseInt(val);
+                              if (num >= 1 && num <= 30) setRelatosDias(num);
+                            }}
+                            className="wr-period-custom-input"
+                            placeholder="Dias (1-30)"
+                            disabled={wrGenerating}
+                          />
+                          <span className="wr-period-custom-unit">dias</span>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Generate button - destacado */}
                     <div className="wr-generate-area">
                       <button
