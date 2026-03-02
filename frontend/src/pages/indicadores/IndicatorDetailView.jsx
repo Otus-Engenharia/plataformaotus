@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   calculateIndicatorScore,
   calculateAccumulatedProgress,
+  getScoreThresholds,
   formatValue,
   getMonthsForCycle,
   getCycleMonthRange,
@@ -308,8 +309,9 @@ export default function IndicatorDetailView() {
         const real = isAuto ? acc.realizado : (sib.realizado_acumulado ?? 0);
         const plan = isAuto ? acc.planejado : (sib.planejado_acumulado ?? 0);
         const hasCI = isAuto ? acc.hasData : true;
+        const { t80: sibT80, t120: sibT120 } = getScoreThresholds(sib, plan);
         const sibScore = plan > 0 && hasCI
-          ? calculateIndicatorScore(real, plan * 0.8, plan, plan * 1.2, sib.is_inverse)
+          ? calculateIndicatorScore(real, sibT80, plan, sibT120, sib.is_inverse)
           : 0;
         tw += peso;
         weightedSum += sibScore * peso;
@@ -527,7 +529,6 @@ export default function IndicatorDetailView() {
     const data = { auto_calculate: newValue };
     if (newValue) {
       data.realizado_acumulado = null;
-      data.planejado_acumulado = null;
     }
     await handleUpdateIndicatorField(data);
   };
@@ -659,10 +660,15 @@ export default function IndicatorDetailView() {
 
   // Auto: calculado dos check-ins/metas; Manual: valores salvos no indicador
   const realizadoValue = isAutoCalc ? autoAccumulated.realizado : (indicador.realizado_acumulado ?? 0);
-  const planejadoValue = isAutoCalc ? autoAccumulated.planejado : (indicador.planejado_acumulado ?? 0);
+  const planejadoValue = autoAccumulated.planejado;
   const hasCheckIns = isAutoCalc ? autoAccumulated.hasData : true;
+
+  // Range acumulado (usa thresholds customizados via ratio80/ratio120)
+  const accMin = planejadoValue * ratio80;
+  const accMax = planejadoValue * ratio120;
+
   const score = planejadoValue > 0 && hasCheckIns
-    ? calculateIndicatorScore(realizadoValue, planejadoValue * 0.8, planejadoValue, planejadoValue * 1.2, indicador.is_inverse)
+    ? calculateIndicatorScore(realizadoValue, accMin, planejadoValue, accMax, indicador.is_inverse)
     : null;
   const scoreColor = score !== null ? getScoreColor(score) : 'neutral';
 
@@ -671,10 +677,6 @@ export default function IndicatorDetailView() {
   const farolContrib = score !== null && farolData.totalWeight > 0
     ? Math.round((score * peso / farolData.totalWeight) * 100) / 100
     : null;
-
-  // Range acumulado
-  const accMin = planejadoValue * ratio80;
-  const accMax = planejadoValue * ratio120;
 
   return (
     <div className="indicator-detail">
@@ -771,6 +773,16 @@ export default function IndicatorDetailView() {
 
       {/* Progress Card - KPIs + Range + Score Bar */}
       <section className="card progress-card">
+        {!isAutoCalc && (
+          <div className="manual-mode-banner">
+            <svg viewBox="0 0 24 24" width="18" height="18">
+              <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+            </svg>
+            <div className="manual-mode-banner__text">
+              <strong>Modo manual ativo</strong> — Lembre-se de sempre preencher o Realizado Acumulado. O Planejado é calculado a partir das metas configuradas.
+            </div>
+          </div>
+        )}
         <div className="progress-kpi-row">
           <div className="kpi-block kpi-block--hero">
             <span className="kpi-label">Meta Final</span>
@@ -841,29 +853,16 @@ export default function IndicatorDetailView() {
           <div className="kpi-block">
             <div className="kpi-label-row">
               <span className="kpi-label">{cLabels.planejado}</span>
-              {isAutoCalc ? (
-                <span className="kpi-auto-badge">
-                  <svg viewBox="0 0 24 24" width="10" height="10">
-                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                  </svg>
-                  auto
-                </span>
-              ) : (
-                <span className="kpi-manual-badge">editar</span>
-              )}
-            </div>
-            {isAutoCalc ? (
-              <span className="kpi-value">
-                {formatValue(planejadoValue, indicador.metric_type)}
+              <span className="kpi-auto-badge">
+                <svg viewBox="0 0 24 24" width="10" height="10">
+                  <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                auto
               </span>
-            ) : (
-              <EditableKpiValue
-                value={planejadoValue}
-                onSave={(v) => handleUpdateIndicatorField({ planejado_acumulado: v ?? 0 })}
-                canEdit={isPrivileged}
-                formatFn={(v) => formatValue(v, indicador.metric_type)}
-              />
-            )}
+            </div>
+            <span className="kpi-value">
+              {formatValue(planejadoValue, indicador.metric_type)}
+            </span>
             <span className="kpi-sublabel">{cLabels.sublabelPlanejado}</span>
             <div className="kpi-range-row">
               <span className="kpi-range kpi-range--min">
@@ -892,7 +891,7 @@ export default function IndicatorDetailView() {
               {isAutoCalc ? (
                 <span><strong>Planejado</strong> e <strong>Realizado</strong> calculados automaticamente dos check-ins e metas mensais.</span>
               ) : (
-                <span><strong>Planejado</strong> e <strong>Realizado</strong> definidos manualmente. Clique nos valores para editar.</span>
+                <span><strong>Realizado</strong> definido manualmente. Clique no valor para editar. <strong>Planejado</strong> calculado das metas mensais.</span>
               )}
             </div>
             <label className="ind-toggle" title={isAutoCalc ? 'Desativar cálculo automático' : 'Ativar cálculo automático'}>

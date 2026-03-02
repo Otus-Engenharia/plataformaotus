@@ -35,6 +35,7 @@ const ApoioCronogramaView = lazy(() => import('./pages/apoio/ApoioCronogramaView
 const ApoioGanttView = lazy(() => import('./pages/apoio/ApoioGanttView'));
 const DemandasKanbanView = lazy(() => import('./pages/apoio/DemandasKanbanView'));
 const ApoioPortfolioView = lazy(() => import('./pages/apoio/ApoioPortfolioView'));
+const IfcChangeLogView = lazy(() => import('./pages/apoio/IfcChangeLogView'));
 const EstudoCustoKanbanView = lazy(() => import('./pages/cs/EstudoCustoKanbanView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
@@ -660,6 +661,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.projetos}</span>
         <span className="nav-text">Portfolio</span>
+      </Link>
+      <Link
+        to="/apoio-projetos/ifc-changelog"
+        className={`nav-link nav-link-modern ${location.pathname === '/apoio-projetos/ifc-changelog' ? 'nav-link-active' : ''}`}
+        title={linkTitle('IFC Changelog')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">IFC Changelog</span>
       </Link>
       <Link
         to="/apoio-projetos/quadro"
@@ -1412,6 +1421,7 @@ function AppContent() {
               <Route path="gantt" element={<ApoioGanttView />} />
               <Route path="demandas" element={<DemandasKanbanView />} />
               <Route path="portfolio" element={<ApoioPortfolioView />} />
+              <Route path="ifc-changelog" element={<IfcChangeLogView />} />
               <Route path="quadro" element={<WhiteboardView boardId="apoio" />} />
             </Route>
             {/* Área Admin & Financeiro - rotas aninhadas */}

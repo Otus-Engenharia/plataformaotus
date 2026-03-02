@@ -18,6 +18,7 @@ import { createRoutes as createUserPreferencesRoutes } from './user-preferences.
 import { createRoutes as createOracleRoutes } from './oracle.js';
 import { createRoutes as createWeeklyReportRoutes } from './weekly-reports.js';
 import { createRoutes as createTimeSavingsRoutes } from './time-savings.js';
+import { createRoutes as createIfcChangeLogRoutes } from './ifc-changelog.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -86,5 +87,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const timeSavingsRoutes = createTimeSavingsRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/time-savings', timeSavingsRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings');
+  // Rotas de IFC Change Log (DDD)
+  const ifcChangeLogRoutes = createIfcChangeLogRoutes(requireAuth, isPrivileged, logAction);
+  app.use('/api/ifc-changelog', ifcChangeLogRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog');
 }
