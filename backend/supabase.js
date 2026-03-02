@@ -5752,8 +5752,7 @@ export async function updateProjectField(projectCode, field, value) {
 
   const { data, error } = await supabase
     .from('projects')
-    .update({ [dbField]: dbValue })
-    .eq('project_code', projectCode)
+    .upsert({ project_code: projectCode, [dbField]: dbValue }, { onConflict: 'project_code' })
     .select()
     .single();
 
