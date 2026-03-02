@@ -809,14 +809,14 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
   try {
     console.log('📊 Buscando dados do portfólio...');
 
-    // Filtro por líder: só aplica quando explicitamente solicitado (vista Portfolio)
+    // Filtro por líder: líderes de Operação são sempre filtrados (server-side enforcement)
     let leaderName = null;
-    if (req.query.leaderFilter === 'true') {
-      const { leaderName: name, hasAccess } = getLeaderDataFilter(req);
-      if (!hasAccess) {
-        return res.json({ success: true, count: 0, data: [] });
-      }
-      leaderName = name;
+    const { leaderName: filterName, hasAccess } = getLeaderDataFilter(req);
+    if (filterName) {
+      // Leader de Operação: aplica filtro independente do parâmetro do cliente
+      leaderName = filterName;
+    } else if (req.query.leaderFilter === 'true' && !hasAccess) {
+      return res.json({ success: true, count: 0, data: [] });
     }
 
     // 1. BigQuery: dados financeiros/schedule (base)
@@ -1697,9 +1697,11 @@ app.get('/api/projetos/cronograma', requireAuth, withBqCache(900), async (req, r
       });
     }
 
-    // Filtro por líder: apenas líderes de Operação veem só seus projetos
+    // Filtro por líder: líderes de Operação veem só seus projetos
+    // Users também têm acesso — cronograma filtra por smartsheetId específico
     const { leaderName, hasAccess } = getLeaderDataFilter(req);
-    if (!hasAccess) {
+    const effectiveUser = getEffectiveUser(req);
+    if (!hasAccess && effectiveUser.role !== 'user') {
       return res.json({ success: true, count: 0, data: [] });
     }
 
