@@ -282,6 +282,18 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
         });
       }
 
+      // Computa drive_folder_url a partir de pasta_emails_id (sem duplicar dado no DB)
+      const supabase = getSupabaseClient();
+      const { data: projectRow } = await supabase
+        .from('projects').select('id').eq('project_code', result.project_code).single();
+      const { data: features } = projectRow
+        ? await supabase.from('project_features').select('pasta_emails_id').eq('project_id', projectRow.id).single()
+        : { data: null };
+      const pastaEmailsId = features?.pasta_emails_id || null;
+      result.drive_folder_url = pastaEmailsId
+        ? `https://drive.google.com/drive/folders/${pastaEmailsId}`
+        : null;
+
       res.json({
         success: true,
         data: result,
