@@ -206,7 +206,7 @@ app.use(cors({
 }));
 
 // Permite receber JSON no body das requisições
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Rota de teste para verificar se o servidor está funcionando
 app.get('/api/health', (req, res) => {

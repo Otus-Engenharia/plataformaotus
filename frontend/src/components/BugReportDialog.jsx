@@ -139,8 +139,16 @@ export default function BugReportDialog({ onClose }) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Erro ao enviar relatório');
+        let errorMessage = 'Erro ao enviar relatório';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          if (response.status === 413) {
+            errorMessage = 'Imagem muito grande. Reduza o tamanho das imagens e tente novamente.';
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       setSuccess(true);
