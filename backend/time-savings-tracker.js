@@ -53,6 +53,6 @@ export async function trackTimeSaving(req, catalogId, { resourceType, resourceId
       details,
     });
   } catch (error) {
-    console.error('[TimeSavings] Erro ao registrar economia:', error.message);
+    console.error(`[TimeSavings] Erro ao registrar economia [${catalogId}]:`, error.message);
   }
 }
