@@ -27,7 +27,7 @@ export class GetPhaseDurations {
    */
   async execute({ projectCode, smartsheetId, projectName }) {
     // 1. Buscar baselines ativos do projeto
-    const allBaselines = await this.#baselineRepository.listByProject(projectCode);
+    const allBaselines = await this.#baselineRepository.findByProjectCode(projectCode);
     const activeBaselines = allBaselines.filter(b => b.isActive);
 
     // 2. Query tarefas atuais agrupadas por fase
