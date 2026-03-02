@@ -44,6 +44,7 @@ import AuthLoading from './components/AuthLoading';
 import OracleChat from './components/OracleChat';
 import BugReportFAB from './components/BugReportFAB';
 import TodoCreateFAB from './components/TodoCreateFAB';
+import RelatoCreateFAB from './components/RelatoCreateFAB';
 import './styles/App.css';
 
 // Lazy load das páginas de indicadores individuais
@@ -1715,8 +1716,10 @@ function AppContent() {
           </Routes>
           {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}
           {showOracle && <OracleChat />}
-          {/* ToDo Create FAB - criar tarefas rapidamente de qualquer página */}
-          <TodoCreateFAB />
+          {/* ToDo Create FAB - disponível apenas na área de Projetos */}
+          {location.pathname.startsWith('/projetos') && <TodoCreateFAB />}
+          {/* Relato Create FAB - criar relatos rapidamente de qualquer página */}
+          <RelatoCreateFAB />
           {/* Bug Report FAB - disponível em todas as páginas exceto Home/Login */}
           <BugReportFAB />
         </main>
