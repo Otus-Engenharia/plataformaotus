@@ -226,9 +226,16 @@ function AgendaView() {
     if (!todoId || !agendaTaskId) return;
 
     try {
-      const res = await axios.put(`/api/todos/${todoId}`, {
-        agenda_task_id: agendaTaskId,
-      }, { withCredentials: true });
+      const targetTask = tasks.find(t => String(t.id) === agendaTaskId);
+      const dueDateStr = targetTask?.start_date
+        ? format(new Date(targetTask.start_date), 'yyyy-MM-dd')
+        : null;
+      const updatePayload = { agenda_task_id: agendaTaskId };
+      if (dueDateStr) updatePayload.due_date = dueDateStr;
+
+      const res = await axios.put(`/api/todos/${todoId}`, updatePayload, {
+        withCredentials: true,
+      });
 
       if (res.data.success) {
         loadTasks();
@@ -237,7 +244,7 @@ function AgendaView() {
     } catch (err) {
       console.error('Erro ao vincular ToDo à agenda:', err);
     }
-  }, [loadTasks]);
+  }, [loadTasks, tasks]);
 
   const handleSlotClick = useCallback((date) => {
     setCreateModal({ isOpen: true, date });
