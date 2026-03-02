@@ -39,7 +39,7 @@ function buildColumns(todos, groupBy, weekRef) {
 
   if (groupBy === 'due_date') {
     const start = startOfWeek(weekRef, { weekStartsOn: 1 });
-    const weekDays = eachDayOfInterval({ start, end: addDays(start, 4) });
+    const weekDays = eachDayOfInterval({ start, end: addDays(start, 6) });
     const today = startOfDay(new Date());
 
     const columns = [

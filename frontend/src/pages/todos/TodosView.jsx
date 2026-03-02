@@ -65,7 +65,7 @@ export default function TodosView() {
 
   const weekLabel = useMemo(() => {
     const start = startOfWeek(weekRef, { weekStartsOn: 1 });
-    const end = addDays(start, 4);
+    const end = addDays(start, 6);
     return `${format(start, "d MMM", { locale: ptBR })} – ${format(end, "d MMM yyyy", { locale: ptBR })}`;
   }, [weekRef]);
 
