@@ -31,7 +31,16 @@ export default function TodosView() {
 
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState(
+    () => localStorage.getItem(`todos_view_mode_${user?.userId}`) || 'list',
+  );
+
+  const handleViewModeChange = useCallback((mode) => {
+    setViewMode(mode);
+    if (user?.userId) {
+      localStorage.setItem(`todos_view_mode_${user.userId}`, mode);
+    }
+  }, [user?.userId]);
   const [filters, setFilters] = useState(() => ({
     ...INITIAL_FILTERS,
     assignee: user?.userId || '',
@@ -312,7 +321,7 @@ export default function TodosView() {
         filters={filters}
         onFiltersChange={setFilters}
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={handleViewModeChange}
         groupBy={groupBy}
         onGroupByChange={setGroupBy}
         onCreateClick={() => setShowCreateDialog(true)}
