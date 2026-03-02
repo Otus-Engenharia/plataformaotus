@@ -106,6 +106,7 @@ class GenerateWeeklyReport {
       teamEmails = [],
       ganttUrl,
       disciplinaUrl,
+      relatosDias = 7,
     } = config;
 
     const startTime = Date.now();
@@ -144,11 +145,11 @@ class GenerateWeeklyReport {
         relatoRepo.findAllPrioridades(),
       ]);
 
-      const sinceDate = new Date(Date.now() - 7 * 86400000);
+      const sinceDate = new Date(Date.now() - relatosDias * 86400000);
       weekRelatos = allRelatos.filter(r => new Date(r.createdAt) >= sinceDate);
       tiposMap = Object.fromEntries(tipos.map(t => [t.slug, { label: t.label, color: t.color }]));
       prioridadesMap = Object.fromEntries(prioridades.map(p => [p.slug, { label: p.label, color: p.color }]));
-      await this.#addLog(reportId, `${weekRelatos.length} relatos encontrados na última semana`);
+      await this.#addLog(reportId, `${weekRelatos.length} relatos encontrados nos últimos ${relatosDias} dias`);
     } catch (err) {
       console.warn('[WeeklyReport] Erro ao buscar relatos (não bloqueante):', err.message);
       await this.#addLog(reportId, 'Aviso: não foi possível buscar relatos');
