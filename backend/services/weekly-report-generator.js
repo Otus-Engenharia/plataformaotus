@@ -78,6 +78,10 @@ function parseDate(value) {
   if (value instanceof Date) {
     return isNaN(value.getTime()) ? null : value;
   }
+  // BigQuery DATE/DATETIME objects have a `.value` string property
+  if (typeof value === 'object' && typeof value.value === 'string') {
+    return parseDate(value.value);
+  }
   if (typeof value === 'number') {
     const d = new Date(value);
     return isNaN(d.getTime()) ? null : d;
@@ -287,6 +291,7 @@ export function processData(rawData, options = {}) {
 
   const issues = Array.isArray(rawData?.issues) ? rawData.issues : [];
   const tasks = Array.isArray(rawData?.tasks) ? rawData.tasks : [];
+  const baselines = (rawData?.baselines && typeof rawData.baselines === 'object') ? rawData.baselines : {};
 
   const refDate = refOpt ? startOfDay(parseDate(refOpt) || new Date()) : today();
   let since = sinceOpt ? parseDate(sinceOpt) : null;
@@ -354,16 +359,7 @@ export function processData(rawData, options = {}) {
     const statusNorm = normalizeText(task.Status || '');
     const temInfoAtraso = hasDelayInfo(task);
 
-    let atrasadaPorData = false;
-    if (statusNorm !== 'feito') {
-      const endDateStr = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
-      const endDt = parseDate(endDateStr);
-      if (endDt && startOfDay(endDt) < refDate) {
-        atrasadaPorData = true;
-      }
-    }
-
-    if (statusNorm === 'nao feito' || temInfoAtraso || atrasadaPorData) {
+    if (statusNorm === 'nao feito' || temInfoAtraso) {
       delayedTasks.push(task);
     }
   }
@@ -396,14 +392,10 @@ export function processData(rawData, options = {}) {
   const delaysTeam = [];
   for (const task of delayedTasks) {
     const discipline = task.Disciplina || task.Discipline || '';
-    // Date period filter
+    // Mostrar atrasos da última semana ou do futuro — excluir apenas datas muito antigas
     const endDateStr = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
-    const reprogDateStr = task['Data de Fim - Reprogramado Otus'] || '';
-    let taskDate = parseDate(endDateStr) || parseDate(reprogDateStr);
-    if (taskDate) {
-      const taskDateNorm = startOfDay(taskDate);
-      if (taskDateNorm < since || taskDateNorm > refDate) continue;
-    }
+    const endDt = parseDate(endDateStr);
+    if (endDt && startOfDay(endDt) < since) continue; // mais antigo que 7 dias → excluir
 
     if (isClientDiscipline(discipline)) {
       delaysClient.push(task);
@@ -495,6 +487,7 @@ export function processData(rawData, options = {}) {
       totalActive: activeIssues.length,
       totalClient: clientIssues.length,
     },
+    baselines,
     smartsheet: {
       allTasks,
       delayedTasks,
@@ -673,7 +666,7 @@ function _generateConcluidasSection(completed, isClientReport) {
   return html;
 }
 
-function _generateAtrasosClientSection(delays) {
+function _generateAtrasosClientSection(delays, baselines = {}) {
   if (!delays || delays.length === 0) {
     return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;">\u2713 Nenhum atraso identificado das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> no per\u00edodo.</p>`;
   }
@@ -682,19 +675,24 @@ function _generateAtrasosClientSection(delays) {
   for (const task of delays) {
     const discipline = task.Disciplina || task.Discipline || 'Sem Disciplina';
     const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
-    const prevDate = formatDateShort(getField(task, 'Data de Fim - Reprogramado Otus', 'Baseline End'));
-    const newDate = formatDateShort(getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date'));
     const motivo = getField(task, 'Motivo de atraso', 'Delay Reason') || '';
     const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
+
+    const snap = baselines[task.rowNumber] || baselines[String(task.rowNumber)] || null;
+    const prevDate = snap ? formatDateShort(snap.dataBaseline) : '';
+    const newDate  = snap ? formatDateShort(snap.dataReprog)   : '';
 
     html += `<div style="margin-bottom:14px;padding:14px 16px;background:#fafafa;border-radius:4px;border-left:3px solid #1a1a1a;">`;
     html += `<p style="margin:0;font-family:'Montserrat',sans-serif;font-size:10px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1px;">${esc(discipline)}</p>`;
     html += `<p style="margin:6px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;font-weight:500;">${esc(name)}</p>`;
-    html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#666;">`;
-    html += `<span style="text-decoration:line-through;color:#999;">${esc(prevDate)}</span>`;
-    html += `<span style="margin:0 6px;color:#ccc;">\u2192</span>`;
-    html += `<span style="font-family:'Montserrat',sans-serif;font-weight:600;color:#1a1a1a;background:${OTUS.orange};padding:2px 8px;border-radius:3px;">${esc(newDate)}</span>`;
-    html += `</p>`;
+
+    if (prevDate || newDate) {
+      html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#666;">`;
+      html += `<span style="text-decoration:line-through;color:#999;">${esc(prevDate)}</span>`;
+      html += `<span style="margin:0 6px;color:#ccc;">\u2192</span>`;
+      html += `<span style="font-family:'Montserrat',sans-serif;font-weight:600;color:#1a1a1a;background:${OTUS.orange};padding:2px 8px;border-radius:3px;">${esc(newDate)}</span>`;
+      html += `</p>`;
+    }
 
     if (!isEmptyValue(motivo)) {
       html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#dc2626;font-style:italic;border-top:1px solid #eee;padding-top:8px;"><span style="font-weight:600;color:#dc2626;">Motivo:</span> ${esc(motivo)}</p>`;
@@ -709,7 +707,7 @@ function _generateAtrasosClientSection(delays) {
   return html;
 }
 
-function _generateAtrasosTeamSection(delays) {
+function _generateAtrasosTeamSection(delays, baselines = {}) {
   if (!delays || delays.length === 0) {
     return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;">\u2713 Nenhum atraso identificado no per\u00edodo.</p>`;
   }
@@ -730,18 +728,23 @@ function _generateAtrasosTeamSection(delays) {
 
     for (const task of tasks) {
       const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
-      const prevDate = formatDateShort(task['Data de Fim - Reprogramado Otus'] || '');
-      const newDate = formatDateShort(getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date'));
       const motivo = getField(task, 'Motivo de atraso', 'Delay Reason') || '';
       const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
 
+      const snap = baselines[task.rowNumber] || baselines[String(task.rowNumber)] || null;
+      const prevDate = snap ? formatDateShort(snap.dataBaseline) : '';
+      const newDate  = snap ? formatDateShort(snap.dataReprog)   : '';
+
       html += `<div style="margin:0 0 14px;padding:12px 14px;background:#fafafa;border-radius:4px;border-left:3px solid ${OTUS.orange};">`;
       html += `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;font-weight:500;">${esc(name)}</p>`;
-      html += `<p style="margin:6px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#666;">`;
-      html += `<span style="text-decoration:line-through;color:#999;">${esc(prevDate)}</span>`;
-      html += `<span style="margin:0 6px;color:#ccc;">\u2192</span>`;
-      html += `<span style="font-family:'Montserrat',sans-serif;font-weight:600;color:#1a1a1a;background:${OTUS.orange};padding:2px 8px;border-radius:3px;">${esc(newDate)}</span>`;
-      html += `</p>`;
+
+      if (prevDate || newDate) {
+        html += `<p style="margin:6px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#666;">`;
+        html += `<span style="text-decoration:line-through;color:#999;">${esc(prevDate)}</span>`;
+        html += `<span style="margin:0 6px;color:#ccc;">\u2192</span>`;
+        html += `<span style="font-family:'Montserrat',sans-serif;font-weight:600;color:#1a1a1a;background:${OTUS.orange};padding:2px 8px;border-radius:3px;">${esc(newDate)}</span>`;
+        html += `</p>`;
+      }
 
       if (!isEmptyValue(motivo)) {
         html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#dc2626;font-style:italic;border-top:1px solid #eee;padding-top:8px;"><span style="font-weight:600;color:#dc2626;">Motivo:</span> ${esc(motivo)}</p>`;
@@ -1247,6 +1250,7 @@ export function generateHtml(processedData, options = {}) {
 
   const sm = processedData.smartsheet || {};
   const cf = processedData.construflow || {};
+  const baselines = processedData.baselines || {};
 
   // -- Client report --
   const clientIssues = cf.clientIssues || [];
@@ -1261,7 +1265,7 @@ export function generateHtml(processedData, options = {}) {
 
   const pendenciasHtml = _generatePendenciasSection(clientIssues, projectId);
   const concluidasClientHtml = _generateConcluidasSection(completedClient, true);
-  const atrasosClientHtml = _generateAtrasosClientSection(delaysClient);
+  const atrasosClientHtml = _generateAtrasosClientSection(delaysClient, baselines);
   const cronogramaClientHtml = _generateCronogramaClientSection(scheduleClient, ganttUrl, disciplinaUrl, scheduleDays);
 
   // Relatos da Semana
@@ -1339,7 +1343,7 @@ export function generateHtml(processedData, options = {}) {
   );
 
   const concluidasTeamHtml = _generateConcluidasSection(completedTeam, false);
-  const atrasosTeamHtml = _generateAtrasosTeamSection(delaysTeam);
+  const atrasosTeamHtml = _generateAtrasosTeamSection(delaysTeam, baselines);
   const cronogramaTeamHtml = _generateCronogramaTeamSection(scheduleTeam);
 
   const teamHtml = _generateBaseHtml({
