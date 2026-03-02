@@ -600,12 +600,13 @@ function CurvaSView() {
 
   // Filtra dados de cargo pelos mesmos project_codes do filteredData
   // Exclui mês atual (custos incompletos por amortização)
+  // Normaliza project_code para String para evitar mismatch de tipo (BigQuery pode retornar number vs string)
   const filteredCustosCargo = useMemo(() => {
     const allowedProjectCodes = new Set(
-      filteredData.map(item => item.project_code)
+      filteredData.map(item => String(item.project_code))
     );
     return custosPorCargo.filter(item =>
-      allowedProjectCodes.has(item.project_code) &&
+      allowedProjectCodes.has(String(item.project_code)) &&
       parseDate(item.mes) !== currentMonthKey
     );
   }, [custosPorCargo, filteredData, currentMonthKey]);
