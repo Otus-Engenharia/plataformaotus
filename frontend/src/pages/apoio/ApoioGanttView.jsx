@@ -21,8 +21,8 @@ export default function ApoioGanttView() {
   const tarefasFiltradas = useMemo(() => {
     if (!apenasOtus) return tarefas;
     return tarefas.filter(t => {
-      const nome = String(t.NomeDaTarefa || t.nome_tarefa || '').toLowerCase();
-      return nome.includes('otus');
+      const disciplina = String(t.Disciplina || t.disciplina || '').toLowerCase().trim();
+      return disciplina === 'modelagem otus';
     });
   }, [tarefas, apenasOtus]);
 
