@@ -41,6 +41,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
   /**
    * Busca projeto do BigQuery e mergeia com dados do Supabase project_features.
    * Garante que campos editáveis (pasta_emails_id, gantt_email_url, etc.) estejam atualizados.
+   * Também busca emails do cliente (project_client_contacts) e da equipe (project_disciplines).
    */
   async function getEnrichedProject(projectCode) {
     const portfolio = await bigqueryClient.queryPortfolio();
@@ -51,7 +52,37 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
 
     const featuresMap = await fetchProjectFeaturesForPortfolio();
     const features = featuresMap[projectCode] || {};
-    return { ...project, ...features };
+    const enriched = { ...project, ...features };
+
+    // Busca emails do cliente (project_client_contacts)
+    try {
+      const clientData = await fetchProjectClientContacts(projectCode);
+      const activeEmails = (clientData.allContacts || [])
+        .filter(c => clientData.assignedIds.includes(c.id) && c.email?.includes('@'))
+        .map(c => c.email);
+      if (activeEmails.length > 0) {
+        enriched.client_emails = activeEmails.join(',');
+      }
+    } catch (err) {
+      console.warn('[getEnrichedProject] Erro ao buscar contatos cliente:', err.message);
+    }
+
+    // Busca emails da equipe (project_disciplines)
+    try {
+      if (enriched.construflow_id) {
+        const disciplines = await fetchProjectDisciplines(enriched.construflow_id);
+        const teamEmails = disciplines
+          .filter(d => d.email?.includes('@') || d.contact?.email?.includes('@'))
+          .map(d => d.email || d.contact?.email);
+        if (teamEmails.length > 0) {
+          enriched.team_emails = teamEmails.join(',');
+        }
+      }
+    } catch (err) {
+      console.warn('[getEnrichedProject] Erro ao buscar equipe:', err.message);
+    }
+
+    return enriched;
   }
 
   /**
