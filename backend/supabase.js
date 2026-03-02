@@ -4759,6 +4759,45 @@ export async function getProjectIdByConstruflow(construflowId) {
 }
 
 /**
+ * Busca project_id pelo construflow_id.
+ * Se não encontrar, busca pela project_code e cria o vínculo automaticamente.
+ * @param {string} construflowId
+ * @param {string} projectCode - project_code_norm do BigQuery
+ * @returns {Promise<number|null>}
+ */
+export async function getOrCreateProjectIdForEquipe(construflowId, projectCode) {
+  const existingId = await getProjectIdByConstruflow(construflowId);
+  if (existingId) return existingId;
+
+  if (!projectCode) return null;
+
+  const supabase = getSupabaseServiceClient();
+
+  const { data: project } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('project_code', projectCode)
+    .single();
+
+  if (!project) return null;
+
+  const { error } = await supabase
+    .from('project_features')
+    .upsert(
+      { project_id: project.id, construflow_id: construflowId },
+      { onConflict: 'project_id' }
+    );
+
+  if (error) {
+    console.error('❌ Erro ao vincular construflow_id no project_features:', error);
+    return null;
+  }
+
+  console.log(`✅ Auto-vinculado construflow_id=${construflowId} ao projeto id=${project.id} (${projectCode})`);
+  return project.id;
+}
+
+/**
  * Busca todas as disciplinas padrão disponíveis
  */
 export async function fetchStandardDisciplines() {
