@@ -118,6 +118,7 @@ class GenerateWeeklyReport {
     await this.#addLog(reportId, 'Consultando BigQuery (issues e tarefas)...');
     const rawData = await this.#bigqueryClient.queryWeeklyReportData(construflowId, smartsheetId, {
       scheduleDays,
+      projectCode,
     });
     await this.#addLog(reportId, `Dados recebidos do BigQuery`);
 
