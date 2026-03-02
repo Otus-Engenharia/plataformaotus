@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import axios from 'axios';
 import './DaySummary.css';
@@ -75,6 +75,42 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
     fetchTodos();
     return () => { cancelled = true; };
   }, [dayTaskIdsKey]);
+
+  const filteredAndSortedTodos = useMemo(() => {
+    const weekStart = startOfWeek(selectedDay, { weekStartsOn: 1 });
+    const weekEnd   = endOfWeek(selectedDay,   { weekStartsOn: 1 });
+
+    const inWeek = (dateStr) => {
+      if (!dateStr) return false;
+      return isWithinInterval(new Date(dateStr), { start: weekStart, end: weekEnd });
+    };
+
+    const PRIORITY_ORDER = { alta: 0, média: 1, baixa: 2 };
+    const priorityOf = (t) => PRIORITY_ORDER[t.priority] ?? 1;
+
+    const isOverdue = (todo) =>
+      todo.due_date && new Date(todo.due_date) < weekStart && todo.status !== 'finalizado';
+
+    const visible = unlinkedTodos.filter(todo => {
+      if (todo.status === 'cancelado') return false;
+      const isDone = todo.status === 'finalizado';
+      if (isDone) return inWeek(todo.due_date);
+      if (isOverdue(todo)) return true;
+      return !todo.due_date || inWeek(todo.due_date);
+    });
+
+    const groupOrder = (t) => {
+      if (t.status === 'finalizado') return 2;
+      if (isOverdue(t)) return 0;
+      return 1;
+    };
+
+    return visible.sort((a, b) => {
+      const gA = groupOrder(a), gB = groupOrder(b);
+      if (gA !== gB) return gA - gB;
+      return priorityOf(a) - priorityOf(b);
+    });
+  }, [unlinkedTodos, selectedDay]);
 
   // Buscar todos os ToDo's desvinculados do usuário (sem filtro de data)
   useEffect(() => {
@@ -274,7 +310,7 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
           className={`day-summary__tab${activeTab === 'todos' ? ' day-summary__tab--active' : ''}`}
           onClick={() => setActiveTab('todos')}
         >
-          ToDo's ({unlinkedTodos.length})
+          ToDo's ({filteredAndSortedTodos.length})
         </button>
       </div>
 
@@ -374,39 +410,49 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
           <div className="day-summary__unlinked-list">
             {loadingUnlinked ? (
               <div className="day-summary__empty">Carregando...</div>
-            ) : unlinkedTodos.length === 0 ? (
+            ) : filteredAndSortedTodos.length === 0 ? (
               <div className="day-summary__empty">
                 Nenhum ToDo sem vínculo
               </div>
             ) : (
-              unlinkedTodos.map(todo => (
-                <div
-                  key={todo.id}
-                  className="day-summary__unlinked-item"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, todo.id)}
-                  onDragEnd={handleDragEnd}
-                >
+              filteredAndSortedTodos.map(todo => {
+                const isDone = todo.status === 'finalizado';
+                const isOverdue = todo.due_date &&
+                  new Date(todo.due_date) < startOfWeek(selectedDay, { weekStartsOn: 1 }) &&
+                  !isDone;
+                return (
                   <div
-                    className="day-summary__unlinked-priority"
-                    style={{ background: PRIORITY_COLORS[todo.priority] || '#94a3b8' }}
-                    title={todo.priority}
-                  />
-                  <div className="day-summary__unlinked-info">
-                    <span className="day-summary__unlinked-name">{todo.name}</span>
-                    <span className="day-summary__unlinked-meta">
-                      {todo.due_date && (
-                        <span className="day-summary__unlinked-date">
-                          {format(new Date(todo.due_date), 'dd/MM')}
-                        </span>
-                      )}
-                      {todo.project_name && (
-                        <span className="day-summary__unlinked-project">{todo.project_name}</span>
-                      )}
-                    </span>
+                    key={todo.id}
+                    className={[
+                      'day-summary__unlinked-item',
+                      isDone ? 'day-summary__unlinked-item--done' : '',
+                      isOverdue ? 'day-summary__unlinked-item--overdue' : '',
+                    ].filter(Boolean).join(' ')}
+                    draggable={!isDone}
+                    onDragStart={!isDone ? (e) => handleDragStart(e, todo.id) : undefined}
+                    onDragEnd={!isDone ? handleDragEnd : undefined}
+                  >
+                    <div
+                      className="day-summary__unlinked-priority"
+                      style={{ background: PRIORITY_COLORS[todo.priority] || '#94a3b8' }}
+                      title={todo.priority}
+                    />
+                    <div className="day-summary__unlinked-info">
+                      <span className="day-summary__unlinked-name">{todo.name}</span>
+                      <span className="day-summary__unlinked-meta">
+                        {todo.due_date && (
+                          <span className="day-summary__unlinked-date">
+                            {format(new Date(todo.due_date), 'dd/MM')}
+                          </span>
+                        )}
+                        {todo.project_name && (
+                          <span className="day-summary__unlinked-project">{todo.project_name}</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

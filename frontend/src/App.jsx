@@ -1716,8 +1716,10 @@ function AppContent() {
           </Routes>
           {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}
           {showOracle && <OracleChat />}
-          {/* ToDo Create FAB - disponível apenas na área de Projetos */}
-          {location.pathname.startsWith('/projetos') && <TodoCreateFAB />}
+          {/* ToDo Create FAB - disponível em todo o espaço Projetos */}
+          {(location.pathname.startsWith('/projetos') ||
+            location.pathname.startsWith('/todos') ||
+            location.pathname.startsWith('/agenda')) && <TodoCreateFAB />}
           {/* Relato Create FAB - criar relatos rapidamente de qualquer página */}
           <RelatoCreateFAB />
           {/* Bug Report FAB - disponível em todas as páginas exceto Home/Login */}
