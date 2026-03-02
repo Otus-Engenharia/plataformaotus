@@ -6,7 +6,7 @@
 
 import { TimeSavingsRepository } from '../../domain/time-savings/TimeSavingsRepository.js';
 import { TimeSavingsEvent } from '../../domain/time-savings/entities/TimeSavingsEvent.js';
-import { getSupabaseClient } from '../../supabase.js';
+import { getSupabaseServiceClient } from '../../supabase.js';
 
 const EVENTS_TABLE = 'time_savings_events';
 const CATALOG_TABLE = 'time_savings_catalog';
@@ -16,7 +16,7 @@ class SupabaseTimeSavingsRepository extends TimeSavingsRepository {
 
   constructor() {
     super();
-    this.#supabase = getSupabaseClient();
+    this.#supabase = getSupabaseServiceClient();
   }
 
   // --- Eventos ---
