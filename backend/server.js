@@ -64,7 +64,7 @@ import {
   fetchProjectDisciplines, fetchStandardDisciplines, fetchCompanies, fetchContacts,
   createContact, updateContact,
   createProjectDiscipline, updateProjectDiscipline, deleteProjectDiscipline,
-  getProjectIdByConstruflow,
+  getProjectIdByConstruflow, getOrCreateProjectIdForEquipe,
   // Mapeamentos de disciplinas
   fetchDisciplineMappings, createOrUpdateDisciplineMapping, deleteDisciplineMapping,
   // Equipe Otus + Cliente do projeto
@@ -7215,7 +7215,7 @@ app.delete('/api/projetos/equipe/mapeamentos-disciplinas/:id', requireAuth, asyn
  */
 app.post('/api/projetos/equipe', requireAuth, async (req, res) => {
   try {
-    const { construflow_id, discipline_id, company_id, contact_id, discipline_detail } = req.body;
+    const { construflow_id, discipline_id, company_id, contact_id, discipline_detail, email, phone, position, project_code } = req.body;
 
     if (!construflow_id || !discipline_id) {
       return res.status(400).json({
@@ -7224,11 +7224,11 @@ app.post('/api/projetos/equipe', requireAuth, async (req, res) => {
       });
     }
 
-    const projectId = await getProjectIdByConstruflow(construflow_id);
+    const projectId = await getOrCreateProjectIdForEquipe(construflow_id, project_code);
     if (!projectId) {
       return res.status(404).json({
         success: false,
-        error: 'Projeto não encontrado no Supabase'
+        error: 'Projeto não encontrado no sistema. Contate o administrador.'
       });
     }
 
@@ -7237,7 +7237,10 @@ app.post('/api/projetos/equipe', requireAuth, async (req, res) => {
       discipline_id,
       company_id,
       contact_id,
-      discipline_detail
+      discipline_detail,
+      email,
+      phone,
+      position
     });
 
     res.json({ success: true, data });
