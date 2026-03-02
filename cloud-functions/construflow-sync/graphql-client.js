@@ -195,6 +195,7 @@ async function fetchProjectIssues(projectId, config) {
             description
             status
             priority
+            category
             createdAt
             updatedAt
             deadline
