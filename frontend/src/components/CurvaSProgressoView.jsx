@@ -17,6 +17,7 @@ import ProgressChart from './curva-s-progresso/ProgressChart';
 import ChartFilterSidebar from './curva-s-progresso/ChartFilterSidebar';
 import ChangeLogPanel from './curva-s-progresso/ChangeLogPanel';
 import ChangeLogTab from './curva-s-progresso/ChangeLogTab';
+import PhaseDurationChart from './curva-s-progresso/PhaseDurationChart';
 import '../styles/CurvaSProgressoView.css';
 
 function CurvaSProgressoView({ selectedProjectId, portfolio }) {
@@ -48,6 +49,11 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   // Changelog state
   const [changeLog, setChangeLog] = useState(null);
   const [changeLogLoading, setChangeLogLoading] = useState(false);
+
+  // Cronograma Fases state
+  const [phaseDurations, setPhaseDurations] = useState(null);
+  const [phaseDurationsLoading, setPhaseDurationsLoading] = useState(false);
+  const [visiblePhaseDurationsDatasets, setVisiblePhaseDurationsDatasets] = useState(null);
 
   // Solicitação de baseline state
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -167,6 +173,30 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     }
   }, [projectCode, smartsheetId, projectName]);
 
+  // Buscar durações por fase (Cronograma Fases)
+  const fetchPhaseDurations = useCallback(async () => {
+    if (!projectCode || (!smartsheetId && !projectName)) return;
+    setPhaseDurationsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (smartsheetId) params.set('smartsheetId', smartsheetId);
+      if (projectName) params.set('projectName', projectName);
+
+      const res = await axios.get(
+        `${API_URL}/api/curva-s-progresso/project/${encodeURIComponent(projectCode)}/phase-durations?${params}`,
+        { withCredentials: true }
+      );
+      if (res.data.success) {
+        setPhaseDurations(res.data.data);
+        setVisiblePhaseDurationsDatasets(null); // null = todos visíveis
+      }
+    } catch (err) {
+      console.error('Erro ao buscar durações por fase:', err);
+    } finally {
+      setPhaseDurationsLoading(false);
+    }
+  }, [projectCode, smartsheetId, projectName]);
+
   // Carregamento inicial: dispara weights, progress e timeseries em paralelo
   useEffect(() => {
     if (!projectCode) return;
@@ -212,9 +242,11 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     }
   }, [baselineCurves, baselineCurve]);
 
-  // Resetar changelog quando mudar de projeto
+  // Resetar changelog e phase durations quando mudar de projeto
   useEffect(() => {
     setChangeLog(null);
+    setPhaseDurations(null);
+    setVisiblePhaseDurationsDatasets(null);
   }, [projectCode]);
 
   // Lazy load changelog quando aba relevante fica ativa
@@ -223,6 +255,13 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
       fetchChangeLog();
     }
   }, [activeTab, changeLog, changeLogLoading, fetchChangeLog]);
+
+  // Lazy load phase durations quando aba Cronograma Fases fica ativa
+  useEffect(() => {
+    if (activeTab === 'cronograma_fases' && !phaseDurations && !phaseDurationsLoading) {
+      fetchPhaseDurations();
+    }
+  }, [activeTab, phaseDurations, phaseDurationsLoading, fetchPhaseDurations]);
 
   // Handler para salvar pesos customizados
   const handleSaveWeights = async (weightData) => {
@@ -283,6 +322,22 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
 
   const selectAllSnapshots = () => setVisibleSnapshots(null);
   const clearAllSnapshots = () => setVisibleSnapshots(new Set());
+
+  // Toggle de visibilidade de dataset no gráfico de fases
+  const togglePhaseDurationDataset = (key) => {
+    setVisiblePhaseDurationsDatasets(prev => {
+      if (!prev) {
+        // Primeiro toggle: inicializar com todas as keys menos a clicada
+        const allKeys = new Set(['executado', 'a_executar']);
+        (phaseDurations?.baselines || []).forEach(bl => allKeys.add(`bl_${bl.id}`));
+        allKeys.delete(key);
+        return allKeys;
+      }
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
 
   // Handler para solicitar baseline
   const handleRequestBaseline = async ({ title, description, response_deadline }) => {
@@ -384,6 +439,12 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
           onClick={() => setActiveTab('disciplinas')}
         >
           Por Disciplina
+        </button>
+        <button
+          className={`curva-s-tab ${activeTab === 'cronograma_fases' ? 'active' : ''}`}
+          onClick={() => setActiveTab('cronograma_fases')}
+        >
+          Cronograma Fases
         </button>
       </div>
 
@@ -502,6 +563,20 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
             disciplineScores={changeLog?.discipline_scores}
             loading={changeLogLoading}
           />
+        )}
+
+        {activeTab === 'cronograma_fases' && (
+          phaseDurationsLoading ? (
+            <div className="curva-s-loading">Carregando durações por fase...</div>
+          ) : phaseDurations ? (
+            <PhaseDurationChart
+              data={phaseDurations}
+              visibleDatasets={visiblePhaseDurationsDatasets}
+              onToggleDataset={togglePhaseDurationDataset}
+            />
+          ) : (
+            <div className="curva-s-empty">Dados de fases não disponíveis para este projeto.</div>
+          )
         )}
       </div>
     </div>

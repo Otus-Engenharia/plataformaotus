@@ -2691,8 +2691,53 @@ export async function checkWeeklyReportReadiness(construflowId, smartsheetId) {
  * @param {number} options.scheduleDays - Dias para cronograma futuro (default: 15)
  * @returns {Promise<Object>} dados brutos para processamento
  */
+/**
+ * Busca snapshots de baseline para um projeto, agrupando por rowNumber.
+ * Retorna objeto { rowNumber: { dataBaseline, dataReprog } }
+ * dataBaseline = data_termino do primeiro baseline (menor baseline_id = R00)
+ * dataReprog   = data_termino do último baseline (maior baseline_id = mais recente)
+ */
+async function queryBaselineSnapshots(projectCode) {
+  const escaped = String(projectCode).replace(/'/g, "''");
+  const query = `
+    WITH all_snapshots AS (
+      SELECT
+        row_number,
+        nome_tarefa,
+        data_termino,
+        baseline_id,
+        ROW_NUMBER() OVER (PARTITION BY row_number ORDER BY baseline_id ASC)  AS rn_first,
+        ROW_NUMBER() OVER (PARTITION BY row_number ORDER BY baseline_id DESC) AS rn_last
+      FROM \`dadosindicadores.smartsheet_atrasos.baseline_task_snapshots\`
+      WHERE project_code = '${escaped}'
+    ),
+    first_snap AS (SELECT row_number, data_termino FROM all_snapshots WHERE rn_first = 1),
+    last_snap  AS (SELECT row_number, data_termino FROM all_snapshots WHERE rn_last  = 1)
+    SELECT
+      f.row_number,
+      f.data_termino AS data_baseline,
+      l.data_termino AS data_reprog
+    FROM first_snap f
+    LEFT JOIN last_snap l ON f.row_number = l.row_number
+  `;
+  try {
+    const rows = await executeQuery(query);
+    const map = {};
+    for (const row of rows) {
+      map[row.row_number] = {
+        dataBaseline: row.data_baseline,
+        dataReprog: row.data_reprog,
+      };
+    }
+    return map;
+  } catch (err) {
+    console.warn('[queryBaselineSnapshots] Erro ao buscar baselines (não bloqueante):', err.message);
+    return {};
+  }
+}
+
 export async function queryWeeklyReportData(construflowId, smartsheetId, options = {}) {
-  const { scheduleDays = 15 } = options;
+  const { scheduleDays = 15, projectCode } = options;
 
   let issues = [];
   let tasks = [];
@@ -2759,7 +2804,7 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
         CaminhoCriticoMarco,
         ObservacaoOtus AS \`Observacao Otus\`,
         Motivo_de_atraso AS \`Motivo de atraso\`,
-        DataDeFimBaselineOtus AS \`Data de Fim - Reprogramado Otus\`
+        Categoria_de_atraso AS \`Categoria de atraso\`
       FROM \`dadosindicadores.smartsheet.smartsheet_data_projetos\`
       WHERE CAST(ID_Projeto AS STRING) = '${escapedSsId}'
         AND Level = 5
@@ -2768,7 +2813,10 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
     tasks = await executeQuery(taskQuery);
   }
 
-  return { issues, tasks, disciplines };
+  // 3. Busca snapshots de baseline da plataforma (para exibição nos cards de atraso)
+  const baselines = projectCode ? await queryBaselineSnapshots(projectCode) : {};
+
+  return { issues, tasks, disciplines, baselines };
 }
 
 /**
@@ -2853,5 +2901,128 @@ export async function warmupSchemaCache() {
     console.log('✅ Schema cache pre-aquecido (portfolio + entradas)');
   } catch (e) {
     console.warn('⚠️ Falha ao pre-aquecer schema cache:', e.message);
+  }
+}
+
+// Status que indicam tarefa concluída (espelho de WeightCalculationService.js)
+const PHASE_COMPLETED_STATUSES_SQL = [
+  'concluída', 'concluida', 'completa', 'complete', 'done',
+  '100%', 'finalizado', 'finalizada', 'entregue', 'feito',
+].map(s => `'${s}'`).join(', ');
+
+/**
+ * Busca durações por fase do projeto atual separando Executado e A Executar.
+ * @param {string} smartsheetId
+ * @param {string} projectName
+ * @returns {Array} [{ fase_nome, executado_dias, a_executar_dias }]
+ */
+export async function queryCurrentPhaseDurations(smartsheetId, projectName = null) {
+  const project = 'dadosindicadores';
+  const ds = 'smartsheet';
+  const tbl = 'smartsheet_data_projetos';
+  const completedSql = PHASE_COMPLETED_STATUSES_SQL;
+
+  const baseQuery = `
+    WITH hier AS (
+      SELECT
+        ID_Projeto, NomeDaPlanilha, Level, Status, DataDeInicio, DataDeTermino, rowNumber,
+        LAST_VALUE(IF(CAST(Level AS INT64) = 2, NomeDaTarefa, NULL) IGNORE NULLS)
+          OVER (PARTITION BY ID_Projeto ORDER BY CAST(rowNumber AS INT64)
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS fase_nome
+      FROM \`${project}.${ds}.${tbl}\`
+      WHERE {{WHERE_CLAUSE}}
+        AND NomeDaPlanilha NOT LIKE '%(Backup%'
+        AND NomeDaPlanilha NOT LIKE '%Cópia%'
+        AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+        AND NomeDaPlanilha NOT LIKE '%Copy%'
+    ),
+    lv5 AS (
+      SELECT *
+      FROM hier
+      WHERE CAST(Level AS INT64) = 5
+        AND fase_nome IS NOT NULL
+        AND DataDeInicio IS NOT NULL
+        AND DataDeTermino IS NOT NULL
+    )
+    SELECT
+      fase_nome,
+      DATE_DIFF(
+        MAX(IF(LOWER(TRIM(COALESCE(Status,''))) IN (${completedSql}),
+          PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeTermino AS STRING),1,10)), NULL)),
+        MIN(IF(LOWER(TRIM(COALESCE(Status,''))) IN (${completedSql}),
+          PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeInicio AS STRING),1,10)), NULL)),
+        DAY) AS executado_dias,
+      DATE_DIFF(
+        MAX(IF(LOWER(TRIM(COALESCE(Status,''))) NOT IN (${completedSql}),
+          PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeTermino AS STRING),1,10)), NULL)),
+        MIN(IF(LOWER(TRIM(COALESCE(Status,''))) NOT IN (${completedSql}),
+          PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeInicio AS STRING),1,10)), NULL)),
+        DAY) AS a_executar_dias,
+      MIN(PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeInicio AS STRING),1,10))) AS fase_inicio
+    FROM lv5
+    GROUP BY fase_nome
+    ORDER BY fase_inicio ASC
+  `;
+
+  try {
+    let rows = [];
+    if (smartsheetId) {
+      const esc = String(smartsheetId).replace(/'/g, "''");
+      rows = await executeQuery(baseQuery.replace('{{WHERE_CLAUSE}}', `ID_Projeto = '${esc}'`));
+    }
+    if (rows.length === 0 && projectName) {
+      const esc = String(projectName).replace(/'/g, "''");
+      const where = `LOWER(REGEXP_REPLACE(REGEXP_REPLACE(NomeDaPlanilha,r'^\\(.*?\\)\\s*',''),r'[^a-zA-Z0-9]','')) LIKE CONCAT('%',LOWER(REGEXP_REPLACE('${esc}',r'[^a-zA-Z0-9]','')), '%')`;
+      rows = await executeQuery(baseQuery.replace('{{WHERE_CLAUSE}}', where));
+    }
+    console.log(`✅ [queryCurrentPhaseDurations] ${rows.length} fases`);
+    return rows;
+  } catch (error) {
+    console.error('❌ [queryCurrentPhaseDurations]', error.message);
+    throw new Error(`Erro ao buscar durações por fase: ${error.message}`);
+  }
+}
+
+/**
+ * Busca durações por fase a partir dos snapshots de baselines.
+ * @param {string} projectCode
+ * @param {number[]} baselineIds
+ * @returns {Array} [{ baseline_id, fase_nome, duracao_dias }]
+ */
+export async function queryBaselinePhaseDurations(projectCode, baselineIds) {
+  if (!baselineIds || baselineIds.length === 0) return [];
+
+  const project = 'dadosindicadores';
+  const ds = 'smartsheet_atrasos';
+  const tbl = 'baseline_task_snapshots';
+  const esc = String(projectCode).replace(/'/g, "''");
+  const ids = baselineIds.map(Number).join(', ');
+
+  const query = `
+    SELECT
+      baseline_id,
+      fase_nome,
+      DATE_DIFF(
+        MAX(PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(data_termino AS STRING),1,10))),
+        MIN(PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(data_inicio AS STRING),1,10))),
+        DAY) AS duracao_dias,
+      MIN(PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(data_inicio AS STRING),1,10))) AS fase_inicio
+    FROM \`${project}.${ds}.${tbl}\`
+    WHERE project_code = '${esc}'
+      AND baseline_id IN (${ids})
+      AND data_inicio IS NOT NULL
+      AND data_termino IS NOT NULL
+      AND fase_nome IS NOT NULL
+    GROUP BY baseline_id, fase_nome
+    ORDER BY baseline_id ASC, fase_inicio ASC
+  `;
+
+  try {
+    const rows = await executeQuery(query);
+    console.log(`✅ [queryBaselinePhaseDurations] ${rows.length} linhas`);
+    return rows;
+  } catch (error) {
+    console.error('❌ [queryBaselinePhaseDurations]', error.message);
+    throw new Error(`Erro ao buscar durações de baselines: ${error.message}`);
   }
 }
