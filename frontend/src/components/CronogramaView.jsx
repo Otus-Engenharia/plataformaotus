@@ -38,11 +38,72 @@ function CronogramaView({ selectedProjectId, portfolio = [] }) {
   const [gmailLoading, setGmailLoading] = useState(null); // chave da disciplina em loading
   const [gmailFeedback, setGmailFeedback] = useState(null); // { type, message, key }
 
+  // Contatos das disciplinas do projeto (para validar botões WhatsApp/Email)
+  const [disciplineContacts, setDisciplineContacts] = useState([]);
+
+  // Toggle para ocultar cobranças já feitas
+  const [hideCobrancasFeitas, setHideCobrancasFeitas] = useState(false);
+
+  // Pop-up de seleção de contato (quando disciplina tem múltiplos contatos)
+  // null = fechado; { contacts, action: 'whatsapp'|'email', discGroup, dateGroup } = aberto
+  const [contactPickerState, setContactPickerState] = useState(null);
+
   // Busca o projeto selecionado do portfólio para obter o smartsheet_id
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !portfolio || portfolio.length === 0) return null;
     return portfolio.find(p => p.project_code_norm === selectedProjectId);
   }, [portfolio, selectedProjectId]);
+
+  // Busca contatos das disciplinas do projeto
+  useEffect(() => {
+    if (!selectedProject?.construflow_id) {
+      setDisciplineContacts([]);
+      return;
+    }
+    axios.get(`${API_URL}/api/projetos/cronograma/discipline-contacts`, {
+      params: { construflowId: selectedProject.construflow_id },
+      withCredentials: true
+    })
+      .then(res => {
+        if (res.data?.success) setDisciplineContacts(res.data.data || []);
+      })
+      .catch(() => setDisciplineContacts([]));
+  }, [selectedProject?.construflow_id]);
+
+  // Helper: buscar contatos de uma disciplina pelo nome (BigQuery → Supabase match)
+  // Retorna { contacts: [...], hasEmail, hasPhone, issueCount }
+  const getDisciplineContacts = useMemo(() => {
+    return (disciplinaName) => {
+      const empty = { contacts: [], hasEmail: false, hasPhone: false, issueCount: 0 };
+      if (!disciplinaName || disciplineContacts.length === 0) return empty;
+
+      const normalized = disciplinaName.trim().toLowerCase();
+
+      // Exact match em discipline_name ou short_name
+      let match = disciplineContacts.find(d => {
+        const name = (d.discipline_name || '').toLowerCase();
+        const short = (d.short_name || '').toLowerCase();
+        return name === normalized || short === normalized;
+      });
+
+      // Partial match (contains)
+      if (!match) {
+        match = disciplineContacts.find(d => {
+          const name = (d.discipline_name || '').toLowerCase();
+          return (name && normalized && (name.includes(normalized) || normalized.includes(name)));
+        });
+      }
+
+      if (!match || !match.contacts || match.contacts.length === 0) return empty;
+
+      return {
+        contacts: match.contacts,
+        hasEmail: match.contacts.some(c => !!c.email),
+        hasPhone: match.contacts.some(c => !!c.phone),
+        issueCount: match.issue_count || 0,
+      };
+    };
+  }, [disciplineContacts]);
 
   // Fecha dropdowns ao clicar fora
   useEffect(() => {
@@ -309,23 +370,26 @@ function CronogramaView({ selectedProjectId, portfolio = [] }) {
   };
 
   // Função para gerar mensagem WhatsApp (para Próximas Entregas)
-  const generateWhatsAppMessage = (discGroup, dateGroup) => {
+  const generateWhatsAppMessage = (discGroup, dateGroup, contactName, issueCount = 0) => {
     const projetoNome = (selectedProject?.project_name || selectedProject?.project_code_norm || 'Projeto').toUpperCase();
     const tarefas = discGroup.items.map(item => `• ${item.NomeDaTarefa || 'N/A'}`).join('\n');
     const dataTermino = dateGroup.date;
-    
+
     // Verifica se há KPI vermelho nas tarefas desta disciplina
     const hasKpiVermelho = discGroup.items.some(item => {
       const kpi = String(item.KPI || '').trim().toLowerCase();
       return kpi === 'vermelho';
     });
 
-    // TODO: Buscar nome do projetista e pontos pendentes do banco de dados
-    const projetistaNome = '[Projetista]'; // Será substituído por dados do banco
-    const pontosPendentes = 'X'; // Será substituído por dados do banco
-    
+    const projetistaNome = contactName || '[Projetista]';
+    const construflowId = selectedProject?.construflow_id;
+    const construflowLink = construflowId ? `https://app.construflow.com.br/workspace/project/${construflowId}/issues` : '';
+    const pontosPendentesTexto = issueCount > 0
+      ? `Aproveito para reforçar que, no momento, constam ${issueCount} pontos pendentes no Construflow${construflowLink ? ` (${construflowLink})` : ''} sob sua responsabilidade, e que os escopos foram alinhados e formalizados no início do projeto.`
+      : '';
+
     let mensagem = '';
-    
+
     if (hasKpiVermelho) {
       // Mensagem para KPI vermelho - alinhamento de datas
       mensagem = `Olá ${projetistaNome}, tudo bem?
@@ -338,9 +402,7 @@ ${discGroup.items.length === 1 ? 'Com prazo em' : 'Ambas com prazo em'} ${dataTe
 
 Observo que algumas dessas entregas estão com KPI vermelho, o que indica necessidade de ajuste no cronograma. Gostaria de alinhar novas datas que sejam viáveis para você.
 
-Aproveito para reforçar que, no momento, constam ${pontosPendentes} pontos pendentes no Construflow sob sua responsabilidade, e que os escopos foram alinhados e formalizados no início do projeto.
-
-Caso exista algum impedimento ou necessidade de alinhamento, peço que nos sinalize o quanto antes.
+${pontosPendentesTexto}${pontosPendentesTexto ? '\n\n' : ''}Caso exista algum impedimento ou necessidade de alinhamento, peço que nos sinalize o quanto antes.
 
 Fico à disposição.`;
     } else {
@@ -353,36 +415,37 @@ ${tarefas}
 
 ${discGroup.items.length === 1 ? 'Com prazo em' : 'Ambas com prazo em'} ${dataTermino}.
 
-Aproveito para reforçar que, no momento, constam ${pontosPendentes} pontos pendentes no Construflow sob sua responsabilidade, e que os escopos foram alinhados e formalizados no início do projeto.
-
-Caso exista algum impedimento ou necessidade de alinhamento, peço que nos sinalize o quanto antes.
+${pontosPendentesTexto}${pontosPendentesTexto ? '\n\n' : ''}Caso exista algum impedimento ou necessidade de alinhamento, peço que nos sinalize o quanto antes.
 
 Fico à disposição.`;
     }
-    
+
     return mensagem;
   };
 
   // Função para gerar mensagem WhatsApp (para Atrasos)
-  const generateWhatsAppMessageAtrasos = (discGroup) => {
+  const generateWhatsAppMessageAtrasos = (discGroup, contactName, issueCount = 0) => {
     const projetoNome = (selectedProject?.project_name || selectedProject?.project_code_norm || 'Projeto').toUpperCase();
     const tarefas = discGroup.items.map(item => {
       const dataTermino = formatDate(item.DataDeTermino);
       return `• ${item.NomeDaTarefa || 'N/A'} (${dataTermino})`;
     }).join('\n');
-    
+
     // Verifica se há KPI vermelho nas tarefas desta disciplina
     const hasKpiVermelho = discGroup.items.some(item => {
       const kpi = String(item.KPI || '').trim().toLowerCase();
       return kpi === 'vermelho';
     });
 
-    // TODO: Buscar nome do projetista e pontos pendentes do banco de dados
-    const projetistaNome = '[Projetista]'; // Será substituído por dados do banco
-    const pontosPendentes = 'X'; // Será substituído por dados do banco
-    
+    const projetistaNome = contactName || '[Projetista]';
+    const construflowId = selectedProject?.construflow_id;
+    const construflowLink = construflowId ? `https://app.construflow.com.br/workspace/project/${construflowId}/issues` : '';
+    const pontosPendentesTexto = issueCount > 0
+      ? `Aproveito para reforçar que, no momento, constam ${issueCount} pontos pendentes no Construflow${construflowLink ? ` (${construflowLink})` : ''} sob sua responsabilidade, e que os escopos foram alinhados e formalizados no início do projeto.`
+      : '';
+
     let mensagem = '';
-    
+
     if (hasKpiVermelho) {
       // Mensagem para KPI vermelho - alinhamento de datas
       mensagem = `Olá ${projetistaNome}, tudo bem?
@@ -393,9 +456,7 @@ ${tarefas}
 
 Observo que algumas dessas entregas estão com KPI vermelho, o que indica necessidade de ajuste no cronograma. Gostaria de alinhar novas datas que sejam viáveis para você.
 
-Aproveito para reforçar que, no momento, constam ${pontosPendentes} pontos pendentes no Construflow sob sua responsabilidade, e que os escopos foram alinhados e formalizados no início do projeto.
-
-Caso exista algum impedimento ou necessidade de alinhamento, peço que nos sinalize o quanto antes.
+${pontosPendentesTexto}${pontosPendentesTexto ? '\n\n' : ''}Caso exista algum impedimento ou necessidade de alinhamento, peço que nos sinalize o quanto antes.
 
 Fico à disposição.`;
     } else {
@@ -408,28 +469,26 @@ ${tarefas}
 
 Gostaria de alinhar novas datas que sejam viáveis para você.
 
-Aproveito para reforçar que, no momento, constam ${pontosPendentes} pontos pendentes no Construflow sob sua responsabilidade, e que os escopos foram alinhados e formalizados no início do projeto.
-
-Caso exista algum impedimento ou necessidade de alinhamento, peço que nos sinalize o quanto antes.
+${pontosPendentesTexto}${pontosPendentesTexto ? '\n\n' : ''}Caso exista algum impedimento ou necessidade de alinhamento, peço que nos sinalize o quanto antes.
 
 Fico à disposição.`;
     }
-    
+
     return mensagem;
   };
 
   // Função para gerar link WhatsApp Web (Próximas Entregas)
-  const generateWhatsAppLink = (discGroup, dateGroup) => {
-    const mensagem = generateWhatsAppMessage(discGroup, dateGroup);
-    const telefone = '5541998992821'; // Pedro - MVP
+  const generateWhatsAppLink = (discGroup, dateGroup, phone, contactName, issueCount = 0) => {
+    const mensagem = generateWhatsAppMessage(discGroup, dateGroup, contactName, issueCount);
+    const telefone = phone || '5541998992821';
     const mensagemEncoded = encodeURIComponent(mensagem);
     return `https://web.whatsapp.com/send?phone=${telefone}&text=${mensagemEncoded}`;
   };
 
   // Função para gerar link WhatsApp Web (Atrasos)
-  const generateWhatsAppLinkAtrasos = (discGroup) => {
-    const mensagem = generateWhatsAppMessageAtrasos(discGroup);
-    const telefone = '5541998992821'; // Pedro - MVP
+  const generateWhatsAppLinkAtrasos = (discGroup, phone, contactName, issueCount = 0) => {
+    const mensagem = generateWhatsAppMessageAtrasos(discGroup, contactName, issueCount);
+    const telefone = phone || '5541998992821';
     const mensagemEncoded = encodeURIComponent(mensagem);
     return `https://web.whatsapp.com/send?phone=${telefone}&text=${mensagemEncoded}`;
   };
@@ -451,24 +510,27 @@ Fico à disposição.`;
   };
 
   // Cria rascunho no Gmail via API
-  const handleGmailDraft = async (discGroup, dateGroup = null) => {
+  const handleGmailDraft = async (discGroup, dateGroup = null, contactName = null, recipientEmail = null, issueCount = 0) => {
     const key = `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}`;
     setGmailLoading(key);
     setGmailFeedback(null);
 
     try {
       const body = dateGroup
-        ? generateWhatsAppMessage(discGroup, dateGroup)
-        : generateWhatsAppMessageAtrasos(discGroup);
+        ? generateWhatsAppMessage(discGroup, dateGroup, contactName, issueCount)
+        : generateWhatsAppMessageAtrasos(discGroup, contactName, issueCount);
+
+      const payload = {
+        construflowId: selectedProject?.construflow_id,
+        disciplinaName: discGroup.disciplina,
+        subject: generateEmailSubject(discGroup, dateGroup),
+        body,
+      };
+      if (recipientEmail) payload.to = [recipientEmail];
 
       const response = await axios.post(
         `${API_URL}/api/projetos/cronograma/gmail-draft`,
-        {
-          construflowId: selectedProject?.construflow_id,
-          disciplinaName: discGroup.disciplina,
-          subject: generateEmailSubject(discGroup, dateGroup),
-          body,
-        },
+        payload,
         { withCredentials: true }
       );
 
@@ -490,6 +552,54 @@ Fico à disposição.`;
     } finally {
       setGmailLoading(null);
       setTimeout(() => setGmailFeedback(null), 4000);
+    }
+  };
+
+  // Handler: clique no botão WhatsApp — verifica se precisa de pop-up
+  const handleWhatsAppClick = (discGroup, dateGroup) => {
+    const info = getDisciplineContacts(discGroup.disciplina);
+    const withPhone = info.contacts.filter(c => !!c.phone);
+    if (withPhone.length === 1) {
+      window.open(generateWhatsAppLink(discGroup, dateGroup, withPhone[0].phone, withPhone[0].contact_name, info.issueCount), '_blank');
+    } else if (withPhone.length > 1) {
+      setContactPickerState({ contacts: withPhone, action: 'whatsapp', discGroup, dateGroup, issueCount: info.issueCount });
+    }
+  };
+
+  // Handler: clique no botão WhatsApp (Atrasos)
+  const handleWhatsAppClickAtrasos = (discGroup) => {
+    const info = getDisciplineContacts(discGroup.disciplina);
+    const withPhone = info.contacts.filter(c => !!c.phone);
+    if (withPhone.length === 1) {
+      window.open(generateWhatsAppLinkAtrasos(discGroup, withPhone[0].phone, withPhone[0].contact_name, info.issueCount), '_blank');
+    } else if (withPhone.length > 1) {
+      setContactPickerState({ contacts: withPhone, action: 'whatsapp', discGroup, dateGroup: null, issueCount: info.issueCount });
+    }
+  };
+
+  // Handler: clique no botão Email — verifica se precisa de pop-up
+  const handleEmailClick = (discGroup, dateGroup) => {
+    const info = getDisciplineContacts(discGroup.disciplina);
+    const withEmail = info.contacts.filter(c => !!c.email);
+    if (withEmail.length === 1) {
+      handleGmailDraft(discGroup, dateGroup, withEmail[0].contact_name, withEmail[0].email, info.issueCount);
+    } else if (withEmail.length > 1) {
+      setContactPickerState({ contacts: withEmail, action: 'email', discGroup, dateGroup, issueCount: info.issueCount });
+    }
+  };
+
+  // Handler: usuário selecionou um contato no pop-up
+  const handleContactSelected = (contact) => {
+    if (!contactPickerState) return;
+    const { action, discGroup, dateGroup, issueCount } = contactPickerState;
+    setContactPickerState(null);
+    if (action === 'whatsapp') {
+      const link = dateGroup
+        ? generateWhatsAppLink(discGroup, dateGroup, contact.phone, contact.contact_name, issueCount)
+        : generateWhatsAppLinkAtrasos(discGroup, contact.phone, contact.contact_name, issueCount);
+      window.open(link, '_blank');
+    } else if (action === 'email') {
+      handleGmailDraft(discGroup, dateGroup, contact.contact_name, contact.email, issueCount);
     }
   };
 
@@ -531,17 +641,22 @@ Fico à disposição.`;
         if (!date) return false;
 
         // Data de término antes de hoje ou nas próximas semanas
-        return date <= semanasFuturas;
+        if (date > semanasFuturas) return false;
+
+        // Ocultar cobranças feitas se toggle ativo
+        if (hideCobrancasFeitas && cobrancasFeitas.has(getRowKey(item))) return false;
+
+        return true;
       })
       .sort((a, b) => {
         // Primeiro ordena por data de término
         const dateA = parseDate(a.DataDeTermino);
         const dateB = parseDate(b.DataDeTermino);
-        
+
         if (!dateA && !dateB) return 0;
         if (!dateA) return 1;
         if (!dateB) return -1;
-        
+
         const dateDiff = dateA.getTime() - dateB.getTime();
         if (dateDiff !== 0) return dateDiff;
         
@@ -589,7 +704,7 @@ Fico à disposição.`;
             items: grouped[dateKey][disciplina]
           }))
       }));
-  }, [cronogramaData, weeksFilter, disciplinaFilter, kpiFilter]);
+  }, [cronogramaData, weeksFilter, disciplinaFilter, kpiFilter, hideCobrancasFeitas, cobrancasFeitas]);
 
   // Versão plana para contagem
   const proximasEntregas = useMemo(() => {
@@ -695,6 +810,9 @@ Fico à disposição.`;
           if (!atrasosKpiFilter.includes(kpi)) return false;
         }
 
+        // Ocultar cobranças feitas se toggle ativo
+        if (hideCobrancasFeitas && cobrancasFeitas.has(getRowKey(item))) return false;
+
         return true;
       })
       .sort((a, b) => {
@@ -703,7 +821,7 @@ Fico à disposição.`;
         const disciplinaB = String(b.Disciplina || '').trim().toLowerCase();
         const discDiff = disciplinaA.localeCompare(disciplinaB, 'pt-BR');
         if (discDiff !== 0) return discDiff;
-        
+
         // Se as disciplinas forem iguais, ordena por data de término (mais recentes primeiro)
         const dateA = parseDate(a.DataDeTermino);
         const dateB = parseDate(b.DataDeTermino);
@@ -717,11 +835,11 @@ Fico à disposição.`;
     const grouped = {};
     filtered.forEach(item => {
       const disciplina = String(item.Disciplina || '').trim() || 'Sem Disciplina';
-      
+
       if (!grouped[disciplina]) {
         grouped[disciplina] = [];
       }
-      
+
       grouped[disciplina].push(item);
     });
 
@@ -732,7 +850,7 @@ Fico à disposição.`;
         disciplina,
         items: grouped[disciplina]
       }));
-  }, [cronogramaData, atrasosDisciplinaFilter, atrasosKpiFilter]);
+  }, [cronogramaData, atrasosDisciplinaFilter, atrasosKpiFilter, hideCobrancasFeitas, cobrancasFeitas]);
 
   // Versão plana para contagem
   const atrasos = useMemo(() => {
@@ -939,6 +1057,28 @@ Fico à disposição.`;
                 </div>
               )}
             </div>
+
+            <button
+              type="button"
+              className={`cronograma-cobranca-toggle ${hideCobrancasFeitas ? 'cronograma-cobranca-toggle-active' : ''}`}
+              onClick={() => setHideCobrancasFeitas(!hideCobrancasFeitas)}
+              title={hideCobrancasFeitas ? 'Mostrando apenas pendentes. Clique para mostrar todas.' : 'Clique para ocultar cobranças já feitas.'}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                {hideCobrancasFeitas ? (
+                  <>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </>
+                )}
+              </svg>
+              {hideCobrancasFeitas ? 'Mostrando pendentes' : 'Ocultar feitas'}
+            </button>
           </div>
         </div>
         {proximasEntregasGrouped.length > 0 ? (
@@ -983,23 +1123,24 @@ Fico à disposição.`;
                               <div className="cronograma-disciplina-wrapper">
                                 <span>{discGroup.disciplina}</span>
                                 <div className="cronograma-disciplina-buttons">
-                                  <a
-                                    href={generateWhatsAppLink(discGroup, dateGroup)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="cronograma-cobranca-button"
-                                    title="Enviar cobrança via WhatsApp"
+                                  {(() => { const ci = getDisciplineContacts(discGroup.disciplina); return (
+                                  <>
+                                  <button
+                                    type="button"
+                                    className={`cronograma-cobranca-button${!ci.hasPhone ? ' cronograma-btn-disabled' : ''}`}
+                                    title={ci.hasPhone ? 'Enviar cobrança via WhatsApp' : 'Telefone não cadastrado para esta disciplina. Cadastre na aba Equipe.'}
+                                    onClick={() => { if (ci.hasPhone) handleWhatsAppClick(discGroup, dateGroup); }}
                                   >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                       <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                                     </svg>
                                     Cobrança
-                                  </a>
+                                  </button>
                                   <button
                                     type="button"
-                                    className="cronograma-cobranca-button cronograma-email-button"
-                                    title={gmailAuthorized ? 'Criar rascunho de cobrança no Gmail' : 'Autorize o Gmail para criar rascunhos'}
-                                    onClick={() => handleGmailDraft(discGroup, dateGroup)}
+                                    className={`cronograma-cobranca-button cronograma-email-button${!ci.hasEmail ? ' cronograma-btn-disabled' : ''}`}
+                                    title={!ci.hasEmail ? 'Email não cadastrado para esta disciplina. Cadastre na aba Equipe.' : gmailAuthorized ? 'Criar rascunho de cobrança no Gmail' : 'Autorize o Gmail para criar rascunhos'}
+                                    onClick={() => { if (ci.hasEmail) handleEmailClick(discGroup, dateGroup); }}
                                     disabled={gmailLoading === `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}`}
                                   >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1008,6 +1149,8 @@ Fico à disposição.`;
                                     </svg>
                                     {gmailLoading === `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}` ? 'Criando...' : 'Email'}
                                   </button>
+                                  </>
+                                  ); })()}
                                 </div>
                                 {gmailFeedback?.key === `${discGroup.disciplina}-${dateGroup?.date || 'atraso'}` && (
                                   <span className={`cronograma-gmail-feedback cronograma-gmail-feedback-${gmailFeedback.type}`}>
@@ -1163,6 +1306,28 @@ Fico à disposição.`;
                   </div>
                 )}
               </div>
+
+              <button
+                type="button"
+                className={`cronograma-cobranca-toggle ${hideCobrancasFeitas ? 'cronograma-cobranca-toggle-active' : ''}`}
+                onClick={() => setHideCobrancasFeitas(!hideCobrancasFeitas)}
+                title={hideCobrancasFeitas ? 'Mostrando apenas pendentes. Clique para mostrar todas.' : 'Clique para ocultar cobranças já feitas.'}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                  {hideCobrancasFeitas ? (
+                    <>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </>
+                  )}
+                </svg>
+                {hideCobrancasFeitas ? 'Mostrando pendentes' : 'Ocultar feitas'}
+              </button>
             </div>
           </div>
           {atrasosGrouped.length > 0 ? (
@@ -1197,23 +1362,24 @@ Fico à disposição.`;
                               <div className="cronograma-disciplina-wrapper">
                                 <span>{discGroup.disciplina}</span>
                                 <div className="cronograma-disciplina-buttons">
-                                  <a
-                                    href={generateWhatsAppLinkAtrasos(discGroup)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="cronograma-cobranca-button"
-                                    title="Enviar cobrança via WhatsApp"
+                                  {(() => { const ci = getDisciplineContacts(discGroup.disciplina); return (
+                                  <>
+                                  <button
+                                    type="button"
+                                    className={`cronograma-cobranca-button${!ci.hasPhone ? ' cronograma-btn-disabled' : ''}`}
+                                    title={ci.hasPhone ? 'Enviar cobrança via WhatsApp' : 'Telefone não cadastrado para esta disciplina. Cadastre na aba Equipe.'}
+                                    onClick={() => { if (ci.hasPhone) handleWhatsAppClickAtrasos(discGroup); }}
                                   >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                       <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                                     </svg>
                                     Cobrança
-                                  </a>
+                                  </button>
                                   <button
                                     type="button"
-                                    className="cronograma-cobranca-button cronograma-email-button"
-                                    title={gmailAuthorized ? 'Criar rascunho de cobrança no Gmail' : 'Autorize o Gmail para criar rascunhos'}
-                                    onClick={() => handleGmailDraft(discGroup)}
+                                    className={`cronograma-cobranca-button cronograma-email-button${!ci.hasEmail ? ' cronograma-btn-disabled' : ''}`}
+                                    title={!ci.hasEmail ? 'Email não cadastrado para esta disciplina. Cadastre na aba Equipe.' : gmailAuthorized ? 'Criar rascunho de cobrança no Gmail' : 'Autorize o Gmail para criar rascunhos'}
+                                    onClick={() => { if (ci.hasEmail) handleEmailClick(discGroup, null); }}
                                     disabled={gmailLoading === `${discGroup.disciplina}-atraso`}
                                   >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1222,6 +1388,8 @@ Fico à disposição.`;
                                     </svg>
                                     {gmailLoading === `${discGroup.disciplina}-atraso` ? 'Criando...' : 'Email'}
                                   </button>
+                                  </>
+                                  ); })()}
                                 </div>
                                 {gmailFeedback?.key === `${discGroup.disciplina}-atraso` && (
                                   <span className={`cronograma-gmail-feedback cronograma-gmail-feedback-${gmailFeedback.type}`}>
@@ -1265,6 +1433,45 @@ Fico à disposição.`;
               <p>Nenhum atraso registrado.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de seleção de contato */}
+      {contactPickerState && (
+        <div className="cronograma-contact-picker-overlay" onClick={() => setContactPickerState(null)}>
+          <div className="cronograma-contact-picker-modal" onClick={e => e.stopPropagation()}>
+            <h3 className="cronograma-contact-picker-title">
+              Selecionar contato — {contactPickerState.discGroup.disciplina}
+            </h3>
+            <p className="cronograma-contact-picker-subtitle">
+              {contactPickerState.action === 'whatsapp' ? 'Para quem enviar a mensagem?' : 'Para quem enviar o email?'}
+            </p>
+            <div className="cronograma-contact-picker-list">
+              {contactPickerState.contacts.map((contact, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="cronograma-contact-picker-item"
+                  onClick={() => handleContactSelected(contact)}
+                >
+                  <span className="cronograma-contact-picker-name">{contact.contact_name || 'Sem nome'}</span>
+                  {contact.company_name && (
+                    <span className="cronograma-contact-picker-company">{contact.company_name}</span>
+                  )}
+                  <span className="cronograma-contact-picker-info">
+                    {contactPickerState.action === 'whatsapp' ? contact.phone : contact.email}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="cronograma-contact-picker-cancel"
+              onClick={() => setContactPickerState(null)}
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
     </div>
