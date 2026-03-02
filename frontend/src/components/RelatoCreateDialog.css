@@ -1,0 +1,191 @@
+.relato-create-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.relato-create-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.relato-create-dialog__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #18181b;
+}
+
+/* Fields */
+.relato-create-dialog__field {
+  margin-bottom: 16px;
+}
+
+.relato-create-dialog__field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #52525b;
+  margin-bottom: 4px;
+}
+
+.relato-create-dialog__field input,
+.relato-create-dialog__field textarea,
+.relato-create-dialog__field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #18181b;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.relato-create-dialog__field input:focus,
+.relato-create-dialog__field textarea:focus,
+.relato-create-dialog__field select:focus {
+  outline: none;
+  border-color: #a1a1aa;
+}
+
+.relato-create-dialog__field textarea {
+  resize: vertical;
+}
+
+/* Error message */
+.relato-create-dialog__error {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* Row layout for side-by-side fields */
+.relato-create-dialog__row {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+}
+
+.relato-create-dialog__row > .relato-create-dialog__field {
+  flex: 1;
+}
+
+/* Project header with toggle */
+.relato-create-dialog__project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.relato-create-dialog__project-header label {
+  margin-bottom: 0;
+}
+
+.relato-create-dialog__project-toggle {
+  display: flex;
+  gap: 2px;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.relato-create-dialog__toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-family: inherit;
+  color: #71717a;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.relato-create-dialog__toggle-btn.is-active {
+  background: #18181b;
+  color: #fff;
+}
+
+.relato-create-dialog__toggle-btn:hover:not(.is-active) {
+  background: #f4f4f5;
+}
+
+/* Footer */
+.relato-create-dialog__footer {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e4e7;
+}
+
+.relato-create-dialog__btn-cancel {
+  background: transparent;
+  border: 1px solid #e4e4e7;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #52525b;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.relato-create-dialog__btn-cancel:hover {
+  background: #f4f4f5;
+}
+
+.relato-create-dialog__btn-save {
+  background: #ffdd00;
+  color: #18181b;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.relato-create-dialog__btn-save:hover {
+  background: #f5d400;
+}
+
+.relato-create-dialog__btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .relato-create-dialog {
+    width: calc(100% - 32px);
+    margin: 16px;
+    padding: 20px;
+  }
+
+  .relato-create-dialog__row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
