@@ -5816,17 +5816,34 @@ export async function updateProjectField(projectCode, field, value) {
   // Converter valor vazio para null
   const dbValue = value === '' || value === undefined ? null : value;
 
-  const { data, error } = await supabase
+  // Tentar update primeiro (projeto ja existe no Supabase)
+  const { data: updated, error: updateError } = await supabase
     .from('projects')
-    .upsert({ project_code: projectCode, [dbField]: dbValue }, { onConflict: 'project_code' })
+    .update({ [dbField]: dbValue })
+    .eq('project_code', projectCode)
+    .select()
+    .maybeSingle();
+
+  if (updateError) {
+    throw new Error(`Erro ao atualizar projeto: ${updateError.message}`);
+  }
+
+  if (updated) {
+    return updated;
+  }
+
+  // Projeto nao existe no Supabase — criar registro minimo
+  const { data: inserted, error: insertError } = await supabase
+    .from('projects')
+    .insert({ project_code: projectCode, [dbField]: dbValue })
     .select()
     .single();
 
-  if (error) {
-    throw new Error(`Erro ao atualizar projeto: ${error.message}`);
+  if (insertError) {
+    throw new Error(`Erro ao criar projeto no Supabase: ${insertError.message}`);
   }
 
-  return data;
+  return inserted;
 }
 
 /**
