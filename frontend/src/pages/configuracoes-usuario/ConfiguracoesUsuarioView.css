@@ -32,6 +32,88 @@
   margin: 0;
 }
 
+/* --- Color mode preference --- */
+
+.config-usuario__color-mode {
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.config-usuario__section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #18181b;
+  margin: 0 0 2px 0;
+}
+
+.config-usuario__section-desc {
+  font-size: 0.75rem;
+  color: #71717a;
+  margin: 0 0 12px 0;
+}
+
+.config-usuario__color-mode-options {
+  display: flex;
+  gap: 12px;
+}
+
+.config-usuario__color-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #fff;
+  flex: 1;
+  max-width: 280px;
+}
+
+.config-usuario__color-mode-option:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.config-usuario__color-mode-option--active {
+  border-color: #ffdd00;
+  background: #fffbe6;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
+}
+
+.config-usuario__color-mode-radio {
+  display: none;
+}
+
+.config-usuario__color-mode-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #f4f4f5;
+  border-radius: 8px;
+}
+
+.config-usuario__color-mode-option--active .config-usuario__color-mode-icon {
+  background: #fff;
+}
+
+.config-usuario__color-mode-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #18181b;
+}
+
+.config-usuario__color-mode-hint {
+  display: block;
+  font-size: 0.6875rem;
+  color: #a1a1aa;
+  margin-top: 1px;
+}
+
 /* --- Transfer Grid (dual listbox) --- */
 
 .config-usuario__transfer {

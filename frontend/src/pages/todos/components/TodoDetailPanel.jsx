@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { PRIORITY_COLORS, PriorityFlagIcon } from '../constants/todoColors';
 import './TodoDetailPanel.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -27,9 +28,9 @@ const STATUS_CONFIG = {
 };
 
 const PRIORITY_CONFIG = {
-  'baixa': { label: 'Baixa', color: '#22c55e' },
-  'média': { label: 'Média', color: '#f59e0b' },
-  'alta': { label: 'Alta', color: '#ef4444' }
+  'baixa': { label: 'Baixa', color: PRIORITY_COLORS['baixa'] },
+  'média': { label: 'Média', color: PRIORITY_COLORS['média'] },
+  'alta': { label: 'Alta', color: PRIORITY_COLORS['alta'] },
 };
 
 export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onDelete, onLinkAgenda }) {
@@ -113,17 +114,8 @@ export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onD
               className="todo-detail__badge"
               style={{ color: priority.color, backgroundColor: `${priority.color}15` }}
             >
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: priority.color,
-                  marginRight: 6
-                }}
-              />
-              {priority.label}
+              <PriorityFlagIcon color={priority.color} size={12} />
+              <span style={{ marginLeft: 4 }}>{priority.label}</span>
             </span>
           )}
         </div>

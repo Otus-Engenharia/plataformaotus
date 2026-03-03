@@ -1,26 +1,8 @@
 import React, { useMemo } from 'react';
 import TodoRow from './TodoRow';
+import { STATUS_COLORS, PRIORITY_COLORS, STATUS_ORDER, PRIORITY_ORDER } from '../constants/todoColors';
 import './TodoListView.css';
 import './TodoRow.css';
-
-const STATUS_COLORS = {
-  'backlog': '#64748b',
-  'a fazer': '#f59e0b',
-  'em progresso': '#3b82f6',
-  'validação': '#8b5cf6',
-  'finalizado': '#22c55e',
-  'cancelado': '#6b7280'
-};
-
-const PRIORITY_COLORS = {
-  'baixa': '#22c55e',
-  'media': '#f59e0b',
-  'média': '#f59e0b',
-  'alta': '#ef4444'
-};
-
-const STATUS_ORDER = ['backlog', 'a fazer', 'em progresso', 'validação', 'finalizado', 'cancelado'];
-const PRIORITY_ORDER = ['alta', 'média', 'baixa'];
 
 function groupTodos(todos, groupBy) {
   if (groupBy === 'none' || !groupBy) {
@@ -92,7 +74,12 @@ function SkeletonRow() {
   return (
     <div className="todo-row todo-row--skeleton">
       <div className="todo-row__checkbox" style={{ borderColor: '#e2e8f0' }} />
-      <span className="todo-row__priority" style={{ backgroundColor: '#e2e8f0' }} />
+      <span className="todo-row__priority-flag" style={{ opacity: 0.3 }}>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+            <path d="M3 1.5V14.5" stroke="#e2e8f0" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M3 2.5H12.5L10 5.5L12.5 8.5H3V2.5Z" fill="#e2e8f0" />
+          </svg>
+        </span>
       <div className="skeleton-block skeleton-block--name" />
       <span className="todo-row__due-date"><div className="skeleton-block skeleton-block--date" /></span>
       <span className="todo-row__assignee-col"><div className="skeleton-block skeleton-block--avatar" /></span>
@@ -116,7 +103,7 @@ function ListHeader() {
   );
 }
 
-function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, onEdit, onDelete, onDateChange, loading }) {
+function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, onEdit, onDelete, onDateChange, loading, colorMode = 'priority' }) {
   const groups = useMemo(() => groupTodos(todos, groupBy), [todos, groupBy]);
 
   if (loading) {
@@ -176,6 +163,7 @@ function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, on
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onDateChange={onDateChange}
+                colorMode={colorMode}
               />
             ))}
           </div>

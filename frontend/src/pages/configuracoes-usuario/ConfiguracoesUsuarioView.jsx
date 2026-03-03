@@ -14,10 +14,11 @@ const CLOSED_PAUSED_STATUSES = [
 const API_BASE = '/api/user-preferences';
 
 function ConfiguracoesUsuarioView() {
-  const { user } = useAuth();
+  const { user, effectiveUser } = useAuth();
   const myTeamId = user?.team_id;
   const myTeamName = user?.team_name;
   const isOperacao = user?.setor_name === 'Operação';
+  const colorModeUserId = effectiveUser?.userId || user?.userId;
 
   const [favoriteProjects, setFavoriteProjects] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
@@ -37,6 +38,18 @@ function ConfiguracoesUsuarioView() {
 
   // Loading
   const [transferring, setTransferring] = useState(false);
+
+  // Preferência de cor das tarefas
+  const [todoColorMode, setTodoColorMode] = useState(
+    () => localStorage.getItem(`todos_color_mode_${colorModeUserId}`) || 'priority',
+  );
+
+  const handleTodoColorModeChange = useCallback((mode) => {
+    setTodoColorMode(mode);
+    if (colorModeUserId) {
+      localStorage.setItem(`todos_color_mode_${colorModeUserId}`, mode);
+    }
+  }, [colorModeUserId]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -209,6 +222,60 @@ function ConfiguracoesUsuarioView() {
       <div className="config-usuario__header">
         <h1>Configurações</h1>
         <p>Gerencie suas preferências na plataforma</p>
+      </div>
+
+      {/* Preferência de cores das tarefas */}
+      <div className="config-usuario__color-mode">
+        <h2 className="config-usuario__section-title">Cores das Tarefas</h2>
+        <p className="config-usuario__section-desc">
+          Escolha como as tarefas são coloridas na visão de ToDo's
+        </p>
+        <div className="config-usuario__color-mode-options">
+          <label
+            className={`config-usuario__color-mode-option${todoColorMode === 'priority' ? ' config-usuario__color-mode-option--active' : ''}`}
+          >
+            <input
+              type="radio"
+              name="todoColorMode"
+              value="priority"
+              checked={todoColorMode === 'priority'}
+              onChange={() => handleTodoColorModeChange('priority')}
+              className="config-usuario__color-mode-radio"
+            />
+            <span className="config-usuario__color-mode-icon">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 1.5V14.5" stroke="#d1453b" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M3 2.5H12.5L10 5.5L12.5 8.5H3V2.5Z" fill="#d1453b" />
+              </svg>
+            </span>
+            <div>
+              <span className="config-usuario__color-mode-label">Prioridade</span>
+              <span className="config-usuario__color-mode-hint">Cores baseadas na prioridade (bandeiras)</span>
+            </div>
+          </label>
+          <label
+            className={`config-usuario__color-mode-option${todoColorMode === 'status' ? ' config-usuario__color-mode-option--active' : ''}`}
+          >
+            <input
+              type="radio"
+              name="todoColorMode"
+              value="status"
+              checked={todoColorMode === 'status'}
+              onChange={() => handleTodoColorModeChange('status')}
+              className="config-usuario__color-mode-radio"
+            />
+            <span className="config-usuario__color-mode-icon">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="4" cy="8" r="3" fill="#3b82f6" />
+                <circle cx="12" cy="8" r="3" fill="#22c55e" />
+              </svg>
+            </span>
+            <div>
+              <span className="config-usuario__color-mode-label">Status</span>
+              <span className="config-usuario__color-mode-hint">Cores baseadas no status da tarefa</span>
+            </div>
+          </label>
+        </div>
       </div>
 
       <div className="config-usuario__transfer">
