@@ -19,6 +19,18 @@ class UserPreferencesRepository {
     throw new Error('Método não implementado');
   }
 
+  async removeFavoriteProjectsByTeam(userId, teamId) {
+    throw new Error('Método não implementado');
+  }
+
+  async addFavoriteProjectsBatch(userId, projectIds) {
+    throw new Error('Método não implementado');
+  }
+
+  async removeFavoriteProjectsBatch(userId, projectIds) {
+    throw new Error('Método não implementado');
+  }
+
   async getAllProjects() {
     throw new Error('Método não implementado');
   }

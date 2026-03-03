@@ -310,3 +310,67 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ── Tabs de Logs ── */
+.logs-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 1rem;
+}
+
+.logs-tab-btn {
+  padding: 0.5rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.logs-tab-btn:hover {
+  color: #1a1a1a;
+}
+
+.logs-tab-btn.active {
+  color: #1a1a1a;
+  border-bottom-color: #ffcc00;
+  font-weight: 700;
+}
+
+/* ── Auditoria de Projetos ── */
+.audit-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #92400e;
+}
+
+.audit-table td.audit-date { white-space: nowrap; font-size: 0.82rem; color: #64748b; }
+.audit-table td.audit-project { font-weight: 600; font-family: monospace; font-size: 0.85rem; }
+.audit-table td.audit-field { color: #475569; font-size: 0.85rem; }
+
+.value-old {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  word-break: break-word;
+}
+
+.value-new {
+  background: #dcfce7;
+  color: #166534;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  word-break: break-word;
+}

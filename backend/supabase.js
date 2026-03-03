@@ -6134,6 +6134,117 @@ export async function fetchWhiteboard(boardId = 'shared') {
  * @param {string} updatedBy - Email do usuário que salvou
  * @returns {Promise<Object>}
  */
+// ============================================
+// USAGE INDICATORS & COMPLIANCE
+// ============================================
+
+/**
+ * Insere um heartbeat de atividade do usuário.
+ * Cada heartbeat = 5 minutos de uso ativo na plataforma.
+ * @param {string} userEmail
+ * @param {string} userName
+ */
+export async function insertHeartbeat(userEmail, userName) {
+  const supabase = getSupabaseClient();
+  const now = new Date();
+  await supabase.from('user_heartbeats').insert({
+    user_email: userEmail,
+    user_name: userName || null,
+    timestamp: now.toISOString(),
+    date: now.toISOString().slice(0, 10),
+  });
+}
+
+/**
+ * Busca dados de tempo de tela agrupados por usuário para um período.
+ * Cada heartbeat = 5 min de uso ativo.
+ * @param {string} startDate - YYYY-MM-DD
+ * @param {string} endDate - YYYY-MM-DD
+ * @returns {Promise<Array<{ user_email, user_name, total_heartbeats, days_active }>>}
+ */
+export async function fetchScreenTimeData(startDate, endDate) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from('user_heartbeats')
+    .select('user_email, user_name, date')
+    .gte('date', startDate)
+    .lte('date', endDate);
+
+  if (error) throw new Error(`Erro ao buscar heartbeats: ${error.message}`);
+
+  const byUser = new Map();
+  for (const row of data || []) {
+    const key = row.user_email;
+    if (!byUser.has(key)) {
+      byUser.set(key, { user_email: key, user_name: row.user_name, total_heartbeats: 0, days: new Set() });
+    }
+    const u = byUser.get(key);
+    u.total_heartbeats++;
+    u.days.add(row.date);
+  }
+
+  return Array.from(byUser.values()).map(u => ({
+    user_email: u.user_email,
+    user_name: u.user_name,
+    total_heartbeats: u.total_heartbeats,
+    days_active: u.days.size,
+  }));
+}
+
+/**
+ * Busca usuários ativos do setor Operação com nome do cargo.
+ * Usado para compliance de horas.
+ * @returns {Promise<Array<{ name, email, cargo_name, team_name }>>}
+ */
+export async function fetchOperacaoUsersWithCargo() {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from('users_otus')
+    .select(`
+      name, email,
+      position:position_id(name),
+      team:team_id(team_name),
+      setor:setor_id(name)
+    `)
+    .eq('status', 'ativo');
+
+  if (error) throw new Error(`Erro ao buscar usuários da Operação: ${error.message}`);
+
+  return (data || [])
+    .filter(u => u.setor?.name === 'Operação')
+    .map(u => ({
+      name: u.name,
+      email: u.email,
+      cargo_name: u.position?.name || null,
+      team_name: u.team?.team_name || null,
+    }));
+}
+
+/**
+ * Busca lista de setores ativos com contagem de usuários.
+ * Usado para calcular taxa de uso por setor.
+ * @returns {Promise<Array<{ setor_name, total_users, emails: string[] }>>}
+ */
+export async function fetchActiveUsersBySetor() {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from('users_otus')
+    .select('email, setor:setor_id(name)')
+    .eq('status', 'ativo');
+
+  if (error) throw new Error(`Erro ao buscar usuários: ${error.message}`);
+
+  const bySetor = new Map();
+  for (const u of data || []) {
+    const setor = u.setor?.name || 'Sem setor';
+    if (!bySetor.has(setor)) bySetor.set(setor, { setor_name: setor, total_users: 0, emails: [] });
+    const s = bySetor.get(setor);
+    s.total_users++;
+    s.emails.push(u.email);
+  }
+  return Array.from(bySetor.values());
+}
+
 export async function saveWhiteboard(elements, appState, files, updatedBy, boardId = 'shared') {
   const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase

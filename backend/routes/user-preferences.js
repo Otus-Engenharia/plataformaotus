@@ -11,6 +11,9 @@ import {
   AddFavoriteProject,
   AddFavoriteProjectsByTeam,
   RemoveFavoriteProject,
+  RemoveFavoriteProjectsByTeam,
+  AddFavoriteProjectsBatch,
+  RemoveFavoriteProjectsBatch,
 } from '../application/use-cases/user-preferences/index.js';
 
 const router = express.Router();
@@ -110,6 +113,69 @@ function createRoutes(requireAuth, logAction) {
     } catch (error) {
       console.error('Erro ao adicionar favoritos do time:', error);
       res.status(500).json({ success: false, error: error.message || 'Erro ao adicionar favoritos do time' });
+    }
+  });
+
+  /**
+   * POST /api/user-preferences/favorite-projects/batch
+   * Adiciona multiplos projetos aos favoritos de uma vez
+   */
+  router.post('/favorite-projects/batch', requireAuth, async (req, res) => {
+    try {
+      const { project_ids } = req.body;
+      const addBatch = new AddFavoriteProjectsBatch(repo);
+      const result = await addBatch.execute({ userId: req.user?.id, projectIds: project_ids });
+
+      if (logAction) {
+        await logAction(req, 'create', 'favorite_projects_batch', null, `${result.count} projetos favoritados em lote`);
+      }
+
+      res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao adicionar favoritos em lote:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao adicionar favoritos em lote' });
+    }
+  });
+
+  /**
+   * POST /api/user-preferences/favorite-projects/batch-remove
+   * Remove multiplos projetos dos favoritos de uma vez
+   */
+  router.post('/favorite-projects/batch-remove', requireAuth, async (req, res) => {
+    try {
+      const { project_ids } = req.body;
+      const removeBatch = new RemoveFavoriteProjectsBatch(repo);
+      const result = await removeBatch.execute({ userId: req.user?.id, projectIds: project_ids });
+
+      if (logAction) {
+        await logAction(req, 'delete', 'favorite_projects_batch', null, `${result.count} projetos removidos em lote`);
+      }
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao remover favoritos em lote:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao remover favoritos em lote' });
+    }
+  });
+
+  /**
+   * DELETE /api/user-preferences/favorite-projects/team/:teamId
+   * Remove todos os projetos de um time dos favoritos
+   */
+  router.delete('/favorite-projects/team/:teamId', requireAuth, async (req, res) => {
+    try {
+      const { teamId } = req.params;
+      const removeByTeam = new RemoveFavoriteProjectsByTeam(repo);
+      const result = await removeByTeam.execute({ userId: req.user?.id, teamId });
+
+      if (logAction) {
+        await logAction(req, 'delete', 'favorite_projects_team', teamId, `${result.count} projetos removidos do time`);
+      }
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao remover favoritos do time:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao remover favoritos do time' });
     }
   });
 

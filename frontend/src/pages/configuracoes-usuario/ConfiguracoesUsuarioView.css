@@ -1,16 +1,15 @@
 /* ============================================================
-   ConfiguracoesUsuarioView
+   ConfiguracoesUsuarioView - Dual Listbox Layout
    ============================================================ */
 
 .config-usuario {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
+  height: calc(100vh - 7.5rem);
   padding: 20px 6.5rem 12px 24px;
   background: #f8f8f7;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 /* --- Header --- */
@@ -33,196 +32,313 @@
   margin: 0;
 }
 
-/* --- Section card --- */
+/* --- Transfer Grid (dual listbox) --- */
 
-.config-usuario__section {
+.config-usuario__transfer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: 1fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* --- Panel (left and right) --- */
+
+.config-usuario__panel {
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.config-usuario__section-title {
-  font-size: 0.875rem;
+.config-usuario__panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 0;
+  flex-shrink: 0;
+}
+
+.config-usuario__panel-title {
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #18181b;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  margin: 0 0 16px 0;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.config-usuario__section-title .count-badge {
+.config-usuario__panel-title .count-badge {
   background: #f4f4f5;
   color: #71717a;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   padding: 2px 8px;
   border-radius: 999px;
 }
 
-/* --- Add controls --- */
+/* --- Search input --- */
 
-.config-usuario__add-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+.config-usuario__panel-search {
+  padding: 10px 16px;
+  flex-shrink: 0;
 }
 
-.config-usuario__add-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.config-usuario__add-row .searchable-select {
-  flex: 1;
-  max-width: 400px;
-}
-
-.config-usuario__add-row select {
-  flex: 1;
-  max-width: 300px;
-  height: 38px;
-  padding: 0 12px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+.config-usuario__search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 8px;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-family: 'DM Sans', sans-serif;
   color: #18181b;
   background: #fff;
-  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
 }
 
-.config-usuario__add-row select:focus {
+.config-usuario__search-input:focus {
   outline: none;
   border-color: #ffdd00;
-  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.15);
 }
 
-.config-usuario__btn-team {
-  display: inline-flex;
+.config-usuario__search-input::placeholder {
+  color: #a1a1aa;
+}
+
+/* --- Filters area (left panel only) --- */
+
+.config-usuario__panel-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* --- Toggle switch --- */
+
+.config-usuario__toggle-row {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
-  color: #18181b;
-  background: #ffdd00;
-  border: none;
-  border-radius: 8px;
+  gap: 8px;
+}
+
+.config-usuario__toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
   cursor: pointer;
-  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.config-usuario__toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.config-usuario__toggle-slider {
+  position: absolute;
+  inset: 0;
+  background-color: #d0d0d0;
+  border-radius: 20px;
+  transition: all 0.25s ease;
+}
+
+.config-usuario__toggle-slider::before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.config-usuario__toggle input:checked + .config-usuario__toggle-slider {
+  background-color: #ffdd00;
+}
+
+.config-usuario__toggle input:checked + .config-usuario__toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.config-usuario__toggle-label {
+  font-size: 0.75rem;
+  color: #52525b;
   white-space: nowrap;
 }
 
-.config-usuario__btn-team:hover {
-  background: #f5d400;
+/* --- Team dropdown wrapper --- */
+
+.config-usuario__team-dropdown {
+  width: 100%;
+  max-width: 320px;
 }
 
-.config-usuario__btn-team:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* --- Scrollable item list --- */
+
+.config-usuario__panel-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px 0;
 }
 
-/* --- Favorites list --- */
-
-.config-usuario__group {
-  margin-bottom: 16px;
+.config-usuario__panel-list::-webkit-scrollbar {
+  width: 6px;
 }
 
-.config-usuario__group:last-child {
-  margin-bottom: 0;
+.config-usuario__panel-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
 }
 
-.config-usuario__group-header {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #71717a;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0 0 8px 0;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+.config-usuario__panel-list::-webkit-scrollbar-thumb {
+  background: #ffdd00;
+  border-radius: 3px;
 }
 
-.config-usuario__favorite-item {
+.config-usuario__panel-list::-webkit-scrollbar-thumb:hover {
+  background: #d3af00;
+}
+
+/* --- List item with checkbox --- */
+
+.config-usuario__item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background 0.12s;
+  gap: 8px;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
 }
 
-.config-usuario__favorite-item:hover {
+.config-usuario__item:hover {
   background: #f8f8f7;
 }
 
-.config-usuario__favorite-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+.config-usuario__item--checked {
+  background: #fffbe6;
 }
 
-.config-usuario__favorite-name {
-  font-size: 0.875rem;
+.config-usuario__item--checked:hover {
+  background: #fff8cc;
+}
+
+.config-usuario__checkbox {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d4d4d8;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  background: #fff;
+}
+
+.config-usuario__item--checked .config-usuario__checkbox {
+  background: #ffdd00;
+  border-color: #ffdd00;
+}
+
+.config-usuario__checkbox svg {
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+}
+
+.config-usuario__item--checked .config-usuario__checkbox svg {
+  opacity: 1;
+}
+
+.config-usuario__item-name {
+  font-size: 0.8125rem;
   color: #18181b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.config-usuario__favorite-comercial {
+.config-usuario__item-comercial {
   color: #a1a1aa;
   font-weight: 400;
   margin-left: 4px;
+  font-size: 0.75rem;
 }
 
-.config-usuario__btn-remove {
-  display: inline-flex;
+/* --- Transfer actions (center column) --- */
+
+.config-usuario__transfer-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.config-usuario__transfer-btn {
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #a1a1aa;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  background: #fff;
+  color: #52525b;
   cursor: pointer;
-  transition: all 0.12s;
-  flex-shrink: 0;
+  transition: all 0.15s;
 }
 
-.config-usuario__btn-remove:hover {
-  background: #fef2f2;
-  color: #ef4444;
+.config-usuario__transfer-btn:hover:not(:disabled) {
+  background: #ffdd00;
+  border-color: #ffdd00;
+  color: #18181b;
 }
 
-.config-usuario__btn-remove svg {
-  width: 16px;
-  height: 16px;
+.config-usuario__transfer-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
-/* --- Empty state --- */
+.config-usuario__transfer-btn svg {
+  width: 18px;
+  height: 18px;
+}
 
-.config-usuario__empty {
-  text-align: center;
-  padding: 32px 16px;
+/* --- Empty / Loading states --- */
+
+.config-usuario__panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
   color: #a1a1aa;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  padding: 24px 16px;
+  text-align: center;
 }
-
-/* --- Loading --- */
 
 .config-usuario__loading {
   text-align: center;
@@ -231,10 +347,25 @@
   font-size: 0.875rem;
 }
 
-/* --- Label helper --- */
+/* --- Select all row --- */
 
-.config-usuario__label {
-  font-size: 0.8125rem;
+.config-usuario__select-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.config-usuario__select-all:hover {
+  background: #f8f8f7;
+}
+
+.config-usuario__select-all-label {
+  font-size: 0.75rem;
+  font-weight: 500;
   color: #71717a;
-  white-space: nowrap;
 }
