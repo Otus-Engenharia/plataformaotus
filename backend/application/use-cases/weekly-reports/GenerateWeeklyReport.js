@@ -16,6 +16,7 @@
 import { WeeklyReport } from '../../../domain/weekly-reports/entities/WeeklyReport.js';
 import { PipelineStepEnum } from '../../../domain/weekly-reports/value-objects/PipelineStep.js';
 import { SupabaseRelatoRepository } from '../../../infrastructure/repositories/SupabaseRelatoRepository.js';
+import { fetchDriveImageAsBase64 } from '../../../services/weekly-report-generator.js';
 
 class GenerateWeeklyReport {
   #reportRepository;
@@ -106,6 +107,7 @@ class GenerateWeeklyReport {
       teamEmails = [],
       ganttUrl,
       disciplinaUrl,
+      capaEmailUrl,
       relatosDias = 7,
     } = config;
 
@@ -156,6 +158,19 @@ class GenerateWeeklyReport {
       await this.#addLog(reportId, 'Aviso: não foi possível buscar relatos');
     }
 
+    // Step 2c: Buscar imagem da capa (não bloqueante)
+    let projectImageBase64 = null;
+    if (capaEmailUrl) {
+      try {
+        await this.#addLog(reportId, 'Buscando imagem da capa do Google Drive...');
+        projectImageBase64 = await fetchDriveImageAsBase64(capaEmailUrl);
+        await this.#addLog(reportId, projectImageBase64 ? 'Imagem da capa carregada' : 'Não foi possível carregar imagem da capa');
+      } catch (err) {
+        console.warn('[WeeklyReport] Erro ao buscar imagem da capa:', err.message);
+        await this.#addLog(reportId, 'Aviso: erro ao buscar imagem da capa');
+      }
+    }
+
     // Step 3: Gerar HTML
     await this.#updateStep(reportId, PipelineStepEnum.GENERATING_HTML);
     await this.#addLog(reportId, 'Gerando HTML (versão cliente + equipe)...');
@@ -164,6 +179,7 @@ class GenerateWeeklyReport {
       hideDashboard,
       ganttUrl,
       disciplinaUrl,
+      projectImageBase64,
       relatos: weekRelatos,
       tiposMap,
       prioridadesMap,

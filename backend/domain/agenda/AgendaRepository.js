@@ -196,6 +196,26 @@ class AgendaRepository {
   async updateGroupForInstances(ids, standardAgendaTaskId, name) {
     throw new Error('Método updateGroupForInstances deve ser implementado');
   }
+
+  // --- Métodos de comentários ---
+
+  /**
+   * Busca comentários de uma tarefa de agenda
+   * @param {number} taskId
+   * @returns {Promise<Array>}
+   */
+  async findCommentsByTaskId(taskId) {
+    throw new Error('Método findCommentsByTaskId deve ser implementado');
+  }
+
+  /**
+   * Persiste um novo comentário em uma tarefa de agenda
+   * @param {{ agendaTaskId: number, authorId: string, texto: string }} comment
+   * @returns {Promise<Object>}
+   */
+  async saveComment({ agendaTaskId, authorId, texto }) {
+    throw new Error('Método saveComment deve ser implementado');
+  }
 }
 
 export { AgendaRepository };

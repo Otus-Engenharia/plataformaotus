@@ -388,6 +388,13 @@
   opacity: 0.5;
 }
 
+.ftv-url-hint {
+  font-size: 11px;
+  color: #b45309;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
 /* Edit button (hover reveal) */
 .ftv-edit-btn {
   background: none;
