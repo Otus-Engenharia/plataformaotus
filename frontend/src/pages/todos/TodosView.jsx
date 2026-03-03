@@ -293,6 +293,13 @@ export default function TodosView() {
     [handleUpdate],
   );
 
+  const handlePriorityChange = useCallback(
+    (todoId, newPriority) => {
+      handleUpdate(todoId, { priority: newPriority });
+    },
+    [handleUpdate],
+  );
+
   // --- Stat badges ---
 
   const statBadges = useMemo(() => {
@@ -374,6 +381,7 @@ export default function TodosView() {
             }}
             onDelete={handleDelete}
             onDateChange={handleDateChange}
+            onPriorityChange={handlePriorityChange}
             loading={loading}
             colorMode={colorMode}
           />
@@ -393,6 +401,7 @@ export default function TodosView() {
             onStatusChange={(id, status) => handleUpdate(id, { status })}
             onDrop={handleKanbanDrop}
             onDateChange={handleDateChange}
+            onPriorityChange={handlePriorityChange}
             loading={loading}
             colorMode={colorMode}
           />
@@ -429,6 +438,7 @@ export default function TodosView() {
           onComplete={handleComplete}
           onDelete={handleDelete}
           onLinkAgenda={handleLinkAgenda}
+          onPriorityChange={handlePriorityChange}
         />
       )}
     </div>

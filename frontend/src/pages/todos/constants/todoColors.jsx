@@ -44,6 +44,12 @@ export function PriorityFlagIcon({ color = '#246fe0', size = 14, className = '' 
   );
 }
 
+const PRIORITY_CYCLE = { 'baixa': 'média', 'média': 'alta', 'alta': 'baixa' };
+
+export function getNextPriority(current) {
+  return PRIORITY_CYCLE[(current || 'baixa').toLowerCase()] || 'média';
+}
+
 export function getTodoColor(todo, colorMode) {
   if (colorMode === 'status') {
     const statusKey = (todo.status || 'backlog').toLowerCase();

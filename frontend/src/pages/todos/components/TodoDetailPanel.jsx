@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PRIORITY_COLORS, PriorityFlagIcon } from '../constants/todoColors';
+import { PRIORITY_COLORS, PriorityFlagIcon, getNextPriority } from '../constants/todoColors';
 import './TodoDetailPanel.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -33,7 +33,7 @@ const PRIORITY_CONFIG = {
   'alta': { label: 'Alta', color: PRIORITY_COLORS['alta'] },
 };
 
-export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onDelete, onLinkAgenda }) {
+export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onDelete, onLinkAgenda, onPriorityChange }) {
   const [agendaTasks, setAgendaTasks] = useState([]);
   const [loadingAgenda, setLoadingAgenda] = useState(false);
 
@@ -111,8 +111,12 @@ export default function TodoDetailPanel({ todo, onClose, onEdit, onComplete, onD
           </span>
           {todo.priority && (
             <span
-              className="todo-detail__badge"
-              style={{ color: priority.color, backgroundColor: `${priority.color}15` }}
+              className="todo-detail__badge todo-detail__badge--clickable"
+              style={{ color: priority.color, backgroundColor: `${priority.color}15`, cursor: 'pointer' }}
+              onClick={() => {
+                if (onPriorityChange) onPriorityChange(todo.id, getNextPriority(todo.priority));
+              }}
+              title={`Prioridade: ${priority.label} — clique para alterar`}
             >
               <PriorityFlagIcon color={priority.color} size={12} />
               <span style={{ marginLeft: 4 }}>{priority.label}</span>
