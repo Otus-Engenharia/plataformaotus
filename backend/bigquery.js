@@ -2911,56 +2911,36 @@ const PHASE_COMPLETED_STATUSES_SQL = [
 ].map(s => `'${s}'`).join(', ');
 
 /**
- * Busca durações por fase do projeto atual separando Executado e A Executar.
+ * Busca durações por fase do projeto atual usando as linhas de fase (Level 2).
+ * A duração executada é o span real da linha da fase (DataDeInicio → DataDeTermino),
+ * independente do status das tarefas filhas.
  * @param {string} smartsheetId
  * @param {string} projectName
- * @returns {Array} [{ fase_nome, executado_dias, a_executar_dias }]
+ * @returns {Array} [{ fase_nome, executado_dias, fase_inicio }]
  */
 export async function queryCurrentPhaseDurations(smartsheetId, projectName = null) {
   const project = 'dadosindicadores';
   const ds = 'smartsheet';
   const tbl = 'smartsheet_data_projetos';
-  const completedSql = PHASE_COMPLETED_STATUSES_SQL;
 
   const baseQuery = `
-    WITH hier AS (
-      SELECT
-        ID_Projeto, NomeDaPlanilha, Level, Status, DataDeInicio, DataDeTermino, rowNumber,
-        LAST_VALUE(IF(CAST(Level AS INT64) = 2, NomeDaTarefa, NULL) IGNORE NULLS)
-          OVER (PARTITION BY ID_Projeto ORDER BY CAST(rowNumber AS INT64)
-                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS fase_nome
-      FROM \`${project}.${ds}.${tbl}\`
-      WHERE {{WHERE_CLAUSE}}
-        AND NomeDaPlanilha NOT LIKE '%(Backup%'
-        AND NomeDaPlanilha NOT LIKE '%Cópia%'
-        AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
-        AND NomeDaPlanilha NOT LIKE '%Copy%'
-    ),
-    lv5 AS (
-      SELECT *
-      FROM hier
-      WHERE CAST(Level AS INT64) = 5
-        AND fase_nome IS NOT NULL
-        AND DataDeInicio IS NOT NULL
-        AND DataDeTermino IS NOT NULL
-    )
     SELECT
-      fase_nome,
+      NomeDaTarefa AS fase_nome,
       DATE_DIFF(
-        MAX(IF(LOWER(TRIM(COALESCE(Status,''))) IN (${completedSql}),
-          PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeTermino AS STRING),1,10)), NULL)),
-        MIN(IF(LOWER(TRIM(COALESCE(Status,''))) IN (${completedSql}),
-          PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeInicio AS STRING),1,10)), NULL)),
+        MAX(PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeTermino AS STRING),1,10))),
+        MIN(PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeInicio AS STRING),1,10))),
         DAY) AS executado_dias,
-      DATE_DIFF(
-        MAX(IF(LOWER(TRIM(COALESCE(Status,''))) NOT IN (${completedSql}),
-          PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeTermino AS STRING),1,10)), NULL)),
-        MIN(IF(LOWER(TRIM(COALESCE(Status,''))) NOT IN (${completedSql}),
-          PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeInicio AS STRING),1,10)), NULL)),
-        DAY) AS a_executar_dias,
       MIN(PARSE_DATE('%Y-%m-%d', SUBSTR(CAST(DataDeInicio AS STRING),1,10))) AS fase_inicio
-    FROM lv5
-    GROUP BY fase_nome
+    FROM \`${project}.${ds}.${tbl}\`
+    WHERE {{WHERE_CLAUSE}}
+      AND CAST(Level AS INT64) = 2
+      AND DataDeInicio IS NOT NULL
+      AND DataDeTermino IS NOT NULL
+      AND NomeDaPlanilha NOT LIKE '%(Backup%'
+      AND NomeDaPlanilha NOT LIKE '%Cópia%'
+      AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+      AND NomeDaPlanilha NOT LIKE '%Copy%'
+    GROUP BY NomeDaTarefa
     ORDER BY fase_inicio ASC
   `;
 

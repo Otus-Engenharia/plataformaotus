@@ -32,9 +32,6 @@ ChartJS.register(
   ChartDataLabels
 );
 
-const A_EXECUTAR_COLOR = 'rgba(245, 158, 11, 0.30)';
-const A_EXECUTAR_BORDER = 'rgba(245, 158, 11, 0.70)';
-
 // Ícones SVG
 const EyeIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -56,7 +53,6 @@ function PhaseDurationChart({ data, visibleDatasets, onToggleDataset }) {
 
   // Derivar keys dos datasets
   const EXECUTADO_KEY = 'executado';
-  const A_EXECUTAR_KEY = 'a_executar';
 
   const isVisible = (key) => {
     if (!visibleDatasets) return true;
@@ -82,27 +78,6 @@ function PhaseDurationChart({ data, visibleDatasets, onToggleDataset }) {
         datalabels: {
           display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
           color: '#fff',
-          font: { size: 11, weight: '600' },
-          anchor: 'center',
-          align: 'center',
-          formatter: (v) => `${v}d`,
-        },
-      });
-    }
-
-    // Dataset A Executar
-    if (isVisible(A_EXECUTAR_KEY)) {
-      datasets.push({
-        label: 'A Executar',
-        data: phases.map(f => actual.a_executar?.[f] ?? 0),
-        backgroundColor: A_EXECUTAR_COLOR,
-        borderColor: A_EXECUTAR_BORDER,
-        borderWidth: 1,
-        barThickness: 18,
-        borderRadius: 3,
-        datalabels: {
-          display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
-          color: '#92400e',
           font: { size: 11, weight: '600' },
           anchor: 'center',
           align: 'center',
@@ -199,15 +174,6 @@ function PhaseDurationChart({ data, visibleDatasets, onToggleDataset }) {
           visible={isVisible(EXECUTADO_KEY)}
           onToggle={() => onToggleDataset(EXECUTADO_KEY)}
           solid
-        />
-
-        {/* A Executar */}
-        <ToggleRow
-          color={EXECUTADO_COLOR}
-          label="A Executar"
-          visible={isVisible(A_EXECUTAR_KEY)}
-          onToggle={() => onToggleDataset(A_EXECUTAR_KEY)}
-          dashed
         />
 
         {/* Baselines */}
