@@ -478,8 +478,10 @@
 
 .contatos-contact-name-group {
   display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
   min-width: 0;
   flex: 1;
 }
@@ -703,6 +705,126 @@
 
 .contatos-project-contact {
   color: #6b7280;
+}
+
+/* Tabs de navegação */
+.contatos-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #E5E7EB;
+  margin-bottom: 1.25rem;
+}
+
+.contatos-tab {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6B7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.contatos-tab:hover {
+  color: #374151;
+}
+
+.contatos-tab--active {
+  color: #2563EB;
+  border-bottom-color: #2563EB;
+}
+
+.contatos-tab-badge {
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Botão de solicitar edição (inline no card de contato) */
+.contatos-edit-request-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: 1px solid #D1D5DB;
+  border-radius: 4px;
+  color: #6B7280;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.contatos-edit-request-btn:hover {
+  background: #EFF6FF;
+  border-color: #93C5FD;
+  color: #2563EB;
+}
+
+/* Minhas Solicitações (seção colapsável) */
+.contatos-my-requests {
+  margin-top: 16px;
+  border-top: 1px solid #E5E7EB;
+  padding-top: 8px;
+}
+
+.contatos-my-requests-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.contatos-pending-badge {
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.contatos-chevron {
+  margin-left: auto;
+  transition: transform 0.2s;
+  color: #9CA3AF;
+}
+
+.contatos-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.contatos-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0 8px;
+}
+
+.contatos-empty-mini {
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 13px;
+  padding: 12px;
 }
 
 /* Responsividade */

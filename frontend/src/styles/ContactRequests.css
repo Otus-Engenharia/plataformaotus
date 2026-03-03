@@ -1,0 +1,391 @@
+/* =============================================
+   ContactRequests - Painel de Revisão de Solicitações
+   ============================================= */
+
+/* --- Panel --- */
+.cr-panel {
+  padding: 0;
+}
+
+/* --- Tabs --- */
+.cr-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #E5E7EB;
+  margin-bottom: 16px;
+}
+
+.cr-tab {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cr-tab:hover {
+  color: #374151;
+}
+
+.cr-tab--active {
+  color: #2563EB;
+  border-bottom-color: #2563EB;
+}
+
+.cr-tab-count {
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* --- Filter --- */
+.cr-filter-row {
+  margin-bottom: 16px;
+}
+
+.cr-filter-row select {
+  padding: 6px 10px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #374151;
+  background: white;
+  min-width: 180px;
+}
+
+/* --- Loading / Empty --- */
+.cr-loading,
+.cr-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: #9CA3AF;
+  font-size: 14px;
+}
+
+.cr-empty svg {
+  color: #D1D5DB;
+}
+
+/* --- Card List --- */
+.cr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cr-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 16px;
+  background: #FAFAFA;
+  transition: border-color 0.2s;
+}
+
+.cr-card--pendente {
+  border-left: 3px solid #F59E0B;
+}
+
+.cr-card--aprovada {
+  border-left: 3px solid #10B981;
+  opacity: 0.85;
+}
+
+.cr-card--rejeitada {
+  border-left: 3px solid #EF4444;
+  opacity: 0.85;
+}
+
+.cr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cr-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cr-card-date {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+/* --- Type Badges --- */
+.cr-type-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cr-type-badge--novo_contato {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.cr-type-badge--editar_contato {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.cr-type-badge--nova_empresa {
+  background: #E0E7FF;
+  color: #3730A3;
+}
+
+/* --- Status Badges --- */
+.cr-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.cr-status-badge--pendente {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.cr-status-badge--aprovada {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.cr-status-badge--rejeitada {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+/* --- Card Meta --- */
+.cr-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #6B7280;
+  margin-bottom: 10px;
+}
+
+.cr-requester strong {
+  color: #374151;
+}
+
+.cr-project {
+  background: #F3F4F6;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* --- Payload --- */
+.cr-payload {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.cr-payload-row {
+  font-size: 13px;
+  color: #374151;
+  padding: 2px 0;
+}
+
+.cr-label {
+  font-weight: 500;
+  color: #6B7280;
+  margin-right: 4px;
+}
+
+/* --- Diff View --- */
+.cr-payload-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cr-diff-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.cr-diff-row--changed {
+  background: #FFFBEB;
+}
+
+.cr-diff-old {
+  text-decoration: line-through;
+  color: #DC2626;
+  background: #FEE2E2;
+  padding: 0 4px;
+  border-radius: 2px;
+}
+
+.cr-diff-new {
+  color: #059669;
+  background: #D1FAE5;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+.cr-diff-row svg {
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+/* --- Review Info --- */
+.cr-review-info {
+  font-size: 12px;
+  color: #6B7280;
+  padding-top: 8px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.cr-rejection-reason {
+  margin-top: 4px;
+  color: #DC2626;
+  font-style: italic;
+}
+
+/* --- Actions --- */
+.cr-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #E5E7EB;
+  margin-top: 10px;
+}
+
+.cr-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.cr-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cr-btn--approve {
+  background: #10B981;
+  color: white;
+}
+
+.cr-btn--approve:hover:not(:disabled) {
+  background: #059669;
+}
+
+.cr-btn--reject-start {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.cr-btn--reject-start:hover {
+  background: #FECACA;
+}
+
+.cr-btn--reject {
+  background: #DC2626;
+  color: white;
+}
+
+.cr-btn--reject:hover:not(:disabled) {
+  background: #B91C1C;
+}
+
+.cr-btn--cancel {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.cr-btn--cancel:hover {
+  background: #E5E7EB;
+}
+
+/* --- Reject Form --- */
+.cr-reject-form {
+  width: 100%;
+}
+
+.cr-reject-form textarea {
+  width: 100%;
+  border: 1px solid #FCA5A5;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 8px;
+}
+
+.cr-reject-form textarea:focus {
+  outline: none;
+  border-color: #DC2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+}
+
+.cr-reject-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* --- Toast --- */
+.cr-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #10B981;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  animation: crToastIn 0.3s ease;
+}
+
+@keyframes crToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
