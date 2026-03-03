@@ -76,7 +76,7 @@ class Project {
     tipologiaEmpreendimento = null,
     padraoAcabamento = null,
     serviceType = null,
-    status = 'passagem_vendas',
+    status = 'a iniciar',
     createdAt = null,
     dataVenda = null,
     complexidade = null,
@@ -331,7 +331,7 @@ class Project {
   static create(params) {
     return new Project({
       ...params,
-      status: 'passagem_vendas',
+      status: 'a iniciar',
     });
   }
 
