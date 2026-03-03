@@ -83,7 +83,11 @@ class Todo {
 
   get isOverdue() {
     if (!this.#dueDate || this.isClosed) return false;
-    return new Date() > this.#dueDate;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(this.#dueDate);
+    due.setHours(23, 59, 59, 999);
+    return today > due;
   }
 
   isAssignedTo(userId) {
@@ -237,7 +241,7 @@ class Todo {
       description: this.#description,
       status: this.#status.value,
       priority: this.#priority.value,
-      due_date: this.#dueDate?.toISOString() || null,
+      due_date: this.#dueDate?.toISOString().slice(0, 10) || null,
       assignee: this.#assignee,
       created_by: this.#createdBy,
       project_id: this.#projectId,
@@ -265,7 +269,7 @@ class Todo {
       priority: this.#priority.value,
       priority_label: this.#priority.label,
       priority_color: this.#priority.color,
-      due_date: this.#dueDate?.toISOString() || null,
+      due_date: this.#dueDate?.toISOString().slice(0, 10) || null,
       assignee: this.#assignee,
       assignee_name: assigneeData?.name || null,
       created_by: this.#createdBy,

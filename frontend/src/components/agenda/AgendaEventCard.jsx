@@ -4,6 +4,16 @@ import './AgendaEventCard.css';
 
 const SLOT_HEIGHT = 36; // px por slot de 30 min
 
+// Color coding por tipo de atividade (position do standard_agenda_task)
+const POSITION_COLORS = {
+  'compatibilização': { bg: '#f5f3ff', border: '#8b5cf6', text: '#6d28d9' },
+  'coordenação':      { bg: '#eff6ff', border: '#3b82f6', text: '#1d4ed8' },
+  'verificação':      { bg: '#ecfdf5', border: '#10b981', text: '#047857' },
+  'digital':          { bg: '#fffbeb', border: '#f59e0b', text: '#b45309' },
+  'time bim':         { bg: '#fdf2f8', border: '#ec4899', text: '#be185d' },
+  'otus':             { bg: '#fefce8', border: '#eab308', text: '#a16207' },
+};
+
 function formatTime(dateStr) {
   if (!dateStr) return '';
   return format(new Date(dateStr), 'HH:mm');
@@ -18,6 +28,7 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
   const didDragRef = useRef(false);
 
   const statusClass = task.status === 'feito' ? 'status-feito' : 'status-a-fazer';
+  const posColors = task.status !== 'feito' ? POSITION_COLORS[task.position] : null;
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -182,7 +193,15 @@ function AgendaEventCard({ task, topPx, heightPx, columnRef, onEventUpdate, onEv
       ref={cardRef}
       data-task-id={task.id}
       className={`agenda-event-card ${statusClass}`}
-      style={{ top: topPx, height: heightPx }}
+      style={{
+        top: topPx,
+        height: heightPx,
+        ...(posColors ? {
+          '--card-bg': posColors.bg,
+          '--card-border': posColors.border,
+          '--card-text': posColors.text,
+        } : {}),
+      }}
       onMouseDown={handleBodyMouseDown}
       onClick={handleClick}
       title={`${task.name}\n${formatTime(task.start_date)} – ${formatTime(task.due_date)}`}

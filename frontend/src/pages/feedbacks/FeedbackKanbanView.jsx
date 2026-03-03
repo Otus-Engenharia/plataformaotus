@@ -83,6 +83,13 @@ const KANBAN_COLUMNS = [
  */
 export default function FeedbackKanbanView({ area = null }) {
   const { user, isPrivileged } = useAuth();
+
+  // Captura o lastSeen ANTES do App.jsx resetar (useState initializer roda síncrono durante render, antes de effects)
+  const [highlightSince] = useState(() => {
+    if (!user?.id) return null;
+    return localStorage.getItem(`feedbacks_last_seen_${user.id}`) || null;
+  });
+
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -235,6 +242,14 @@ export default function FeedbackKanbanView({ area = null }) {
 
   // Check if feedback belongs to current user
   const isOwnFeedback = (feedback) => feedback.author_email === user?.email;
+
+  // Verifica se o feedback do usuário foi atualizado por admin desde a última visita
+  const isHighlightedFeedback = (feedback) => {
+    if (!highlightSince) return false;
+    if (!isOwnFeedback(feedback)) return false;
+    if (!feedback.resolved_by_id) return false;
+    return feedback.updated_at > highlightSince;
+  };
 
   // Callback para quando uma menção @FB-XXX é clicada
   const handleMentionClick = useCallback((code) => {
@@ -406,6 +421,7 @@ export default function FeedbackKanbanView({ area = null }) {
                         key={feedback.id}
                         feedback={feedback}
                         isOwn={isOwnFeedback(feedback)}
+                        isHighlighted={isHighlightedFeedback(feedback)}
                         onClick={() => setSelectedFeedback(feedback)}
                         onMentionClick={handleMentionClick}
                       />

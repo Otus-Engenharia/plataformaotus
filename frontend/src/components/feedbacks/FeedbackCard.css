@@ -32,6 +32,36 @@
   border-left: 3px solid #ffdd00;
 }
 
+/* Destaque para feedback atualizado recentemente */
+.fcard--highlighted {
+  border-left: 3px solid #f57f17;
+  background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%);
+  box-shadow: 0 0 0 1px rgba(245, 127, 23, 0.12);
+  animation: fcard-highlight-fade 2s ease-out;
+}
+
+.fcard--own.fcard--highlighted {
+  border-left: 3px solid #f57f17;
+  background: linear-gradient(135deg, #fff8e1 0%, #fffef5 50%, #ffffff 100%);
+}
+
+@keyframes fcard-highlight-fade {
+  0% { box-shadow: 0 0 0 3px rgba(245, 127, 23, 0.25); }
+  100% { box-shadow: 0 0 0 1px rgba(245, 127, 23, 0.12); }
+}
+
+.fcard__updated-badge {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #f57f17;
+  background: rgba(245, 127, 23, 0.12);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 /* Top row */
 .fcard__top {
   display: flex;

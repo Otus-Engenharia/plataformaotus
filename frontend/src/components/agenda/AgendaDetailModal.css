@@ -34,6 +34,7 @@
   display: flex;
   flex-direction: column;
   max-height: 85vh;
+  border-top: 3px solid var(--modal-accent, #1a73e8);
 }
 
 @keyframes detail-slide-up {
@@ -152,17 +153,24 @@
   grid-template-columns: 1fr 1fr;
   gap: 0;
   border: 1px solid #e8eaed;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
+  background: #fafbfc;
 }
 
 .detail-modal__meta-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-bottom: 1px solid #f1f3f4;
   border-right: 1px solid #f1f3f4;
+  background: #ffffff;
+  transition: background 0.1s ease;
+}
+
+.detail-modal__meta-item:hover {
+  background: #f8f9fb;
 }
 
 .detail-modal__meta-item:nth-child(even) {
@@ -378,6 +386,13 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f3f4;
+}
+
+.detail-modal__section:first-child {
+  border-top: none;
+  padding-top: 0;
 }
 
 .detail-modal__section-header {
@@ -387,9 +402,11 @@
 }
 
 .detail-modal__section-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3c4043;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   margin: 0;
   font-family: 'DM Sans', sans-serif;
   display: flex;
@@ -404,6 +421,52 @@
   background: #f1f3f4;
   padding: 1px 8px;
   border-radius: 10px;
+}
+
+.detail-modal__section-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.detail-modal__reschedule-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #5f6368;
+  background: #f1f3f4;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.detail-modal__reschedule-btn:hover {
+  background: #e8eaed;
+  color: #1a73e8;
+}
+
+.detail-modal__reschedule-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.detail-modal__reschedule-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #dadce0;
+  border-top-color: #1a73e8;
+  border-radius: 50%;
+  animation: reschedule-spin 0.6s linear infinite;
+}
+
+@keyframes reschedule-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ============================
@@ -422,19 +485,21 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid #f1f3f4;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 2px;
+  transition: background 0.12s ease;
 }
 
-.detail-modal__project-item:last-child {
-  border-bottom: none;
+.detail-modal__project-item:hover {
+  background: #f8f9fa;
 }
 
 .detail-modal__project-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #1a73e8;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--modal-accent, #1a73e8);
   flex-shrink: 0;
 }
 
@@ -574,10 +639,11 @@
 
 /* Barra de progresso */
 .detail-modal__progress-bar {
-  height: 4px;
-  background: #e8eaed;
-  border-radius: 2px;
+  height: 3px;
+  background: #edf0f2;
+  border-radius: 3px;
   overflow: hidden;
+  margin-top: -4px;
 }
 
 .detail-modal__progress-fill {
@@ -601,92 +667,10 @@
 }
 
 .detail-modal__todo-list {
-  list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-}
-
-.detail-modal__todo-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid #f1f3f4;
-  transition: opacity 0.15s ease;
-}
-
-.detail-modal__todo-item:last-child {
-  border-bottom: none;
-}
-
-.detail-modal__todo-item.is-done {
-  opacity: 0.55;
-}
-
-/* Check button */
-.detail-modal__todo-check {
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: none;
-  padding: 0;
-  flex-shrink: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background 0.12s ease;
-  margin-top: 1px;
-}
-
-.detail-modal__todo-check:hover {
-  background: #f1f3f4;
-}
-
-.detail-modal__todo-check-empty {
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid #dadce0;
-  border-radius: 4px;
-  transition: border-color 0.12s ease;
-}
-
-.detail-modal__todo-check:hover .detail-modal__todo-check-empty {
-  border-color: #10b981;
-}
-
-.detail-modal__todo-check.is-checked {
-  color: #10b981;
-}
-
-.detail-modal__todo-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.detail-modal__todo-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: #3c4043;
-  font-family: 'DM Sans', sans-serif;
-  line-height: 1.4;
-}
-
-.detail-modal__todo-item.is-done .detail-modal__todo-name {
-  text-decoration: line-through;
-  color: #9aa0a6;
-}
-
-.detail-modal__todo-project {
-  font-size: 11px;
-  color: #9aa0a6;
-  font-family: 'DM Sans', sans-serif;
 }
 
 /* ============================
@@ -699,6 +683,7 @@
   justify-content: flex-start;
   padding: 12px 24px 16px;
   gap: 8px;
+  border-top: 1px solid #f1f3f4;
 }
 
 .detail-modal__delete-btn {

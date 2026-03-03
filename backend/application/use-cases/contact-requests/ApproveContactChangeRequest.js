@@ -43,6 +43,10 @@ class ApproveContactChangeRequest {
         companyType: payload.company_type,
       });
       resultCompanyId = company.id;
+    } else if (type === 'nova_disciplina') {
+      await this.#contactService.createStandardDiscipline({
+        name: payload.name,
+      });
     }
 
     request.approve(reviewerId, reviewerEmail, reviewerName, resultContactId, resultCompanyId);

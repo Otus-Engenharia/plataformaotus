@@ -921,16 +921,14 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     const { projectCode } = req.params;
     const { field, value, oldValue } = req.body;
 
-    // Campos permitidos: admins podem editar lider, leaders nao
-    const allowedFields = hasFullAccess(req.user)
-      ? ['comercial_name', 'status', 'client', 'nome_time', 'lider']
-      : ['comercial_name', 'status', 'client', 'nome_time'];
+    // Campos permitidos: todos com canEditPortfolio podem editar todos os campos
+    const allowedFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
 
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido` });
     }
 
-    // Ownership check: lideres de Operacao so editam seus proprios projetos
+    // Ownership check: lideres de Operacao so editam seus proprios projetos ou projetos nao alocados
     if (!hasFullAccess(req.user)) {
       const { leaderName } = getLeaderDataFilter(req);
       if (leaderName) {
@@ -942,10 +940,15 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
           .single();
 
         const effectiveUser = req.session?.impersonating || req.user;
-        if (!project || project.project_manager_id !== effectiveUser.id) {
+        // Permite editar se: projeto nao existe no Supabase (precisa alocacao),
+        // ou projeto sem lider alocado, ou usuario e o dono do projeto
+        const isUnassigned = !project || !project.project_manager_id;
+        const isOwner = project && project.project_manager_id === effectiveUser.id;
+
+        if (!isUnassigned && !isOwner) {
           return res.status(403).json({
             success: false,
-            error: 'Voce so pode editar seus proprios projetos'
+            error: 'Voce so pode editar seus proprios projetos ou projetos nao alocados'
           });
         }
       }

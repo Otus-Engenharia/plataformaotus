@@ -31,6 +31,7 @@ import PortfolioView from './components/PortfolioView';
 import IndicadoresView from './components/IndicadoresView';
 import CurvaSView from './components/CurvaSView';
 import BaselinesView from './components/BaselinesView';
+import SolicitacoesView from './components/SolicitacoesView';
 import CSAreaView from './components/CSAreaView';
 import AuditoriaCustosView from './components/AuditoriaCustosView';
 // Lazy load das páginas de Apoio de Projetos
@@ -592,6 +593,21 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">Baselines</span>
         {pendingBaselineCount > 0 && (
           <span className="nav-notification-badge">{pendingBaselineCount}</span>
+        )}
+      </Link>
+      <Link
+        to="/lideres-projeto/solicitacoes"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/solicitacoes' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Solicitações')}
+      >
+        <span className="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        </span>
+        <span className="nav-text">Solicitações</span>
+        {pendingContactRequestCount > 0 && (
+          <span className="nav-notification-badge">{pendingContactRequestCount}</span>
         )}
       </Link>
       {isPrivileged && (
@@ -1417,6 +1433,7 @@ function AppContent() {
               <Route path="portfolio" element={<PortfolioView />} />
               <Route path="curva-s" element={<CurvaSView />} />
               <Route path="baselines" element={<BaselinesView />} />
+              <Route path="solicitacoes" element={<SolicitacoesView />} />
               <Route path="alocacao-times" element={isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />} />
               <Route path="horas" element={<HorasView />} />
               <Route path="indicadores-vendas" element={

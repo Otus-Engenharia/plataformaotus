@@ -60,9 +60,7 @@ class SupabaseTodoRepository extends TodoRepository {
     }
 
     if (filters.dueDate) {
-      const dayStart = `${filters.dueDate}T00:00:00.000Z`;
-      const dayEnd = `${filters.dueDate}T23:59:59.999Z`;
-      query = query.gte('due_date', dayStart).lte('due_date', dayEnd);
+      query = query.eq('due_date', filters.dueDate);
     }
 
     // Filtro por time (via projetos do time)

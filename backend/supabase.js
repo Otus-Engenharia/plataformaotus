@@ -5357,6 +5357,49 @@ export async function createCompany({ name, companyType }) {
 }
 
 /**
+ * Cria uma nova disciplina padrão no sistema
+ */
+export async function createStandardDiscipline({ name }) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('standard_disciplines')
+    .insert({
+      discipline_name: name,
+      status: 'validado',
+    })
+    .select('id, discipline_name, status')
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar disciplina: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Cria um novo time no sistema
+ */
+export async function createTeam({ teamName }) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('teams')
+    .insert({
+      team_name: teamName,
+    })
+    .select('id, team_name')
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar time: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
  * Adiciona uma disciplina/equipe a um projeto
  */
 export async function createProjectDiscipline(disciplineData) {
@@ -5796,7 +5839,7 @@ export async function fetchPortfolioEditOptions() {
   const [teamsResult, companiesResult, leadersResult] = await Promise.all([
     supabase.from('teams').select('id, team_name, team_number').order('team_number'),
     supabase.from('companies').select('id, name').order('name'),
-    supabase.from('users_otus').select('id, name').eq('is_active', true).order('name')
+    supabase.from('users_otus').select('id, name, role, setor:setor_id(name)').eq('is_active', true).in('role', ['leader', 'admin', 'director', 'ceo', 'dev']).order('name')
   ]);
 
   if (teamsResult.error) {
@@ -5809,10 +5852,15 @@ export async function fetchPortfolioEditOptions() {
     throw new Error(`Erro ao buscar lideres: ${leadersResult.error.message}`);
   }
 
+  // Filtra lideres: apenas usuarios do setor Operacao com role leader ou superior
+  const filteredLeaders = (leadersResult.data || [])
+    .filter(u => u.setor?.name === 'Operação')
+    .map(({ id, name }) => ({ id, name }));
+
   return {
     teams: teamsResult.data || [],
     companies: companiesResult.data || [],
-    leaders: leadersResult.data || []
+    leaders: filteredLeaders
   };
 }
 
