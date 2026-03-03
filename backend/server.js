@@ -87,6 +87,7 @@ import {
   insertHeartbeat, fetchScreenTimeData, fetchOperacaoUsersWithCargo, fetchActiveUsersBySetor
 } from './supabase.js';
 import { createGmailDraft } from './gmail.js';
+import { sendStatusChangeNotification, getWebhookUrls } from './discord.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -957,6 +958,26 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     const result = await updateProjectField(projectCode, field, value);
     await logAction(req, 'update', 'portfolio', projectCode, field, { value, oldValue });
     await trackTimeSaving(req, 'portfolio_field_update', { resourceType: 'project', resourceId: projectCode, resourceName: field });
+
+    // Notificação Discord para mudança de status (fire-and-forget)
+    if (field === 'status' && oldValue && value && oldValue !== value) {
+      (async () => {
+        try {
+          const webhookUrls = getWebhookUrls(oldValue, value);
+          await sendStatusChangeNotification({
+            projectCode,
+            projectName: result?.comercial_name || result?.name || projectCode,
+            oldStatus: oldValue,
+            newStatus: value,
+            userName: req.user?.displayName || req.user?.name || 'Usuário',
+            userPicture: req.user?.picture || null,
+            webhookUrls,
+          });
+        } catch (err) {
+          console.error('Erro ao enviar notificação Discord de status:', err);
+        }
+      })();
+    }
 
     res.json({ success: true, data: result });
   } catch (error) {
