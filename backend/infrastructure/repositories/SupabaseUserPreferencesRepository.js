@@ -108,6 +108,68 @@ class SupabaseUserPreferencesRepository extends UserPreferencesRepository {
     if (error) throw new Error(`Erro ao remover favorito: ${error.message}`);
   }
 
+  async removeFavoriteProjectsByTeam(userId, teamId) {
+    const { data: teamProjects, error: projErr } = await this.#supabase
+      .from(PROJECTS_TABLE)
+      .select('id')
+      .eq('team_id', teamId);
+
+    if (projErr) throw new Error(`Erro ao buscar projetos do time: ${projErr.message}`);
+    if (!teamProjects || teamProjects.length === 0) return { count: 0 };
+
+    const teamProjectIds = teamProjects.map(p => p.id);
+
+    const { data: deleted, error } = await this.#supabase
+      .from(FAVORITES_TABLE)
+      .delete()
+      .eq('user_id', userId)
+      .in('project_id', teamProjectIds)
+      .select('id');
+
+    if (error) throw new Error(`Erro ao remover favoritos do time: ${error.message}`);
+
+    return { count: deleted?.length || 0 };
+  }
+
+  async addFavoriteProjectsBatch(userId, projectIds) {
+    if (!projectIds || projectIds.length === 0) return { count: 0 };
+
+    const { data: existing } = await this.#supabase
+      .from(FAVORITES_TABLE)
+      .select('project_id')
+      .eq('user_id', userId);
+
+    const existingIds = new Set((existing || []).map(e => e.project_id));
+    const newRows = projectIds
+      .filter(id => !existingIds.has(id))
+      .map(id => ({ user_id: userId, project_id: id }));
+
+    if (newRows.length > 0) {
+      const { error } = await this.#supabase
+        .from(FAVORITES_TABLE)
+        .insert(newRows);
+
+      if (error) throw new Error(`Erro ao adicionar favoritos em lote: ${error.message}`);
+    }
+
+    return { count: newRows.length };
+  }
+
+  async removeFavoriteProjectsBatch(userId, projectIds) {
+    if (!projectIds || projectIds.length === 0) return { count: 0 };
+
+    const { data: deleted, error } = await this.#supabase
+      .from(FAVORITES_TABLE)
+      .delete()
+      .eq('user_id', userId)
+      .in('project_id', projectIds)
+      .select('id');
+
+    if (error) throw new Error(`Erro ao remover favoritos em lote: ${error.message}`);
+
+    return { count: deleted?.length || 0 };
+  }
+
   async getAllProjects() {
     const { data, error } = await this.#supabase
       .from(PROJECTS_TABLE)
