@@ -11,7 +11,7 @@ class CreateRelato {
     this.#relatoRepository = relatoRepository;
   }
 
-  async execute({ projectCode, tipo, prioridade, titulo, descricao, authorId, authorName }) {
+  async execute({ projectCode, tipo, prioridade, titulo, descricao, authorId, authorName, construflowIssueCode }) {
     // Valida tipo contra DB
     const tipos = await this.#relatoRepository.findAllTipos();
     const tipoValid = tipos.find(t => t.slug === tipo);
@@ -26,7 +26,7 @@ class CreateRelato {
       throw new Error(`Prioridade inválida: "${prioridade}". Valores válidos: ${prioridades.map(p => p.slug).join(', ')}`);
     }
 
-    const relato = Relato.create({ projectCode, tipo, prioridade, titulo, descricao, authorId, authorName });
+    const relato = Relato.create({ projectCode, tipo, prioridade, titulo, descricao, authorId, authorName, construflowIssueCode });
     const saved = await this.#relatoRepository.save(relato);
 
     return saved.toResponse(tipoValid, prioridadeValid);

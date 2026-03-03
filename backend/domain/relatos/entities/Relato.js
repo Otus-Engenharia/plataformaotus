@@ -20,6 +20,7 @@ class Relato {
   #isResolved;
   #resolvedAt;
   #resolvedById;
+  #construflowIssueCode;
   #createdAt;
   #updatedAt;
 
@@ -32,6 +33,7 @@ class Relato {
     descricao,
     authorId,
     authorName = null,
+    construflowIssueCode = null,
     isResolved = false,
     resolvedAt = null,
     resolvedById = null,
@@ -61,6 +63,7 @@ class Relato {
     this.#descricao = descricao.trim();
     this.#authorId = authorId;
     this.#authorName = authorName || null;
+    this.#construflowIssueCode = construflowIssueCode || null;
     this.#isResolved = !!isResolved;
     this.#resolvedAt = resolvedAt ? new Date(resolvedAt) : null;
     this.#resolvedById = resolvedById || null;
@@ -77,6 +80,7 @@ class Relato {
   get descricao() { return this.#descricao; }
   get authorId() { return this.#authorId; }
   get authorName() { return this.#authorName; }
+  get construflowIssueCode() { return this.#construflowIssueCode; }
   get isResolved() { return this.#isResolved; }
   get resolvedAt() { return this.#resolvedAt; }
   get resolvedById() { return this.#resolvedById; }
@@ -120,6 +124,16 @@ class Relato {
     this.#updatedAt = new Date();
   }
 
+  linkConstruflowIssue(code) {
+    this.#construflowIssueCode = code ? String(code).trim() : null;
+    this.#updatedAt = new Date();
+  }
+
+  unlinkConstruflowIssue() {
+    this.#construflowIssueCode = null;
+    this.#updatedAt = new Date();
+  }
+
   resolve(resolvedById) {
     if (!resolvedById) {
       throw new Error('É necessário informar quem está resolvendo o relato');
@@ -147,6 +161,7 @@ class Relato {
       descricao: this.#descricao,
       author_id: this.#authorId,
       author_name: this.#authorName,
+      construflow_issue_code: this.#construflowIssueCode,
       is_resolved: this.#isResolved,
       resolved_at: this.#resolvedAt?.toISOString() || null,
       resolved_by_id: this.#resolvedById,
@@ -170,6 +185,7 @@ class Relato {
       descricao: this.#descricao,
       author_id: this.#authorId,
       author_name: authorData?.name || this.#authorName,
+      construflow_issue_code: this.#construflowIssueCode,
       is_resolved: this.#isResolved,
       resolved_at: this.#resolvedAt?.toISOString() || null,
       resolved_by_id: this.#resolvedById,
@@ -188,6 +204,7 @@ class Relato {
       descricao: data.descricao,
       authorId: data.author_id,
       authorName: data.author_name,
+      construflowIssueCode: data.construflow_issue_code,
       isResolved: data.is_resolved,
       resolvedAt: data.resolved_at,
       resolvedById: data.resolved_by_id,
@@ -196,7 +213,7 @@ class Relato {
     });
   }
 
-  static create({ projectCode, tipo, prioridade, titulo, descricao, authorId, authorName }) {
+  static create({ projectCode, tipo, prioridade, titulo, descricao, authorId, authorName, construflowIssueCode }) {
     return new Relato({
       projectCode,
       tipo,
@@ -205,6 +222,7 @@ class Relato {
       descricao,
       authorId,
       authorName,
+      construflowIssueCode,
     });
   }
 }

@@ -961,7 +961,7 @@ function _generateRelatosSection(relatos, tiposMap = {}, prioridadesMap = {}) {
   }
 
   // Ordem de prioridade dos tipos
-  const tipoOrder = ['bloqueio', 'risco', 'decisao', 'informativo'];
+  const tipoOrder = ['bloqueio', 'risco', 'decisao', 'informativo', 'licao-aprendida'];
   const sortedSlugs = Object.keys(grouped).sort((a, b) => {
     const ia = tipoOrder.indexOf(a);
     const ib = tipoOrder.indexOf(b);
