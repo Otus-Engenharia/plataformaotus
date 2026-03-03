@@ -194,6 +194,17 @@
   font-size: 0.6rem;
 }
 
+.relato-card-construflow-badge {
+  background: #fff3e0;
+  color: #e65100;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: 4px;
+  letter-spacing: 0.02em;
+}
+
 .relato-card-resolved-badge {
   background: #d1fae5;
   color: #065f46;

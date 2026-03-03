@@ -35,6 +35,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
     String(p.project_code_norm || p.project_code) === String(selectedProjectId)
   );
   const projectCode = selectedProject?.project_code_norm || selectedProject?.project_code || selectedProjectId;
+  const construflowId = selectedProject?.construflow_id || null;
 
   // Buscar tipos e prioridades no mount
   useEffect(() => {
@@ -241,6 +242,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
           tipos={tipos}
           prioridades={prioridades}
           relato={editingRelato}
+          construflowId={construflowId}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditingRelato(null); }}
         />

@@ -253,7 +253,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    */
   router.post('/', requireAuth, async (req, res) => {
     try {
-      const { project_code, tipo, prioridade, titulo, descricao } = req.body;
+      const { project_code, tipo, prioridade, titulo, descricao, construflow_issue_code } = req.body;
 
       const createRelato = new CreateRelato(repository);
       const relato = await createRelato.execute({
@@ -264,6 +264,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
         descricao,
         authorId: req.user.id,
         authorName: req.user.name || req.user.displayName || null,
+        construflowIssueCode: construflow_issue_code || null,
       });
 
       if (logAction) {
@@ -288,7 +289,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   router.put('/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { titulo, descricao, tipo, prioridade, is_resolved } = req.body;
+      const { titulo, descricao, tipo, prioridade, construflow_issue_code, is_resolved } = req.body;
 
       const updateRelato = new UpdateRelato(repository);
       const relato = await updateRelato.execute({
@@ -297,6 +298,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
         descricao,
         tipo,
         prioridade,
+        construflowIssueCode: construflow_issue_code,
         isResolved: is_resolved,
         resolvedById: req.user.id,
       });

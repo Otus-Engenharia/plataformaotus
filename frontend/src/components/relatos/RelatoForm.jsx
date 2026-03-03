@@ -2,19 +2,50 @@
  * Componente: Formulário de Relato
  *
  * Modal para criar ou editar um relato.
+ * Suporta link opcional com apontamento Construflow.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { API_URL } from '../../api';
 
-function RelatoForm({ tipos, prioridades, relato, onSave, onClose }) {
+function RelatoForm({ tipos, prioridades, relato, construflowId, onSave, onClose }) {
   const isEditing = !!relato;
 
   const [tipo, setTipo] = useState(relato?.tipo_slug || (tipos[0]?.slug || ''));
   const [prioridade, setPrioridade] = useState(relato?.prioridade_slug || (prioridades[0]?.slug || ''));
   const [titulo, setTitulo] = useState(relato?.titulo || '');
   const [descricao, setDescricao] = useState(relato?.descricao || '');
+  const [construflowIssueCode, setConstruflowIssueCode] = useState(relato?.construflow_issue_code || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Apontamentos Construflow
+  const [apontamentos, setApontamentos] = useState([]);
+  const [loadingApontamentos, setLoadingApontamentos] = useState(false);
+
+  useEffect(() => {
+    if (construflowId) {
+      fetchApontamentos();
+    }
+  }, [construflowId]);
+
+  const fetchApontamentos = async () => {
+    setLoadingApontamentos(true);
+    try {
+      const res = await axios.get(
+        `${API_URL}/api/projetos/apontamentos?construflowId=${encodeURIComponent(construflowId)}`,
+        { withCredentials: true }
+      );
+      if (res.data.success) {
+        setApontamentos(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar apontamentos:', err);
+    } finally {
+      setLoadingApontamentos(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,6 +67,7 @@ function RelatoForm({ tipos, prioridades, relato, onSave, onClose }) {
         prioridade,
         titulo: titulo.trim(),
         descricao: descricao.trim(),
+        construflow_issue_code: construflowIssueCode || null,
       });
     } catch (err) {
       setError(err.message || 'Erro ao salvar relato');
@@ -96,6 +128,27 @@ function RelatoForm({ tipos, prioridades, relato, onSave, onClose }) {
               rows={5}
             />
           </div>
+
+          {construflowId && (
+            <div className="relato-form-field">
+              <label>Apontamento Construflow (opcional)</label>
+              <select
+                value={construflowIssueCode}
+                onChange={(e) => setConstruflowIssueCode(e.target.value)}
+              >
+                <option value="">Nenhum</option>
+                {loadingApontamentos ? (
+                  <option disabled>Carregando...</option>
+                ) : (
+                  apontamentos.map(a => (
+                    <option key={a.code || a.id} value={a.code}>
+                      {a.code} - {a.title}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          )}
 
           <div className="relato-form-actions">
             <button type="button" className="relato-form-btn-cancel" onClick={onClose} disabled={saving}>
