@@ -1,15 +1,33 @@
 /**
  * Use Case: GetPhaseDurations
- * Retorna a duração por fase do projeto, separando:
- * - executado_dias: span das tarefas concluídas (status conclusão)
- * - a_executar_dias: span das tarefas ainda não concluídas
- * - baselines: duração planejada por fase para cada baseline ativo
+ * Retorna a duração por fase do projeto, exibindo apenas as 5 fases principais:
+ * - Estudo Preliminar (Fase 01)
+ * - Anteprojeto (Fase 02)
+ * - Pré-executivo (Fase 03)
+ * - Executivo (Fase 04)
+ * - Liberado Obra (Fase 05, quando presente)
+ *
+ * executado_dias: span real das linhas de fase (Level 2) no Smartsheet
+ * baselines: duração planejada por fase para cada baseline ativo
  */
 
 import {
   queryCurrentPhaseDurations,
   queryBaselinePhaseDurations,
 } from '../../../bigquery.js';
+
+// Configuração das 5 fases relevantes em ordem fixa
+const PHASES_ORDER = [
+  { label: 'Estudo Preliminar', test: (n) => /estudo\s*preliminar/i.test(n) },
+  { label: 'Anteprojeto', test: (n) => /anteprojeto/i.test(n) },
+  { label: 'Pré-executivo', test: (n) => /pr[eé].?executivo/i.test(n) },
+  { label: 'Executivo', test: (n) => /executivo/i.test(n) && !/pr[eé].?executivo/i.test(n) },
+  { label: 'Liberado Obra', test: (n) => /liberado\s*(obra|para\s*obra)/i.test(n) },
+];
+
+function normalizePhase(rawName) {
+  return PHASES_ORDER.find(p => p.test(rawName)) || null;
+}
 
 export class GetPhaseDurations {
   #baselineRepository;
@@ -30,7 +48,7 @@ export class GetPhaseDurations {
     const allBaselines = await this.#baselineRepository.findByProjectCode(projectCode);
     const activeBaselines = allBaselines.filter(b => b.isActive);
 
-    // 2. Query tarefas atuais agrupadas por fase
+    // 2. Query linhas de fase (Level 2) agrupadas por fase
     const actualRows = await queryCurrentPhaseDurations(smartsheetId, projectName);
 
     // 3. Query durações de baselines (se houver)
@@ -42,31 +60,34 @@ export class GetPhaseDurations {
       );
     }
 
-    // 4. Agregar fases únicas (união de todas as fontes)
-    const phaseSet = new Set();
-    for (const r of actualRows) phaseSet.add(r.fase_nome);
-    for (const r of blRows) phaseSet.add(r.fase_nome);
-
-    // Ordenar fases: FASE 01, FASE 02... (ordem natural)
-    const phases = Array.from(phaseSet).sort();
-
-    // 5. Montar mapa de duração atual
+    // 4. Montar mapa de duração executada (apenas fases das 5 principais)
     const executadoMap = {};
-    const aExecutarMap = {};
     for (const r of actualRows) {
-      executadoMap[r.fase_nome] = Math.max(0, Number(r.executado_dias) || 0);
-      aExecutarMap[r.fase_nome] = Math.max(0, Number(r.a_executar_dias) || 0);
+      const phaseConfig = normalizePhase(r.fase_nome);
+      if (!phaseConfig) continue;
+      executadoMap[phaseConfig.label] = Math.max(0, Number(r.executado_dias) || 0);
     }
 
-    // 6. Montar mapa por baseline
+    // 5. Montar mapa por baseline (apenas fases das 5 principais)
     const blByBaseline = {};
     for (const r of blRows) {
+      const phaseConfig = normalizePhase(r.fase_nome);
+      if (!phaseConfig) continue;
       const blId = String(r.baseline_id);
       if (!blByBaseline[blId]) blByBaseline[blId] = {};
-      blByBaseline[blId][r.fase_nome] = Math.max(0, Number(r.duracao_dias) || 0);
+      blByBaseline[blId][phaseConfig.label] = Math.max(0, Number(r.duracao_dias) || 0);
     }
 
-    // 7. Formatar baselines com metadados
+    // 6. Construir lista de fases na ordem fixa (apenas as que têm dados)
+    const phasesWithData = new Set([
+      ...Object.keys(executadoMap),
+      ...Object.values(blByBaseline).flatMap(Object.keys),
+    ]);
+    const phases = PHASES_ORDER
+      .filter(p => phasesWithData.has(p.label))
+      .map(p => p.label);
+
+    // 7. Formatar baselines com metadados (todos os ativos)
     const formattedBaselines = activeBaselines.map(b => ({
       id: b.id,
       revision_number: b.revisionNumber,
@@ -80,7 +101,6 @@ export class GetPhaseDurations {
       phases,
       actual: {
         executado: executadoMap,
-        a_executar: aExecutarMap,
       },
       baselines: formattedBaselines,
     };
