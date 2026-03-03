@@ -6,3 +6,5 @@ export { DeleteAgendaTask } from './DeleteAgendaTask.js';
 export { MaterializeRecurringTasks } from './MaterializeRecurringTasks.js';
 export { DeleteRecurringInstance } from './DeleteRecurringInstance.js';
 export { DuplicateAgendaTask } from './DuplicateAgendaTask.js';
+export { ListAgendaComments } from './ListAgendaComments.js';
+export { AddAgendaComment } from './AddAgendaComment.js';

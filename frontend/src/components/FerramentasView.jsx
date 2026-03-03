@@ -611,20 +611,25 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
                               {hasValue ? (
                                 <>
                                   {tool.type === 'url' ? (
-                                    <a
-                                      href={value}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="ftv-link"
-                                      title={value}
-                                    >
-                                      {value.length > 50 ? value.substring(0, 50) + '...' : value}
-                                      <svg className="ftv-link-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                        <polyline points="15 3 21 3 21 9"/>
-                                        <line x1="10" y1="14" x2="21" y2="3"/>
-                                      </svg>
-                                    </a>
+                                    <>
+                                      <a
+                                        href={value}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="ftv-link"
+                                        title={value}
+                                      >
+                                        {value.length > 50 ? value.substring(0, 50) + '...' : value}
+                                        <svg className="ftv-link-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                          <polyline points="15 3 21 3 21 9"/>
+                                          <line x1="10" y1="14" x2="21" y2="3"/>
+                                        </svg>
+                                      </a>
+                                      {tool.key === 'capa_email_url' && !value.includes('drive.google.com') && (
+                                        <span className="ftv-url-hint">Use um link do Google Drive</span>
+                                      )}
+                                    </>
                                   ) : (
                                     <span className="ftv-id-value" title={value}>
                                       {value.length > 50 ? value.substring(0, 50) + '...' : value}

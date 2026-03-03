@@ -271,6 +271,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
           teamEmails: project.team_emails ? project.team_emails.split(',').map(e => e.trim()) : [],
           ganttUrl: project.gantt_email_url,
           disciplinaUrl: project.disciplina_email_url,
+          capaEmailUrl: project.capa_email_url,
           relatosDias: options.relatosDias ? Math.max(1, Math.min(30, parseInt(options.relatosDias))) : 7,
         },
       });

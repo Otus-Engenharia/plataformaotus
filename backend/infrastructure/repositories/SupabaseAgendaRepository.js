@@ -10,7 +10,9 @@ import { getSupabaseClient } from '../../supabase.js';
 
 const AGENDA_TASKS_TABLE = 'agenda_tasks';
 const AGENDA_PROJECTS_TABLE = 'agenda_projects';
+const AGENDA_COMMENTS_TABLE = 'agenda_task_comments';
 const TASKS_TABLE = 'tasks';
+const USERS_TABLE = 'users_otus';
 
 class SupabaseAgendaRepository extends AgendaRepository {
   #supabase;
@@ -459,6 +461,78 @@ class SupabaseAgendaRepository extends AgendaRepository {
     if (error) {
       throw new Error(`Erro ao atualizar grupo das instâncias: ${error.message}`);
     }
+  }
+
+  // --- Métodos de comentários ---
+
+  /**
+   * Busca comentários de uma tarefa de agenda, enriquecidos com dados do autor
+   */
+  async findCommentsByTaskId(taskId) {
+    const { data, error } = await this.#supabase
+      .from(AGENDA_COMMENTS_TABLE)
+      .select('*')
+      .eq('agenda_task_id', taskId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Erro ao buscar comentários: ${error.message}`);
+    }
+
+    const comments = data || [];
+
+    // Enriquecer com dados do autor
+    const authorIds = [...new Set(comments.map(c => c.author_id).filter(Boolean))];
+    let usersMap = new Map();
+
+    if (authorIds.length > 0) {
+      const { data: users, error: usersError } = await this.#supabase
+        .from(USERS_TABLE)
+        .select('id, name, email')
+        .in('id', authorIds);
+
+      if (!usersError && users) {
+        for (const user of users) {
+          usersMap.set(user.id, user);
+        }
+      }
+    }
+
+    return comments.map(c => ({
+      ...c,
+      author: usersMap.get(c.author_id) || { id: c.author_id, name: null, email: null },
+    }));
+  }
+
+  /**
+   * Persiste um novo comentário e retorna com dados do autor
+   */
+  async saveComment({ agendaTaskId, authorId, texto }) {
+    const { data, error } = await this.#supabase
+      .from(AGENDA_COMMENTS_TABLE)
+      .insert({
+        agenda_task_id: agendaTaskId,
+        author_id: authorId,
+        texto,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Erro ao criar comentário: ${error.message}`);
+    }
+
+    // Buscar dados do autor
+    const { data: user } = await this.#supabase
+      .from(USERS_TABLE)
+      .select('id, name, email')
+      .eq('id', authorId)
+      .single();
+
+    return {
+      ...data,
+      author: user || { id: authorId, name: null, email: null },
+    };
   }
 }
 

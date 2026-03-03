@@ -16,6 +16,8 @@ import {
   MaterializeRecurringTasks,
   DeleteRecurringInstance,
   DuplicateAgendaTask,
+  ListAgendaComments,
+  AddAgendaComment,
 } from '../application/use-cases/agenda/index.js';
 import { AgendaTaskStatus } from '../domain/agenda/value-objects/AgendaTaskStatus.js';
 import { AgendaRecurrence } from '../domain/agenda/value-objects/AgendaRecurrence.js';
@@ -290,6 +292,45 @@ function createRoutes(requireAuth, logAction) {
       res.json({ success: true, data: updated });
     } catch (error) {
       console.error('❌ Erro ao atualizar ToDo:', error);
+      res.status(400).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/agenda/tasks/:id/comments
+   * Retorna comentários de uma tarefa de agenda
+   */
+  router.get('/:id/comments', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const listComments = new ListAgendaComments(repository);
+      const comments = await listComments.execute(parseInt(id, 10));
+
+      res.json({ success: true, data: comments });
+    } catch (error) {
+      console.error('Erro ao buscar comentários da tarefa:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/agenda/tasks/:id/comments
+   * Adiciona um comentário a uma tarefa de agenda
+   * Body: { texto: string }
+   */
+  router.post('/:id/comments', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const addComment = new AddAgendaComment(repository);
+      const comment = await addComment.execute({
+        agendaTaskId: parseInt(id, 10),
+        authorId: req.user.id,
+        texto: req.body.texto,
+      });
+
+      res.status(201).json({ success: true, data: comment });
+    } catch (error) {
+      console.error('Erro ao adicionar comentário:', error);
       res.status(400).json({ success: false, error: error.message });
     }
   });
@@ -610,7 +651,20 @@ function createRoutes(requireAuth, logAction) {
         phase,
       });
 
-      res.json({ success: true, data: task });
+      // Enriquecer com position (mesmo enriquecimento do GET)
+      const satId = task.standard_agenda_task;
+      let taskPosition = null;
+      if (satId) {
+        const supabase = getSupabaseClient();
+        const { data: sat } = await supabase
+          .from('standard_agenda_task')
+          .select('position')
+          .eq('id', satId)
+          .single();
+        taskPosition = sat?.position || null;
+      }
+
+      res.json({ success: true, data: { ...task, position: taskPosition } });
     } catch (error) {
       console.error('❌ Erro ao atualizar tarefa de agenda:', error);
       res.status(400).json({ success: false, error: error.message });
