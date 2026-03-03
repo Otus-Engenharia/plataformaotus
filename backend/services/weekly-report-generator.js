@@ -556,7 +556,7 @@ function esc(str) {
 
 function _generatePendenciasSection(issues, projectId) {
   if (!issues || issues.length === 0) {
-    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;">\u2713 Sem pend\u00eancias das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> nesta semana.</p>`;
+    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.text};">\u2713 Sem pend\u00eancias das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> nesta semana.</p>`;
   }
 
   const colorHigh = '#1a1a1a';
@@ -650,9 +650,9 @@ function _generatePendenciasSection(issues, projectId) {
 function _generateConcluidasSection(completed, isClientReport) {
   if (!completed || Object.keys(completed).length === 0) {
     if (isClientReport) {
-      return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#666;">\u2713 Nenhuma atividade conclu\u00edda das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> no per\u00edodo (\u00faltimos 7 dias).</p>`;
+      return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.textLight};">\u2713 Nenhuma atividade conclu\u00edda das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> no per\u00edodo (\u00faltimos 7 dias).</p>`;
     }
-    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#666;">\u2713 Nenhuma atividade conclu\u00edda no per\u00edodo (\u00faltimos 7 dias).</p>`;
+    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.textLight};">\u2713 Nenhuma atividade conclu\u00edda no per\u00edodo (\u00faltimos 7 dias).</p>`;
   }
 
   let html = '';
@@ -682,7 +682,7 @@ function _generateConcluidasSection(completed, isClientReport) {
 
 function _generateAtrasosClientSection(delays, baselines = {}) {
   if (!delays || delays.length === 0) {
-    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;">\u2713 Nenhum atraso identificado das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> no per\u00edodo.</p>`;
+    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.text};">\u2713 Nenhum atraso identificado das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> no per\u00edodo.</p>`;
   }
 
   let html = '';
@@ -696,23 +696,23 @@ function _generateAtrasosClientSection(delays, baselines = {}) {
     const prevDate = snap ? formatDateShort(snap.dataBaseline) : '';
     const newDate  = snap ? formatDateShort(snap.dataReprog)   : '';
 
-    html += `<div style="margin-bottom:14px;padding:14px 16px;background:#fafafa;border-radius:4px;border-left:3px solid #1a1a1a;">`;
-    html += `<p style="margin:0;font-family:'Montserrat',sans-serif;font-size:10px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1px;">${esc(discipline)}</p>`;
-    html += `<p style="margin:6px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;font-weight:500;">${esc(name)}</p>`;
+    html += `<div style="margin-bottom:14px;padding:14px 16px;background:#fef2f2;border-radius:6px;border-left:3px solid ${OTUS.danger};">`;
+    html += `<p style="margin:0;font-family:'Montserrat',sans-serif;font-size:10px;color:${OTUS.textLight};font-weight:600;text-transform:uppercase;letter-spacing:1px;">${esc(discipline)}</p>`;
+    html += `<p style="margin:6px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.text};font-weight:500;">${esc(name)}</p>`;
 
     if (prevDate || newDate) {
-      html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#666;">`;
-      html += `<span style="text-decoration:line-through;color:#999;">${esc(prevDate)}</span>`;
-      html += `<span style="margin:0 6px;color:#ccc;">\u2192</span>`;
-      html += `<span style="font-family:'Montserrat',sans-serif;font-weight:600;color:#1a1a1a;background:${OTUS.orange};padding:2px 8px;border-radius:3px;">${esc(newDate)}</span>`;
+      html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.textLight};">`;
+      html += `<span style="text-decoration:line-through;color:${OTUS.textMuted};">${esc(prevDate)}</span>`;
+      html += `<span style="margin:0 8px;color:${OTUS.textMuted};">\u2192</span>`;
+      html += `<span style="font-family:'Montserrat',sans-serif;font-weight:600;color:${OTUS.text};background:#fef3c7;padding:2px 8px;border-radius:4px;">${esc(newDate)}</span>`;
       html += `</p>`;
     }
 
     if (!isEmptyValue(motivo)) {
-      html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#dc2626;font-style:italic;border-top:1px solid #eee;padding-top:8px;"><span style="font-weight:600;color:#dc2626;">Motivo:</span> ${esc(motivo)}</p>`;
+      html += `<div style="margin:10px 0 0;padding:8px 12px;background:#fff5f5;border-left:2px solid ${OTUS.danger};border-radius:0 4px 4px 0;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.danger};line-height:1.5;"><span style="font-weight:600;">Motivo:</span> ${esc(motivo)}</p></div>`;
     }
     if (!isEmptyValue(observacaoOtus)) {
-      html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;border-top:1px solid #eee;padding-top:8px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+      html += `<div style="margin:8px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
     }
 
     html += `</div>`;
@@ -723,7 +723,7 @@ function _generateAtrasosClientSection(delays, baselines = {}) {
 
 function _generateAtrasosTeamSection(delays, baselines = {}) {
   if (!delays || delays.length === 0) {
-    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;">\u2713 Nenhum atraso identificado no per\u00edodo.</p>`;
+    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.text};">\u2713 Nenhum atraso identificado no per\u00edodo.</p>`;
   }
 
   // Group by discipline
@@ -749,22 +749,22 @@ function _generateAtrasosTeamSection(delays, baselines = {}) {
       const prevDate = snap ? formatDateShort(snap.dataBaseline) : '';
       const newDate  = snap ? formatDateShort(snap.dataReprog)   : '';
 
-      html += `<div style="margin:0 0 14px;padding:12px 14px;background:#fafafa;border-radius:4px;border-left:3px solid ${OTUS.orange};">`;
-      html += `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#1a1a1a;font-weight:500;">${esc(name)}</p>`;
+      html += `<div style="margin:0 0 14px;padding:12px 14px;background:#fef2f2;border-radius:6px;border-left:3px solid ${OTUS.danger};">`;
+      html += `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.text};font-weight:500;">${esc(name)}</p>`;
 
       if (prevDate || newDate) {
-        html += `<p style="margin:6px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#666;">`;
-        html += `<span style="text-decoration:line-through;color:#999;">${esc(prevDate)}</span>`;
-        html += `<span style="margin:0 6px;color:#ccc;">\u2192</span>`;
-        html += `<span style="font-family:'Montserrat',sans-serif;font-weight:600;color:#1a1a1a;background:${OTUS.orange};padding:2px 8px;border-radius:3px;">${esc(newDate)}</span>`;
+        html += `<p style="margin:6px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.textLight};">`;
+        html += `<span style="text-decoration:line-through;color:${OTUS.textMuted};">${esc(prevDate)}</span>`;
+        html += `<span style="margin:0 8px;color:${OTUS.textMuted};">\u2192</span>`;
+        html += `<span style="font-family:'Montserrat',sans-serif;font-weight:600;color:${OTUS.text};background:#fef3c7;padding:2px 8px;border-radius:4px;">${esc(newDate)}</span>`;
         html += `</p>`;
       }
 
       if (!isEmptyValue(motivo)) {
-        html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:#dc2626;font-style:italic;border-top:1px solid #eee;padding-top:8px;"><span style="font-weight:600;color:#dc2626;">Motivo:</span> ${esc(motivo)}</p>`;
+        html += `<div style="margin:10px 0 0;padding:8px 12px;background:#fff5f5;border-left:2px solid ${OTUS.danger};border-radius:0 4px 4px 0;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.danger};line-height:1.5;"><span style="font-weight:600;">Motivo:</span> ${esc(motivo)}</p></div>`;
       }
       if (!isEmptyValue(observacaoOtus)) {
-        html += `<p style="margin:8px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;border-top:1px solid #eee;padding-top:8px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+        html += `<div style="margin:8px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
       }
 
       html += `</div>`;
@@ -780,7 +780,7 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
   const days = scheduleDays && scheduleDays > 0 ? scheduleDays : 15;
 
   if (!schedule || schedule.length === 0) {
-    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#666;">\u2713 Nenhuma atividade prevista das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> para os pr\u00f3ximos ${days} dias.</p>`;
+    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.textLight};">\u2713 Nenhuma atividade prevista das disciplinas <strong>Cliente</strong> e <strong>Otus</strong> para os pr\u00f3ximos ${days} dias.</p>`;
   }
 
   // Group by discipline, split a_iniciar / programadas / em_andamento
@@ -864,7 +864,7 @@ function _generateCronogramaTeamSection(schedule) {
     d => d.a_iniciar?.length || d.programadas?.length || d.em_andamento?.length,
   );
   if (!hasContent) {
-    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#666;">Nenhuma atividade prevista para as pr\u00f3ximas semanas.</p>`;
+    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.textLight};">Nenhuma atividade prevista para as pr\u00f3ximas semanas.</p>`;
   }
 
   let html = '';
@@ -949,7 +949,7 @@ function _generateCronogramaTeamSection(schedule) {
  */
 function _generateRelatosSection(relatos, tiposMap = {}, prioridadesMap = {}) {
   if (!relatos || relatos.length === 0) {
-    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:#666;">Nenhum relato registrado no per\u00edodo (\u00faltimos 7 dias).</p>`;
+    return `<p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.textLight};">Nenhum relato registrado no per\u00edodo (\u00faltimos 7 dias).</p>`;
   }
 
   // Agrupar por tipo (suporta entidade Relato ou objeto plano)
