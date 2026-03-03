@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import DueDatePicker from './DueDatePicker';
-import { PRIORITY_COLORS, PriorityFlagIcon, getTodoColor } from '../constants/todoColors';
+import { PRIORITY_COLORS, PriorityFlagIcon, getTodoColor, getNextPriority } from '../constants/todoColors';
 import './TodoRow.css';
 
 function formatDueDate(dateStr) {
@@ -22,7 +22,7 @@ function getInitials(name) {
   return parts[0][0].toUpperCase();
 }
 
-function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete, onDateChange, colorMode = 'priority' }) {
+function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete, onDateChange, onPriorityChange, colorMode = 'priority' }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const dateRef = useRef(null);
   const priorityColor = PRIORITY_COLORS[(todo.priority_label || todo.priority || 'baixa').toLowerCase()] || '#246fe0';
@@ -78,11 +78,16 @@ function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete, onDateChange, c
         )}
       </button>
 
-      <PriorityFlagIcon
-        color={priorityColor}
-        size={12}
-        className="todo-row__priority-flag"
-      />
+      <button
+        className="todo-row__priority-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onPriorityChange) onPriorityChange(todo.id, getNextPriority(todo.priority));
+        }}
+        title={`Prioridade: ${todo.priority_label || todo.priority || 'Baixa'}`}
+      >
+        <PriorityFlagIcon color={priorityColor} size={12} />
+      </button>
 
       <span className={`todo-row__name ${isClosed ? 'todo-row__name--closed' : ''}`}>
         {todo.name}

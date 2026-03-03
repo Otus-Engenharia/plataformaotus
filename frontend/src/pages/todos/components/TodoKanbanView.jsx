@@ -99,6 +99,7 @@ export default function TodoKanbanView({
   onStatusChange,
   onDrop,
   onDateChange,
+  onPriorityChange,
   loading,
   colorMode = 'priority',
 }) {
@@ -187,6 +188,7 @@ export default function TodoKanbanView({
                     onSelect={onSelect}
                     onEdit={onEdit}
                     onDateChange={onDateChange}
+                    onPriorityChange={onPriorityChange}
                     draggable={isDraggable}
                     onDragStart={isDraggable ? (e) => handleDragStart(e, todo.id) : undefined}
                     colorMode={colorMode}

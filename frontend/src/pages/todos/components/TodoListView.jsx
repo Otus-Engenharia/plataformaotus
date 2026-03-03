@@ -103,7 +103,7 @@ function ListHeader() {
   );
 }
 
-function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, onEdit, onDelete, onDateChange, loading, colorMode = 'priority' }) {
+function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, onEdit, onDelete, onDateChange, onPriorityChange, loading, colorMode = 'priority' }) {
   const groups = useMemo(() => groupTodos(todos, groupBy), [todos, groupBy]);
 
   if (loading) {
@@ -163,6 +163,7 @@ function TodoListView({ todos = [], groupBy = 'status', onComplete, onSelect, on
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onDateChange={onDateChange}
+                onPriorityChange={onPriorityChange}
                 colorMode={colorMode}
               />
             ))}

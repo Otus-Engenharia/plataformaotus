@@ -50,11 +50,22 @@
   border-color: #16a34a;
 }
 
-/* Priority flag */
-.todo-row__priority-flag {
-  width: 12px;
-  min-width: 12px;
+/* Priority flag button */
+.todo-row__priority-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
   flex-shrink: 0;
+  transition: opacity 0.15s ease;
+}
+
+.todo-row__priority-btn:hover {
+  opacity: 0.7;
 }
 
 /* Task name */
