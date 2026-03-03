@@ -379,3 +379,188 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Botão Solicitar (para leaders) */
+.ecli-btn-request {
+  padding: 8px 20px;
+  background: #2563EB;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  color: white;
+  transition: background 0.2s;
+}
+.ecli-btn-request:hover { background: #1D4ED8; }
+.ecli-btn-request:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Toast de solicitação enviada */
+.ecli-request-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #D1FAE5;
+  border: 1px solid #A7F3D0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #065F46;
+  margin: 8px 0;
+  animation: ecliToastIn 0.3s ease;
+}
+
+.ecli-request-toast svg {
+  color: #10B981;
+  flex-shrink: 0;
+}
+
+@keyframes ecliToastIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Seção Minhas Solicitações */
+.ecli-requests-section {
+  margin-top: 8px;
+}
+
+.ecli-expandable-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.ecli-expandable-icon {
+  transition: transform 0.2s;
+}
+
+.ecli-expandable-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.ecli-pending-count {
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.ecli-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+.ecli-request-item {
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: #FAFAFA;
+}
+
+.ecli-request-item--pendente {
+  border-left: 3px solid #F59E0B;
+}
+
+.ecli-request-item--aprovada {
+  border-left: 3px solid #10B981;
+}
+
+.ecli-request-item--rejeitada {
+  border-left: 3px solid #EF4444;
+}
+
+.ecli-request-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ecli-request-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ecli-request-badge--novo_contato {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.ecli-request-badge--editar_contato {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.ecli-request-badge--nova_empresa {
+  background: #E0E7FF;
+  color: #3730A3;
+}
+
+.ecli-status-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.ecli-status-badge--pendente {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.ecli-status-badge--aprovada {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.ecli-status-badge--rejeitada {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.ecli-request-item-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.ecli-request-summary {
+  color: #374151;
+}
+
+.ecli-request-date {
+  color: #9CA3AF;
+  font-size: 11px;
+}
+
+.ecli-request-rejection {
+  font-size: 11px;
+  color: #DC2626;
+  font-style: italic;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #FEE2E2;
+}
