@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { PRIORITY_COLORS, PriorityFlagIcon } from '../constants/todoColors';
 import './TodoCreateDialog.css';
 
 const STATUS_OPTIONS = [
@@ -11,9 +12,9 @@ const STATUS_OPTIONS = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: 'baixa', label: 'Baixa', color: '#22c55e' },
-  { value: 'média', label: 'Média', color: '#f59e0b' },
-  { value: 'alta', label: 'Alta', color: '#ef4444' },
+  { value: 'baixa', label: 'Baixa', color: PRIORITY_COLORS['baixa'] },
+  { value: 'média', label: 'Média', color: PRIORITY_COLORS['média'] },
+  { value: 'alta', label: 'Alta', color: PRIORITY_COLORS['alta'] },
 ];
 
 export default function TodoCreateDialog({ todo, projects, favoriteProjects = [], users, onSave, onClose, defaultAssignee }) {
@@ -110,10 +111,7 @@ export default function TodoCreateDialog({ todo, projects, favoriteProjects = []
                   onChange={() => handleChange('priority', opt.value)}
                   className="todo-dialog__priority-radio"
                 />
-                <span
-                  className="todo-dialog__priority-dot"
-                  style={{ backgroundColor: opt.color }}
-                />
+                <PriorityFlagIcon color={opt.color} size={14} />
                 {opt.label}
               </label>
             ))}

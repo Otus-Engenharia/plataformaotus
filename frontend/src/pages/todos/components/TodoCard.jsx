@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import DueDatePicker from './DueDatePicker';
+import { PRIORITY_COLORS, PriorityFlagIcon, getTodoColor } from '../constants/todoColors';
 import './TodoCard.css';
 
 function getInitials(name) {
@@ -20,7 +21,7 @@ function formatDueDate(dateStr) {
   return `${day}/${month}`;
 }
 
-export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateChange, draggable, onDragStart }) {
+export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateChange, draggable, onDragStart, colorMode = 'priority' }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const dateRef = useRef(null);
 
@@ -66,7 +67,7 @@ export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateCha
   return (
     <div
       className={cardClass}
-      style={{ borderLeftColor: todo.priority_color || '#e4e4e7' }}
+      style={{ borderLeftColor: getTodoColor(todo, colorMode) }}
       onClick={handleCardClick}
       draggable={draggable || false}
       onDragStart={onDragStart}
@@ -88,6 +89,11 @@ export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateCha
       </div>
 
       <div className="todo-card__meta">
+        <PriorityFlagIcon
+          color={PRIORITY_COLORS[(todo.priority_label || todo.priority || 'baixa').toLowerCase()] || '#246fe0'}
+          size={11}
+          className="todo-card__priority-flag"
+        />
         <span
           ref={dateRef}
           className={`${dueClass} todo-card__due--clickable${!todo.due_date ? ' todo-card__due--empty' : ''}`}

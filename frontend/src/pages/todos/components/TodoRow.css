@@ -50,12 +50,10 @@
   border-color: #16a34a;
 }
 
-/* Priority dot */
-.todo-row__priority {
-  width: 8px;
-  height: 8px;
-  min-width: 8px;
-  border-radius: 50%;
+/* Priority flag */
+.todo-row__priority-flag {
+  width: 12px;
+  min-width: 12px;
   flex-shrink: 0;
 }
 
@@ -216,8 +214,8 @@
 }
 
 .todo-list-header__spacer-priority {
-  width: 8px;
-  min-width: 8px;
+  width: 12px;
+  min-width: 12px;
   flex-shrink: 0;
 }
 

@@ -16,9 +16,9 @@ const PRIORITY_LABELS = Object.freeze({
 });
 
 const PRIORITY_COLORS = Object.freeze({
-  [VALID_PRIORITIES.BAIXA]: '#22c55e',
-  [VALID_PRIORITIES.MEDIA]: '#f59e0b',
-  [VALID_PRIORITIES.ALTA]: '#ef4444',
+  [VALID_PRIORITIES.BAIXA]: '#246fe0',
+  [VALID_PRIORITIES.MEDIA]: '#eb8909',
+  [VALID_PRIORITIES.ALTA]: '#d1453b',
 });
 
 const PRIORITY_ORDER = Object.freeze({

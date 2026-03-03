@@ -34,12 +34,25 @@ export default function TodosView() {
   const [viewMode, setViewMode] = useState(
     () => localStorage.getItem(`todos_view_mode_${user?.userId}`) || 'list',
   );
+  const [colorMode, setColorMode] = useState(
+    () => localStorage.getItem(`todos_color_mode_${user?.userId}`) || 'priority',
+  );
 
   const handleViewModeChange = useCallback((mode) => {
     setViewMode(mode);
     if (user?.userId) {
       localStorage.setItem(`todos_view_mode_${user.userId}`, mode);
     }
+  }, [user?.userId]);
+
+  // Sync colorMode se alterado em outra aba (ex: Configurações)
+  useEffect(() => {
+    const key = `todos_color_mode_${user?.userId}`;
+    const handler = (e) => {
+      if (e.key === key) setColorMode(e.newValue || 'priority');
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
   }, [user?.userId]);
   const [filters, setFilters] = useState(() => ({
     ...INITIAL_FILTERS,
@@ -362,6 +375,7 @@ export default function TodosView() {
             onDelete={handleDelete}
             onDateChange={handleDateChange}
             loading={loading}
+            colorMode={colorMode}
           />
         )}
 
@@ -380,6 +394,7 @@ export default function TodosView() {
             onDrop={handleKanbanDrop}
             onDateChange={handleDateChange}
             loading={loading}
+            colorMode={colorMode}
           />
         )}
       </div>
