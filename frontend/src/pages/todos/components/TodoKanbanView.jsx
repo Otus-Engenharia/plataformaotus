@@ -2,15 +2,16 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { startOfWeek, startOfDay, addDays, eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import TodoCard from './TodoCard';
+import { STATUS_COLORS } from '../constants/todoColors';
 import './TodoKanbanView.css';
 
 const STATUS_COLUMNS = [
-  { status: 'backlog', label: 'Backlog', color: '#64748b' },
-  { status: 'a fazer', label: 'A Fazer', color: '#f59e0b' },
-  { status: 'em progresso', label: 'Em Progresso', color: '#3b82f6' },
-  { status: 'validação', label: 'Validação', color: '#8b5cf6' },
-  { status: 'finalizado', label: 'Finalizado', color: '#22c55e' },
-  { status: 'cancelado', label: 'Cancelado', color: '#6b7280' },
+  { status: 'backlog', label: 'Backlog', color: STATUS_COLORS['backlog'] },
+  { status: 'a fazer', label: 'A Fazer', color: STATUS_COLORS['a fazer'] },
+  { status: 'em progresso', label: 'Em Progresso', color: STATUS_COLORS['em progresso'] },
+  { status: 'validação', label: 'Validação', color: STATUS_COLORS['validação'] },
+  { status: 'finalizado', label: 'Finalizado', color: STATUS_COLORS['finalizado'] },
+  { status: 'cancelado', label: 'Cancelado', color: STATUS_COLORS['cancelado'] },
 ];
 
 function buildColumns(todos, groupBy, weekRef) {
@@ -99,6 +100,7 @@ export default function TodoKanbanView({
   onDrop,
   onDateChange,
   loading,
+  colorMode = 'priority',
 }) {
   const columns = useMemo(
     () => buildColumns(todos, groupBy, weekRef || new Date()),
@@ -187,6 +189,7 @@ export default function TodoKanbanView({
                     onDateChange={onDateChange}
                     draggable={isDraggable}
                     onDragStart={isDraggable ? (e) => handleDragStart(e, todo.id) : undefined}
+                    colorMode={colorMode}
                   />
                 ))
               )}

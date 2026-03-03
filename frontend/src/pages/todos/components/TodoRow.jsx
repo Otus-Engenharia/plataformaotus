@@ -1,13 +1,7 @@
 import React, { useState, useRef } from 'react';
 import DueDatePicker from './DueDatePicker';
+import { PRIORITY_COLORS, PriorityFlagIcon, getTodoColor } from '../constants/todoColors';
 import './TodoRow.css';
-
-const PRIORITY_COLORS = {
-  'baixa': '#22c55e',
-  'media': '#f59e0b',
-  'média': '#f59e0b',
-  'alta': '#ef4444'
-};
 
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
@@ -28,10 +22,11 @@ function getInitials(name) {
   return parts[0][0].toUpperCase();
 }
 
-function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete, onDateChange }) {
+function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete, onDateChange, colorMode = 'priority' }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const dateRef = useRef(null);
-  const priorityColor = PRIORITY_COLORS[todo.priority_label?.toLowerCase()] || PRIORITY_COLORS[todo.priority] || '#94a3b8';
+  const priorityColor = PRIORITY_COLORS[(todo.priority_label || todo.priority || 'baixa').toLowerCase()] || '#246fe0';
+  const dominantColor = getTodoColor(todo, colorMode);
   const isClosed = todo.is_closed;
   const dueDateStr = formatDueDate(todo.due_date);
 
@@ -72,7 +67,7 @@ function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete, onDateChange })
     >
       <button
         className={`todo-row__checkbox ${isClosed ? 'todo-row__checkbox--checked' : ''}`}
-        style={{ borderColor: isClosed ? '#22c55e' : priorityColor }}
+        style={{ borderColor: isClosed ? '#22c55e' : dominantColor }}
         onClick={handleCheckboxClick}
         title={isClosed ? 'Reabrir tarefa' : 'Concluir tarefa'}
       >
@@ -83,10 +78,10 @@ function TodoRow({ todo, onComplete, onSelect, onEdit, onDelete, onDateChange })
         )}
       </button>
 
-      <span
-        className="todo-row__priority"
-        style={{ backgroundColor: priorityColor }}
-        title={todo.priority_label || todo.priority}
+      <PriorityFlagIcon
+        color={priorityColor}
+        size={12}
+        className="todo-row__priority-flag"
       />
 
       <span className={`todo-row__name ${isClosed ? 'todo-row__name--closed' : ''}`}>
