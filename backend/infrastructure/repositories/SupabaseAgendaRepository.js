@@ -39,7 +39,15 @@ class SupabaseAgendaRepository extends AgendaRepository {
       throw new Error(`Erro ao buscar tarefas de agenda: ${error.message}`);
     }
 
-    return (data || []).map(row => AgendaTask.fromPersistence(row));
+    const results = [];
+    for (const row of (data || [])) {
+      try {
+        results.push(AgendaTask.fromPersistence(row));
+      } catch (e) {
+        console.warn(`⚠️ Tarefa ignorada (ID ${row.id}): ${e.message}`);
+      }
+    }
+    return results;
   }
 
   /**
@@ -250,7 +258,15 @@ class SupabaseAgendaRepository extends AgendaRepository {
       throw new Error(`Erro ao buscar tarefas recorrentes: ${error.message}`);
     }
 
-    return (data || []).map(row => AgendaTask.fromPersistence(row));
+    const results = [];
+    for (const row of (data || [])) {
+      try {
+        results.push(AgendaTask.fromPersistence(row));
+      } catch (e) {
+        console.warn(`⚠️ Parent recorrente ignorado (ID ${row.id}): ${e.message}`);
+      }
+    }
+    return results;
   }
 
   /**
