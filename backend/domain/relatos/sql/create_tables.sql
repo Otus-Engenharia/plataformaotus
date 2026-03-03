@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS relatos (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Coluna opcional: link com apontamento Construflow
+ALTER TABLE relatos ADD COLUMN IF NOT EXISTS construflow_issue_code VARCHAR(50) DEFAULT NULL;
+
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_relatos_project_code ON relatos(project_code);
 CREATE INDEX IF NOT EXISTS idx_relatos_tipo_slug ON relatos(tipo_slug);
@@ -74,7 +77,8 @@ INSERT INTO relato_tipos (slug, label, color, icon, sort_order) VALUES
   ('risco', 'Risco', '#EF4444', 'alert-triangle', 1),
   ('decisao', 'Decisão', '#22C55E', 'check-circle', 2),
   ('bloqueio', 'Bloqueio', '#EC4899', 'x-circle', 3),
-  ('informativo', 'Informativo', '#3B82F6', 'info', 4)
+  ('informativo', 'Informativo', '#3B82F6', 'info', 4),
+  ('licao-aprendida', 'Lição Aprendida', '#8B5CF6', 'lightbulb', 5)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Seed: Prioridades iniciais

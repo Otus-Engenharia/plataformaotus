@@ -9,7 +9,7 @@ class UpdateRelato {
     this.#relatoRepository = relatoRepository;
   }
 
-  async execute({ id, titulo, descricao, tipo, prioridade, isResolved, resolvedById }) {
+  async execute({ id, titulo, descricao, tipo, prioridade, construflowIssueCode, isResolved, resolvedById }) {
     const relato = await this.#relatoRepository.findById(id);
     if (!relato) {
       throw new Error('Relato não encontrado');
@@ -37,6 +37,10 @@ class UpdateRelato {
         throw new Error(`Prioridade inválida: "${prioridade}"`);
       }
       relato.changePrioridade(prioridade);
+    }
+
+    if (construflowIssueCode !== undefined) {
+      relato.linkConstruflowIssue(construflowIssueCode);
     }
 
     if (isResolved === true) {

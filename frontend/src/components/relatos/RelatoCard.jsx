@@ -12,6 +12,7 @@ const TIPO_ICONS = {
   'check-circle': '\u2705',
   'x-circle': '\u26D4',
   'info': '\u2139\uFE0F',
+  'lightbulb': '\uD83D\uDCA1',
 };
 
 function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
@@ -32,7 +33,8 @@ function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
             <span className="relato-card-icon">
               {TIPO_ICONS[relato.tipo_slug === 'risco' ? 'alert-triangle' :
                 relato.tipo_slug === 'decisao' ? 'check-circle' :
-                relato.tipo_slug === 'bloqueio' ? 'x-circle' : 'info'] || '\u2139\uFE0F'}
+                relato.tipo_slug === 'bloqueio' ? 'x-circle' :
+                relato.tipo_slug === 'licao-aprendida' ? 'lightbulb' : 'info'] || '\u2139\uFE0F'}
             </span>
             <span className="relato-card-titulo">{relato.titulo}</span>
             <span
@@ -59,6 +61,11 @@ function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
                 <span className="relato-card-separator">&bull;</span>
                 <span className="relato-card-author">{relato.author_name}</span>
               </>
+            )}
+            {relato.construflow_issue_code && (
+              <span className="relato-card-construflow-badge" title="Apontamento Construflow vinculado">
+                {relato.construflow_issue_code}
+              </span>
             )}
             {relato.is_resolved && (
               <span className="relato-card-resolved-badge">Resolvido</span>
