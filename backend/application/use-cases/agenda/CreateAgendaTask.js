@@ -52,7 +52,7 @@ class CreateAgendaTask {
         for (const st of selectedStandardTasks) {
           todos.push({
             name: st.name,
-            due_date: saved.dueDate?.toISOString() || null,
+            due_date: saved.dueDate?.toISOString().slice(0, 10) || null,
             assignee: saved.userId,
             project_id: projectId,
             agenda_task_id: saved.id,

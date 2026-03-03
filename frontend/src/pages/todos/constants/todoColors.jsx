@@ -44,6 +44,28 @@ export function PriorityFlagIcon({ color = '#246fe0', size = 14, className = '' 
   );
 }
 
+export const STATUS_LABELS = {
+  'backlog': 'Backlog',
+  'a fazer': 'A Fazer',
+  'em progresso': 'Em Progresso',
+  'validação': 'Validação',
+  'finalizado': 'Finalizado',
+  'cancelado': 'Cancelado',
+};
+
+const STATUS_CYCLE = {
+  'backlog': 'a fazer',
+  'a fazer': 'em progresso',
+  'em progresso': 'validação',
+  'validação': 'finalizado',
+  'finalizado': 'backlog',
+  'cancelado': 'a fazer',
+};
+
+export function getNextStatus(current) {
+  return STATUS_CYCLE[(current || 'backlog').toLowerCase()] || 'a fazer';
+}
+
 const PRIORITY_CYCLE = { 'baixa': 'média', 'média': 'alta', 'alta': 'baixa' };
 
 export function getNextPriority(current) {

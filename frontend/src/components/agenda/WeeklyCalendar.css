@@ -189,16 +189,16 @@
 
 /* Separador de hora (slot ímpars: início de hora completa) */
 .weekly-calendar__slot:nth-child(odd) {
-  border-top: 1px solid #e8eaed;
+  border-top: 1px solid #edf0f2;
 }
 
 /* Separador de meia hora (slots pares: meia hora) */
 .weekly-calendar__slot:nth-child(even) {
-  border-top: 1px dashed #f1f3f4;
+  border-top: 1px dashed #f3f4f6;
 }
 
 .weekly-calendar__slot:hover {
-  background: rgba(0, 0, 0, 0.025);
+  background: rgba(26, 115, 232, 0.03);
 }
 
 /* ============================
@@ -210,7 +210,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: #e8291c;
+  background: linear-gradient(90deg, #e8291c 0%, rgba(232, 41, 28, 0.3) 100%);
   z-index: 5;
   pointer-events: none;
 }

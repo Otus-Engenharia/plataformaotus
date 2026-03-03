@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import DueDatePicker from './DueDatePicker';
-import { PRIORITY_COLORS, PriorityFlagIcon, getTodoColor, getNextPriority } from '../constants/todoColors';
+import { PRIORITY_COLORS, STATUS_COLORS, STATUS_LABELS, PriorityFlagIcon, getTodoColor, getNextPriority, getNextStatus } from '../constants/todoColors';
 import './TodoCard.css';
 
 function getInitials(name) {
@@ -21,7 +21,7 @@ function formatDueDate(dateStr) {
   return `${String(d).padStart(2, '0')}/${SHORT_MONTHS[m - 1]}`;
 }
 
-export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateChange, onPriorityChange, draggable, onDragStart, colorMode = 'priority' }) {
+export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateChange, onPriorityChange, onStatusChange, draggable, onDragStart, colorMode = 'priority' }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const dateRef = useRef(null);
 
@@ -101,6 +101,20 @@ export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateCha
             color={PRIORITY_COLORS[(todo.priority_label || todo.priority || 'baixa').toLowerCase()] || '#246fe0'}
             size={11}
           />
+        </button>
+        <button
+          className="todo-card__status-badge"
+          style={{
+            color: STATUS_COLORS[(todo.status || 'backlog').toLowerCase()] || '#64748b',
+            borderColor: STATUS_COLORS[(todo.status || 'backlog').toLowerCase()] || '#64748b',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onStatusChange) onStatusChange(todo.id, getNextStatus(todo.status));
+          }}
+          title={`Status: ${STATUS_LABELS[(todo.status || 'backlog').toLowerCase()] || todo.status} — clique para alterar`}
+        >
+          {STATUS_LABELS[(todo.status || 'backlog').toLowerCase()] || todo.status || 'Backlog'}
         </button>
         <span
           ref={dateRef}

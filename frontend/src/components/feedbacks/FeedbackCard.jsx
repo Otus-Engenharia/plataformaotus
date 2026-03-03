@@ -134,7 +134,7 @@ function getInitials(name, email) {
 /**
  * Card de feedback minimalista para Kanban
  */
-export default function FeedbackCard({ feedback, isOwn = false, onClick, onMentionClick }) {
+export default function FeedbackCard({ feedback, isOwn = false, isHighlighted = false, onClick, onMentionClick }) {
   const typeConfig = TYPE_CONFIG[feedback.type] || TYPE_CONFIG.outro;
   const categoryConfig = feedback.category ? CATEGORY_CONFIG[feedback.category] : null;
 
@@ -164,7 +164,7 @@ export default function FeedbackCard({ feedback, isOwn = false, onClick, onMenti
 
   return (
     <article
-      className={`fcard ${isOwn ? 'fcard--own' : ''}`}
+      className={`fcard ${isOwn ? 'fcard--own' : ''} ${isHighlighted ? 'fcard--highlighted' : ''}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -200,6 +200,11 @@ export default function FeedbackCard({ feedback, isOwn = false, onClick, onMenti
           <span className="fcard__name">{authorName}</span>
         </div>
         <div className="fcard__indicators">
+          {isHighlighted && (
+            <span className="fcard__updated-badge" title="Atualizado desde sua última visita">
+              Atualizado
+            </span>
+          )}
           {getPageName(feedback.page_url) && (
             <span className="fcard__page" title={feedback.page_url}>
               {getPageName(feedback.page_url)}

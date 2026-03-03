@@ -1,0 +1,226 @@
+/**
+ * Estilos: Vista de Solicitações
+ */
+
+.solicitacoes-container {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Header */
+.solicitacoes-header {
+  margin-bottom: 1.5rem;
+}
+
+.solicitacoes-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 0.25rem;
+}
+
+.solicitacoes-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Botões de ação */
+.solicitacoes-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 2rem;
+}
+
+.solicitacoes-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: #FFFBEB;
+  border: 1px solid #F59E0B;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #92400E;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.solicitacoes-action-btn:hover {
+  background: #FEF3C7;
+  border-color: #D97706;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+}
+
+.solicitacoes-action-btn svg {
+  flex-shrink: 0;
+  color: #D97706;
+}
+
+/* Lista de solicitações */
+.solicitacoes-list-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.solicitacoes-list-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.solicitacoes-pending-badge {
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+.solicitacoes-loading {
+  text-align: center;
+  color: #9ca3af;
+  padding: 2rem;
+  font-size: 14px;
+}
+
+.solicitacoes-empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 2rem;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.solicitacoes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Item de solicitação */
+.solicitacoes-item {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.solicitacoes-item--pendente {
+  border-left: 3px solid #F59E0B;
+}
+
+.solicitacoes-item--aprovada {
+  border-left: 3px solid #10B981;
+}
+
+.solicitacoes-item--rejeitada {
+  border-left: 3px solid #EF4444;
+}
+
+.solicitacoes-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.solicitacoes-type-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #E0E7FF;
+  color: #3730A3;
+}
+
+.solicitacoes-type-badge--nova_disciplina {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.solicitacoes-type-badge--nova_empresa {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.solicitacoes-type-badge--novo_contato {
+  background: #E0E7FF;
+  color: #3730A3;
+}
+
+.solicitacoes-type-badge--editar_contato {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.solicitacoes-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.solicitacoes-status-badge--pendente {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.solicitacoes-status-badge--aprovada {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.solicitacoes-status-badge--rejeitada {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.solicitacoes-item-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.solicitacoes-item-summary {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.solicitacoes-item-date {
+  font-size: 12px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.solicitacoes-item-rejection {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #991B1B;
+  background: #FEF2F2;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .solicitacoes-container {
+    padding: 1rem;
+  }
+
+  .solicitacoes-actions {
+    grid-template-columns: 1fr;
+  }
+}

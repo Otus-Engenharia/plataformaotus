@@ -12,6 +12,7 @@ import axios from 'axios';
 import { API_URL } from '../api';
 import '../styles/EquipeOtusPanel.css';
 import { formatPhoneDisplay, stripNonDigits } from '../utils/phone-utils';
+import { useAuth } from '../contexts/AuthContext';
 
 function getInitials(name) {
   if (!name) return '?';
@@ -21,6 +22,7 @@ function getInitials(name) {
 }
 
 function EquipeOtusPanel({ projectCode }) {
+  const { hasFullAccess } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -216,13 +218,15 @@ function EquipeOtusPanel({ projectCode }) {
           )}
           <span className="eotus-count">{totalMembers} {totalMembers === 1 ? 'membro' : 'membros'}</span>
         </div>
-        <button className="eotus-add-btn" onClick={handleOpenAddModal}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Adicionar
-        </button>
+        {hasFullAccess && (
+          <button className="eotus-add-btn" onClick={handleOpenAddModal}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Adicionar
+          </button>
+        )}
       </div>
 
       {loading && (
@@ -341,16 +345,18 @@ function EquipeOtusPanel({ projectCode }) {
                         <span className="eotus-member-team">{row.user.team.team_name}</span>
                       )}
                     </div>
-                    <button
-                      className="eotus-remove-btn"
-                      onClick={() => handleRemoveMember(row.id)}
-                      title="Remover do projeto"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
+                    {hasFullAccess && (
+                      <button
+                        className="eotus-remove-btn"
+                        onClick={() => handleRemoveMember(row.id)}
+                        title="Remover do projeto"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
