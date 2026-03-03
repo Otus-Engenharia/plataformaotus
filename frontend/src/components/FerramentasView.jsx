@@ -59,7 +59,7 @@ function extractGoogleId(value) {
 }
 
 function FerramentasView({ selectedProjectId, portfolio = [] }) {
-  const { hasFullAccess } = useAuth();
+  const { canEditPortfolio } = useAuth();
   const [activeTab, setActiveTab] = useState('config');
   const [saving, setSaving] = useState({});
   const [editingField, setEditingField] = useState(null);
@@ -156,7 +156,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
 
   // Toggle de status
   const handleToggle = async (field, currentValue) => {
-    if (!hasFullAccess) return;
+    if (!canEditPortfolio) return;
     const projectCode = getProjectCode();
     if (!projectCode) return;
 
@@ -438,7 +438,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
                     const isActive = value === 'ativo';
                     const isRelatorioToggle = tool.key === 'relatorio_semanal_status';
                     const showWarning = isRelatorioToggle && !isActive && missingFields.length > 0;
-                    const toggleDisabled = !hasFullAccess || saving[tool.key] ||
+                    const toggleDisabled = !canEditPortfolio || saving[tool.key] ||
                       (isRelatorioToggle && !isActive && !canActivateRelatorio && !prerequisitesLoading);
 
                     return (
@@ -554,7 +554,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
                               ) : (
                                 <span className="ftv-id-empty">Nenhuma disciplina</span>
                               )}
-                              {hasFullAccess && (
+                              {canEditPortfolio && (
                                 <button
                                   onClick={() => handleOpenTagsModal(tool.key, tool.name, value)}
                                   className="ftv-edit-btn"
@@ -635,7 +635,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
                                 <span className="ftv-id-empty">Nenhum valor</span>
                               )}
 
-                              {hasFullAccess && (
+                              {canEditPortfolio && (
                                 <button
                                   onClick={() => handleStartEdit(tool.key, value)}
                                   className="ftv-edit-btn"

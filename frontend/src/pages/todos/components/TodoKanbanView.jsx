@@ -5,6 +5,16 @@ import TodoCard from './TodoCard';
 import { STATUS_COLORS } from '../constants/todoColors';
 import './TodoKanbanView.css';
 
+/**
+ * Converte date string (ISO ou yyyy-MM-dd) em Date no timezone local.
+ * Evita bug onde "2026-03-03T00:00:00.000Z" vira 2 de março em UTC-3.
+ */
+function toLocalDate(dateStr) {
+  if (!dateStr) return null;
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 const STATUS_COLUMNS = [
   { status: 'backlog', label: 'Backlog', color: STATUS_COLORS['backlog'] },
   { status: 'a fazer', label: 'A Fazer', color: STATUS_COLORS['a fazer'] },
@@ -57,7 +67,7 @@ function buildColumns(todos, groupBy, weekRef) {
     const startKey = format(start, 'yyyy-MM-dd');
 
     todos.forEach((todo) => {
-      const dueDate = todo.due_date ? startOfDay(new Date(todo.due_date)) : null;
+      const dueDate = toLocalDate(todo.due_date);
 
       if (!dueDate) {
         columns[0].items.push(todo);

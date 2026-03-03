@@ -14,11 +14,11 @@ const SHORT_MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 's
 
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return null;
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = SHORT_MONTHS[date.getMonth()];
-  return `${day}/${month}`;
+  const parts = dateStr.slice(0, 10).split('-');
+  if (parts.length !== 3) return null;
+  const [, m, d] = parts.map(Number);
+  if (isNaN(m) || isNaN(d)) return null;
+  return `${String(d).padStart(2, '0')}/${SHORT_MONTHS[m - 1]}`;
 }
 
 export default function TodoCard({ todo, onComplete, onSelect, onEdit, onDateChange, onPriorityChange, draggable, onDragStart, colorMode = 'priority' }) {
