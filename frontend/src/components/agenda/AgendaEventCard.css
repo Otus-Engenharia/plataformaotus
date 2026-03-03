@@ -10,7 +10,7 @@
   box-sizing: border-box;
   transition: box-shadow 0.15s ease, opacity 0.1s ease, transform 0.15s ease;
   z-index: 2;
-  border-left: 3.5px solid transparent;
+  border-left: 4px solid transparent;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;

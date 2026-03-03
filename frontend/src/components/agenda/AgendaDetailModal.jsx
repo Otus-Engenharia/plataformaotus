@@ -5,6 +5,8 @@ import axios from 'axios';
 import SearchableSelect from '../SearchableSelect';
 import TodoItemSidebar from './TodoItemSidebar';
 import DueDatePicker from '../../pages/todos/components/DueDatePicker';
+import { useAuth } from '../../contexts/AuthContext';
+import ComentariosThread from '../apoio/ComentariosThread';
 import './AgendaDetailModal.css';
 
 const STATUS_OPTIONS = [
@@ -121,6 +123,13 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
   const [dupCopyProjects, setDupCopyProjects] = useState(true);
   const [duplicating, setDuplicating] = useState(false);
   const dateInputRef = useRef(null);
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [projectsTab, setProjectsTab] = useState('selected'); // 'selected' | 'add'
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+
+  // Get current user from auth context
+  const { user } = useAuth();
 
   // Fetch ToDo's e detalhes quando a task muda
   useEffect(() => {
@@ -133,6 +142,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       setRescheduling(false);
       setShowAddProject(false);
       setAddingProjectId('');
+      setComments([]);
       return;
     }
 
@@ -141,7 +151,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     async function fetchData() {
       setLoadingTodos(true);
       try {
-        const [todosRes, detailsRes, projRes] = await Promise.all([
+        const [todosRes, detailsRes, projRes, commentsRes] = await Promise.all([
           axios.get('/api/agenda/tasks/todos', {
             params: { agendaTaskIds: String(task.id) },
             withCredentials: true,
@@ -150,6 +160,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
             withCredentials: true,
           }),
           axios.get('/api/agenda/tasks/form/projects', { withCredentials: true }),
+          axios.get(`/api/agenda/tasks/${task.id}/comments`, { withCredentials: true }),
         ]);
 
         if (!cancelled) {
@@ -164,6 +175,9 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
           }
           if (projRes.data.success) {
             setAllAvailableProjects(projRes.data.data || []);
+          }
+          if (commentsRes.data.success) {
+            setComments(commentsRes.data.data || []);
           }
         }
       } catch (err) {
@@ -704,6 +718,35 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       }));
   }, [allAvailableProjects, projects]);
 
+  const filteredAddProjects = useMemo(() => {
+    const linkedIds = new Set(projects.map(p => p.id));
+    let available = allAvailableProjects.filter(p => !linkedIds.has(p.id));
+    if (projectSearchQuery.trim()) {
+      const q = projectSearchQuery.toLowerCase();
+      available = available.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.comercial_name || '').toLowerCase().includes(q)
+      );
+    }
+    return available.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+  }, [allAvailableProjects, projects, projectSearchQuery]);
+
+  const handleQuickAddProject = useCallback(async (projectId) => {
+    if (!task) return;
+    try {
+      const res = await axios.post(
+        `/api/agenda/tasks/${task.id}/projects`,
+        { project_ids: [projectId] },
+        { withCredentials: true }
+      );
+      if (res.data.success) {
+        setProjects(res.data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao adicionar projeto:', err);
+    }
+  }, [task]);
+
   const handleAddProject = useCallback(async () => {
     if (!addingProjectId || !task) return;
 
@@ -723,6 +766,14 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       console.error('Erro ao adicionar projeto:', err);
     }
   }, [task, addingProjectId]);
+
+  const handleAddComment = useCallback(async (texto) => {
+    if (!task) return;
+    const res = await axios.post(`/api/agenda/tasks/${task.id}/comments`, { texto }, { withCredentials: true });
+    if (res.data.success) {
+      setComments(prev => [...prev, res.data.data]);
+    }
+  }, [task]);
 
   const handleRemoveProject = useCallback(async (projectId) => {
     if (!task) return;
@@ -792,474 +843,485 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
           </button>
         </header>
 
-        <div className="detail-modal__content">
-          {/* Coluna principal */}
-          <div className="detail-modal__main">
-            {/* Metadados em grid */}
-            <div className="detail-modal__meta-grid">
-              {/* Status */}
-              <div className="detail-modal__meta-item">
-                <div className="detail-modal__meta-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                </div>
-                <span className="detail-modal__meta-label">Status</span>
-                <div className="detail-modal__status-wrapper">
-                  <button
-                    className="detail-modal__status-badge"
-                    style={{ '--status-color': currentStatus.color }}
-                    onClick={() => setShowStatusMenu(prev => !prev)}
-                  >
-                    {currentStatus.label}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  {showStatusMenu && (
-                    <div className="detail-modal__status-menu">
-                      {STATUS_OPTIONS.map(opt => (
-                        <button
-                          key={opt.value}
-                          className={`detail-modal__status-option${opt.value === task.status ? ' is-active' : ''}`}
-                          style={{ '--opt-color': opt.color }}
-                          onClick={() => handleStatusChange(opt.value)}
-                        >
-                          <span className="detail-modal__status-dot" />
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Data */}
-              <div className="detail-modal__meta-item">
-                <div className="detail-modal__meta-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                </div>
-                <span className="detail-modal__meta-label">Data</span>
-                <div
-                  className="detail-modal__meta-value detail-modal__meta-value--editable"
-                  onClick={() => dateInputRef.current?.showPicker?.()}
-                >
-                  {formatDate(task.start_date)}
-                  <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  {task.start_date && (
-                    <input
-                      ref={dateInputRef}
-                      type="date"
-                      className="detail-modal__date-input"
-                      value={format(new Date(task.start_date), 'yyyy-MM-dd')}
-                      onChange={handleDateChange}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Horário */}
-              <div className="detail-modal__meta-item">
-                <div className="detail-modal__meta-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                </div>
-                <span className="detail-modal__meta-label">Horário</span>
-                {editingTime && task.start_date && task.due_date ? (
-                  <div className="detail-modal__time-edit">
-                    <select
-                      className="detail-modal__time-select"
-                      value={formatTime(task.start_date)}
-                      onChange={handleStartTimeChange}
-                    >
-                      {TIME_OPTIONS.map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                    <span className="detail-modal__time-sep">–</span>
-                    <select
-                      className="detail-modal__time-select"
-                      value={formatTime(task.due_date)}
-                      onChange={handleEndTimeChange}
-                    >
-                      {TIME_OPTIONS.filter(t => t > formatTime(task.start_date)).map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <span
-                    className="detail-modal__meta-value detail-modal__meta-value--editable"
-                    onClick={() => setEditingTime(true)}
-                  >
-                    {formatTime(task.start_date)} – {formatTime(task.due_date)}
-                    <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                  </span>
-                )}
-              </div>
-
-              {/* Duração */}
-              <div className="detail-modal__meta-item">
-                <div className="detail-modal__meta-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                </div>
-                <span className="detail-modal__meta-label">Duração</span>
-                <span className="detail-modal__meta-value">{formatDuration(task.duration_minutes)}</span>
-              </div>
-
-              {/* Recorrência */}
-              <div className="detail-modal__meta-item">
-                <div className="detail-modal__meta-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="23 4 23 10 17 10" />
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                  </svg>
-                </div>
-                <span className="detail-modal__meta-label">Recorrência</span>
-                <span
-                  className="detail-modal__meta-value detail-modal__meta-value--editable"
-                  onClick={openRecurrenceEditor}
-                >
-                  {task.recurrence_label || task.recurrence || 'Nunca'}
-                  <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                </span>
-              </div>
-
-              {/* Grupo padrão */}
-              {standardTaskName && (
-                <div className="detail-modal__meta-item">
-                  <div className="detail-modal__meta-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                      <line x1="3" y1="6" x2="3.01" y2="6" />
-                      <line x1="3" y1="12" x2="3.01" y2="12" />
-                      <line x1="3" y1="18" x2="3.01" y2="18" />
-                    </svg>
-                  </div>
-                  <span className="detail-modal__meta-label">Grupo</span>
-                  <span
-                    className="detail-modal__meta-value detail-modal__meta-value--editable"
-                    onClick={() => {
-                      setGroupPosition(currentPosition || '');
-                      setShowGroupEditor(true);
-                    }}
-                  >
-                    {standardTaskName}
-                    <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                  </span>
-                </div>
-              )}
-
-              {/* Campos de verificação — só quando standard_agenda_task === 18 */}
-              {isVerificacao && (
+        {/* 3-Panel Body */}
+        <div className="detail-modal__body">
+          {/* LEFT PANEL: Projects */}
+          <aside className="detail-modal__left-panel">
+            <div className="detail-modal__panel-tabs">
+              <button
+                className={`detail-modal__panel-tab${projectsTab === 'selected' ? ' detail-modal__panel-tab--active' : ''}`}
+                onClick={() => setProjectsTab('selected')}
+              >
+                Selecionados
+                <span className="detail-modal__panel-tab-badge">{projects.length}</span>
+              </button>
+              <button
+                className={`detail-modal__panel-tab${projectsTab === 'add' ? ' detail-modal__panel-tab--active' : ''}`}
+                onClick={() => { setProjectsTab('add'); setProjectSearchQuery(''); }}
+              >
+                Adicionar
+              </button>
+            </div>
+            <div className="detail-modal__left-panel-scroll">
+              {projectsTab === 'selected' ? (
                 <>
-                  {/* Tipo de verificação */}
-                  <div className="detail-modal__meta-item">
-                    <div className="detail-modal__meta-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                      </svg>
+                  {projects.length === 0 ? (
+                    <div className="detail-modal__project-empty">
+                      Nenhum projeto vinculado
                     </div>
-                    <span className="detail-modal__meta-label">Tipo</span>
-                    {editingVerifField === 'kind' ? (
-                      <select
-                        className="detail-modal__verif-select"
-                        value={task.coompat_task_kind || ''}
-                        onChange={(e) => handleVerifFieldChange('coompat_task_kind', e.target.value)}
-                        onBlur={() => setEditingVerifField(null)}
+                  ) : (
+                    <ul className="detail-modal__project-list">
+                      {projects.map(p => {
+                        const hasTodos = projectIdsWithTodos.has(p.id);
+                        return (
+                          <li key={p.id} className="detail-modal__project-item">
+                            <div className="detail-modal__project-dot" />
+                            <span className="detail-modal__project-name">
+                              {p.comercial_name ? `${p.name} (${p.comercial_name})` : p.name}
+                            </span>
+                            {!hasTodos && (
+                              <button
+                                className="detail-modal__project-remove"
+                                onClick={() => handleRemoveProject(p.id)}
+                                title="Remover projeto"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="detail-modal__project-search">
+                    <div className="detail-modal__project-search-wrapper">
+                      <svg className="detail-modal__project-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                      <input
+                        className="detail-modal__project-search-input"
+                        type="text"
+                        placeholder="Buscar projeto..."
+                        value={projectSearchQuery}
+                        onChange={(e) => setProjectSearchQuery(e.target.value)}
                         autoFocus
-                      >
-                        <option value="">—</option>
-                        {TIPO_VERIFICACAO_OPTIONS.map(o => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span
-                        className="detail-modal__meta-value detail-modal__meta-value--editable"
-                        onClick={() => setEditingVerifField('kind')}
-                      >
-                        {TIPO_VERIFICACAO_OPTIONS.find(o => o.value === task.coompat_task_kind)?.label || '—'}
-                        <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </span>
-                    )}
+                      />
+                    </div>
                   </div>
-
-                  {/* Disciplina */}
-                  <div className="detail-modal__meta-item">
-                    <div className="detail-modal__meta-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 16v-4" />
-                        <path d="M12 8h.01" />
-                      </svg>
-                    </div>
-                    <span className="detail-modal__meta-label">Disciplina</span>
-                    {editingVerifField === 'discipline' ? (
-                      <select
-                        className="detail-modal__verif-select"
-                        value={task.related_discipline_id || ''}
-                        onChange={(e) => handleVerifFieldChange('related_discipline_id', e.target.value ? Number(e.target.value) : null)}
-                        onBlur={() => setEditingVerifField(null)}
-                        autoFocus
-                      >
-                        <option value="">Geral</option>
-                        {disciplines.map(d => (
-                          <option key={d.id} value={d.id}>{d.discipline_name}</option>
-                        ))}
-                      </select>
+                  <div className="detail-modal__add-project-list">
+                    {filteredAddProjects.length === 0 ? (
+                      <div className="detail-modal__project-empty">
+                        {projectSearchQuery ? 'Nenhum projeto encontrado' : 'Todos os projetos ja foram adicionados'}
+                      </div>
                     ) : (
-                      <span
-                        className="detail-modal__meta-value detail-modal__meta-value--editable"
-                        onClick={() => setEditingVerifField('discipline')}
-                      >
-                        {disciplineName || 'Geral'}
-                        <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Fase */}
-                  <div className="detail-modal__meta-item">
-                    <div className="detail-modal__meta-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="4" y1="21" x2="4" y2="14" />
-                        <line x1="4" y1="10" x2="4" y2="3" />
-                        <line x1="12" y1="21" x2="12" y2="12" />
-                        <line x1="12" y1="8" x2="12" y2="3" />
-                        <line x1="20" y1="21" x2="20" y2="16" />
-                        <line x1="20" y1="12" x2="20" y2="3" />
-                        <line x1="1" y1="14" x2="7" y2="14" />
-                        <line x1="9" y1="8" x2="15" y2="8" />
-                        <line x1="17" y1="16" x2="23" y2="16" />
-                      </svg>
-                    </div>
-                    <span className="detail-modal__meta-label">Fase</span>
-                    {editingVerifField === 'phase' ? (
-                      <select
-                        className="detail-modal__verif-select"
-                        value={task.phase || ''}
-                        onChange={(e) => handleVerifFieldChange('phase', e.target.value)}
-                        onBlur={() => setEditingVerifField(null)}
-                        autoFocus
-                      >
-                        <option value="">—</option>
-                        {FASE_OPTIONS.map(o => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span
-                        className="detail-modal__meta-value detail-modal__meta-value--editable"
-                        onClick={() => setEditingVerifField('phase')}
-                      >
-                        {task.phase || '—'}
-                        <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </span>
+                      filteredAddProjects.slice(0, 50).map(p => (
+                        <button
+                          key={p.id}
+                          className="detail-modal__add-project-option"
+                          onClick={() => handleQuickAddProject(p.id)}
+                        >
+                          <div className="detail-modal__add-project-option-icon">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </div>
+                          {p.comercial_name ? `${p.name} (${p.comercial_name})` : p.name}
+                        </button>
+                      ))
                     )}
                   </div>
                 </>
               )}
             </div>
+          </aside>
 
-            {/* Seção: Projetos */}
-            <div className="detail-modal__section">
-              <div className="detail-modal__section-header">
-                <h3 className="detail-modal__section-title">
-                  Projetos
-                  {projects.length > 0 && (
-                    <span className="detail-modal__todo-counter">{projects.length}</span>
-                  )}
-                </h3>
-                <button
-                  className="detail-modal__add-btn"
-                  onClick={() => setShowAddProject(prev => !prev)}
-                  title="Adicionar projeto"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-              </div>
-
-              {showAddProject && (
-                <div className="detail-modal__add-project-row">
-                  <div className="detail-modal__add-project-select">
-                    <SearchableSelect
-                      id="add-project-detail"
-                      value={addingProjectId}
-                      onChange={(e) => setAddingProjectId(e.target.value)}
-                      options={addProjectOptions}
-                      placeholder="Selecione o projeto"
-                    />
+          {/* CENTER PANEL: Comments */}
+          <div className="detail-modal__center-panel">
+            <div className="detail-modal__meta-grid">
+                {/* Status */}
+                <div className="detail-modal__meta-item">
+                  <div className="detail-modal__meta-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
                   </div>
-                  <button
-                    className="detail-modal__add-project-confirm"
-                    onClick={handleAddProject}
-                    disabled={!addingProjectId}
-                  >
-                    Adicionar
-                  </button>
-                </div>
-              )}
-
-              {projects.length === 0 && !showAddProject ? (
-                <div className="detail-modal__todo-empty">Nenhum projeto vinculado</div>
-              ) : (
-                <ul className="detail-modal__project-list">
-                  {projects.map(p => {
-                    const hasTodos = projectIdsWithTodos.has(p.id);
-                    return (
-                      <li key={p.id} className="detail-modal__project-item">
-                        <div className="detail-modal__project-dot" />
-                        <span className="detail-modal__project-name">
-                          {p.comercial_name ? `${p.name} (${p.comercial_name})` : p.name}
-                        </span>
-                        {!hasTodos && (
+                  <span className="detail-modal__meta-label">Status</span>
+                  <div className="detail-modal__status-wrapper">
+                    <button
+                      className="detail-modal__status-badge"
+                      style={{ '--status-color': currentStatus.color }}
+                      onClick={() => setShowStatusMenu(prev => !prev)}
+                    >
+                      {currentStatus.label}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                    {showStatusMenu && (
+                      <div className="detail-modal__status-menu">
+                        {STATUS_OPTIONS.map(opt => (
                           <button
-                            className="detail-modal__project-remove"
-                            onClick={() => handleRemoveProject(p.id)}
-                            title="Remover projeto"
+                            key={opt.value}
+                            className={`detail-modal__status-option${opt.value === task.status ? ' is-active' : ''}`}
+                            style={{ '--opt-color': opt.color }}
+                            onClick={() => handleStatusChange(opt.value)}
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
+                            <span className="detail-modal__status-dot" />
+                            {opt.label}
                           </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Data */}
+                <div className="detail-modal__meta-item">
+                  <div className="detail-modal__meta-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </div>
+                  <span className="detail-modal__meta-label">Data</span>
+                  <div
+                    className="detail-modal__meta-value detail-modal__meta-value--editable"
+                    onClick={() => dateInputRef.current?.showPicker?.()}
+                  >
+                    {formatDate(task.start_date)}
+                    <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    {task.start_date && (
+                      <input
+                        ref={dateInputRef}
+                        type="date"
+                        className="detail-modal__date-input"
+                        value={format(new Date(task.start_date), 'yyyy-MM-dd')}
+                        onChange={handleDateChange}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Horário */}
+                <div className="detail-modal__meta-item">
+                  <div className="detail-modal__meta-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </div>
+                  <span className="detail-modal__meta-label">Horário</span>
+                  {editingTime && task.start_date && task.due_date ? (
+                    <div className="detail-modal__time-edit">
+                      <select
+                        className="detail-modal__time-select"
+                        value={formatTime(task.start_date)}
+                        onChange={handleStartTimeChange}
+                      >
+                        {TIME_OPTIONS.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <span className="detail-modal__time-sep">–</span>
+                      <select
+                        className="detail-modal__time-select"
+                        value={formatTime(task.due_date)}
+                        onChange={handleEndTimeChange}
+                      >
+                        {TIME_OPTIONS.filter(t => t > formatTime(task.start_date)).map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <span
+                      className="detail-modal__meta-value detail-modal__meta-value--editable"
+                      onClick={() => setEditingTime(true)}
+                    >
+                      {formatTime(task.start_date)} – {formatTime(task.due_date)}
+                      <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+
+                {/* Duração */}
+                <div className="detail-modal__meta-item">
+                  <div className="detail-modal__meta-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  </div>
+                  <span className="detail-modal__meta-label">Duração</span>
+                  <span className="detail-modal__meta-value">{formatDuration(task.duration_minutes)}</span>
+                </div>
+
+                {/* Recorrência */}
+                <div className="detail-modal__meta-item">
+                  <div className="detail-modal__meta-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="23 4 23 10 17 10" />
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                    </svg>
+                  </div>
+                  <span className="detail-modal__meta-label">Recorrência</span>
+                  <span
+                    className="detail-modal__meta-value detail-modal__meta-value--editable"
+                    onClick={openRecurrenceEditor}
+                  >
+                    {task.recurrence_label || task.recurrence || 'Nunca'}
+                    <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </span>
+                </div>
+
+                {/* Grupo padrão */}
+                {standardTaskName && (
+                  <div className="detail-modal__meta-item">
+                    <div className="detail-modal__meta-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="8" y1="6" x2="21" y2="6" />
+                        <line x1="8" y1="12" x2="21" y2="12" />
+                        <line x1="8" y1="18" x2="21" y2="18" />
+                        <line x1="3" y1="6" x2="3.01" y2="6" />
+                        <line x1="3" y1="12" x2="3.01" y2="12" />
+                        <line x1="3" y1="18" x2="3.01" y2="18" />
+                      </svg>
+                    </div>
+                    <span className="detail-modal__meta-label">Grupo</span>
+                    <span
+                      className="detail-modal__meta-value detail-modal__meta-value--editable"
+                      onClick={() => {
+                        setGroupPosition(currentPosition || '');
+                        setShowGroupEditor(true);
+                      }}
+                    >
+                      {standardTaskName}
+                      <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </span>
+                  </div>
+                )}
+
+                {/* Campos de verificação — só quando standard_agenda_task === 18 */}
+                {isVerificacao && (
+                  <>
+                    {/* Tipo de verificação */}
+                    <div className="detail-modal__meta-item">
+                      <div className="detail-modal__meta-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                      </div>
+                      <span className="detail-modal__meta-label">Tipo</span>
+                      {editingVerifField === 'kind' ? (
+                        <select
+                          className="detail-modal__verif-select"
+                          value={task.coompat_task_kind || ''}
+                          onChange={(e) => handleVerifFieldChange('coompat_task_kind', e.target.value)}
+                          onBlur={() => setEditingVerifField(null)}
+                          autoFocus
+                        >
+                          <option value="">—</option>
+                          {TIPO_VERIFICACAO_OPTIONS.map(o => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span
+                          className="detail-modal__meta-value detail-modal__meta-value--editable"
+                          onClick={() => setEditingVerifField('kind')}
+                        >
+                          {TIPO_VERIFICACAO_OPTIONS.find(o => o.value === task.coompat_task_kind)?.label || '—'}
+                          <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Disciplina */}
+                    <div className="detail-modal__meta-item">
+                      <div className="detail-modal__meta-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 16v-4" />
+                          <path d="M12 8h.01" />
+                        </svg>
+                      </div>
+                      <span className="detail-modal__meta-label">Disciplina</span>
+                      {editingVerifField === 'discipline' ? (
+                        <select
+                          className="detail-modal__verif-select"
+                          value={task.related_discipline_id || ''}
+                          onChange={(e) => handleVerifFieldChange('related_discipline_id', e.target.value ? Number(e.target.value) : null)}
+                          onBlur={() => setEditingVerifField(null)}
+                          autoFocus
+                        >
+                          <option value="">Geral</option>
+                          {disciplines.map(d => (
+                            <option key={d.id} value={d.id}>{d.discipline_name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span
+                          className="detail-modal__meta-value detail-modal__meta-value--editable"
+                          onClick={() => setEditingVerifField('discipline')}
+                        >
+                          {disciplineName || 'Geral'}
+                          <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Fase */}
+                    <div className="detail-modal__meta-item">
+                      <div className="detail-modal__meta-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="4" y1="21" x2="4" y2="14" />
+                          <line x1="4" y1="10" x2="4" y2="3" />
+                          <line x1="12" y1="21" x2="12" y2="12" />
+                          <line x1="12" y1="8" x2="12" y2="3" />
+                          <line x1="20" y1="21" x2="20" y2="16" />
+                          <line x1="20" y1="12" x2="20" y2="3" />
+                          <line x1="1" y1="14" x2="7" y2="14" />
+                          <line x1="9" y1="8" x2="15" y2="8" />
+                          <line x1="17" y1="16" x2="23" y2="16" />
+                        </svg>
+                      </div>
+                      <span className="detail-modal__meta-label">Fase</span>
+                      {editingVerifField === 'phase' ? (
+                        <select
+                          className="detail-modal__verif-select"
+                          value={task.phase || ''}
+                          onChange={(e) => handleVerifFieldChange('phase', e.target.value)}
+                          onBlur={() => setEditingVerifField(null)}
+                          autoFocus
+                        >
+                          <option value="">—</option>
+                          {FASE_OPTIONS.map(o => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span
+                          className="detail-modal__meta-value detail-modal__meta-value--editable"
+                          onClick={() => setEditingVerifField('phase')}
+                        >
+                          {task.phase || '—'}
+                          <svg className="detail-modal__edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            <div className="detail-modal__center-panel-header">
+              <h3 className="detail-modal__center-panel-title">
+                Comentarios
+                {comments.filter(c => c.tipo === 'comentario' || !c.tipo).length > 0 && (
+                  <span className="detail-modal__todo-counter">
+                    {comments.filter(c => c.tipo === 'comentario' || !c.tipo).length}
+                  </span>
+                )}
+              </h3>
+            </div>
+            <ComentariosThread
+              comentarios={comments}
+              onAddComentario={handleAddComment}
+              currentUserEmail={user?.email}
+            />
+          </div>
+
+          {/* RIGHT PANEL: ToDo's */}
+          <div className="detail-modal__right-panel">
+            <div className="detail-modal__right-panel-header">
+              <h3 className="detail-modal__section-title">
+                ToDo's
+                {totalCount > 0 && (
+                  <span className="detail-modal__todo-counter">{doneCount}/{totalCount}</span>
+                )}
+              </h3>
+              <div className="detail-modal__section-actions">
+                {unfinishedCount > 0 && (
+                  <button
+                    ref={rescheduleRef}
+                    className="detail-modal__reschedule-btn"
+                    onClick={() => setShowReschedule(prev => !prev)}
+                    disabled={rescheduling}
+                    title="Reprogramar ToDo's nao finalizados"
+                  >
+                    {rescheduling ? (
+                      <span className="detail-modal__reschedule-spinner" />
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                        <path d="M16 14l-4 4-2-2" />
+                      </svg>
+                    )}
+                    Reprogramar
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Seção: ToDo's da tarefa */}
-            <div className="detail-modal__section">
-              <div className="detail-modal__section-header">
-                <h3 className="detail-modal__section-title">
-                  ToDo's da tarefa
-                  {totalCount > 0 && (
-                    <span className="detail-modal__todo-counter">{doneCount}/{totalCount}</span>
-                  )}
-                </h3>
-                <div className="detail-modal__section-actions">
-                  {unfinishedCount > 0 && (
-                    <button
-                      ref={rescheduleRef}
-                      className="detail-modal__reschedule-btn"
-                      onClick={() => setShowReschedule(prev => !prev)}
-                      disabled={rescheduling}
-                      title="Reprogramar ToDo's não finalizados"
-                    >
-                      {rescheduling ? (
-                        <span className="detail-modal__reschedule-spinner" />
-                      ) : (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                          <line x1="16" y1="2" x2="16" y2="6" />
-                          <line x1="8" y1="2" x2="8" y2="6" />
-                          <line x1="3" y1="10" x2="21" y2="10" />
-                          <path d="M16 14l-4 4-2-2" />
-                        </svg>
-                      )}
-                      Reprogramar
-                    </button>
-                  )}
-                  <button
-                    className="detail-modal__add-btn"
-                    onClick={() => setShowAddTodo(prev => !prev)}
-                    title="Adicionar ToDo"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {showReschedule && (
+            {showReschedule && (
+              <div style={{ padding: '0 16px' }}>
                 <DueDatePicker
                   currentDate={null}
                   onDateChange={handleReschedule}
                   triggerRef={rescheduleRef}
                   onClose={() => setShowReschedule(false)}
                 />
-              )}
+              </div>
+            )}
 
-              {showAddTodo && (
-                <div className="detail-modal__add-project-row">
-                  <input
-                    className="detail-modal__add-todo-input"
-                    type="text"
-                    placeholder="Nome do ToDo"
-                    value={newTodoName}
-                    onChange={(e) => setNewTodoName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleCreateTodo();
-                      if (e.key === 'Escape') { setShowAddTodo(false); setNewTodoName(''); }
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    className="detail-modal__add-project-confirm"
-                    onClick={handleCreateTodo}
-                    disabled={!newTodoName.trim()}
-                  >
-                    Adicionar
-                  </button>
-                </div>
-              )}
+            {totalCount > 0 && (
+              <div className="detail-modal__progress-bar" style={{ margin: '0 16px' }}>
+                <div
+                  className="detail-modal__progress-fill"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            )}
 
-              {totalCount > 0 && (
-                <div className="detail-modal__progress-bar">
-                  <div
-                    className="detail-modal__progress-fill"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-              )}
-
+            <div className="detail-modal__right-panel-scroll">
               {loadingTodos ? (
                 <div className="detail-modal__todo-loading">Carregando...</div>
               ) : totalCount === 0 ? (
@@ -1289,6 +1351,27 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Always-visible add todo input */}
+            <div className="detail-modal__add-todo-row" style={{ padding: '0 16px' }}>
+              <input
+                className="detail-modal__add-todo-input"
+                type="text"
+                placeholder="Novo ToDo..."
+                value={newTodoName}
+                onChange={(e) => setNewTodoName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateTodo();
+                }}
+              />
+              <button
+                className="detail-modal__add-todo-confirm"
+                onClick={handleCreateTodo}
+                disabled={!newTodoName.trim()}
+              >
+                +
+              </button>
             </div>
           </div>
         </div>

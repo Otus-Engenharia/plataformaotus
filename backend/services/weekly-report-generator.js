@@ -520,11 +520,25 @@ export function processData(rawData, options = {}) {
 const OTUS = {
   black: '#1a1a1a',
   orange: '#f5a623',
+  orangeLight: '#fff8ee',
   grayDark: '#2d2d2d',
-  grayLight: '#f5f5f5',
-  text: '#333333',
-  textLight: '#666666',
+  grayLight: '#f8f9fa',
+  grayMuted: '#e9ecef',
+  text: '#1e293b',
+  textLight: '#64748b',
+  textMuted: '#94a3b8',
+  success: '#16a34a',
+  danger: '#dc2626',
+  info: '#2563eb',
 };
+
+/**
+ * Clean project/client name: replace underscores with spaces, normalize whitespace.
+ */
+function cleanName(name) {
+  if (!name) return '';
+  return name.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 /**
  * Escape HTML special characters.
@@ -573,7 +587,7 @@ function _generatePendenciasSection(issues, projectId) {
   for (const [discipline, priorities] of Object.entries(byDiscipline)) {
     if (!priorities.alta.length && !priorities.media.length && !priorities.baixa.length) continue;
 
-    html += `<div style="margin-bottom:24px;"><p style="margin:0 0 12px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #eee;padding-bottom:6px;">${esc(discipline)}</p>`;
+    html += `<div style="margin-bottom:24px;"><p style="margin:0 0 12px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:${OTUS.text};text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ${OTUS.grayMuted};padding-bottom:8px;">${esc(discipline)}</p>`;
 
     // Helper to render priority group
     const renderPriorityGroup = (items, label, pColor, fontSize, linkColor, bgStyle, borderStyle) => {
@@ -643,18 +657,18 @@ function _generateConcluidasSection(completed, isClientReport) {
 
   let html = '';
   for (const [discipline, tasks] of Object.entries(completed)) {
-    html += `<div style="margin-bottom:20px;"><p style="margin:0 0 10px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #eee;padding-bottom:6px;">${esc(discipline)}</p>`;
+    html += `<div style="margin-bottom:20px;"><p style="margin:0 0 10px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:${OTUS.text};text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ${OTUS.grayMuted};padding-bottom:8px;">${esc(discipline)}</p>`;
 
     for (const task of tasks) {
       const dateStr = formatDateShort(getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date'));
       const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
       const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
 
-      html += `<div style="margin-bottom:8px;padding-left:12px;">`;
-      html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#1a1a1a;font-weight:600;background:#f5f5f5;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
+      html += `<div style="margin-bottom:10px;padding-left:12px;">`;
+      html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.text};line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:${OTUS.text};font-weight:600;background:#f1f5f9;padding:3px 8px;border-radius:4px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
 
       if (!isEmptyValue(observacaoOtus)) {
-        html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+        html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
       }
 
       html += `</div>`;
@@ -724,7 +738,7 @@ function _generateAtrasosTeamSection(delays, baselines = {}) {
   for (const [discipline, tasks] of Object.entries(byDiscipline)) {
     if (!tasks.length) continue;
 
-    html += `<div style="margin-bottom:20px;"><p style="margin:0 0 12px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #eee;padding-bottom:6px;">${esc(discipline)}</p>`;
+    html += `<div style="margin-bottom:20px;"><p style="margin:0 0 12px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:${OTUS.text};text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ${OTUS.grayMuted};padding-bottom:8px;">${esc(discipline)}</p>`;
 
     for (const task of tasks) {
       const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
@@ -785,7 +799,7 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
   for (const [discipline, categories] of Object.entries(byDiscipline)) {
     if (!categories.a_iniciar.length && !categories.programadas.length && !categories.em_andamento.length) continue;
 
-    html += `<div style="margin-bottom:24px;"><p style="margin:0 0 14px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #eee;padding-bottom:6px;">${esc(discipline)}</p>`;
+    html += `<div style="margin-bottom:24px;"><p style="margin:0 0 14px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:${OTUS.text};text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ${OTUS.grayMuted};padding-bottom:8px;">${esc(discipline)}</p>`;
 
     if (categories.a_iniciar.length) {
       html += `<p style="margin:0 0 8px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:600;color:${OTUS.orange};text-transform:uppercase;letter-spacing:1px;">\u25CF A Iniciar</p>`;
@@ -797,9 +811,9 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
 
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
-        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#1a1a1a;font-weight:600;background:#f5f5f5;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
+        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.text};line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:${OTUS.text};font-weight:600;background:#f1f5f9;padding:3px 8px;border-radius:4px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
-          html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+          html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
         }
         html += `</div>`;
       }
@@ -815,7 +829,7 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
         html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#666;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#666;font-weight:500;background:#f5f5f5;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
-          html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+          html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
         }
         html += `</div>`;
       }
@@ -833,7 +847,7 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
         html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#2563EB;font-weight:500;background:#eff6ff;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
-          html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+          html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
         }
         html += `</div>`;
       }
@@ -855,7 +869,7 @@ function _generateCronogramaTeamSection(schedule) {
 
   let html = '';
   for (const [discipline, categories] of Object.entries(schedule)) {
-    html += `<div style="margin-bottom:24px;"><p style="margin:0 0 14px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #eee;padding-bottom:6px;">${esc(discipline)}</p>`;
+    html += `<div style="margin-bottom:24px;"><p style="margin:0 0 14px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:${OTUS.text};text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ${OTUS.grayMuted};padding-bottom:8px;">${esc(discipline)}</p>`;
 
     if (categories.a_iniciar && categories.a_iniciar.length) {
       html += `<p style="margin:0 0 8px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:600;color:${OTUS.orange};text-transform:uppercase;letter-spacing:1px;">\u25CF A Iniciar</p>`;
@@ -867,9 +881,9 @@ function _generateCronogramaTeamSection(schedule) {
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
 
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
-        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#1a1a1a;font-weight:600;background:#f5f5f5;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
+        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.text};line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:${OTUS.text};font-weight:600;background:#f1f5f9;padding:3px 8px;border-radius:4px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
-          html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+          html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
         }
         html += `</div>`;
       }
@@ -885,7 +899,7 @@ function _generateCronogramaTeamSection(schedule) {
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
         html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#666;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#666;font-weight:500;background:#f5f5f5;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
-          html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+          html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
         }
         html += `</div>`;
       }
@@ -903,7 +917,7 @@ function _generateCronogramaTeamSection(schedule) {
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
         html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#2563EB;font-weight:500;background:#eff6ff;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
-          html += `<p style="margin:4px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.orange};font-style:italic;padding-left:20px;"><span style="font-weight:600;color:${OTUS.orange};">Observa\u00e7\u00e3o Otus:</span> ${esc(observacaoOtus)}</p>`;
+          html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
         }
         html += `</div>`;
       }
@@ -964,7 +978,7 @@ function _generateRelatosSection(relatos, tiposMap = {}, prioridadesMap = {}) {
 
     // Heading do tipo (padrão disciplinas)
     html += `<div style="margin-bottom:20px;">`;
-    html += `<p style="margin:0 0 10px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid #eee;padding-bottom:6px;">`;
+    html += `<p style="margin:0 0 10px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:${OTUS.text};text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ${OTUS.grayMuted};padding-bottom:8px;">`;
     html += `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${esc(tipoColor)};margin-right:8px;vertical-align:middle;"></span>`;
     html += `${esc(tipoLabel)}`;
     html += `<span style="margin-left:8px;font-size:9px;color:#888;font-weight:600;">(${items.length})</span>`;
@@ -1030,38 +1044,44 @@ function _generateProjectImageHtml(imageBase64, projectName) {
   if (imageBase64) {
     return `<img src="${imageBase64}" alt="${esc(projectName)}" style="width:140px;height:140px;object-fit:cover;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);" />`;
   }
-  return `<div style="width:140px;height:140px;background:rgba(255,255,255,0.05);border-radius:12px;border:2px dashed rgba(255,255,255,0.15);display:inline-block;"></div>`;
+  // No placeholder when image is missing - header uses full width
+  return '';
 }
 
 function _generateBaseHtml({
   projectName,
   subtitle,
   date,
+  weekPeriod,
   greeting,
   sections,
   showDashboardButton,
   projectId,
-  headerColor,
   reportType,
   projectImageBase64,
   ganttUrl,
   disciplinaUrl,
   logoBase64,
 }) {
+  const cleanedSubtitle = cleanName(subtitle);
+  const cleanedProject = cleanName(projectName);
+
   // Build sections HTML
   let sectionsHtml = '';
   for (const section of sections) {
     const isOpen = section.open ? 'open' : '';
-    const badgeColor = section.count > 0 ? OTUS.orange : '#4ade80';
+    const badgeColor = section.count > 0 ? OTUS.orange : OTUS.success;
+    const badgeBg = section.count > 0 ? OTUS.orangeLight : '#f0fdf4';
+    const badgeText = section.count > 0 ? OTUS.orange : OTUS.success;
 
     sectionsHtml += `
-            <details ${isOpen} style="margin:0 0 12px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
-                <summary style="padding:16px 20px;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;color:${OTUS.black};background:#fafafa;display:flex;align-items:center;gap:12px;">
+            <details ${isOpen} style="margin:0 0 10px;border:1px solid ${OTUS.grayMuted};border-radius:8px;overflow:hidden;">
+                <summary style="padding:14px 20px;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;color:${OTUS.black};background:#ffffff;display:flex;align-items:center;gap:12px;border-left:3px solid ${badgeColor};">
                     <span style="flex:1;">${section.title}</span>
-                    <span style="display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;background:${badgeColor};color:#ffffff;border-radius:6px;font-size:12px;font-weight:600;padding:0 8px;">${section.count}</span>
-                    <span class="chevron" style="color:#999;font-size:10px;">\u25BC</span>
+                    <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;background:${badgeBg};color:${badgeText};border-radius:13px;font-size:12px;font-weight:700;padding:0 8px;">${section.count}</span>
+                    <span class="chevron" style="color:${OTUS.textMuted};font-size:10px;">\u25BC</span>
                 </summary>
-                <div style="padding:20px;background:#ffffff;font-family:'Source Sans Pro',sans-serif;">${section.content}</div>
+                <div style="padding:20px;background:#ffffff;border-top:1px solid ${OTUS.grayMuted};font-family:'Source Sans Pro',sans-serif;">${section.content}</div>
             </details>`;
   }
 
@@ -1080,16 +1100,16 @@ function _generateBaseHtml({
     ? `https://app.construflow.com.br/workspace/project/${projectId}/issues`
     : 'https://app.construflow.com.br';
 
-  // Footer buttons
-  let footerButtons = '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr nowrap>';
+  // Footer buttons - stacked layout for better spacing
+  let footerButtons = '<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>';
   if (ganttUrl) {
-    footerButtons += `<td nowrap style="padding-right:8px;vertical-align:middle;"><a href="${ganttUrl}" style="display:inline-block;padding:10px 16px;background:${OTUS.black};color:#ffffff;text-decoration:none;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;">Cronograma</a></td>`;
+    footerButtons += `<td style="padding:0 6px 0 0;vertical-align:middle;"><a href="${ganttUrl}" style="display:inline-block;padding:10px 18px;background:${OTUS.black};color:#ffffff;text-decoration:none;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;">Cronograma</a></td>`;
   }
   if (disciplinaUrl) {
-    footerButtons += `<td nowrap style="padding-right:8px;vertical-align:middle;"><a href="${disciplinaUrl}" style="display:inline-block;padding:10px 16px;background:#ffffff;color:${OTUS.text};text-decoration:none;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;border:1px solid #e0e0e0;white-space:nowrap;">Relat\u00f3rio Disciplinas</a></td>`;
+    footerButtons += `<td style="padding:0 6px;vertical-align:middle;"><a href="${disciplinaUrl}" style="display:inline-block;padding:10px 18px;background:#ffffff;color:${OTUS.text};text-decoration:none;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;border:1px solid ${OTUS.grayMuted};white-space:nowrap;">Disciplinas</a></td>`;
   }
-  footerButtons += `<td nowrap style="padding-right:8px;vertical-align:middle;"><a href="${construflowUrl}" style="display:inline-block;padding:10px 16px;background:${OTUS.black};color:#ffffff;text-decoration:none;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;">Acessar Construflow</a></td>`;
-  footerButtons += `<td nowrap style="vertical-align:middle;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSdc4k3NuH2Eu0GM7uBGJ2_Fq5iscxwG-99Sks6P5ho6AZyi0w/viewform" style="display:inline-block;padding:10px 16px;background:#ffffff;color:${OTUS.text};text-decoration:none;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;border:1px solid #e0e0e0;white-space:nowrap;">Enviar Feedback</a></td>`;
+  footerButtons += `<td style="padding:0 6px;vertical-align:middle;"><a href="${construflowUrl}" style="display:inline-block;padding:10px 18px;background:${OTUS.black};color:#ffffff;text-decoration:none;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;">Construflow</a></td>`;
+  footerButtons += `<td style="padding:0 0 0 6px;vertical-align:middle;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSdc4k3NuH2Eu0GM7uBGJ2_Fq5iscxwG-99Sks6P5ho6AZyi0w/viewform" style="display:inline-block;padding:10px 18px;background:#ffffff;color:${OTUS.text};text-decoration:none;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;border:1px solid ${OTUS.grayMuted};white-space:nowrap;">Feedback</a></td>`;
   footerButtons += '</tr></table>';
 
   // Logo HTML
@@ -1097,12 +1117,59 @@ function _generateBaseHtml({
     ? `<img src="${logoBase64}" alt="Otus" style="height:32px;width:auto;" />`
     : `<span style="font-family:'Montserrat',sans-serif;font-size:18px;font-weight:700;color:${OTUS.black};">OTUS</span>`;
 
+  // Week period line
+  const weekPeriodHtml = weekPeriod
+    ? `<span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;color:${OTUS.textLight};letter-spacing:0.3px;">${esc(weekPeriod)}</span>`
+    : '';
+
+  // Header layout: two-column if image exists, single-column otherwise
+  const hasImage = !!projectImageBase64;
+  const imageHtml = _generateProjectImageHtml(projectImageBase64, cleanedProject);
+
+  let heroContent;
+  if (hasImage) {
+    heroContent = `
+                            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                                <tr>
+                                    <td style="vertical-align:top;width:60%;">
+                                        <p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:10px;color:${OTUS.orange};text-transform:uppercase;letter-spacing:2px;font-weight:600;">Cliente</p>
+                                        <p style="margin:6px 0 0;font-family:'Montserrat',sans-serif;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;line-height:1.15;">${esc(cleanedSubtitle)}</p>
+                                        <p style="margin:16px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:2px;">Projeto</p>
+                                        <p style="margin:4px 0 0;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:500;color:rgba(255,255,255,0.85);">${esc(cleanedProject)}</p>
+                                        <table cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
+                                            <tr>
+                                                <td style="background:${OTUS.orange};padding:7px 18px;border-radius:20px;">
+                                                    <span style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:${OTUS.black};text-transform:uppercase;letter-spacing:0.8px;">${esc(reportType)}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                    <td style="vertical-align:middle;width:40%;text-align:right;">
+                                        ${imageHtml}
+                                    </td>
+                                </tr>
+                            </table>`;
+  } else {
+    heroContent = `
+                                        <p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:10px;color:${OTUS.orange};text-transform:uppercase;letter-spacing:2px;font-weight:600;">Cliente</p>
+                                        <p style="margin:6px 0 0;font-family:'Montserrat',sans-serif;font-size:28px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;line-height:1.15;">${esc(cleanedSubtitle)}</p>
+                                        <p style="margin:16px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:2px;">Projeto</p>
+                                        <p style="margin:4px 0 0;font-family:'Montserrat',sans-serif;font-size:16px;font-weight:500;color:rgba(255,255,255,0.85);">${esc(cleanedProject)}</p>
+                                        <table cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
+                                            <tr>
+                                                <td style="background:${OTUS.orange};padding:7px 18px;border-radius:20px;">
+                                                    <span style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:${OTUS.black};text-transform:uppercase;letter-spacing:0.8px;">${esc(reportType)}</span>
+                                                </td>
+                                            </tr>
+                                        </table>`;
+  }
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relat\u00f3rio - ${esc(projectName)}</title>
+    <title>Relat\u00f3rio - ${esc(cleanedProject)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
@@ -1117,11 +1184,11 @@ function _generateBaseHtml({
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${OTUS.grayLight};">
         <tr>
             <td align="center" style="padding:40px 20px;">
-                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:620px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:620px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
 
                     <!-- BARRA SUPERIOR BRANCA COM LOGO -->
                     <tr>
-                        <td style="background:#ffffff;padding:20px 32px;border-bottom:3px solid ${OTUS.orange};">
+                        <td style="background:#ffffff;padding:18px 32px;border-bottom:2px solid ${OTUS.orange};">
                             <table cellpadding="0" cellspacing="0" border="0" width="100%">
                                 <tr>
                                     <td style="vertical-align:middle;">
@@ -1129,49 +1196,24 @@ function _generateBaseHtml({
                                     </td>
                                     <td align="right" style="vertical-align:middle;">
                                         <span style="font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.textLight};">${esc(date)}</span>
+                                        ${weekPeriodHtml ? `<br>${weekPeriodHtml}` : ''}
                                     </td>
                                 </tr>
                             </table>
                         </td>
                     </tr>
 
-                    <!-- HEADER HERO COM INFORMACOES -->
+                    <!-- HEADER HERO -->
                     <tr>
                         <td style="background:linear-gradient(135deg, ${OTUS.black} 0%, #2d2d2d 100%);padding:32px;">
-                            <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                                <tr>
-                                    <!-- Coluna Esquerda: Informacoes -->
-                                    <td style="vertical-align:top;width:60%;">
-                                        <!-- Cliente -->
-                                        <p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:10px;color:${OTUS.orange};text-transform:uppercase;letter-spacing:2px;font-weight:600;">Cliente</p>
-                                        <p style="margin:4px 0 0;font-family:'Montserrat',sans-serif;font-size:28px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;line-height:1.1;">${esc(subtitle)}</p>
-
-                                        <!-- Projeto -->
-                                        <p style="margin:20px 0 0;font-family:'Source Sans Pro',sans-serif;font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:2px;">Projeto</p>
-                                        <p style="margin:4px 0 0;font-family:'Montserrat',sans-serif;font-size:16px;font-weight:500;color:rgba(255,255,255,0.9);">${esc(projectName)}</p>
-
-                                        <!-- Tipo de Relatorio -->
-                                        <table cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
-                                            <tr>
-                                                <td style="background:${OTUS.orange};padding:8px 16px;border-radius:20px;">
-                                                    <span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;color:${OTUS.black};text-transform:uppercase;letter-spacing:0.5px;">${esc(reportType)}</span>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                    <!-- Coluna Direita: Espaco para imagem -->
-                                    <td style="vertical-align:middle;width:40%;text-align:right;">
-                                        ${_generateProjectImageHtml(projectImageBase64, projectName)}
-                                    </td>
-                                </tr>
-                            </table>
+                            ${heroContent}
                         </td>
                     </tr>
 
                     <!-- SAUDACAO -->
                     <tr>
-                        <td style="padding:24px 40px;">
-                            <p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:15px;color:${OTUS.text};line-height:1.7;">${greeting}</p>
+                        <td style="padding:28px 40px 20px;">
+                            <p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:16px;color:${OTUS.text};line-height:1.7;">${greeting}</p>
                         </td>
                     </tr>
 
@@ -1186,15 +1228,22 @@ function _generateBaseHtml({
 
                     <!-- ENCERRAMENTO -->
                     <tr>
-                        <td style="padding:0 40px 32px;">
+                        <td style="padding:0 40px 28px;">
                             <p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:14px;color:${OTUS.textLight};line-height:1.7;">Fico \u00e0 disposi\u00e7\u00e3o para esclarecimentos.</p>
                         </td>
                     </tr>
 
                     <!-- RODAPE -->
                     <tr>
-                        <td style="padding:20px 32px;background:${OTUS.grayLight};border-top:1px solid #e0e0e0;">
+                        <td style="padding:20px 32px;background:${OTUS.grayLight};border-top:1px solid ${OTUS.grayMuted};">
                             ${footerButtons}
+                        </td>
+                    </tr>
+
+                    <!-- ASSINATURA OTUS -->
+                    <tr>
+                        <td align="center" style="padding:12px 32px 16px;background:${OTUS.grayLight};">
+                            <span style="font-family:'Montserrat',sans-serif;font-size:10px;color:${OTUS.textMuted};letter-spacing:0.5px;">Gerado pela Plataforma Otus</span>
                         </td>
                     </tr>
 
@@ -1246,7 +1295,19 @@ export function generateHtml(processedData, options = {}) {
   const projectId = processedData.projectId || '';
   const scheduleDays = processedData.scheduleDays || 15;
 
-  const todayStr = formatDateFull(new Date());
+  const now = new Date();
+  const todayStr = formatDateFull(now);
+
+  // Compute week number and period (Mon-Fri of current week)
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  const oneJan = new Date(now.getFullYear(), 0, 1);
+  const weekNum = Math.ceil(((now - oneJan) / 86400000 + oneJan.getDay()) / 7);
+  const weekPeriod = `Semana ${weekNum} | ${formatDateShort(monday)} - ${formatDateShort(friday)}`;
 
   const sm = processedData.smartsheet || {};
   const cf = processedData.construflow || {};
@@ -1318,11 +1379,11 @@ export function generateHtml(processedData, options = {}) {
     projectName,
     subtitle: clientName,
     date: todayStr,
+    weekPeriod,
     greeting: 'Prezados,<br>Segue o status atualizado do projeto para esta semana.',
     sections: clientSections,
     showDashboardButton: !hideDashboard,
     projectId,
-    headerColor: '#0f172a',
     reportType: 'Relat\u00f3rio Cliente',
     projectImageBase64,
     ganttUrl,
@@ -1350,6 +1411,7 @@ export function generateHtml(processedData, options = {}) {
     projectName,
     subtitle: clientName,
     date: todayStr,
+    weekPeriod,
     greeting: 'Boa tarde, pessoal,<br>Segue o status do projeto para esta semana.',
     sections: [
       {
@@ -1376,7 +1438,6 @@ export function generateHtml(processedData, options = {}) {
     ],
     showDashboardButton: false,
     projectId,
-    headerColor: '#1e293b',
     reportType: 'Relat\u00f3rio Projetistas',
     projectImageBase64,
     ganttUrl,
@@ -1385,6 +1446,77 @@ export function generateHtml(processedData, options = {}) {
   });
 
   return { clientHtml, teamHtml };
+}
+
+// ---------------------------------------------------------------------------
+// Fetch image from Google Drive as base64 data URI
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts a Google Drive file ID from various URL formats.
+ * Supports:
+ *   - https://drive.google.com/file/d/FILE_ID/view
+ *   - https://drive.google.com/open?id=FILE_ID
+ *   - https://drive.google.com/uc?id=FILE_ID
+ *   - Raw file ID (alphanumeric string 20+ chars)
+ */
+function extractDriveFileId(url) {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(trimmed)) return trimmed;
+  const fileMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return fileMatch[1];
+  const idMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch) return idMatch[1];
+  const dMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (dMatch) return dMatch[1];
+  return null;
+}
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+/**
+ * Fetches an image from Google Drive and returns it as a base64 data URI.
+ *
+ * @param {string} driveUrl - Google Drive URL or file ID
+ * @returns {Promise<string|null>} base64 data URI or null on failure
+ */
+export async function fetchDriveImageAsBase64(driveUrl) {
+  const fileId = extractDriveFileId(driveUrl);
+  if (!fileId) {
+    console.warn('[WeeklyReport] Não foi possível extrair file ID da URL da capa:', driveUrl);
+    return null;
+  }
+
+  const { google } = await import('googleapis');
+  const path = await import('path');
+
+  const keyFile = path.resolve(process.cwd(), process.env.GOOGLE_APPLICATION_CREDENTIALS || './service-account-key.json');
+  const auth = new google.auth.GoogleAuth({
+    keyFile,
+    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+  });
+  const drive = google.drive({ version: 'v3', auth });
+
+  // Get file metadata (mimeType + size)
+  const meta = await drive.files.get({ fileId, fields: 'mimeType,size', supportsAllDrives: true });
+  const mimeType = meta.data.mimeType || 'image/png';
+  const size = parseInt(meta.data.size || '0', 10);
+
+  if (size > MAX_IMAGE_SIZE) {
+    console.warn(`[WeeklyReport] Imagem da capa muito grande (${(size / 1024 / 1024).toFixed(1)}MB) — pulando`);
+    return null;
+  }
+
+  // Download file content
+  const response = await drive.files.get(
+    { fileId, alt: 'media', supportsAllDrives: true },
+    { responseType: 'arraybuffer' },
+  );
+
+  const buffer = Buffer.from(response.data);
+  const base64 = buffer.toString('base64');
+  return `data:${mimeType};base64,${base64}`;
 }
 
 // ---------------------------------------------------------------------------
