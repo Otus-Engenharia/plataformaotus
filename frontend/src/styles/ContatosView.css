@@ -830,6 +830,7 @@
 /* Barra de ações para leaders (não-admin) */
 .contatos-leader-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 1rem;
 }

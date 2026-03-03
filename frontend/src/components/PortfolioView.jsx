@@ -28,7 +28,7 @@ import StatusDropdown, { getStatusColor } from './StatusDropdown';
 // Colunas editaveis (apenas na vista 'info')
 const EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
 // Colunas editaveis por lideres (sem 'lider' por seguranca)
-const LEADER_EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time'];
+const LEADER_EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
 
 function PortfolioView() {
   const { isPrivileged, hasFullAccess, canEditPortfolio } = useAuth();
@@ -191,6 +191,7 @@ function PortfolioView() {
       if (!row || typeof row !== 'object') return false;
       if (!showFinalizedProjects && isFinalizedStatus(row.status)) return false;
       if (!showPausedProjects && isPausedStatus(row.status)) return false;
+      if (showAIniciar && !isAIniciarStatus(row.status)) return false;
       if (!showAIniciar && isAIniciarStatus(row.status)) return false;
       return !row.nome_time || row.nome_time === '-';
     }).length;
@@ -202,6 +203,7 @@ function PortfolioView() {
       if (!row || typeof row !== 'object') return false;
       if (!showFinalizedProjects && isFinalizedStatus(row.status)) return false;
       if (!showPausedProjects && isPausedStatus(row.status)) return false;
+      if (showAIniciar && !isAIniciarStatus(row.status)) return false;
       if (!showAIniciar && isAIniciarStatus(row.status)) return false;
       return !row.lider || row.lider === '-';
     }).length;
@@ -431,8 +433,13 @@ function PortfolioView() {
       });
     }
 
-    // Filtro por projetos a iniciar
-    if (!showAIniciar) {
+    // Filtro por projetos a iniciar (exclusivo: quando ON mostra SOMENTE a iniciar)
+    if (showAIniciar) {
+      filtered = filtered.filter(row => {
+        if (!row || typeof row !== 'object') return false;
+        return isAIniciarStatus(row.status);
+      });
+    } else {
       filtered = filtered.filter(row => {
         if (!row || typeof row !== 'object') return false;
         return !isAIniciarStatus(row.status);
@@ -915,7 +922,7 @@ function PortfolioView() {
                   onChange={(e) => setShowAIniciar(e.target.checked)}
                 />
                 <span className="toggle-slider"></span>
-                <span className="toggle-label">Mostrar A Iniciar <span className="toggle-count">{aIniciarCount}</span></span>
+                <span className="toggle-label">Somente A Iniciar <span className="toggle-count">{aIniciarCount}</span></span>
               </label>
             </div>
 

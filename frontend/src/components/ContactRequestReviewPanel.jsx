@@ -14,6 +14,7 @@ const TYPE_LABELS = {
   novo_contato: 'Novo Contato',
   editar_contato: 'Editar Contato',
   nova_empresa: 'Nova Empresa',
+  nova_disciplina: 'Nova Disciplina',
 };
 
 function ContactRequestReviewPanel() {
@@ -141,6 +142,24 @@ function ContactRequestReviewPanel() {
         <div className="cr-payload">
           <div className="cr-payload-row"><span className="cr-label">Nome:</span> {payload.name}</div>
           {payload.company_type && <div className="cr-payload-row"><span className="cr-label">Tipo:</span> {payload.company_type}</div>}
+          {payload.discipline_names && payload.discipline_names.length > 0 && (
+            <div className="cr-payload-row">
+              <span className="cr-label">Disciplinas:</span>
+              <span className="cr-discipline-chips">
+                {payload.discipline_names.map((name, i) => (
+                  <span key={i} className="cr-discipline-chip">{name}</span>
+                ))}
+              </span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (req.request_type === 'nova_disciplina') {
+      return (
+        <div className="cr-payload">
+          <div className="cr-payload-row"><span className="cr-label">Nome:</span> {payload.name}</div>
         </div>
       );
     }
@@ -180,6 +199,7 @@ function ContactRequestReviewPanel() {
           <option value="novo_contato">Novo Contato</option>
           <option value="editar_contato">Editar Contato</option>
           <option value="nova_empresa">Nova Empresa</option>
+          <option value="nova_disciplina">Nova Disciplina</option>
         </select>
       </div>
 

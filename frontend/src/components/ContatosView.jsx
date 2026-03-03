@@ -11,7 +11,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
-import ContactRequestReviewPanel from './ContactRequestReviewPanel';
 import '../styles/ContatosView.css';
 import '../styles/ContactRequests.css';
 import { formatPhoneDisplay } from '../utils/phone-utils';
@@ -76,18 +75,6 @@ const PendingAlert = ({ tooltip }) => (
 
 function ContatosView() {
   const { hasFullAccess, user } = useAuth();
-  const [activeTab, setActiveTab] = useState('diretorio');
-  const [pendingRequestCount, setPendingRequestCount] = useState(0);
-
-  // Buscar contagem de pendentes para a badge da tab
-  useEffect(() => {
-    if (!hasFullAccess) return;
-    axios.get(`${API_URL}/api/contact-requests/pending-count`, { withCredentials: true })
-      .then(res => {
-        if (res.data.success) setPendingRequestCount(res.data.data.count || 0);
-      })
-      .catch(() => {});
-  }, [hasFullAccess, activeTab]);
 
   // Estados dos dados
   const [dados, setDados] = useState([]);
@@ -120,7 +107,7 @@ function ContatosView() {
 
   // Estado para solicitações (não-admin)
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestForm, setRequestForm] = useState({ name: '', email: '', phone: '', position: '', company_name: '' });
+  const [requestForm, setRequestForm] = useState({ discipline_id: '', company_id: '', name: '', email: '', phone: '', position: '' });
   const [editingContactForRequest, setEditingContactForRequest] = useState(null);
   const [savingRequest, setSavingRequest] = useState(false);
   const [requestToast, setRequestToast] = useState(null);
@@ -129,6 +116,9 @@ function ContatosView() {
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [companyForm, setCompanyForm] = useState({ name: '' });
   const [savingCompanyRequest, setSavingCompanyRequest] = useState(false);
+  const [simpleRequestModal, setSimpleRequestModal] = useState(null); // 'nova_disciplina' | null
+  const [simpleRequestForm, setSimpleRequestForm] = useState({ name: '' });
+  const [savingSimpleRequest, setSavingSimpleRequest] = useState(false);
 
   // Buscar minhas solicitações (para não-admin)
   const fetchMyRequests = useCallback(async () => {
@@ -151,7 +141,7 @@ function ContatosView() {
   // Solicitar novo contato (para não-admin)
   const handleRequestNewContact = () => {
     setEditingContactForRequest(null);
-    setRequestForm({ name: '', email: '', phone: '', position: '', company_name: '' });
+    setRequestForm({ discipline_id: '', company_id: '', name: '', email: '', phone: '', position: '' });
     setShowRequestModal(true);
   };
 
@@ -202,9 +192,16 @@ function ContatosView() {
       alert('Nome é obrigatório');
       return;
     }
+    if (!editingContactForRequest && !requestForm.discipline_id) {
+      alert('Selecione uma disciplina');
+      return;
+    }
     setSavingRequest(true);
     try {
-      const payload = editingContactForRequest
+      const selectedDiscipline = disciplinas.find(d => String(d.id) === String(requestForm.discipline_id));
+      const selectedCompany = empresas.find(e => String(e.id) === String(requestForm.company_id));
+
+      const requestPayload = editingContactForRequest
         ? {
             request_type: 'editar_contato',
             target_contact_id: editingContactForRequest.id,
@@ -215,8 +212,13 @@ function ContatosView() {
                 phone: editingContactForRequest.phone || '',
                 position: editingContactForRequest.position || '',
               },
-              new_values: requestForm,
-              changed_fields: Object.keys(requestForm).filter(
+              new_values: {
+                name: requestForm.name,
+                email: requestForm.email,
+                phone: requestForm.phone,
+                position: requestForm.position,
+              },
+              changed_fields: ['name', 'email', 'phone', 'position'].filter(
                 k => requestForm[k] !== (editingContactForRequest[k] || '')
               ),
             },
@@ -224,15 +226,18 @@ function ContatosView() {
         : {
             request_type: 'novo_contato',
             payload: {
+              discipline_id: requestForm.discipline_id,
+              discipline_name: selectedDiscipline?.discipline_name || '',
+              company_id: requestForm.company_id || null,
+              company_name: selectedCompany?.name || '',
               name: requestForm.name,
               email: requestForm.email,
               phone: requestForm.phone,
               position: requestForm.position,
-              ...(requestForm.company_name && { company_name: requestForm.company_name }),
             },
           };
 
-      await axios.post(`${API_URL}/api/contact-requests`, payload, { withCredentials: true });
+      await axios.post(`${API_URL}/api/contact-requests`, requestPayload, { withCredentials: true });
       setShowRequestModal(false);
       setEditingContactForRequest(null);
       setRequestToast('Solicitação enviada com sucesso!');
@@ -243,6 +248,30 @@ function ContatosView() {
       alert('Erro ao enviar solicitação. Tente novamente.');
     } finally {
       setSavingRequest(false);
+    }
+  };
+
+  // Solicitar nova disciplina (modal simples)
+  const handleSubmitSimpleRequest = async () => {
+    if (!simpleRequestForm.name.trim()) {
+      alert('Nome é obrigatório');
+      return;
+    }
+    setSavingSimpleRequest(true);
+    try {
+      await axios.post(`${API_URL}/api/contact-requests`, {
+        request_type: simpleRequestModal,
+        payload: { name: simpleRequestForm.name.trim() },
+      }, { withCredentials: true });
+      setSimpleRequestModal(null);
+      setRequestToast('Solicitação de nova disciplina enviada!');
+      setTimeout(() => setRequestToast(null), 4000);
+      fetchMyRequests();
+    } catch (err) {
+      console.error('Erro ao enviar solicitação:', err);
+      alert('Erro ao enviar solicitação. Tente novamente.');
+    } finally {
+      setSavingSimpleRequest(false);
     }
   };
 
@@ -392,37 +421,18 @@ function ContatosView() {
             </svg>
             Solicitar Nova Empresa
           </button>
-        </div>
-      )}
-
-      {/* Tabs: Diretório | Solicitações (apenas para admin) */}
-      {hasFullAccess && (
-        <div className="contatos-tabs">
-          <button
-            className={`contatos-tab ${activeTab === 'diretorio' ? 'contatos-tab--active' : ''}`}
-            onClick={() => setActiveTab('diretorio')}
-          >
-            Diretório
-          </button>
-          <button
-            className={`contatos-tab ${activeTab === 'solicitacoes' ? 'contatos-tab--active' : ''}`}
-            onClick={() => setActiveTab('solicitacoes')}
-          >
-            Solicitações
-            {pendingRequestCount > 0 && (
-              <span className="contatos-tab-badge">{pendingRequestCount}</span>
-            )}
+          <button className="contatos-leader-btn contatos-leader-btn--discipline" onClick={() => { setSimpleRequestForm({ name: '' }); setSimpleRequestModal('nova_disciplina'); }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+            Solicitar Nova Disciplina
           </button>
         </div>
       )}
 
-      {/* Tab: Solicitações (painel de revisão) */}
-      {hasFullAccess && activeTab === 'solicitacoes' && (
-        <ContactRequestReviewPanel />
-      )}
-
-      {/* Tab: Diretório (conteúdo existente) */}
-      {activeTab === 'diretorio' && (<>
+      {/* Conteúdo do diretório */}
+      {(<>
 
 
       {/* Filtros */}
@@ -860,6 +870,39 @@ function ContatosView() {
               </button>
             </div>
             <div className="ecli-modal-body">
+              {/* Passo 1: Disciplina (apenas para novo contato) */}
+              {!editingContactForRequest && (
+                <div className="ecli-form-group">
+                  <label>Disciplina <span className="ecli-required">*</span></label>
+                  <select
+                    value={requestForm.discipline_id}
+                    onChange={e => setRequestForm({ ...requestForm, discipline_id: e.target.value })}
+                  >
+                    <option value="">Selecione a disciplina...</option>
+                    {disciplinas.map(d => (
+                      <option key={d.id} value={d.id}>{d.discipline_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Passo 2: Empresa (apenas para novo contato) */}
+              {!editingContactForRequest && (
+                <div className="ecli-form-group">
+                  <label>Empresa</label>
+                  <select
+                    value={requestForm.company_id}
+                    onChange={e => setRequestForm({ ...requestForm, company_id: e.target.value })}
+                  >
+                    <option value="">Selecione a empresa...</option>
+                    {empresas.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Passo 3: Dados do contato */}
               <div className="ecli-form-group">
                 <label>Nome <span className="ecli-required">*</span></label>
                 <input
@@ -898,23 +941,6 @@ function ContatosView() {
                   placeholder="Cargo ou função"
                 />
               </div>
-              {!editingContactForRequest && (
-                <div className="ecli-form-group">
-                  <label>Empresa</label>
-                  <input
-                    type="text"
-                    list="contatos-empresas-list"
-                    value={requestForm.company_name}
-                    onChange={e => setRequestForm({ ...requestForm, company_name: e.target.value })}
-                    placeholder="Nome da empresa"
-                  />
-                  <datalist id="contatos-empresas-list">
-                    {empresas.map(e => (
-                      <option key={e.id} value={e.name} />
-                    ))}
-                  </datalist>
-                </div>
-              )}
             </div>
             <div className="ecli-modal-footer">
               <button className="ecli-btn-cancel" onClick={() => setShowRequestModal(false)}>Cancelar</button>
@@ -953,6 +979,43 @@ function ContatosView() {
               <button className="ecli-btn-cancel" onClick={() => setShowCompanyModal(false)}>Cancelar</button>
               <button className="ecli-btn-request" onClick={handleSubmitCompanyRequest} disabled={savingCompanyRequest}>
                 {savingCompanyRequest ? 'Enviando...' : 'Solicitar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal simples para nova disciplina */}
+      {simpleRequestModal && (
+        <div className="ecli-modal-overlay">
+          <div className="ecli-modal">
+            <div className="ecli-modal-header">
+              <h3>Solicitar Nova Disciplina</h3>
+              <button className="ecli-modal-close" onClick={() => setSimpleRequestModal(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ecli-modal-body">
+              <div className="ecli-form-group">
+                <label>
+                  Nome da Disciplina
+                  {' '}<span className="ecli-required">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={simpleRequestForm.name}
+                  onChange={e => setSimpleRequestForm({ ...simpleRequestForm, name: e.target.value })}
+                  placeholder="Ex: Geotecnia"
+                />
+              </div>
+            </div>
+            <div className="ecli-modal-footer">
+              <button className="ecli-btn-cancel" onClick={() => setSimpleRequestModal(null)}>Cancelar</button>
+              <button className="ecli-btn-request" onClick={handleSubmitSimpleRequest} disabled={savingSimpleRequest}>
+                {savingSimpleRequest ? 'Enviando...' : 'Solicitar'}
               </button>
             </div>
           </div>

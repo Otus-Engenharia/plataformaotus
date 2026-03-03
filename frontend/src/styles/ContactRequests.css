@@ -153,6 +153,29 @@
   color: #3730A3;
 }
 
+.cr-type-badge--nova_disciplina {
+  background: #F3E8FF;
+  color: #6B21A8;
+}
+
+/* --- Discipline Chips (nova_empresa review card) --- */
+.cr-discipline-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.cr-discipline-chip {
+  display: inline-block;
+  background: #F3E8FF;
+  color: #6B21A8;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
 /* --- Status Badges --- */
 .cr-status-badge {
   font-size: 11px;

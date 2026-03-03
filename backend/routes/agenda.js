@@ -65,7 +65,23 @@ function createRoutes(requireAuth, logAction) {
       const listTasks = new ListAgendaTasks(repository);
       const tasks = await listTasks.execute({ userId, startDate, endDate });
 
-      res.json({ success: true, data: tasks });
+      // Enriquecer com position do standard_agenda_task (para color coding no frontend)
+      const satIds = [...new Set(tasks.map(t => t.standard_agenda_task).filter(Boolean))];
+      let positionMap = {};
+      if (satIds.length > 0) {
+        const supabase = getSupabaseClient();
+        const { data: sats } = await supabase
+          .from('standard_agenda_task')
+          .select('id, position')
+          .in('id', satIds);
+        positionMap = Object.fromEntries((sats || []).map(s => [s.id, s.position]));
+      }
+      const enrichedData = tasks.map(t => ({
+        ...t,
+        position: positionMap[t.standard_agenda_task] || null,
+      }));
+
+      res.json({ success: true, data: enrichedData });
     } catch (error) {
       console.error('❌ Erro ao buscar tarefas de agenda:', error);
       res.status(500).json({

@@ -1,9 +1,8 @@
 /**
  * Componente: Painel Equipe do Cliente
  *
- * Duas seções:
- * 1. Contatos do cliente no projeto (baseado na empresa do portfólio)
- * 2. Cadastro de disciplinas (migrado do antigo "Cadastro da Equipe")
+ * Contatos do cliente no projeto (baseado na empresa do portfólio).
+ * Admin/Director salva direto; Leaders criam solicitações.
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -13,25 +12,8 @@ import { useAuth } from '../contexts/AuthContext';
 import '../styles/EquipeClientePanel.css';
 import { formatPhoneDisplay, stripNonDigits } from '../utils/phone-utils';
 
-const PendingAlert = ({ tooltip }) => (
-  <span className="ecli-pending-alert" title={tooltip || "Empresa com cadastro pendente"}>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2L2 22h20L12 2z" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
-      <path d="M12 9v5" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="12" cy="17" r="1" fill="#1F2937" />
-    </svg>
-  </span>
-);
-
 function EquipeClientePanel({
-  construflowId,
   projectCode,
-  disciplinas = [],
-  empresas = [],
-  contatos = [],
-  equipe = [],
-  onEquipeChange,
-  onCrossRefChange
 }) {
   const { hasFullAccess, user } = useAuth();
 
@@ -39,24 +21,12 @@ function EquipeClientePanel({
   const [clientData, setClientData] = useState(null);
   const [clientLoading, setClientLoading] = useState(false);
 
-  // --- Estado solicitações do usuário ---
-  const [myRequests, setMyRequests] = useState([]);
-  const [showMyRequests, setShowMyRequests] = useState(false);
-  const [requestSuccess, setRequestSuccess] = useState(null);
-
   // --- Estado modal contato (criar/editar) ---
   const [showContactModal, setShowContactModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', position: '' });
   const [savingContact, setSavingContact] = useState(false);
-
-  // --- Estado modal disciplina (migrado do EquipeView) ---
-  const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [formData, setFormData] = useState({
-    discipline_id: '', company_id: '', contact_id: '',
-    discipline_detail: '', email: '', phone: '', position: ''
-  });
+  const [requestSuccess, setRequestSuccess] = useState(null);
 
   // Busca contatos do cliente
   const fetchClientContacts = useCallback(async () => {
@@ -109,24 +79,6 @@ function EquipeClientePanel({
     setShowContactModal(true);
   };
 
-  // Buscar minhas solicitações
-  const fetchMyRequests = useCallback(async () => {
-    if (!user?.email) return;
-    try {
-      const response = await axios.get(`${API_URL}/api/contact-requests`, {
-        params: { requester_email: user.email },
-        withCredentials: true
-      });
-      setMyRequests(response.data.data || []);
-    } catch (err) {
-      console.error('Erro ao buscar solicitações:', err);
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    if (!hasFullAccess) fetchMyRequests();
-  }, [hasFullAccess, fetchMyRequests]);
-
   // Salvar contato (criar ou atualizar)
   const handleSaveContact = async () => {
     if (!contactForm.name.trim()) {
@@ -136,7 +88,6 @@ function EquipeClientePanel({
     setSavingContact(true);
     try {
       if (hasFullAccess) {
-        // Admin/Director: salva direto
         if (editingContact) {
           await axios.put(`${API_URL}/api/projetos/equipe/contatos/${editingContact.id}`, contactForm, { withCredentials: true });
         } else {
@@ -148,7 +99,6 @@ function EquipeClientePanel({
         setShowContactModal(false);
         fetchClientContacts();
       } else {
-        // Leader/User: cria solicitação
         const requestPayload = editingContact
           ? {
               request_type: 'editar_contato',
@@ -181,7 +131,6 @@ function EquipeClientePanel({
         setShowContactModal(false);
         setRequestSuccess(editingContact ? 'Solicitação de edição enviada!' : 'Solicitação de novo contato enviada!');
         setTimeout(() => setRequestSuccess(null), 4000);
-        fetchMyRequests();
       }
     } catch (err) {
       console.error('Erro ao salvar contato:', err);
@@ -197,7 +146,6 @@ function EquipeClientePanel({
 
     try {
       if (isAssigned) {
-        // Encontra o registro de atribuição
         const record = clientData.assignedRecords?.find(r => r.contact_id === contact.id);
         if (record) {
           await axios.delete(`${API_URL}/api/projetos/equipe-cliente/assign/${record.id}`, {
@@ -216,97 +164,20 @@ function EquipeClientePanel({
     }
   };
 
-  // === FUNÇÕES DO CADASTRO DE DISCIPLINAS (migradas do EquipeView) ===
-
-  const handleAdd = () => {
-    setEditingItem(null);
-    setFormData({
-      discipline_id: '', company_id: '', contact_id: '',
-      discipline_detail: '', email: '', phone: '', position: ''
-    });
-    setShowModal(true);
-  };
-
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setFormData({
-      discipline_id: item.discipline_id || '',
-      company_id: item.company_id || '',
-      contact_id: item.contact_id || '',
-      discipline_detail: item.discipline_detail || '',
-      email: item.email || item.contact?.email || '',
-      phone: item.phone || item.contact?.phone || '',
-      position: item.position || item.contact?.position || ''
-    });
-    setShowModal(true);
-  };
-
-  const handleContactChange = (contactId) => {
-    const contact = contatos.find(c => String(c.id) === String(contactId));
-    setFormData(prev => ({
-      ...prev,
-      contact_id: contactId,
-      email: contact?.email || '',
-      phone: contact?.phone || '',
-      position: contact?.position || ''
-    }));
-  };
-
-  const handleSave = async () => {
-    if (!formData.discipline_id) {
-      alert('Selecione uma disciplina');
-      return;
-    }
-    try {
-      if (editingItem) {
-        await axios.put(`${API_URL}/api/projetos/equipe/${editingItem.id}`, {
-          discipline_id: formData.discipline_id,
-          contact_id: formData.contact_id,
-          discipline_detail: formData.discipline_detail,
-          email: formData.email,
-          phone: formData.phone,
-          position: formData.position
-        }, { withCredentials: true });
-      } else {
-        await axios.post(`${API_URL}/api/projetos/equipe`, {
-          ...formData,
-          construflow_id: construflowId,
-          project_code: projectCode
-        }, { withCredentials: true });
-      }
-      setShowModal(false);
-      if (onEquipeChange) onEquipeChange();
-      if (onCrossRefChange) onCrossRefChange();
-    } catch (err) {
-      console.error('Erro ao salvar:', err);
-      const msg = err.response?.data?.error || err.message || 'Erro ao salvar.';
-      alert(msg);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Desativar esta disciplina da equipe?')) return;
-    try {
-      await axios.delete(`${API_URL}/api/projetos/equipe/${id}`, { withCredentials: true });
-      if (onEquipeChange) onEquipeChange();
-      if (onCrossRefChange) onCrossRefChange();
-    } catch (err) {
-      console.error('Erro ao desativar:', err);
-    }
-  };
-
-  const getFilteredContacts = () => {
-    if (!formData.company_id) return [];
-    return contatos.filter(c => String(c.company_id) === String(formData.company_id));
-  };
-
-  const getDisciplineName = (id) => disciplinas.find(d => d.id === id)?.discipline_name || '-';
-  const getCompanyName = (id) => empresas.find(e => e.id === id)?.name || '-';
-  const getSelectedCompany = () => empresas.find(e => e.id === formData.company_id);
-
   return (
     <div className="ecli-panel">
-      {/* === SEÇÃO 1: CONTATOS DO CLIENTE === */}
+      {/* Toast de sucesso */}
+      {requestSuccess && (
+        <div className="ecli-request-toast">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <span>{requestSuccess}</span>
+        </div>
+      )}
+
+      {/* === CONTATOS DO CLIENTE === */}
       <div className="ecli-section">
         <div className="ecli-section-header">
           <div className="ecli-section-header-left">
@@ -404,188 +275,6 @@ function EquipeClientePanel({
         )}
       </div>
 
-      {/* Toast de sucesso para solicitações */}
-      {requestSuccess && (
-        <div className="ecli-request-toast">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-          <span>{requestSuccess}</span>
-        </div>
-      )}
-
-      {/* === SEÇÃO: MINHAS SOLICITAÇÕES (apenas para não-admin) === */}
-      {!hasFullAccess && (
-        <div className="ecli-section ecli-requests-section">
-          <button
-            className="ecli-expandable-header"
-            onClick={() => setShowMyRequests(!showMyRequests)}
-          >
-            <div className="ecli-section-header-left">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-              <span>Minhas Solicitações</span>
-              {myRequests.filter(r => r.status === 'pendente').length > 0 && (
-                <span className="ecli-pending-count">
-                  {myRequests.filter(r => r.status === 'pendente').length}
-                </span>
-              )}
-            </div>
-            <svg
-              className={`ecli-expandable-icon ${showMyRequests ? 'expanded' : ''}`}
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
-          {showMyRequests && (
-            <div className="ecli-requests-list">
-              {myRequests.length === 0 ? (
-                <div className="ecli-empty-mini">Nenhuma solicitação enviada.</div>
-              ) : (
-                myRequests.slice(0, 10).map(req => (
-                  <div key={req.id} className={`ecli-request-item ecli-request-item--${req.status}`}>
-                    <div className="ecli-request-item-header">
-                      <span className={`ecli-request-badge ecli-request-badge--${req.request_type}`}>
-                        {req.request_type_label}
-                      </span>
-                      <span className={`ecli-status-badge ecli-status-badge--${req.status}`}>
-                        {req.status === 'pendente' ? 'Pendente' : req.status === 'aprovada' ? 'Aprovada' : 'Rejeitada'}
-                      </span>
-                    </div>
-                    <div className="ecli-request-item-body">
-                      <span className="ecli-request-summary">
-                        {req.request_type === 'novo_contato' && req.payload?.name}
-                        {req.request_type === 'editar_contato' && `Edição: ${req.payload?.new_values?.name || req.payload?.old_values?.name || ''}`}
-                        {req.request_type === 'nova_empresa' && req.payload?.name}
-                      </span>
-                      <span className="ecli-request-date">
-                        {new Date(req.created_at).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    {req.status === 'rejeitada' && req.rejection_reason && (
-                      <div className="ecli-request-rejection">
-                        Motivo: {req.rejection_reason}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Divisor */}
-      <div className="ecli-divider" />
-
-      {/* === SEÇÃO 2: CADASTRO DE DISCIPLINAS === */}
-      <div className="ecli-section">
-        <div className="ecli-section-header">
-          <div className="ecli-section-header-left">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="3" y1="9" x2="21" y2="9" />
-              <line x1="9" y1="21" x2="9" y2="9" />
-            </svg>
-            <h4>Cadastro de Disciplinas</h4>
-            <span className="ecli-count">{equipe.length} {equipe.length === 1 ? 'disciplina' : 'disciplinas'}</span>
-          </div>
-          <button className="ecli-add-btn" onClick={handleAdd}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Adicionar
-          </button>
-        </div>
-
-        <div className="ecli-table-wrapper">
-          <table className="ecli-table">
-            <thead>
-              <tr>
-                <th>Disciplina</th>
-                <th>Empresa</th>
-                <th>Contato</th>
-                <th>Cargo</th>
-                <th>Email</th>
-                <th>Telefone</th>
-                <th>Detalhes</th>
-                <th className="ecli-th-actions"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {equipe.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="ecli-empty-row">
-                    Nenhuma disciplina cadastrada
-                  </td>
-                </tr>
-              ) : (
-                equipe.map(item => {
-                  const email = item.email || item.contact?.email;
-                  const phone = item.phone || item.contact?.phone;
-                  const position = item.position || item.contact?.position;
-                  const hasCompany = !!item.company?.name;
-                  const hasContact = !!item.contact?.name;
-                  const completeness = hasCompany && hasContact ? 'complete' : hasCompany || hasContact ? 'partial' : 'minimal';
-
-                  return (
-                    <tr key={item.id}>
-                      <td>
-                        <div className="ecli-discipline-cell">
-                          <span className={`ecli-dot ecli-dot--${completeness}`} />
-                          <span>{item.discipline?.discipline_name || '-'}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="ecli-company-cell">
-                          <span>{item.company?.name || '-'}</span>
-                          {item.company?.status === 'pendente' && <PendingAlert />}
-                        </div>
-                      </td>
-                      <td>{item.contact?.name || '-'}</td>
-                      <td>{position || '-'}</td>
-                      <td>
-                        {email ? <a href={`mailto:${email}`} className="ecli-link">{email}</a> : '-'}
-                      </td>
-                      <td>
-                        {phone ? <a href={`tel:${phone}`} className="ecli-link">{formatPhoneDisplay(phone)}</a> : '-'}
-                      </td>
-                      <td>
-                        <span className="ecli-detail" title={item.discipline_detail || ''}>
-                          {item.discipline_detail || '-'}
-                        </span>
-                      </td>
-                      <td className="ecli-td-actions">
-                        <button className="ecli-action-btn" onClick={() => handleEdit(item)} title="Editar">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button className="ecli-action-btn ecli-action-btn--danger" onClick={() => handleDelete(item.id)} title="Desativar">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 6h18" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* === MODAL DE CONTATO (criar/editar) === */}
       {showContactModal && (
         <div className="ecli-modal-overlay">
@@ -655,101 +344,8 @@ function EquipeClientePanel({
           </div>
         </div>
       )}
-
-      {/* === MODAL DE DISCIPLINA === */}
-      {showModal && (
-        <div className="ecli-modal-overlay">
-          <div className="ecli-modal">
-            <div className="ecli-modal-header">
-              <h3>{editingItem ? 'Editar Membro' : 'Adicionar Membro'}</h3>
-              <button className="ecli-modal-close" onClick={() => setShowModal(false)}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="ecli-modal-body">
-              <div className="ecli-form-group">
-                <label>Disciplina {!editingItem && <span className="ecli-required">*</span>}</label>
-                {editingItem ? (
-                  <div className="ecli-readonly">{getDisciplineName(formData.discipline_id)}</div>
-                ) : (
-                  <select value={formData.discipline_id} onChange={e => setFormData({ ...formData, discipline_id: e.target.value })}>
-                    <option value="">Selecione...</option>
-                    {disciplinas.map(d => <option key={d.id} value={d.id}>{d.discipline_name}</option>)}
-                  </select>
-                )}
-              </div>
-
-              <div className="ecli-form-group">
-                <label>Empresa</label>
-                {editingItem ? (
-                  <div className="ecli-readonly">{getCompanyName(formData.company_id)}</div>
-                ) : (
-                  <select
-                    value={formData.company_id}
-                    onChange={e => setFormData({ ...formData, company_id: e.target.value, contact_id: '', email: '', phone: '', position: '' })}
-                  >
-                    <option value="">Selecione...</option>
-                    {empresas.map(emp => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name} {emp.status === 'pendente' ? '(pendente)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <div className="ecli-form-group">
-                <label>Contato</label>
-                <select
-                  value={formData.contact_id}
-                  onChange={e => handleContactChange(e.target.value)}
-                  disabled={!formData.company_id}
-                >
-                  <option value="">{formData.company_id ? 'Selecione...' : 'Selecione empresa primeiro'}</option>
-                  {getFilteredContacts().map(c => (
-                    <option key={c.id} value={c.id}>{c.name} {c.email ? `(${c.email})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="ecli-form-row">
-                <div className="ecli-form-group">
-                  <label>Email</label>
-                  <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" />
-                </div>
-                <div className="ecli-form-group">
-                  <label>Telefone</label>
-                  <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: stripNonDigits(e.target.value) })} placeholder="00 00000-0000" title="Digite apenas os números, sem parênteses ou traços" />
-                </div>
-              </div>
-
-              <div className="ecli-form-group">
-                <label>Cargo</label>
-                <input type="text" value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} placeholder="Cargo ou função" />
-              </div>
-
-              <div className="ecli-form-group">
-                <label>Detalhes da Disciplina</label>
-                <textarea value={formData.discipline_detail} onChange={e => setFormData({ ...formData, discipline_detail: e.target.value })} placeholder="Informações adicionais..." rows={3} />
-              </div>
-            </div>
-
-            <div className="ecli-modal-footer">
-              <button className="ecli-btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
-              <button className="ecli-btn-save" onClick={handleSave}>{editingItem ? 'Salvar' : 'Adicionar'}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
-// Public method for quick-add from coverage panel
-EquipeClientePanel.handleQuickAdd = null;
 
 export default EquipeClientePanel;

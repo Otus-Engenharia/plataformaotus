@@ -185,7 +185,7 @@ class SupabaseAgendaRepository extends AgendaRepository {
 
     const { data, error } = await this.#supabase
       .from(TASKS_TABLE)
-      .select('id, name, status, agenda_task_id, project_id, projects(name, comercial_name)')
+      .select('id, name, status, priority, due_date, assignee, agenda_task_id, project_id, projects(name, comercial_name)')
       .in('agenda_task_id', agendaTaskIds)
       .order('id', { ascending: true });
 
@@ -197,6 +197,9 @@ class SupabaseAgendaRepository extends AgendaRepository {
       id: row.id,
       name: row.name,
       status: row.status,
+      priority: row.priority || 'média',
+      due_date: row.due_date || null,
+      assignee: row.assignee || null,
       agenda_task_id: row.agenda_task_id,
       project_id: row.project_id,
       project_name: row.projects?.comercial_name || row.projects?.name || null,

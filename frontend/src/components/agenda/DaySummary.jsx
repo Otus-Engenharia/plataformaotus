@@ -2,18 +2,23 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { format, isSameDay, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import axios from 'axios';
+import TodoItemSidebar from './TodoItemSidebar';
 import './DaySummary.css';
+
+// Color coding por tipo de atividade (position)
+const POSITION_BORDER_COLORS = {
+  'compatibilização': '#8b5cf6',
+  'coordenação':      '#3b82f6',
+  'verificação':      '#10b981',
+  'digital':          '#f59e0b',
+  'time bim':         '#ec4899',
+  'otus':             '#eab308',
+};
 
 function formatTime(dateStr) {
   if (!dateStr) return '';
   return format(new Date(dateStr), 'HH:mm');
 }
-
-const PRIORITY_COLORS = {
-  alta: '#ef4444',
-  média: '#f59e0b',
-  baixa: '#22c55e',
-};
 
 function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, refreshKey }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -239,25 +244,59 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
     });
   }, []);
 
-  const handleToggleTodoStatus = useCallback(async (todo) => {
-    const newStatus = todo.status === 'finalizado' ? 'backlog' : 'finalizado';
+  const handleCompleteTodo = useCallback(async (todoId) => {
     try {
       const res = await axios.patch(
-        `/api/agenda/tasks/todos/${todo.id}`,
-        { status: newStatus },
+        `/api/todos/${todoId}/complete`,
+        {},
         { withCredentials: true }
       );
 
       if (res.data.success) {
+        const updated = res.data.data;
         setTodosByTask(prev => {
-          const taskTodos = prev[todo.agenda_task_id] || [];
-          return {
-            ...prev,
-            [todo.agenda_task_id]: taskTodos.map(t =>
-              t.id === todo.id ? { ...t, status: newStatus } : t
-            ),
-          };
+          const newState = { ...prev };
+          for (const taskId of Object.keys(newState)) {
+            newState[taskId] = newState[taskId].map(t =>
+              t.id === todoId ? { ...t, status: updated.status, is_closed: updated.is_closed } : t
+            );
+          }
+          return newState;
         });
+        setUnlinkedTodos(prev =>
+          prev.map(t => t.id === todoId
+            ? { ...t, status: updated.status, is_closed: updated.is_closed }
+            : t
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Erro ao completar ToDo:', err);
+    }
+  }, []);
+
+  const handleUpdateTodo = useCallback(async (todoId, updates) => {
+    try {
+      const res = await axios.put(
+        `/api/todos/${todoId}`,
+        updates,
+        { withCredentials: true }
+      );
+
+      if (res.data.success) {
+        const updated = res.data.data;
+        setTodosByTask(prev => {
+          const newState = { ...prev };
+          for (const taskId of Object.keys(newState)) {
+            newState[taskId] = newState[taskId].map(t =>
+              t.id === todoId ? { ...t, ...updated } : t
+            );
+          }
+          return newState;
+        });
+        setUnlinkedTodos(prev =>
+          prev.map(t => t.id === todoId ? { ...t, ...updated } : t)
+        );
       }
     } catch (err) {
       console.error('Erro ao atualizar ToDo:', err);
@@ -310,6 +349,7 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
                 <div
                   data-task-id={task.id}
                   className={`day-summary__activity-row${hasTodos ? ' has-todos' : ''}${dragOverTaskId === String(task.id) ? ' is-drag-over' : ''}`}
+                  style={{ borderLeftColor: POSITION_BORDER_COLORS[task.position] || 'transparent' }}
                   onClick={() => hasTodos ? toggleExpand(task.id) : (onEventClick && onEventClick(task))}
                 >
                   <div className="day-summary__event-time">
@@ -343,38 +383,19 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
                 </div>
 
                 {isExpanded && (
-                  <ul className="day-summary__todo-list">
-                    {todos.map(todo => {
-                      const isDone = todo.status === 'finalizado';
-                      return (
-                        <li key={todo.id} className={`day-summary__todo-item${isDone ? ' is-done' : ''}`}>
-                          <button
-                            className={`day-summary__todo-check${isDone ? ' is-checked' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleTodoStatus(todo);
-                            }}
-                            title={isDone ? 'Reabrir' : 'Finalizar'}
-                          >
-                            {isDone ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            ) : (
-                              <div className="day-summary__todo-check-empty" />
-                            )}
-                          </button>
-
-                          <div className="day-summary__todo-text">
-                            <span className="day-summary__todo-name">{todo.name}</span>
-                            {todo.project_name && (
-                              <span className="day-summary__todo-project">{todo.project_name}</span>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <div className="day-summary__todo-list">
+                    {todos.map(todo => (
+                      <TodoItemSidebar
+                        key={todo.id}
+                        todo={todo}
+                        isLinked={true}
+                        isDone={todo.status === 'finalizado'}
+                        isOverdue={false}
+                        onToggleComplete={handleCompleteTodo}
+                        onUpdate={handleUpdateTodo}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             );
@@ -404,36 +425,18 @@ function DaySummary({ selectedDay, tasks, onEventClick, onTodoLinked, userId, re
               return d < startOfWeek(selectedDay, { weekStartsOn: 1 }) && !isDone;
             })();
             return (
-              <div
+              <TodoItemSidebar
                 key={todo.id}
-                className={[
-                  'day-summary__unlinked-item',
-                  isDone ? 'day-summary__unlinked-item--done' : '',
-                  isOverdue ? 'day-summary__unlinked-item--overdue' : '',
-                ].filter(Boolean).join(' ')}
+                todo={todo}
+                isLinked={false}
+                isDone={isDone}
+                isOverdue={isOverdue}
+                onToggleComplete={handleCompleteTodo}
+                onUpdate={handleUpdateTodo}
                 draggable={!isDone}
-                onDragStart={!isDone ? (e) => handleDragStart(e, todo.id) : undefined}
-                onDragEnd={!isDone ? handleDragEnd : undefined}
-              >
-                <div
-                  className="day-summary__unlinked-priority"
-                  style={{ background: PRIORITY_COLORS[todo.priority] || '#94a3b8' }}
-                  title={todo.priority}
-                />
-                <div className="day-summary__unlinked-info">
-                  <span className="day-summary__unlinked-name">{todo.name}</span>
-                  <span className="day-summary__unlinked-meta">
-                    {todo.due_date && (
-                      <span className="day-summary__unlinked-date">
-                        {format(new Date(todo.due_date), 'dd/MM')}
-                      </span>
-                    )}
-                    {todo.project_name && (
-                      <span className="day-summary__unlinked-project">{todo.project_name}</span>
-                    )}
-                  </span>
-                </div>
-              </div>
+                onDragStart={(e) => handleDragStart(e, todo.id)}
+                onDragEnd={handleDragEnd}
+              />
             );
           })
         )}

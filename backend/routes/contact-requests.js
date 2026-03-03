@@ -7,7 +7,7 @@
 import express from 'express';
 import { hasFullAccess } from '../auth-config.js';
 import { SupabaseContactChangeRequestRepository } from '../infrastructure/repositories/SupabaseContactChangeRequestRepository.js';
-import { createContact, updateContact, createCompany } from '../supabase.js';
+import { createContact, updateContact, createCompany, createStandardDiscipline } from '../supabase.js';
 import {
   CreateContactChangeRequest,
   ListContactChangeRequests,
@@ -31,6 +31,7 @@ const contactService = {
   createContact,
   updateContact,
   createCompany,
+  createStandardDiscipline,
 };
 
 function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {

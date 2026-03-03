@@ -1,0 +1,712 @@
+/**
+ * Componente: Painel de Projetistas
+ *
+ * Cadastro de disciplinas do projeto (disciplina + empresa + contato).
+ * Extraído da EquipeClientePanel para melhorar a UX.
+ *
+ * - Admin/Director: pode adicionar, editar e desativar diretamente
+ * - Leaders: visualizam a tabela + botões para solicitar novos cadastros
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import { API_URL } from '../api';
+import { useAuth } from '../contexts/AuthContext';
+import '../styles/EquipeClientePanel.css';
+import { formatPhoneDisplay, stripNonDigits } from '../utils/phone-utils';
+
+const PendingAlert = ({ tooltip }) => (
+  <span className="ecli-pending-alert" title={tooltip || "Empresa com cadastro pendente"}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L2 22h20L12 2z" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+      <path d="M12 9v5" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="17" r="1" fill="#1F2937" />
+    </svg>
+  </span>
+);
+
+const REQUEST_TYPE_LABELS = {
+  novo_contato: 'Novo Contato',
+  editar_contato: 'Editar Contato',
+  nova_empresa: 'Nova Empresa',
+  nova_disciplina: 'Nova Disciplina',
+};
+
+function EquipeProjetistasPanel({
+  construflowId,
+  projectCode,
+  disciplinas = [],
+  empresas = [],
+  contatos = [],
+  equipe = [],
+  onEquipeChange,
+  onCrossRefChange
+}) {
+  const { hasFullAccess, user } = useAuth();
+
+  // --- Estado modal disciplina ---
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [formData, setFormData] = useState({
+    discipline_id: '', company_id: '', contact_id: '',
+    discipline_detail: '', email: '', phone: '', position: ''
+  });
+
+  // --- Estado solicitações do usuário ---
+  const [myRequests, setMyRequests] = useState([]);
+  const [showMyRequests, setShowMyRequests] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(null);
+
+  // --- Estado modal de solicitação (para leaders) ---
+  const [requestModalType, setRequestModalType] = useState(null);
+  const [requestFormData, setRequestFormData] = useState({});
+  const [savingRequest, setSavingRequest] = useState(false);
+
+  // Buscar minhas solicitações
+  const fetchMyRequests = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const response = await axios.get(`${API_URL}/api/contact-requests`, {
+        params: { requester_email: user.email },
+        withCredentials: true
+      });
+      setMyRequests(response.data.data || []);
+    } catch (err) {
+      console.error('Erro ao buscar solicitações:', err);
+    }
+  }, [user?.email]);
+
+  useEffect(() => {
+    if (!hasFullAccess) fetchMyRequests();
+  }, [hasFullAccess, fetchMyRequests]);
+
+  // === FUNÇÕES DO CADASTRO DE DISCIPLINAS ===
+
+  const handleAdd = () => {
+    setEditingItem(null);
+    setFormData({
+      discipline_id: '', company_id: '', contact_id: '',
+      discipline_detail: '', email: '', phone: '', position: ''
+    });
+    setShowModal(true);
+  };
+
+  const handleEdit = (item) => {
+    setEditingItem(item);
+    setFormData({
+      discipline_id: item.discipline_id || '',
+      company_id: item.company_id || '',
+      contact_id: item.contact_id || '',
+      discipline_detail: item.discipline_detail || '',
+      email: item.email || item.contact?.email || '',
+      phone: item.phone || item.contact?.phone || '',
+      position: item.position || item.contact?.position || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleContactChange = (contactId) => {
+    const contact = contatos.find(c => String(c.id) === String(contactId));
+    setFormData(prev => ({
+      ...prev,
+      contact_id: contactId,
+      email: contact?.email || '',
+      phone: contact?.phone || '',
+      position: contact?.position || ''
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!formData.discipline_id) {
+      alert('Selecione uma disciplina');
+      return;
+    }
+    try {
+      if (editingItem) {
+        await axios.put(`${API_URL}/api/projetos/equipe/${editingItem.id}`, {
+          discipline_id: formData.discipline_id,
+          contact_id: formData.contact_id,
+          discipline_detail: formData.discipline_detail,
+          email: formData.email,
+          phone: formData.phone,
+          position: formData.position
+        }, { withCredentials: true });
+      } else {
+        await axios.post(`${API_URL}/api/projetos/equipe`, {
+          ...formData,
+          construflow_id: construflowId,
+          project_code: projectCode
+        }, { withCredentials: true });
+      }
+      setShowModal(false);
+      if (onEquipeChange) onEquipeChange();
+      if (onCrossRefChange) onCrossRefChange();
+    } catch (err) {
+      console.error('Erro ao salvar:', err);
+      const msg = err.response?.data?.error || err.message || 'Erro ao salvar.';
+      alert(msg);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Desativar esta disciplina da equipe?')) return;
+    try {
+      await axios.delete(`${API_URL}/api/projetos/equipe/${id}`, { withCredentials: true });
+      if (onEquipeChange) onEquipeChange();
+      if (onCrossRefChange) onCrossRefChange();
+    } catch (err) {
+      console.error('Erro ao desativar:', err);
+    }
+  };
+
+  const getFilteredContacts = () => {
+    if (!formData.company_id) return [];
+    return contatos.filter(c => String(c.company_id) === String(formData.company_id));
+  };
+
+  const getDisciplineName = (id) => disciplinas.find(d => d.id === id)?.discipline_name || '-';
+  const getCompanyName = (id) => empresas.find(e => e.id === id)?.name || '-';
+
+  // === FUNÇÕES DE SOLICITAÇÃO (para leaders) ===
+
+  const openRequestModal = (type) => {
+    if (type === 'novo_contato') {
+      setRequestFormData({ discipline_id: '', company_id: '', name: '', email: '', phone: '', position: '' });
+    } else if (type === 'nova_empresa') {
+      setRequestFormData({ name: '', discipline_ids: [] });
+    } else {
+      setRequestFormData({ name: '' });
+    }
+    setRequestModalType(type);
+  };
+
+  const toggleRequestDiscipline = (discId) => {
+    setRequestFormData(prev => {
+      const ids = prev.discipline_ids || [];
+      return {
+        ...prev,
+        discipline_ids: ids.includes(discId)
+          ? ids.filter(id => id !== discId)
+          : [...ids, discId],
+      };
+    });
+  };
+
+  const getRequestModalTitle = () => {
+    switch (requestModalType) {
+      case 'nova_disciplina': return 'Solicitar Nova Disciplina';
+      case 'novo_contato': return 'Solicitar Novo Contato';
+      case 'nova_empresa': return 'Solicitar Nova Empresa';
+      default: return '';
+    }
+  };
+
+  const getRequestNameLabel = () => {
+    switch (requestModalType) {
+      case 'nova_disciplina': return 'Nome da Disciplina';
+      case 'nova_empresa': return 'Nome da Empresa';
+      default: return 'Nome';
+    }
+  };
+
+  const handleSubmitRequest = async () => {
+    if (requestModalType === 'novo_contato') {
+      if (!requestFormData.name?.trim()) { alert('Nome é obrigatório'); return; }
+      if (!requestFormData.discipline_id) { alert('Selecione uma disciplina'); return; }
+    } else if (requestModalType === 'nova_empresa') {
+      if (!requestFormData.name?.trim()) { alert('Nome é obrigatório'); return; }
+      if (!requestFormData.discipline_ids || requestFormData.discipline_ids.length === 0) {
+        alert('Selecione ao menos uma disciplina associada'); return;
+      }
+    } else {
+      if (!requestFormData.name?.trim()) { alert('Nome é obrigatório'); return; }
+    }
+
+    setSavingRequest(true);
+    try {
+      let payload;
+      if (requestModalType === 'novo_contato') {
+        const selectedDiscipline = disciplinas.find(d => String(d.id) === String(requestFormData.discipline_id));
+        const selectedCompany = empresas.find(e => String(e.id) === String(requestFormData.company_id));
+        payload = {
+          discipline_id: requestFormData.discipline_id,
+          discipline_name: selectedDiscipline?.discipline_name || '',
+          company_id: requestFormData.company_id || null,
+          company_name: selectedCompany?.name || '',
+          name: requestFormData.name,
+          email: requestFormData.email || '',
+          phone: requestFormData.phone || '',
+          position: requestFormData.position || '',
+        };
+      } else if (requestModalType === 'nova_empresa') {
+        const selectedDisciplines = requestFormData.discipline_ids
+          .map(id => disciplinas.find(d => String(d.id) === String(id)))
+          .filter(Boolean);
+        payload = {
+          name: requestFormData.name.trim(),
+          discipline_ids: requestFormData.discipline_ids,
+          discipline_names: selectedDisciplines.map(d => d.discipline_name),
+        };
+      } else {
+        payload = { name: requestFormData.name.trim() };
+      }
+
+      await axios.post(`${API_URL}/api/contact-requests`, {
+        request_type: requestModalType,
+        project_code: projectCode,
+        payload,
+      }, { withCredentials: true });
+
+      setRequestModalType(null);
+      setRequestSuccess(`Solicitação enviada com sucesso!`);
+      setTimeout(() => setRequestSuccess(null), 4000);
+      fetchMyRequests();
+    } catch (err) {
+      console.error('Erro ao enviar solicitação:', err);
+      alert('Erro ao enviar solicitação. Tente novamente.');
+    } finally {
+      setSavingRequest(false);
+    }
+  };
+
+  return (
+    <div className="ecli-panel">
+      {/* Toast de sucesso */}
+      {requestSuccess && (
+        <div className="ecli-request-toast">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <span>{requestSuccess}</span>
+        </div>
+      )}
+
+      {/* === BOTÕES DE SOLICITAÇÃO (apenas para leaders) === */}
+      {!hasFullAccess && (
+        <div className="ecli-leader-actions">
+          <span className="ecli-leader-actions-label">Solicitar Cadastro:</span>
+          <div className="ecli-leader-actions-btns">
+            <button className="ecli-leader-btn" onClick={() => openRequestModal('nova_disciplina')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+              Nova Disciplina
+            </button>
+            <button className="ecli-leader-btn" onClick={() => openRequestModal('novo_contato')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" />
+                <line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              Novo Contato
+            </button>
+            <button className="ecli-leader-btn" onClick={() => openRequestModal('nova_empresa')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+              Nova Empresa
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* === CADASTRO DE DISCIPLINAS === */}
+      <div className="ecli-section">
+        <div className="ecli-section-header">
+          <div className="ecli-section-header-left">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="9" y1="21" x2="9" y2="9" />
+            </svg>
+            <h4>Cadastro de Disciplinas</h4>
+            <span className="ecli-count">{equipe.length} {equipe.length === 1 ? 'disciplina' : 'disciplinas'}</span>
+          </div>
+          {hasFullAccess && (
+            <button className="ecli-add-btn" onClick={handleAdd}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Adicionar
+            </button>
+          )}
+        </div>
+
+        <div className="ecli-table-wrapper">
+          <table className="ecli-table">
+            <thead>
+              <tr>
+                <th>Disciplina</th>
+                <th>Empresa</th>
+                <th>Contato</th>
+                <th>Cargo</th>
+                <th>Email</th>
+                <th>Telefone</th>
+                <th>Detalhes</th>
+                {hasFullAccess && <th className="ecli-th-actions"></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {equipe.length === 0 ? (
+                <tr>
+                  <td colSpan={hasFullAccess ? 8 : 7} className="ecli-empty-row">
+                    Nenhuma disciplina cadastrada
+                  </td>
+                </tr>
+              ) : (
+                equipe.map(item => {
+                  const email = item.email || item.contact?.email;
+                  const phone = item.phone || item.contact?.phone;
+                  const position = item.position || item.contact?.position;
+                  const hasCompany = !!item.company?.name;
+                  const hasContact = !!item.contact?.name;
+                  const completeness = hasCompany && hasContact ? 'complete' : hasCompany || hasContact ? 'partial' : 'minimal';
+
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <div className="ecli-discipline-cell">
+                          <span className={`ecli-dot ecli-dot--${completeness}`} />
+                          <span>{item.discipline?.discipline_name || '-'}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="ecli-company-cell">
+                          <span>{item.company?.name || '-'}</span>
+                          {item.company?.status === 'pendente' && <PendingAlert />}
+                        </div>
+                      </td>
+                      <td>{item.contact?.name || '-'}</td>
+                      <td>{position || '-'}</td>
+                      <td>
+                        {email ? <a href={`mailto:${email}`} className="ecli-link">{email}</a> : '-'}
+                      </td>
+                      <td>
+                        {phone ? <a href={`tel:${phone}`} className="ecli-link">{formatPhoneDisplay(phone)}</a> : '-'}
+                      </td>
+                      <td>
+                        <span className="ecli-detail" title={item.discipline_detail || ''}>
+                          {item.discipline_detail || '-'}
+                        </span>
+                      </td>
+                      {hasFullAccess && (
+                        <td className="ecli-td-actions">
+                          <button className="ecli-action-btn" onClick={() => handleEdit(item)} title="Editar">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                          <button className="ecli-action-btn ecli-action-btn--danger" onClick={() => handleDelete(item.id)} title="Desativar">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M3 6h18" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* === MINHAS SOLICITAÇÕES (apenas para leaders) === */}
+      {!hasFullAccess && (
+        <div className="ecli-section ecli-requests-section">
+          <button
+            className="ecli-expandable-header"
+            onClick={() => setShowMyRequests(!showMyRequests)}
+          >
+            <div className="ecli-section-header-left">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              <span>Minhas Solicitações</span>
+              {myRequests.filter(r => r.status === 'pendente').length > 0 && (
+                <span className="ecli-pending-count">
+                  {myRequests.filter(r => r.status === 'pendente').length}
+                </span>
+              )}
+            </div>
+            <svg
+              className={`ecli-expandable-icon ${showMyRequests ? 'expanded' : ''}`}
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {showMyRequests && (
+            <div className="ecli-requests-list">
+              {myRequests.length === 0 ? (
+                <div className="ecli-empty-mini">Nenhuma solicitação enviada.</div>
+              ) : (
+                myRequests.slice(0, 10).map(req => (
+                  <div key={req.id} className={`ecli-request-item ecli-request-item--${req.status}`}>
+                    <div className="ecli-request-item-header">
+                      <span className={`ecli-request-badge ecli-request-badge--${req.request_type}`}>
+                        {REQUEST_TYPE_LABELS[req.request_type] || req.request_type}
+                      </span>
+                      <span className={`ecli-status-badge ecli-status-badge--${req.status}`}>
+                        {req.status === 'pendente' ? 'Pendente' : req.status === 'aprovada' ? 'Aprovada' : 'Rejeitada'}
+                      </span>
+                    </div>
+                    <div className="ecli-request-item-body">
+                      <span className="ecli-request-summary">
+                        {req.payload?.name || ''}
+                        {req.request_type === 'editar_contato' && `Edição: ${req.payload?.new_values?.name || req.payload?.old_values?.name || ''}`}
+                      </span>
+                      <span className="ecli-request-date">
+                        {new Date(req.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                    {req.status === 'rejeitada' && req.rejection_reason && (
+                      <div className="ecli-request-rejection">
+                        Motivo: {req.rejection_reason}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === MODAL DE DISCIPLINA (admin) === */}
+      {showModal && (
+        <div className="ecli-modal-overlay">
+          <div className="ecli-modal">
+            <div className="ecli-modal-header">
+              <h3>{editingItem ? 'Editar Membro' : 'Adicionar Membro'}</h3>
+              <button className="ecli-modal-close" onClick={() => setShowModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="ecli-modal-body">
+              <div className="ecli-form-group">
+                <label>Disciplina {!editingItem && <span className="ecli-required">*</span>}</label>
+                {editingItem ? (
+                  <div className="ecli-readonly">{getDisciplineName(formData.discipline_id)}</div>
+                ) : (
+                  <select value={formData.discipline_id} onChange={e => setFormData({ ...formData, discipline_id: e.target.value })}>
+                    <option value="">Selecione...</option>
+                    {disciplinas.map(d => <option key={d.id} value={d.id}>{d.discipline_name}</option>)}
+                  </select>
+                )}
+              </div>
+
+              <div className="ecli-form-group">
+                <label>Empresa</label>
+                {editingItem ? (
+                  <div className="ecli-readonly">{getCompanyName(formData.company_id)}</div>
+                ) : (
+                  <select
+                    value={formData.company_id}
+                    onChange={e => setFormData({ ...formData, company_id: e.target.value, contact_id: '', email: '', phone: '', position: '' })}
+                  >
+                    <option value="">Selecione...</option>
+                    {empresas.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} {emp.status === 'pendente' ? '(pendente)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="ecli-form-group">
+                <label>Contato</label>
+                <select
+                  value={formData.contact_id}
+                  onChange={e => handleContactChange(e.target.value)}
+                  disabled={!formData.company_id}
+                >
+                  <option value="">{formData.company_id ? 'Selecione...' : 'Selecione empresa primeiro'}</option>
+                  {getFilteredContacts().map(c => (
+                    <option key={c.id} value={c.id}>{c.name} {c.email ? `(${c.email})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="ecli-form-row">
+                <div className="ecli-form-group">
+                  <label>Email</label>
+                  <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" />
+                </div>
+                <div className="ecli-form-group">
+                  <label>Telefone</label>
+                  <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: stripNonDigits(e.target.value) })} placeholder="00 00000-0000" title="Digite apenas os n\u00fameros, sem par\u00eanteses ou tra\u00e7os" />
+                </div>
+              </div>
+
+              <div className="ecli-form-group">
+                <label>Cargo</label>
+                <input type="text" value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} placeholder="Cargo ou fun\u00e7\u00e3o" />
+              </div>
+
+              <div className="ecli-form-group">
+                <label>Detalhes da Disciplina</label>
+                <textarea value={formData.discipline_detail} onChange={e => setFormData({ ...formData, discipline_detail: e.target.value })} placeholder="Informa\u00e7\u00f5es adicionais..." rows={3} />
+              </div>
+            </div>
+
+            <div className="ecli-modal-footer">
+              <button className="ecli-btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
+              <button className="ecli-btn-save" onClick={handleSave}>{editingItem ? 'Salvar' : 'Adicionar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === MODAL DE SOLICITAÇÃO (leaders) === */}
+      {requestModalType && (
+        <div className="ecli-modal-overlay">
+          <div className="ecli-modal">
+            <div className="ecli-modal-header">
+              <h3>{getRequestModalTitle()}</h3>
+              <button className="ecli-modal-close" onClick={() => setRequestModalType(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ecli-modal-body">
+              {requestModalType === 'novo_contato' ? (
+                <>
+                  <div className="ecli-form-group">
+                    <label>Disciplina <span className="ecli-required">*</span></label>
+                    <select
+                      value={requestFormData.discipline_id}
+                      onChange={e => setRequestFormData({ ...requestFormData, discipline_id: e.target.value })}
+                    >
+                      <option value="">Selecione a disciplina...</option>
+                      {disciplinas.map(d => (
+                        <option key={d.id} value={d.id}>{d.discipline_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ecli-form-group">
+                    <label>Empresa</label>
+                    <select
+                      value={requestFormData.company_id}
+                      onChange={e => setRequestFormData({ ...requestFormData, company_id: e.target.value })}
+                    >
+                      <option value="">Selecione a empresa...</option>
+                      {empresas.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ecli-form-group">
+                    <label>Nome do Contato <span className="ecli-required">*</span></label>
+                    <input
+                      type="text"
+                      value={requestFormData.name}
+                      onChange={e => setRequestFormData({ ...requestFormData, name: e.target.value })}
+                      placeholder="Nome completo"
+                    />
+                  </div>
+                  <div className="ecli-form-row">
+                    <div className="ecli-form-group">
+                      <label>Email</label>
+                      <input
+                        type="email"
+                        value={requestFormData.email}
+                        onChange={e => setRequestFormData({ ...requestFormData, email: e.target.value })}
+                        placeholder="email@exemplo.com"
+                      />
+                    </div>
+                    <div className="ecli-form-group">
+                      <label>Telefone</label>
+                      <input
+                        type="tel"
+                        value={requestFormData.phone}
+                        onChange={e => setRequestFormData({ ...requestFormData, phone: e.target.value })}
+                        placeholder="00 00000-0000"
+                      />
+                    </div>
+                  </div>
+                  <div className="ecli-form-group">
+                    <label>Cargo</label>
+                    <input
+                      type="text"
+                      value={requestFormData.position}
+                      onChange={e => setRequestFormData({ ...requestFormData, position: e.target.value })}
+                      placeholder="Cargo ou função"
+                    />
+                  </div>
+                </>
+              ) : requestModalType === 'nova_empresa' ? (
+                <>
+                  <div className="ecli-form-group">
+                    <label>Nome da Empresa <span className="ecli-required">*</span></label>
+                    <input
+                      type="text"
+                      value={requestFormData.name}
+                      onChange={e => setRequestFormData({ ...requestFormData, name: e.target.value })}
+                      placeholder="Nome da empresa"
+                    />
+                  </div>
+                  <div className="ecli-form-group">
+                    <label>Disciplinas Associadas <span className="ecli-required">*</span></label>
+                    <div className="ecli-checkbox-list">
+                      {disciplinas.map(d => (
+                        <label key={d.id} className="ecli-checkbox-item">
+                          <input
+                            type="checkbox"
+                            checked={(requestFormData.discipline_ids || []).includes(String(d.id))}
+                            onChange={() => toggleRequestDiscipline(String(d.id))}
+                          />
+                          <span>{d.discipline_name}</span>
+                        </label>
+                      ))}
+                      {disciplinas.length === 0 && (
+                        <span className="ecli-checkbox-empty">Nenhuma disciplina disponível</span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="ecli-form-group">
+                  <label>{getRequestNameLabel()} <span className="ecli-required">*</span></label>
+                  <input
+                    type="text"
+                    value={requestFormData.name}
+                    onChange={e => setRequestFormData({ ...requestFormData, name: e.target.value })}
+                    placeholder={getRequestNameLabel()}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="ecli-modal-footer">
+              <button className="ecli-btn-cancel" onClick={() => setRequestModalType(null)}>Cancelar</button>
+              <button className="ecli-btn-request" onClick={handleSubmitRequest} disabled={savingRequest}>
+                {savingRequest ? 'Enviando...' : 'Solicitar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default EquipeProjetistasPanel;

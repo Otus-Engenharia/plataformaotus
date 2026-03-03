@@ -3,6 +3,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import axios from 'axios';
 import SearchableSelect from '../SearchableSelect';
+import TodoItemSidebar from './TodoItemSidebar';
+import DueDatePicker from '../../pages/todos/components/DueDatePicker';
 import './AgendaDetailModal.css';
 
 const STATUS_OPTIONS = [
@@ -41,6 +43,16 @@ const GROUP_POSITIONS = [
   { value: 'otus', label: 'Tarefas Otus' },
 ];
 
+// Color coding por tipo de atividade (position)
+const POSITION_ACCENT = {
+  'compatibilização': '#8b5cf6',
+  'coordenação':      '#3b82f6',
+  'verificação':      '#10b981',
+  'digital':          '#f59e0b',
+  'time bim':         '#ec4899',
+  'otus':             '#eab308',
+};
+
 // Opções de horário em intervalos de 30 min
 const TIME_OPTIONS = [];
 for (let h = 0; h < 24; h++) {
@@ -78,6 +90,9 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
   const [addingProjectId, setAddingProjectId] = useState('');
   const [showAddTodo, setShowAddTodo] = useState(false);
   const [newTodoName, setNewTodoName] = useState('');
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
+  const rescheduleRef = useRef(null);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [editingTime, setEditingTime] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -114,6 +129,8 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       setStandardTaskName(null);
       setProjects([]);
       setAllAvailableProjects([]);
+      setShowReschedule(false);
+      setRescheduling(false);
       setShowAddProject(false);
       setAddingProjectId('');
       return;
@@ -283,24 +300,72 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     }
   }, [task, onTaskUpdate, isRecurring]);
 
-  const handleToggleTodoStatus = useCallback(async (todo) => {
-    const newStatus = todo.status === 'finalizado' ? 'backlog' : 'finalizado';
+  const handleCompleteTodo = useCallback(async (todoId) => {
     try {
       const res = await axios.patch(
-        `/api/agenda/tasks/todos/${todo.id}`,
-        { status: newStatus },
+        `/api/todos/${todoId}/complete`,
+        {},
         { withCredentials: true }
       );
-
       if (res.data.success) {
+        const updated = res.data.data;
         setTodos(prev => prev.map(t =>
-          t.id === todo.id ? { ...t, status: newStatus } : t
+          t.id === todoId ? { ...t, status: updated.status, is_closed: updated.is_closed } : t
         ));
+      }
+    } catch (err) {
+      console.error('Erro ao completar ToDo:', err);
+    }
+  }, []);
+
+  const handleUpdateTodo = useCallback(async (todoId, updates) => {
+    try {
+      const res = await axios.put(
+        `/api/todos/${todoId}`,
+        updates,
+        { withCredentials: true }
+      );
+      if (res.data.success) {
+        const updated = res.data.data;
+        if (!updated.agenda_task_id) {
+          setTodos(prev => prev.filter(t => t.id !== todoId));
+        } else {
+          setTodos(prev => prev.map(t =>
+            t.id === todoId ? { ...t, ...updated } : t
+          ));
+        }
       }
     } catch (err) {
       console.error('Erro ao atualizar ToDo:', err);
     }
   }, []);
+
+  const handleReschedule = useCallback(async (newDate) => {
+    setShowReschedule(false);
+    if (!newDate) return;
+
+    const unfinished = todos.filter(t => t.status !== 'finalizado');
+    if (unfinished.length === 0) return;
+
+    setRescheduling(true);
+    try {
+      const results = await Promise.all(
+        unfinished.map(todo =>
+          axios.put(`/api/todos/${todo.id}`, { due_date: newDate }, { withCredentials: true })
+        )
+      );
+      const rescheduledIds = new Set(
+        results
+          .filter(r => r.data.success && !r.data.data.agenda_task_id)
+          .map(r => r.data.data.id)
+      );
+      setTodos(prev => prev.filter(t => !rescheduledIds.has(t.id)));
+    } catch (err) {
+      console.error('Erro ao reprogramar ToDos:', err);
+    } finally {
+      setRescheduling(false);
+    }
+  }, [todos]);
 
   const handleCreateTodo = useCallback(async () => {
     if (!newTodoName.trim()) return;
@@ -679,6 +744,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
   // Contadores de ToDo's
   const doneCount = useMemo(() => todos.filter(t => t.status === 'finalizado').length, [todos]);
   const totalCount = todos.length;
+  const unfinishedCount = totalCount - doneCount;
   const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
   if (!isOpen || !task) return null;
@@ -687,7 +753,11 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
 
   return (
     <div className="detail-modal__overlay" onClick={onClose}>
-      <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="detail-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ '--modal-accent': POSITION_ACCENT[task?.position] || '#1a73e8' }}
+      >
         {/* Header */}
         <header className="detail-modal__header">
           {editingName ? (
@@ -1112,17 +1182,50 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
                     <span className="detail-modal__todo-counter">{doneCount}/{totalCount}</span>
                   )}
                 </h3>
-                <button
-                  className="detail-modal__add-btn"
-                  onClick={() => setShowAddTodo(prev => !prev)}
-                  title="Adicionar ToDo"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
+                <div className="detail-modal__section-actions">
+                  {unfinishedCount > 0 && (
+                    <button
+                      ref={rescheduleRef}
+                      className="detail-modal__reschedule-btn"
+                      onClick={() => setShowReschedule(prev => !prev)}
+                      disabled={rescheduling}
+                      title="Reprogramar ToDo's não finalizados"
+                    >
+                      {rescheduling ? (
+                        <span className="detail-modal__reschedule-spinner" />
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                          <path d="M16 14l-4 4-2-2" />
+                        </svg>
+                      )}
+                      Reprogramar
+                    </button>
+                  )}
+                  <button
+                    className="detail-modal__add-btn"
+                    onClick={() => setShowAddTodo(prev => !prev)}
+                    title="Adicionar ToDo"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
+
+              {showReschedule && (
+                <DueDatePicker
+                  currentDate={null}
+                  onDateChange={handleReschedule}
+                  triggerRef={rescheduleRef}
+                  onClose={() => setShowReschedule(false)}
+                />
+              )}
 
               {showAddTodo && (
                 <div className="detail-modal__add-project-row">
@@ -1162,34 +1265,29 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
               ) : totalCount === 0 ? (
                 <div className="detail-modal__todo-empty">Nenhum ToDo associado</div>
               ) : (
-                <ul className="detail-modal__todo-list">
+                <div className="detail-modal__todo-list">
                   {todos.map(todo => {
                     const isDone = todo.status === 'finalizado';
+                    const isOverdue = (() => {
+                      if (!todo.due_date || isDone) return false;
+                      const d = new Date(todo.due_date + 'T12:00:00');
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return d < today;
+                    })();
                     return (
-                      <li key={todo.id} className={`detail-modal__todo-item${isDone ? ' is-done' : ''}`}>
-                        <button
-                          className={`detail-modal__todo-check${isDone ? ' is-checked' : ''}`}
-                          onClick={() => handleToggleTodoStatus(todo)}
-                          title={isDone ? 'Reabrir' : 'Finalizar'}
-                        >
-                          {isDone ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          ) : (
-                            <div className="detail-modal__todo-check-empty" />
-                          )}
-                        </button>
-                        <div className="detail-modal__todo-info">
-                          <span className="detail-modal__todo-name">{todo.name}</span>
-                          {todo.project_name && (
-                            <span className="detail-modal__todo-project">{todo.project_name}</span>
-                          )}
-                        </div>
-                      </li>
+                      <TodoItemSidebar
+                        key={todo.id}
+                        todo={todo}
+                        isLinked={true}
+                        isDone={isDone}
+                        isOverdue={isOverdue}
+                        onToggleComplete={handleCompleteTodo}
+                        onUpdate={handleUpdateTodo}
+                      />
                     );
                   })}
-                </ul>
+                </div>
               )}
             </div>
           </div>

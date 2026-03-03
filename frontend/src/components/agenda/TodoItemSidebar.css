@@ -1,0 +1,262 @@
+/* ============================
+   TodoItemSidebar — item de todo na sidebar da agenda
+   ============================ */
+
+.sidebar-todo {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.1s ease;
+}
+
+.sidebar-todo:last-child {
+  border-bottom: none;
+}
+
+.sidebar-todo:hover {
+  background: #f8f9fa;
+}
+
+.sidebar-todo--done {
+  opacity: 0.55;
+}
+
+.sidebar-todo--overdue .sidebar-todo__date {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.sidebar-todo--draggable {
+  cursor: grab;
+}
+
+.sidebar-todo--draggable:active {
+  cursor: grabbing;
+  opacity: 0.6;
+}
+
+.sidebar-todo--expanded {
+  cursor: default;
+  background: #f8f9fa;
+}
+
+.sidebar-todo--linked {
+  padding-left: 28px;
+}
+
+/* ============================
+   Main row (collapsed)
+   ============================ */
+
+.sidebar-todo__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.sidebar-todo--linked .sidebar-todo__row {
+  padding-left: 0;
+  padding-right: 16px;
+}
+
+/* ============================
+   Round checkbox (Todoist-style)
+   ============================ */
+
+.sidebar-todo__checkbox {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  border-radius: 50%;
+  border: 2px solid #d4d4d8;
+  background: transparent;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  margin-top: 2px;
+}
+
+.sidebar-todo__checkbox:hover {
+  border-color: #22c55e;
+}
+
+.sidebar-todo__checkbox--checked {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+/* ============================
+   Content area
+   ============================ */
+
+.sidebar-todo__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-todo__name {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #3c4043;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.35;
+}
+
+.sidebar-todo__name--done {
+  text-decoration: line-through;
+  color: #9aa0a6;
+}
+
+/* ============================
+   Meta row (priority, date, project, status)
+   ============================ */
+
+.sidebar-todo__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.sidebar-todo__priority-btn {
+  display: flex;
+  align-items: center;
+  padding: 1px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 3px;
+  transition: opacity 0.15s;
+}
+
+.sidebar-todo__priority-btn:hover {
+  opacity: 0.7;
+}
+
+.sidebar-todo__date {
+  font-size: 10px;
+  color: #1a73e8;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.sidebar-todo__date--overdue {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.sidebar-todo__project {
+  font-size: 10px;
+  color: #9aa0a6;
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.sidebar-todo__status-badge {
+  font-size: 9px;
+  font-weight: 500;
+  padding: 0px 4px;
+  border-radius: 6px;
+  border: 1px solid;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  line-height: 1.4;
+  transition: opacity 0.15s;
+}
+
+.sidebar-todo__status-badge:hover {
+  opacity: 0.7;
+}
+
+/* ============================
+   Expanded inline edit panel
+   ============================ */
+
+.sidebar-todo__edit-panel {
+  padding: 6px 16px 8px;
+  border-top: 1px solid #e8eaed;
+  animation: sidebarTodoExpand 0.15s ease-out;
+}
+
+.sidebar-todo--linked .sidebar-todo__edit-panel {
+  padding-left: 0;
+}
+
+@keyframes sidebarTodoExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sidebar-todo__edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  font-size: 11px;
+  color: #3c4043;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.sidebar-todo__edit-row:hover {
+  background: #e8eaed;
+}
+
+.sidebar-todo__edit-row svg {
+  flex-shrink: 0;
+  color: #70757a;
+}
+
+.sidebar-todo__edit-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-todo__edit-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Inline name input */
+.sidebar-todo__name-input {
+  width: 100%;
+  font-size: 11px;
+  font-family: 'DM Sans', sans-serif;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 5px 6px;
+  outline: none;
+  margin-bottom: 2px;
+  color: #3c4043;
+}
+
+.sidebar-todo__name-input:focus {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+}
