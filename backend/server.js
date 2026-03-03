@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName, queryHorasComplianceOperacao } from './bigquery.js';
 import cron from 'node-cron';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos, canEditPortfolio } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
@@ -82,7 +82,9 @@ import {
   // OAuth tokens (Gmail Draft)
   getUserOAuthTokens, resolveRecipientEmails, resolveRecipientContacts,
   // Whiteboard
-  fetchWhiteboard, saveWhiteboard
+  fetchWhiteboard, saveWhiteboard,
+  // Usage Indicators & Compliance
+  insertHeartbeat, fetchScreenTimeData, fetchOperacaoUsersWithCargo, fetchActiveUsersBySetor
 } from './supabase.js';
 import { createGmailDraft } from './gmail.js';
 
@@ -3391,6 +3393,256 @@ app.get('/api/admin/logs/stats', requireAuth, async (req, res) => {
       success: false,
       error: error.message || 'Erro ao buscar estatísticas',
     });
+  }
+});
+
+// ============================================================
+// USAGE INDICATORS & HOURS COMPLIANCE
+// ============================================================
+
+/**
+ * POST /api/user/heartbeat
+ * Registra que o usuário está ativo na plataforma.
+ * Chamado pelo frontend a cada 5 minutos.
+ */
+app.post('/api/user/heartbeat', requireAuth, async (req, res) => {
+  try {
+    // Fire-and-forget: não bloqueia a resposta
+    insertHeartbeat(req.user.email, req.user.name).catch(err =>
+      console.error('Erro ao inserir heartbeat:', err.message)
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/usage-indicators/screen-time
+ * Retorna dados de tempo de tela por usuário (apenas admin/director).
+ * Query params: start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), setor (opcional)
+ */
+app.get('/api/admin/usage-indicators/screen-time', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const end = req.query.end_date || new Date().toISOString().slice(0, 10);
+    const startDefault = new Date();
+    startDefault.setDate(startDefault.getDate() - 30);
+    const start = req.query.start_date || startDefault.toISOString().slice(0, 10);
+    const setorFiltro = req.query.setor || null;
+
+    const [heartbeatData, activeUsers] = await Promise.all([
+      fetchScreenTimeData(start, end),
+      fetchActiveUsersBySetor(),
+    ]);
+
+    // Monta mapa email → setor
+    const emailToSetor = new Map();
+    for (const s of activeUsers) {
+      for (const email of s.emails) {
+        emailToSetor.set(email, s.setor_name);
+      }
+    }
+
+    const MINUTOS_POR_HEARTBEAT = 5;
+    const result = heartbeatData
+      .map(u => ({
+        user_email: u.user_email,
+        user_name: u.user_name,
+        setor_name: emailToSetor.get(u.user_email) || 'Desconhecido',
+        total_heartbeats: u.total_heartbeats,
+        total_minutos: u.total_heartbeats * MINUTOS_POR_HEARTBEAT,
+        total_horas: Math.round((u.total_heartbeats * MINUTOS_POR_HEARTBEAT) / 60 * 10) / 10,
+        days_active: u.days_active,
+        avg_minutos_por_dia: u.days_active > 0
+          ? Math.round((u.total_heartbeats * MINUTOS_POR_HEARTBEAT) / u.days_active)
+          : 0,
+      }))
+      .filter(u => !setorFiltro || u.setor_name === setorFiltro)
+      .sort((a, b) => b.total_minutos - a.total_minutos);
+
+    res.json({ success: true, data: result, periodo: { start, end } });
+  } catch (error) {
+    console.error('❌ Erro ao buscar screen time:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/usage-indicators/taxa-uso
+ * Retorna taxa mensal de acesso por setor (apenas admin/director).
+ * Query params: months (default 6)
+ */
+app.get('/api/admin/usage-indicators/taxa-uso', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const months = parseInt(req.query.months) || 6;
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - months);
+    const startStr = startDate.toISOString().slice(0, 10);
+    const endStr = new Date().toISOString().slice(0, 10);
+
+    const [logsArr, activeUsers] = await Promise.all([
+      fetchLogs({ start_date: new Date(startStr), end_date: new Date(endStr + 'T23:59:59'), limit: 100000 }),
+      fetchActiveUsersBySetor(),
+    ]);
+
+    // Mapa email → setor
+    const emailToSetor = new Map();
+    for (const s of activeUsers) {
+      for (const email of s.emails) emailToSetor.set(email, s.setor_name);
+    }
+
+    // Total de usuários por setor
+    const totalBySetor = new Map();
+    for (const s of activeUsers) totalBySetor.set(s.setor_name, s.total_users);
+
+    // Agrupa logs por mês + setor, contando emails únicos
+    const byMesSetor = new Map();
+    for (const log of (logsArr || [])) {
+      if (!log.user_email || !log.created_at) continue;
+      const mes = log.created_at.slice(0, 7); // YYYY-MM
+      const setor = emailToSetor.get(log.user_email) || 'Outro';
+      const key = `${mes}|${setor}`;
+      if (!byMesSetor.has(key)) byMesSetor.set(key, { mes, setor, emails: new Set() });
+      byMesSetor.get(key).emails.add(log.user_email);
+    }
+
+    const result = Array.from(byMesSetor.values())
+      .map(item => ({
+        mes: item.mes,
+        setor: item.setor,
+        acessaram: item.emails.size,
+        total: totalBySetor.get(item.setor) || 0,
+        taxa: totalBySetor.get(item.setor) > 0
+          ? Math.round((item.emails.size / totalBySetor.get(item.setor)) * 100)
+          : 0,
+      }))
+      .sort((a, b) => b.mes.localeCompare(a.mes) || a.setor.localeCompare(b.setor));
+
+    res.json({ success: true, data: result, periodo: { start: startStr, end: endStr } });
+  } catch (error) {
+    console.error('❌ Erro ao buscar taxa de uso:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/hours-compliance
+ * Retorna compliance de horas por semana para o setor Operação (apenas admin/director).
+ * Query params: semanas (default 8)
+ *
+ * Thresholds por cargo:
+ *   - Estagiário de planejamento → 27h/semana
+ *   - Analista de coordenação / Analista de compatibilização / Especialista de compatibilização → 36h/semana
+ *   - Líderes / Head → não rastreado (excluído)
+ */
+const CARGO_THRESHOLD = {
+  'estagiário de planejamento': 27,
+  'estagiario de planejamento': 27,
+};
+const CARGO_THRESHOLD_DEFAULT_ANALISTA = 36;
+const CARGOS_NAO_RASTREADOS = ['head de projetos', 'líder de projeto', 'lider de projeto'];
+
+app.get('/api/admin/hours-compliance', requireAuth, async (req, res) => {
+  try {
+    if (!isPrivileged(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const semanas = Math.min(parseInt(req.query.semanas) || 8, 26);
+
+    const [operacaoUsers, rawRows] = await Promise.all([
+      fetchOperacaoUsersWithCargo(),
+      queryHorasComplianceOperacao(semanas),
+    ]);
+
+    // Filtra usuários rastreados (remove líderes/head)
+    const tracked = operacaoUsers.filter(u => {
+      const cargo = (u.cargo_name || '').toLowerCase();
+      return !CARGOS_NAO_RASTREADOS.includes(cargo);
+    });
+
+    // Determina threshold por cargo
+    function getThreshold(cargoName) {
+      const lower = (cargoName || '').toLowerCase();
+      return CARGO_THRESHOLD[lower] ?? CARGO_THRESHOLD_DEFAULT_ANALISTA;
+    }
+
+    // Calcula semanas do período (segunda-feira como início)
+    function getMondayOfDate(dateStr) {
+      const d = new Date(dateStr.slice(0, 10));
+      const day = d.getUTCDay(); // 0=Dom, 1=Seg
+      const diff = (day === 0 ? -6 : 1 - day);
+      d.setUTCDate(d.getUTCDate() + diff);
+      return d.toISOString().slice(0, 10);
+    }
+
+    // Agrupa horas por (usuario_lower, semana_inicio)
+    const horasByUserWeek = new Map();
+    for (const row of rawRows) {
+      const usuario = (row.usuario || '').trim().toLowerCase();
+      const semana = getMondayOfDate(row.data_de_apontamento || '');
+      if (!semana) continue;
+      const key = `${usuario}|${semana}`;
+      const horas = parseDuracaoHoras(row.duracao);
+      horasByUserWeek.set(key, (horasByUserWeek.get(key) || 0) + horas);
+    }
+
+    // Gera lista de semanas do período
+    const semanasLista = [];
+    const hoje = new Date();
+    const semanaAtual = getMondayOfDate(hoje.toISOString().slice(0, 10));
+    for (let i = 0; i < semanas; i++) {
+      const d = new Date(semanaAtual);
+      d.setUTCDate(d.getUTCDate() - i * 7);
+      semanasLista.push(d.toISOString().slice(0, 10));
+    }
+    semanasLista.reverse(); // mais antiga primeiro
+
+    // Monta resultado
+    const pessoas = tracked.map(u => {
+      const threshold = getThreshold(u.cargo_name);
+      const nameLower = (u.name || '').trim().toLowerCase();
+
+      const semanasData = semanasLista.map(semana => {
+        const horas = horasByUserWeek.get(`${nameLower}|${semana}`) || 0;
+        const status = horas === 0 ? 'sem_dados' : horas >= threshold ? 'ok' : 'abaixo';
+        return { semana, horas: Math.round(horas * 10) / 10, status };
+      });
+
+      const semanasOk = semanasData.filter(s => s.status === 'ok').length;
+      const semanasComDados = semanasData.filter(s => s.status !== 'sem_dados').length;
+
+      return {
+        name: u.name,
+        email: u.email,
+        cargo_name: u.cargo_name,
+        team_name: u.team_name,
+        threshold,
+        taxa_compliance: semanasComDados > 0
+          ? Math.round((semanasOk / semanasComDados) * 100)
+          : null,
+        semanas: semanasData,
+      };
+    });
+
+    pessoas.sort((a, b) => (a.team_name || '').localeCompare(b.team_name || '', 'pt-BR') || a.name.localeCompare(b.name, 'pt-BR'));
+
+    res.json({
+      success: true,
+      semanas: semanasLista,
+      pessoas,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar compliance de horas:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

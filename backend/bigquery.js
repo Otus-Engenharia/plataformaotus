@@ -3006,3 +3006,41 @@ export async function queryBaselinePhaseDurations(projectCode, baselineIds) {
     throw new Error(`Erro ao buscar durações de baselines: ${error.message}`);
   }
 }
+
+/**
+ * Busca apontamentos de horas das últimas N semanas para compliance.
+ * Retorna registros individuais; agregação semanal feita no Node.js.
+ * @param {number} semanas - Número de semanas para olhar para trás (default 8)
+ * @returns {Promise<Array<{ usuario, duracao, data_de_apontamento }>>}
+ */
+export async function queryHorasComplianceOperacao(semanas = 8) {
+  const project = process.env.BIGQUERY_PROJECT_ID;
+  const ds = process.env.BIGQUERY_DATASET || 'relatorio';
+  const tbl = 'timetracker_merged';
+  const timetrackerDs = 'timetracker';
+
+  const dataInicio = new Date();
+  dataInicio.setDate(dataInicio.getDate() - semanas * 7);
+  const dataInicioStr = dataInicio.toISOString().slice(0, 10);
+
+  const query = `
+    SELECT
+      usuario,
+      duracao,
+      CAST(data_de_apontamento AS STRING) AS data_de_apontamento
+    FROM \`${project}.${timetrackerDs}.${tbl}\`
+    WHERE data_de_apontamento >= '${dataInicioStr}'
+      AND usuario IS NOT NULL
+      AND TRIM(usuario) != ''
+    ORDER BY data_de_apontamento DESC, usuario ASC
+  `;
+
+  try {
+    const rows = await executeQuery(query);
+    console.log(`✅ [queryHorasComplianceOperacao] ${rows.length} registros (últimas ${semanas} semanas)`);
+    return rows;
+  } catch (error) {
+    console.error('❌ [queryHorasComplianceOperacao]', error.message);
+    throw new Error(`Erro ao buscar horas de compliance: ${error.message}`);
+  }
+}

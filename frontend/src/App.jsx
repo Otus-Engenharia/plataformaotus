@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useHeartbeat } from './hooks/useHeartbeat';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
@@ -23,6 +24,8 @@ import FormularioPassagemView from './components/FormularioPassagemView';
 // FeedbacksView removido - substituído por FeedbackKanbanView e FeedbackAdminView (lazy loaded)
 import ContatosView from './components/ContatosView';
 import LogsView from './components/LogsView';
+import UsageIndicatorsView from './components/UsageIndicatorsView';
+import ComplianceHorasView from './components/ComplianceHorasView';
 import HomeView from './components/HomeView';
 import PortfolioView from './components/PortfolioView';
 import IndicadoresView from './components/IndicadoresView';
@@ -851,6 +854,26 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.auditoria}</span>
         <span className="nav-text">Auditoria Custos</span>
       </Link>
+      {(isDev || isAdmin || isDirector) && (
+        <>
+          <Link
+            to="/indicadores-uso"
+            className={`nav-link nav-link-modern ${location.pathname.startsWith('/indicadores-uso') ? 'nav-link-active' : ''}`}
+            title={linkTitle('Indicadores de Uso')}
+          >
+            <span className="nav-icon">{icons.indicadores}</span>
+            <span className="nav-text">Indicadores de Uso</span>
+          </Link>
+          <Link
+            to="/compliance-horas"
+            className={`nav-link nav-link-modern ${location.pathname.startsWith('/compliance-horas') ? 'nav-link-active' : ''}`}
+            title={linkTitle('Compliance de Horas')}
+          >
+            <span className="nav-icon">{icons.horas}</span>
+            <span className="nav-text">Compliance de Horas</span>
+          </Link>
+        </>
+      )}
       <Link
         to="/quadro"
         className={`nav-link nav-link-modern ${location.pathname.startsWith('/quadro') ? 'nav-link-active' : ''}`}
@@ -1184,6 +1207,7 @@ function TopBar({ title }) {
 function AppContent() {
   const location = useLocation();
   const { isPrivileged, isAuthenticated, loading, isAdmin, isDirector, isLeader, isDev, hasFullAccess, canAccessView, canAccessArea } = useAuth();
+  useHeartbeat();
   const { isOpen: isOracleOpen } = useOracle();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const isLoginRoute = location.pathname === '/login';
@@ -1673,6 +1697,22 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? <AuditoriaCustosView /> : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/indicadores-uso"
+              element={
+                <ProtectedRoute>
+                  {(hasFullAccess || isLeader) ? <UsageIndicatorsView /> : <Navigate to="/ind" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/compliance-horas"
+              element={
+                <ProtectedRoute>
+                  {(hasFullAccess || isLeader) ? <ComplianceHorasView /> : <Navigate to="/ind" replace />}
                 </ProtectedRoute>
               }
             />
