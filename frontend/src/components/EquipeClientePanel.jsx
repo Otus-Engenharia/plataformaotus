@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/EquipeClientePanel.css';
 import { formatPhoneDisplay, stripNonDigits } from '../utils/phone-utils';
 
@@ -32,9 +33,16 @@ function EquipeClientePanel({
   onEquipeChange,
   onCrossRefChange
 }) {
+  const { hasFullAccess, user } = useAuth();
+
   // --- Estado contatos do cliente ---
   const [clientData, setClientData] = useState(null);
   const [clientLoading, setClientLoading] = useState(false);
+
+  // --- Estado solicitações do usuário ---
+  const [myRequests, setMyRequests] = useState([]);
+  const [showMyRequests, setShowMyRequests] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(null);
 
   // --- Estado modal contato (criar/editar) ---
   const [showContactModal, setShowContactModal] = useState(false);
@@ -101,6 +109,24 @@ function EquipeClientePanel({
     setShowContactModal(true);
   };
 
+  // Buscar minhas solicitações
+  const fetchMyRequests = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const response = await axios.get(`${API_URL}/api/contact-requests`, {
+        params: { requester_email: user.email },
+        withCredentials: true
+      });
+      setMyRequests(response.data.data || []);
+    } catch (err) {
+      console.error('Erro ao buscar solicitações:', err);
+    }
+  }, [user?.email]);
+
+  useEffect(() => {
+    if (!hasFullAccess) fetchMyRequests();
+  }, [hasFullAccess, fetchMyRequests]);
+
   // Salvar contato (criar ou atualizar)
   const handleSaveContact = async () => {
     if (!contactForm.name.trim()) {
@@ -109,19 +135,57 @@ function EquipeClientePanel({
     }
     setSavingContact(true);
     try {
-      if (editingContact) {
-        await axios.put(`${API_URL}/api/projetos/equipe/contatos/${editingContact.id}`, contactForm, { withCredentials: true });
+      if (hasFullAccess) {
+        // Admin/Director: salva direto
+        if (editingContact) {
+          await axios.put(`${API_URL}/api/projetos/equipe/contatos/${editingContact.id}`, contactForm, { withCredentials: true });
+        } else {
+          await axios.post(`${API_URL}/api/projetos/equipe/contatos`, {
+            ...contactForm,
+            companyId: clientData?.companyId
+          }, { withCredentials: true });
+        }
+        setShowContactModal(false);
+        fetchClientContacts();
       } else {
-        await axios.post(`${API_URL}/api/projetos/equipe/contatos`, {
-          ...contactForm,
-          companyId: clientData?.companyId
-        }, { withCredentials: true });
+        // Leader/User: cria solicitação
+        const requestPayload = editingContact
+          ? {
+              request_type: 'editar_contato',
+              target_contact_id: editingContact.id,
+              project_code: projectCode,
+              payload: {
+                old_values: {
+                  name: editingContact.name || '',
+                  email: editingContact.email || '',
+                  phone: editingContact.phone || '',
+                  position: editingContact.position || '',
+                },
+                new_values: contactForm,
+                changed_fields: Object.keys(contactForm).filter(
+                  k => contactForm[k] !== (editingContact[k] || '')
+                ),
+              },
+            }
+          : {
+              request_type: 'novo_contato',
+              project_code: projectCode,
+              payload: {
+                ...contactForm,
+                company_id: clientData?.companyId,
+                company_name: clientData?.companyName,
+              },
+            };
+
+        await axios.post(`${API_URL}/api/contact-requests`, requestPayload, { withCredentials: true });
+        setShowContactModal(false);
+        setRequestSuccess(editingContact ? 'Solicitação de edição enviada!' : 'Solicitação de novo contato enviada!');
+        setTimeout(() => setRequestSuccess(null), 4000);
+        fetchMyRequests();
       }
-      setShowContactModal(false);
-      fetchClientContacts();
     } catch (err) {
       console.error('Erro ao salvar contato:', err);
-      alert('Erro ao salvar contato. Tente novamente.');
+      alert('Erro ao salvar. Tente novamente.');
     } finally {
       setSavingContact(false);
     }
@@ -340,6 +404,84 @@ function EquipeClientePanel({
         )}
       </div>
 
+      {/* Toast de sucesso para solicitações */}
+      {requestSuccess && (
+        <div className="ecli-request-toast">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <span>{requestSuccess}</span>
+        </div>
+      )}
+
+      {/* === SEÇÃO: MINHAS SOLICITAÇÕES (apenas para não-admin) === */}
+      {!hasFullAccess && (
+        <div className="ecli-section ecli-requests-section">
+          <button
+            className="ecli-expandable-header"
+            onClick={() => setShowMyRequests(!showMyRequests)}
+          >
+            <div className="ecli-section-header-left">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              <span>Minhas Solicitações</span>
+              {myRequests.filter(r => r.status === 'pendente').length > 0 && (
+                <span className="ecli-pending-count">
+                  {myRequests.filter(r => r.status === 'pendente').length}
+                </span>
+              )}
+            </div>
+            <svg
+              className={`ecli-expandable-icon ${showMyRequests ? 'expanded' : ''}`}
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {showMyRequests && (
+            <div className="ecli-requests-list">
+              {myRequests.length === 0 ? (
+                <div className="ecli-empty-mini">Nenhuma solicitação enviada.</div>
+              ) : (
+                myRequests.slice(0, 10).map(req => (
+                  <div key={req.id} className={`ecli-request-item ecli-request-item--${req.status}`}>
+                    <div className="ecli-request-item-header">
+                      <span className={`ecli-request-badge ecli-request-badge--${req.request_type}`}>
+                        {req.request_type_label}
+                      </span>
+                      <span className={`ecli-status-badge ecli-status-badge--${req.status}`}>
+                        {req.status === 'pendente' ? 'Pendente' : req.status === 'aprovada' ? 'Aprovada' : 'Rejeitada'}
+                      </span>
+                    </div>
+                    <div className="ecli-request-item-body">
+                      <span className="ecli-request-summary">
+                        {req.request_type === 'novo_contato' && req.payload?.name}
+                        {req.request_type === 'editar_contato' && `Edição: ${req.payload?.new_values?.name || req.payload?.old_values?.name || ''}`}
+                        {req.request_type === 'nova_empresa' && req.payload?.name}
+                      </span>
+                      <span className="ecli-request-date">
+                        {new Date(req.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                    {req.status === 'rejeitada' && req.rejection_reason && (
+                      <div className="ecli-request-rejection">
+                        Motivo: {req.rejection_reason}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Divisor */}
       <div className="ecli-divider" />
 
@@ -500,9 +642,15 @@ function EquipeClientePanel({
             </div>
             <div className="ecli-modal-footer">
               <button className="ecli-btn-cancel" onClick={() => setShowContactModal(false)}>Cancelar</button>
-              <button className="ecli-btn-save" onClick={handleSaveContact} disabled={savingContact}>
-                {savingContact ? 'Salvando...' : editingContact ? 'Salvar' : 'Criar'}
-              </button>
+              {hasFullAccess ? (
+                <button className="ecli-btn-save" onClick={handleSaveContact} disabled={savingContact}>
+                  {savingContact ? 'Salvando...' : editingContact ? 'Salvar' : 'Criar'}
+                </button>
+              ) : (
+                <button className="ecli-btn-request" onClick={handleSaveContact} disabled={savingContact}>
+                  {savingContact ? 'Enviando...' : 'Solicitar'}
+                </button>
+              )}
             </div>
           </div>
         </div>

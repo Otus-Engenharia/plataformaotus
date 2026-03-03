@@ -288,6 +288,9 @@ function Sidebar({ collapsed, onToggle, area }) {
   // State para badge de feedbacks atualizados
   const [feedbackUpdatesCount, setFeedbackUpdatesCount] = useState(0);
 
+  // State para badge de solicitações de contato pendentes
+  const [pendingContactRequestCount, setPendingContactRequestCount] = useState(0);
+
   // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
     if (area === 'okrs') {
@@ -347,6 +350,14 @@ function Sidebar({ collapsed, onToggle, area }) {
           if (res.data.success) {
             setPendingBugCount(res.data.data.bugs || 0);
             setPendingFeedbackCount(res.data.data.feedbacks || 0);
+          }
+        })
+        .catch(() => {});
+
+      axios.get('/api/contact-requests/pending-count', { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            setPendingContactRequestCount(res.data.data.count || 0);
           }
         })
         .catch(() => {});
@@ -521,6 +532,9 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.contatos}</span>
         <span className="nav-text">Contatos</span>
+        {pendingContactRequestCount > 0 && (
+          <span className="nav-notification-badge">{pendingContactRequestCount}</span>
+        )}
       </Link>
       <Link
         to="/demandas-apoio"

@@ -5334,6 +5334,29 @@ export async function updateContact(contactId, { name, email, phone, position })
 }
 
 /**
+ * Cria uma nova empresa no banco
+ */
+export async function createCompany({ name, companyType }) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('companies')
+    .insert({
+      name,
+      company_type: companyType || null,
+      status: 'pendente',
+    })
+    .select('id, name, company_type, status')
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar empresa: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
  * Adiciona uma disciplina/equipe a um projeto
  */
 export async function createProjectDiscipline(disciplineData) {
