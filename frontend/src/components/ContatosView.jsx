@@ -120,12 +120,15 @@ function ContatosView() {
 
   // Estado para solicitações (não-admin)
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestForm, setRequestForm] = useState({ name: '', email: '', phone: '', position: '' });
+  const [requestForm, setRequestForm] = useState({ name: '', email: '', phone: '', position: '', company_name: '' });
   const [editingContactForRequest, setEditingContactForRequest] = useState(null);
   const [savingRequest, setSavingRequest] = useState(false);
   const [requestToast, setRequestToast] = useState(null);
   const [myRequests, setMyRequests] = useState([]);
   const [showMyRequests, setShowMyRequests] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [companyForm, setCompanyForm] = useState({ name: '' });
+  const [savingCompanyRequest, setSavingCompanyRequest] = useState(false);
 
   // Buscar minhas solicitações (para não-admin)
   const fetchMyRequests = useCallback(async () => {
@@ -145,6 +148,42 @@ function ContatosView() {
     fetchMyRequests();
   }, [fetchMyRequests]);
 
+  // Solicitar novo contato (para não-admin)
+  const handleRequestNewContact = () => {
+    setEditingContactForRequest(null);
+    setRequestForm({ name: '', email: '', phone: '', position: '', company_name: '' });
+    setShowRequestModal(true);
+  };
+
+  // Solicitar nova empresa (para não-admin)
+  const handleRequestNewCompany = () => {
+    setCompanyForm({ name: '' });
+    setShowCompanyModal(true);
+  };
+
+  const handleSubmitCompanyRequest = async () => {
+    if (!companyForm.name.trim()) {
+      alert('Nome da empresa é obrigatório');
+      return;
+    }
+    setSavingCompanyRequest(true);
+    try {
+      await axios.post(`${API_URL}/api/contact-requests`, {
+        request_type: 'nova_empresa',
+        payload: { name: companyForm.name.trim() },
+      }, { withCredentials: true });
+      setShowCompanyModal(false);
+      setRequestToast('Solicitação de nova empresa enviada!');
+      setTimeout(() => setRequestToast(null), 4000);
+      fetchMyRequests();
+    } catch (err) {
+      console.error('Erro ao enviar solicitação:', err);
+      alert('Erro ao enviar solicitação. Tente novamente.');
+    } finally {
+      setSavingCompanyRequest(false);
+    }
+  };
+
   // Solicitar edição de contato (para não-admin)
   const handleRequestEditContact = (contact) => {
     setEditingContactForRequest(contact);
@@ -153,6 +192,7 @@ function ContatosView() {
       email: contact.email || '',
       phone: contact.phone || '',
       position: contact.position || '',
+      company_name: '',
     });
     setShowRequestModal(true);
   };
@@ -183,7 +223,13 @@ function ContatosView() {
           }
         : {
             request_type: 'novo_contato',
-            payload: requestForm,
+            payload: {
+              name: requestForm.name,
+              email: requestForm.email,
+              phone: requestForm.phone,
+              position: requestForm.position,
+              ...(requestForm.company_name && { company_name: requestForm.company_name }),
+            },
           };
 
       await axios.post(`${API_URL}/api/contact-requests`, payload, { withCredentials: true });
@@ -326,6 +372,28 @@ function ContatosView() {
           </span>
         </div>
       </div>
+
+      {/* Botões de solicitação para leaders */}
+      {!hasFullAccess && (
+        <div className="contatos-leader-actions">
+          <button className="contatos-leader-btn contatos-leader-btn--contact" onClick={handleRequestNewContact}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <line x1="20" y1="8" x2="20" y2="14" />
+              <line x1="23" y1="11" x2="17" y2="11" />
+            </svg>
+            Solicitar Novo Contato
+          </button>
+          <button className="contatos-leader-btn contatos-leader-btn--company" onClick={handleRequestNewCompany}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            Solicitar Nova Empresa
+          </button>
+        </div>
+      )}
 
       {/* Tabs: Diretório | Solicitações (apenas para admin) */}
       {hasFullAccess && (
@@ -830,6 +898,23 @@ function ContatosView() {
                   placeholder="Cargo ou função"
                 />
               </div>
+              {!editingContactForRequest && (
+                <div className="ecli-form-group">
+                  <label>Empresa</label>
+                  <input
+                    type="text"
+                    list="contatos-empresas-list"
+                    value={requestForm.company_name}
+                    onChange={e => setRequestForm({ ...requestForm, company_name: e.target.value })}
+                    placeholder="Nome da empresa"
+                  />
+                  <datalist id="contatos-empresas-list">
+                    {empresas.map(e => (
+                      <option key={e.id} value={e.name} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
             </div>
             <div className="ecli-modal-footer">
               <button className="ecli-btn-cancel" onClick={() => setShowRequestModal(false)}>Cancelar</button>
@@ -840,6 +925,40 @@ function ContatosView() {
           </div>
         </div>
       )}
+      {/* Modal de solicitação de nova empresa (para não-admin) */}
+      {showCompanyModal && (
+        <div className="ecli-modal-overlay">
+          <div className="ecli-modal">
+            <div className="ecli-modal-header">
+              <h3>Solicitar Nova Empresa</h3>
+              <button className="ecli-modal-close" onClick={() => setShowCompanyModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ecli-modal-body">
+              <div className="ecli-form-group">
+                <label>Nome da Empresa <span className="ecli-required">*</span></label>
+                <input
+                  type="text"
+                  value={companyForm.name}
+                  onChange={e => setCompanyForm({ ...companyForm, name: e.target.value })}
+                  placeholder="Nome completo da empresa"
+                />
+              </div>
+            </div>
+            <div className="ecli-modal-footer">
+              <button className="ecli-btn-cancel" onClick={() => setShowCompanyModal(false)}>Cancelar</button>
+              <button className="ecli-btn-request" onClick={handleSubmitCompanyRequest} disabled={savingCompanyRequest}>
+                {savingCompanyRequest ? 'Enviando...' : 'Solicitar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       </>)}
     </div>
   );

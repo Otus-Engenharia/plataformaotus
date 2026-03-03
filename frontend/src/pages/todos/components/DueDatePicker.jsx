@@ -10,7 +10,9 @@ import './DueDatePicker.css';
 
 function parseDate(dateStr) {
   if (!dateStr) return null;
-  const d = new Date(dateStr);
+  const parts = dateStr.slice(0, 10).split('-').map(Number);
+  if (parts.length !== 3) return null;
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
   return isNaN(d.getTime()) ? null : d;
 }
 

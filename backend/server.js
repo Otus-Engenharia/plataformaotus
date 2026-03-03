@@ -969,7 +969,7 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
  */
 app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
   try {
-    if (!hasFullAccess(req.user)) {
+    if (!canEditPortfolio(req.user)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 

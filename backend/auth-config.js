@@ -211,13 +211,16 @@ export function hasFullAccess(email) {
 
 /**
  * Verifica se um usuario pode editar campos do portfolio
- * (Dev, CEO, Director, Admin ou Leader)
+ * (Dev, CEO, Director, Admin, Leader ou usuários do setor Operação)
  * @param {string|Object} emailOrUser - Email ou user object
  * @returns {boolean}
  */
 export function canEditPortfolio(emailOrUser) {
   const role = getUserRole(emailOrUser);
-  return ['dev', 'ceo', 'director', 'admin', 'leader'].includes(role);
+  if (['dev', 'ceo', 'director', 'admin', 'leader'].includes(role)) return true;
+  // Usuários do setor Operação podem editar portfolio e ferramentas
+  if (typeof emailOrUser === 'object' && emailOrUser?.setor_name === 'Operação') return true;
+  return false;
 }
 
 /**

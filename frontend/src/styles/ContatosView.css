@@ -827,6 +827,37 @@
   padding: 12px;
 }
 
+/* Barra de ações para leaders (não-admin) */
+.contatos-leader-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.contatos-leader-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #E5A00D;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #FEF9E7;
+  color: #92400E;
+}
+
+.contatos-leader-btn:hover {
+  background: #FDF2C5;
+  border-color: #D97706;
+}
+
+.contatos-leader-btn svg {
+  flex-shrink: 0;
+}
+
 /* Responsividade */
 @media (max-width: 768px) {
   .contatos-container {
@@ -844,6 +875,14 @@
 
   .contatos-clear-btn {
     width: 100%;
+    justify-content: center;
+  }
+
+  .contatos-leader-actions {
+    flex-direction: column;
+  }
+
+  .contatos-leader-btn {
     justify-content: center;
   }
 
