@@ -30,8 +30,12 @@ class RecordTimeSaving {
     // Busca a estimativa atual do catálogo
     const catalog = await this.#repository.findCatalogById(catalogId);
 
-    // Se a automação não existe ou está inativa, não registra
-    if (!catalog || !catalog.is_active) {
+    if (!catalog) {
+      console.warn(`[TimeSavings] Catalog não encontrado: "${catalogId}". Verifique tabela time_savings_catalog.`);
+      return null;
+    }
+    if (!catalog.is_active) {
+      console.warn(`[TimeSavings] Catalog inativo: "${catalogId}". Evento não registrado.`);
       return null;
     }
 

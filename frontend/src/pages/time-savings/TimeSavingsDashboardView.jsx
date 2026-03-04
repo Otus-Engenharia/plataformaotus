@@ -66,6 +66,8 @@ function TimeSavingsDashboardView() {
 
   useEffect(() => {
     fetchSummary();
+    const interval = setInterval(fetchSummary, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [fetchSummary]);
 
   // Buscar eventos de auditoria
