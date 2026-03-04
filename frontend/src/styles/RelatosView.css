@@ -13,16 +13,15 @@
 /* Header */
 .relatos-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.relatos-header-left {
+.relatos-header-top {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -33,71 +32,318 @@
   margin: 0;
 }
 
-.relatos-filters {
+/* Stat strip (inline pills) */
+.relatos-stat-strip {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 
-.relatos-filter-select {
-  padding: 6px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-family: 'Inter', Verdana, sans-serif;
+.relatos-stat-pill {
+  font-size: 0.78rem;
+  color: #6b7280;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 3px 10px;
+}
+
+.relatos-stat-pill strong {
+  font-weight: 700;
   color: #374151;
-  background: white;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
 }
 
-.relatos-filter-select:focus {
-  border-color: #ffdd00;
+.relatos-stat-pill--active strong {
+  color: #2563eb;
 }
 
-/* Lista */
-.relatos-list {
+.relatos-stat-pill--resolved strong {
+  color: #16a34a;
+}
+
+/* Filter rows */
+.relatos-filter-rows {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: calc(100vh - 340px);
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.relatos-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.relatos-filter-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+/* Chip filters */
+.relatos-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.relatos-chip {
+  padding: 3px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: transparent;
+  color: #6b7280;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.relatos-chip:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.relatos-chip.active {
+  background: #ffdd00;
+  border-color: #ffdd00;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.relatos-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.relatos-chip.active .relatos-chip-dot {
+  opacity: 0.8;
+}
+
+.relatos-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.07);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.relatos-chip.active .relatos-chip-count {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   Kanban Board
+   ============================================ */
+
+.relatos-kanban {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 0 8px;
+  min-height: 300px;
   scrollbar-width: thin;
   scrollbar-color: #d1d5db transparent;
 }
 
-.relatos-list::-webkit-scrollbar {
-  width: 6px;
+.relatos-kanban::-webkit-scrollbar {
+  height: 6px;
 }
 
-.relatos-list::-webkit-scrollbar-track {
+.relatos-kanban::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.relatos-list::-webkit-scrollbar-thumb {
+.relatos-kanban::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 3px;
 }
 
-.relatos-list::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+/* Column */
+.relatos-kanban__column {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  max-height: calc(100vh - 340px);
+  min-height: 200px;
 }
 
-.relatos-loading,
-.relatos-empty,
-.relatos-error {
+/* Single column mode: expand to full width */
+.relatos-kanban--single .relatos-kanban__column {
+  flex: 1 1 auto;
+  min-width: 280px;
+  max-width: 100%;
+}
+
+/* Column header */
+.relatos-kanban__column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 3px solid var(--column-color, #e5e7eb);
+  background: white;
+  border-radius: 10px 10px 0 0;
+  flex-shrink: 0;
+}
+
+.relatos-kanban__column-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1f2937;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.relatos-kanban__column-title::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--column-color, #6b7280);
+  flex-shrink: 0;
+}
+
+.relatos-kanban__column-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  color: var(--column-color, #6b7280);
+  min-width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(107, 114, 128, 0.1);
+  border-radius: 6px;
+  padding: 0 6px;
+}
+
+/* Column body (scrollable card area) */
+.relatos-kanban__column-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.relatos-kanban__column-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.relatos-kanban__column-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.relatos-kanban__column-body::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* Empty column placeholder */
+.relatos-kanban__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 20px 12px;
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-style: italic;
+  border: 1px dashed #e5e7eb;
+  border-radius: 8px;
+  margin: 4px;
+}
+
+/* Responsive Kanban */
+@media (max-width: 768px) {
+  .relatos-kanban {
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  .relatos-kanban__column {
+    flex: none;
+    width: 100%;
+    max-height: 400px;
+  }
+}
+
+.relatos-loading {
   text-align: center;
   padding: 32px 16px;
   color: #6b7280;
   font-size: 0.9rem;
 }
 
+.relatos-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  color: #9ca3af;
+  font-size: 0.88rem;
+}
+
+.relatos-empty p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.relatos-clear-filters {
+  padding: 5px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: transparent;
+  color: #6b7280;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+}
+
+.relatos-clear-filters:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
 .relatos-error {
+  text-align: center;
+  padding: 12px 16px;
   color: #ef4444;
   background: #fef2f2;
   border-radius: 8px;
+  font-size: 0.85rem;
 }
 
 /* Card */
@@ -105,29 +351,34 @@
   background: white;
   border: 1px solid #e5e7eb;
   border-left: 4px solid #6b7280;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
   flex-shrink: 0;
 }
 
 .relato-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07);
+  transform: translateY(-1px);
 }
 
 .relato-card-expanded {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.09);
 }
 
 .relato-card-resolved {
-  opacity: 0.7;
+  opacity: 0.85;
+}
+
+.relato-card-resolved:not(.relato-card-expanded) {
+  border-left-color: #22c55e !important;
 }
 
 .relato-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 14px 18px;
   cursor: pointer;
   gap: 12px;
 }
@@ -137,33 +388,60 @@
   min-width: 0;
 }
 
-.relato-card-title-row {
+/* Top row: icon + badges + code */
+.relato-card-top-row {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.relato-card-icon {
-  font-size: 1rem;
+.relato-card-icon-wrapper {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
+.relato-card-code {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #9ca3af;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  letter-spacing: 0.02em;
+}
+
+/* Title */
 .relato-card-titulo {
   font-size: 0.95rem;
   font-weight: 600;
   color: #1f2937;
-  flex-shrink: 1;
-  min-width: 0;
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+/* Description preview (clamped) */
+.relato-card-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.84rem;
+  color: #6b7280;
+  line-height: 1.55;
+  margin: 4px 0 0;
 }
 
 /* Badges */
 .relato-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.7rem;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.73rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -175,9 +453,8 @@
 }
 
 .relato-badge-prioridade {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
 }
 
 /* Meta */
@@ -185,34 +462,40 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 8px;
   font-size: 0.8rem;
   color: #9ca3af;
 }
 
 .relato-card-separator {
-  font-size: 0.6rem;
+  font-size: 0.5rem;
+  color: #d1d5db;
 }
 
 .relato-card-construflow-badge {
-  background: #fff3e0;
-  color: #e65100;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 0.7rem;
+  background: #fff7ed;
+  color: #c2410c;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.72rem;
   font-weight: 600;
   margin-left: 4px;
   letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .relato-card-resolved-badge {
-  background: #d1fae5;
-  color: #065f46;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  margin-left: 4px;
+  background: #dcfce7;
+  color: #15803d;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 /* Header actions (edit + chevron) */
@@ -221,33 +504,41 @@
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  padding-top: 2px;
 }
 
 .relato-card-edit-btn {
   background: none;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 0.95rem;
   color: #9ca3af;
-  padding: 2px 5px;
+  padding: 4px 6px;
   transition: all 0.2s;
   line-height: 1;
 }
 
 .relato-card-edit-btn:hover {
   color: #2563eb;
-  border-color: #2563eb;
+  border-color: #dbeafe;
   background: #eff6ff;
 }
 
 /* Chevron */
 .relato-card-chevron {
-  color: #9ca3af;
-  font-size: 0.7rem;
-  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s ease;
   flex-shrink: 0;
-  margin-top: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.relato-card-chevron:hover {
+  background: #f3f4f6;
 }
 
 .relato-card-chevron-open {
@@ -256,14 +547,14 @@
 
 /* Body expandido */
 .relato-card-body {
-  padding: 0 16px 12px;
+  padding: 0 18px 14px;
   border-top: 1px solid #f3f4f6;
 }
 
 .relato-card-descricao {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: #4b5563;
-  line-height: 1.6;
+  line-height: 1.65;
   margin: 12px 0 8px;
   white-space: pre-wrap;
 }
@@ -271,15 +562,16 @@
 .relato-card-actions {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .relato-action-btn {
-  padding: 4px 12px;
+  padding: 5px 14px;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.8rem;
   font-family: 'Inter', Verdana, sans-serif;
+  font-weight: 500;
   cursor: pointer;
   background: white;
   transition: all 0.2s;
@@ -287,22 +579,24 @@
 
 .relato-action-edit {
   color: #2563eb;
-  border-color: #2563eb;
+  border-color: #bfdbfe;
 }
 
 .relato-action-edit:hover {
   background: #2563eb;
   color: white;
+  border-color: #2563eb;
 }
 
 .relato-action-delete {
   color: #ef4444;
-  border-color: #ef4444;
+  border-color: #fecaca;
 }
 
 .relato-action-delete:hover {
   background: #ef4444;
   color: white;
+  border-color: #ef4444;
 }
 
 /* Footer */
@@ -316,26 +610,16 @@
   flex-wrap: wrap;
 }
 
-.relatos-stats {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 0.85rem;
-}
-
-.relatos-stat-total {
-  color: #6b7280;
-}
-
-.relatos-stat-item {
-  font-weight: 600;
+.relatos-footer-text {
+  font-size: 0.8rem;
+  color: #9ca3af;
 }
 
 .relatos-add-btn {
   padding: 8px 16px;
   background: white;
   color: #2563eb;
-  border: 1px solid #2563eb;
+  border: 1px solid #bfdbfe;
   border-radius: 6px;
   font-size: 0.85rem;
   font-family: 'Inter', Verdana, sans-serif;
@@ -347,6 +631,7 @@
 .relatos-add-btn:hover {
   background: #2563eb;
   color: white;
+  border-color: #2563eb;
 }
 
 /* Modal / Overlay */

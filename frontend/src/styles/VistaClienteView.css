@@ -665,39 +665,114 @@
   animation: vcFadeInUp 0.4s ease-out 0.25s both;
 }
 
-.vc-relatos-header {
+/* ---- Stat Strip ---- */
+.vc-relatos-stat-strip {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.vc-relatos-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--vc-bg);
+  border: 1px solid var(--vc-border);
+  border-radius: var(--vc-radius-sm);
+  min-width: 64px;
+}
+
+.vc-relatos-stat-card--tipo {
+  padding: 6px 12px;
+  min-width: 56px;
+}
+
+.vc-relatos-stat-value {
+  font-family: var(--vc-font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--vc-text-primary);
+  line-height: 1.2;
+}
+
+.vc-relatos-stat-value--active {
+  color: #2563eb;
+}
+
+.vc-relatos-stat-value--resolved {
+  color: var(--vc-success);
+}
+
+.vc-relatos-stat-card--tipo .vc-relatos-stat-value {
+  font-size: 17px;
+}
+
+.vc-relatos-stat-label {
+  font-family: var(--vc-font-body);
+  font-size: 10.5px;
+  color: var(--vc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  margin-top: 2px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 4px;
+}
+
+.vc-relatos-stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vc-relatos-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--vc-border);
+  margin: 0 4px;
+}
+
+/* ---- Filter Header ---- */
+.vc-relatos-header {
+  display: flex;
+  align-items: flex-start;
   padding: 14px 20px;
   border-bottom: 1px solid #f3f4f6;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
-.vc-relatos-header-left {
+.vc-relatos-filter-group {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
 }
 
-.vc-relatos-header h4 {
-  font-family: var(--vc-font-display);
-  font-size: 16px;
+.vc-relatos-filter-label {
+  font-family: var(--vc-font-body);
+  font-size: 11px;
   font-weight: 600;
-  color: var(--vc-text-primary);
-  margin: 0;
+  color: var(--vc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
 }
 
 /* Chip filters */
 .vc-relatos-chips {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
 }
 
 .vc-relatos-chip {
-  padding: 5px 14px;
+  padding: 4px 12px;
   border: 1px solid var(--vc-border);
   border-radius: 20px;
   background: transparent;
@@ -708,6 +783,9 @@
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .vc-relatos-chip:hover {
@@ -722,13 +800,42 @@
   font-weight: 600;
 }
 
-/* Single column list */
+.vc-relatos-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vc-relatos-chip.active .vc-relatos-chip-dot {
+  opacity: 0.8;
+}
+
+.vc-relatos-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.07);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.vc-relatos-chip.active .vc-relatos-chip-count {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* ---- Card List ---- */
 .vc-relatos-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  padding: 14px 20px;
-  max-height: 420px;
+  padding: 16px 20px;
+  max-height: 480px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #d6d3d1 transparent;
@@ -743,65 +850,101 @@
   border-radius: 2px;
 }
 
+/* Staggered entrance animation */
+.vc-relatos-grid .relato-card {
+  animation: vcFadeInUp 0.3s ease-out both;
+}
+.vc-relatos-grid .relato-card:nth-child(1) { animation-delay: 0s; }
+.vc-relatos-grid .relato-card:nth-child(2) { animation-delay: 0.03s; }
+.vc-relatos-grid .relato-card:nth-child(3) { animation-delay: 0.06s; }
+.vc-relatos-grid .relato-card:nth-child(4) { animation-delay: 0.09s; }
+.vc-relatos-grid .relato-card:nth-child(5) { animation-delay: 0.12s; }
+.vc-relatos-grid .relato-card:nth-child(6) { animation-delay: 0.15s; }
+.vc-relatos-grid .relato-card:nth-child(7) { animation-delay: 0.18s; }
+.vc-relatos-grid .relato-card:nth-child(8) { animation-delay: 0.21s; }
+
+/* ---- Footer ---- */
 .vc-relatos-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 10px 20px;
   border-top: 1px solid #f3f4f6;
-  font-size: 12px;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
-.vc-relatos-stats {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--vc-text-secondary);
+.vc-relatos-footer-text {
   font-family: var(--vc-font-body);
-}
-
-.vc-relatos-stat-item {
-  font-weight: 600;
-}
-
-.vc-relatos-add-btn {
-  padding: 6px 16px;
-  background: var(--vc-surface);
-  color: var(--vc-text-primary);
-  border: 1px solid var(--vc-border);
-  border-radius: 20px;
   font-size: 12px;
-  font-family: var(--vc-font-body);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
+  color: var(--vc-text-muted);
 }
 
-.vc-relatos-add-btn:hover {
-  background: var(--vc-accent);
-  border-color: var(--vc-accent);
-}
-
-.vc-relatos-loading,
-.vc-relatos-empty {
-  padding: 32px 20px;
+/* ---- Loading & Empty States ---- */
+.vc-relatos-loading {
+  padding: 40px 20px;
   text-align: center;
   color: var(--vc-text-muted);
+  font-family: var(--vc-font-body);
   font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
-/* Scoped overrides for RelatoCard inside vista-cliente */
+.vc-relatos-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--vc-border);
+  border-top-color: var(--vc-accent);
+  border-radius: 50%;
+  animation: vcSpin 0.7s linear infinite;
+}
+
+@keyframes vcSpin {
+  to { transform: rotate(360deg); }
+}
+
+.vc-relatos-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--vc-text-muted);
+  font-family: var(--vc-font-body);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.vc-relatos-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.vc-relatos-clear-filters {
+  padding: 5px 14px;
+  border: 1px solid var(--vc-border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--vc-text-secondary);
+  font-family: var(--vc-font-body);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vc-relatos-clear-filters:hover {
+  background: var(--vc-bg);
+  border-color: var(--vc-border-hover);
+}
+
+/* ---- Scoped overrides for RelatoCard inside vista-cliente ---- */
 .vista-cliente-container .relato-card {
   font-family: var(--vc-font-body);
 }
 
-/* Hide edit/delete actions - client view is read-only */
-.vista-cliente-container .relato-card-edit-btn,
-.vista-cliente-container .relato-card-actions {
-  display: none;
+.vista-cliente-container .relato-card-titulo {
+  font-family: var(--vc-font-display);
 }
 
 /* ============================================================
@@ -876,4 +1019,33 @@
     font-size: 1.25rem;
   }
 
+  .vc-relatos-stat-strip {
+    gap: 6px;
+    padding: 12px 16px;
+  }
+
+  .vc-relatos-stat-card {
+    flex: 1;
+    min-width: 55px;
+    padding: 6px 10px;
+  }
+
+  .vc-relatos-stat-divider {
+    display: none;
+  }
+
+  .vc-relatos-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .vc-relatos-filter-group {
+    flex-wrap: wrap;
+  }
+
+  .vc-relatos-grid {
+    padding: 12px 16px;
+  }
 }

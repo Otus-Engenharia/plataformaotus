@@ -1,11 +1,12 @@
 /**
  * Componente: Vista de Equipe do Projeto (Orquestrador)
  *
- * 4 sub-abas:
+ * 5 sub-abas:
  * 1. Equipe Otus - Time interno baseado na alocação do portfólio
  * 2. Equipe do Cliente - Contatos do cliente no projeto
  * 3. Projetistas - Cadastro de disciplinas (empresa + contato por disciplina)
  * 4. Controle de Disciplinas - Cobertura Smartsheet x ConstruFlow x Otus
+ * 5. Nomenclatura - Padrão de nomenclatura de arquivos (modelos + pranchas)
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -15,6 +16,7 @@ import EquipeOtusPanel from './EquipeOtusPanel';
 import EquipeClientePanel from './EquipeClientePanel';
 import EquipeProjetistasPanel from './EquipeProjetistasPanel';
 import DisciplineCoveragePanel from './DisciplineCoveragePanel';
+import NomenclaturaPanel from './NomenclaturaPanel';
 import '../styles/EquipeView.css';
 
 function EquipeView({ selectedProjectId, portfolio = [] }) {
@@ -187,6 +189,21 @@ function EquipeView({ selectedProjectId, portfolio = [] }) {
               <span className="equipe-tab-badge equipe-tab-badge--alert">{pendingCount}</span>
             )}
           </button>
+
+          {/* Sub-aba 5: Nomenclatura */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('nomenclatura')}
+            className={`equipe-tab ${activeTab === 'nomenclatura' ? 'active' : ''}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            Nomenclatura
+          </button>
         </div>
 
         <div className="equipe-tabs-content">
@@ -232,6 +249,14 @@ function EquipeView({ selectedProjectId, portfolio = [] }) {
                 standardDisciplines={disciplinas}
                 projectId={construflowId}
                 onMappingChange={fetchCrossRef}
+              />
+            </div>
+          )}
+
+          {activeTab === 'nomenclatura' && (
+            <div className="equipe-tab-panel">
+              <NomenclaturaPanel
+                projectCode={projectCode}
               />
             </div>
           )}

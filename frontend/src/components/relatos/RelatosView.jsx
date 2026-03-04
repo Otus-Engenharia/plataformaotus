@@ -2,14 +2,15 @@
  * Componente: Vista de Relatos (Diário de Projeto)
  *
  * Container principal da aba "Relatos" em ProjetosView.
- * Exibe lista de relatos do projeto com filtros por tipo e prioridade.
+ * Exibe lista de relatos do projeto com filtros chip por tipo, prioridade e status.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
-import RelatoCard from './RelatoCard';
 import RelatoForm from './RelatoForm';
+import RelatosKanbanBoard from './RelatosKanbanBoard';
+import { RelatoIcon } from './RelatoIcons';
 import '../../styles/RelatosView.css';
 
 function RelatosView({ selectedProjectId, portfolio }) {
@@ -22,6 +23,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
   // Filtros
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroPrioridade, setFiltroPrioridade] = useState('');
+  const [filtroPeriodo, setFiltroPeriodo] = useState('');
 
   // Formulário
   const [showForm, setShowForm] = useState(false);
@@ -50,7 +52,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
     } else {
       setRelatos([]);
     }
-  }, [projectCode, filtroTipo, filtroPrioridade]);
+  }, [projectCode]);
 
   const fetchTipos = async () => {
     try {
@@ -75,11 +77,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (filtroTipo) params.append('tipo', filtroTipo);
-      if (filtroPrioridade) params.append('prioridade', filtroPrioridade);
-
-      const url = `${API_URL}/api/relatos/project/${encodeURIComponent(projectCode)}${params.toString() ? '?' + params.toString() : ''}`;
+      const url = `${API_URL}/api/relatos/project/${encodeURIComponent(projectCode)}`;
       const res = await axios.get(url, { withCredentials: true });
 
       if (res.data.success) {
@@ -91,7 +89,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
     } finally {
       setLoading(false);
     }
-  }, [projectCode, filtroTipo, filtroPrioridade]);
+  }, [projectCode]);
 
   const handleCreate = async (data) => {
     try {
@@ -145,89 +143,198 @@ function RelatosView({ selectedProjectId, portfolio }) {
     }
   };
 
-  // Contadores para o footer
-  const statsByPrioridade = {};
-  for (const p of prioridades) {
-    statsByPrioridade[p.slug] = relatos.filter(r => r.prioridade_slug === p.slug).length;
-  }
+  const clearFilters = () => {
+    setFiltroTipo('');
+    setFiltroPrioridade('');
+    setFiltroPeriodo('');
+  };
+
+  const hasFilters = filtroTipo || filtroPrioridade || filtroPeriodo;
+
+  // Stats
+  const stats = useMemo(() => {
+    return { total: relatos.length };
+  }, [relatos]);
+
+  // Chip counts
+  const tipoChipCounts = useMemo(() => {
+    const counts = {};
+    tipos.forEach(t => { counts[t.slug] = 0; });
+    relatos.forEach(r => {
+      if (counts[r.tipo_slug] !== undefined) counts[r.tipo_slug]++;
+    });
+    return counts;
+  }, [relatos, tipos]);
+
+  const prioridadeChipCounts = useMemo(() => {
+    const counts = {};
+    prioridades.forEach(p => { counts[p.slug] = 0; });
+    relatos.forEach(r => {
+      if (counts[r.prioridade_slug] !== undefined) counts[r.prioridade_slug]++;
+    });
+    return counts;
+  }, [relatos, prioridades]);
+
+  // Filtragem client-side (período + prioridade; tipo controla colunas do Kanban)
+  const filteredRelatos = useMemo(() => {
+    let result = relatos;
+
+    if (filtroPeriodo === 'esta-semana') {
+      const now = new Date();
+      const day = now.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+      result = result.filter(r => new Date(r.created_at) >= weekStart);
+    } else if (filtroPeriodo === 'este-mes') {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      result = result.filter(r => new Date(r.created_at) >= monthStart);
+    }
+
+    if (filtroPrioridade) result = result.filter(r => r.prioridade_slug === filtroPrioridade);
+
+    return result;
+  }, [relatos, filtroPrioridade, filtroPeriodo]);
 
   if (!projectCode) {
     return (
       <div className="relatos-container">
-        <div className="relatos-empty">Selecione um projeto para ver os relatos.</div>
+        <div className="relatos-empty">
+          <RelatoIcon name="clipboard" size={36} color="#d1d5db" />
+          <p>Selecione um projeto para ver os relatos.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="relatos-container">
-      {/* Header com filtros */}
+      {/* Header com stats inline + filtros chip */}
       <div className="relatos-header">
-        <div className="relatos-header-left">
+        <div className="relatos-header-top">
           <h3 className="relatos-title">Relatos</h3>
-          <div className="relatos-filters">
-            <select
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value)}
-              className="relatos-filter-select"
-            >
-              <option value="">Todos os tipos</option>
-              {tipos.map(t => (
-                <option key={t.slug} value={t.slug}>{t.label}</option>
-              ))}
-            </select>
+          <div className="relatos-stat-strip">
+            <span className="relatos-stat-pill">
+              <strong>{stats.total}</strong> total
+            </span>
+          </div>
+        </div>
 
-            <select
-              value={filtroPrioridade}
-              onChange={(e) => setFiltroPrioridade(e.target.value)}
-              className="relatos-filter-select"
-            >
-              <option value="">Todas prioridades</option>
-              {prioridades.map(p => (
-                <option key={p.slug} value={p.slug}>{p.label}</option>
+        <div className="relatos-filter-rows">
+          {/* Tipo chips */}
+          <div className="relatos-filter-group">
+            <span className="relatos-filter-label">Tipo</span>
+            <div className="relatos-chips">
+              <button
+                className={`relatos-chip ${filtroTipo === '' ? 'active' : ''}`}
+                onClick={() => setFiltroTipo('')}
+              >
+                Todos
+              </button>
+              {tipos.map(t => (
+                <button
+                  key={t.slug}
+                  className={`relatos-chip ${filtroTipo === t.slug ? 'active' : ''}`}
+                  onClick={() => setFiltroTipo(filtroTipo === t.slug ? '' : t.slug)}
+                  style={filtroTipo === t.slug ? { background: t.color, borderColor: t.color, color: '#fff' } : {}}
+                >
+                  <span className="relatos-chip-dot" style={{ backgroundColor: t.color }} />
+                  {t.label}
+                  {tipoChipCounts[t.slug] > 0 && (
+                    <span className="relatos-chip-count">{tipoChipCounts[t.slug]}</span>
+                  )}
+                </button>
               ))}
-            </select>
+            </div>
+          </div>
+
+          {/* Prioridade chips */}
+          <div className="relatos-filter-group">
+            <span className="relatos-filter-label">Prioridade</span>
+            <div className="relatos-chips">
+              <button
+                className={`relatos-chip ${filtroPrioridade === '' ? 'active' : ''}`}
+                onClick={() => setFiltroPrioridade('')}
+              >
+                Todas
+              </button>
+              {prioridades.map(p => (
+                <button
+                  key={p.slug}
+                  className={`relatos-chip ${filtroPrioridade === p.slug ? 'active' : ''}`}
+                  onClick={() => setFiltroPrioridade(filtroPrioridade === p.slug ? '' : p.slug)}
+                  style={filtroPrioridade === p.slug ? { background: p.color, borderColor: p.color, color: '#fff' } : {}}
+                >
+                  {p.label}
+                  {prioridadeChipCounts[p.slug] > 0 && (
+                    <span className="relatos-chip-count">{prioridadeChipCounts[p.slug]}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Período chips */}
+          <div className="relatos-filter-group">
+            <span className="relatos-filter-label">Período</span>
+            <div className="relatos-chips">
+              <button
+                className={`relatos-chip ${filtroPeriodo === '' ? 'active' : ''}`}
+                onClick={() => setFiltroPeriodo('')}
+              >
+                Sempre
+              </button>
+              <button
+                className={`relatos-chip ${filtroPeriodo === 'este-mes' ? 'active' : ''}`}
+                onClick={() => setFiltroPeriodo(filtroPeriodo === 'este-mes' ? '' : 'este-mes')}
+              >
+                Este mês
+              </button>
+              <button
+                className={`relatos-chip ${filtroPeriodo === 'esta-semana' ? 'active' : ''}`}
+                onClick={() => setFiltroPeriodo(filtroPeriodo === 'esta-semana' ? '' : 'esta-semana')}
+              >
+                Esta semana
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Lista de relatos */}
+      {/* Kanban board */}
       {error && <div className="relatos-error">{error}</div>}
 
       {loading ? (
         <div className="relatos-loading">Carregando relatos...</div>
-      ) : (
-        <div className="relatos-list">
-          {relatos.map(relato => (
-            <RelatoCard
-              key={relato.id}
-              relato={relato}
-              isExpanded={expandedId === relato.id}
-              onToggleExpand={() => setExpandedId(expandedId === relato.id ? null : relato.id)}
-              onEdit={() => { setEditingRelato(relato); setShowForm(true); }}
-              onDelete={() => handleDelete(relato.id)}
-            />
-          ))}
-          {relatos.length === 0 && !loading && (
-            <div className="relatos-empty">Nenhum relato encontrado para este projeto.</div>
-          )}
+      ) : filteredRelatos.length === 0 && hasFilters ? (
+        <div className="relatos-empty">
+          <RelatoIcon name="clipboard" size={36} color="#d1d5db" />
+          <p>Nenhum relato encontrado com os filtros selecionados.</p>
+          <button className="relatos-clear-filters" onClick={clearFilters}>
+            Limpar filtros
+          </button>
         </div>
+      ) : (
+        <RelatosKanbanBoard
+          relatos={filteredRelatos}
+          tipos={tipos}
+          filtroTipo={filtroTipo}
+          expandedId={expandedId}
+          onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+          onEdit={(relato) => { setEditingRelato(relato); setShowForm(true); }}
+          onDelete={handleDelete}
+          variant="internal"
+        />
       )}
 
-      {/* Footer com estatísticas */}
+      {/* Footer */}
       <div className="relatos-footer">
-        <div className="relatos-stats">
-          <span className="relatos-stat-total">Total: {relatos.length} relatos</span>
-          {prioridades.map(p => {
-            const count = statsByPrioridade[p.slug] || 0;
-            if (count === 0) return null;
-            return (
-              <span key={p.slug} className="relatos-stat-item" style={{ color: p.color }}>
-                {p.label}: {count}
-              </span>
-            );
-          })}
-        </div>
+        <span className="relatos-footer-text">
+          {filteredRelatos.length < relatos.length
+            ? `Mostrando ${filteredRelatos.length} de ${relatos.length} relatos`
+            : `${relatos.length} relatos`
+          }
+        </span>
         <button
           className="relatos-add-btn"
           onClick={() => { setEditingRelato(null); setShowForm(true); }}
