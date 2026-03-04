@@ -294,13 +294,19 @@ export default function CheckInMeeting() {
       setKeyResults(enrichedKRs);
 
       const krIds = enrichedKRs.map(kr => kr.id);
-      const checkInsResponse = await axios.get('/api/okrs/check-ins', {
-        params: { keyResultIds: krIds.join(',') },
-        withCredentials: true
-      });
+      const [checkInsResponse, recoveryPlansResponse] = await Promise.all([
+        axios.get('/api/okrs/check-ins', {
+          params: { keyResultIds: krIds.join(',') },
+          withCredentials: true
+        }),
+        axios.get('/api/okrs/recovery-plans', {
+          params: { keyResultIds: krIds.join(',') },
+          withCredentials: true
+        })
+      ]);
       setCheckIns(checkInsResponse.data.data || []);
       setComments([]);
-      setRecoveryPlans([]);
+      setRecoveryPlans(recoveryPlansResponse.data.data || []);
 
     } catch (err) {
       console.error('Error fetching check-in data:', err);
@@ -335,7 +341,10 @@ export default function CheckInMeeting() {
             p => p.mes_referencia === monthNum && p.ano_referencia === selectedYear
           );
 
-          if (isBehind || (actual === null && monthNum < selectedMonth)) {
+          const monthHasPassed = selectedYear < currentYear ||
+            (selectedYear === currentYear && monthNum < currentMonth);
+
+          if (isBehind || (actual === null && monthHasPassed)) {
             monthsBehind.push({ month: monthNum, target, actual, hasRecoveryPlan });
           }
         }
