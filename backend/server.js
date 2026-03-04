@@ -154,6 +154,19 @@ function withBqCache(ttlSeconds) {
   };
 }
 
+/**
+ * Invalida todas as chaves de cache relacionadas ao portfolio.
+ * Chamado após qualquer mutação nos dados do portfolio (update campo, tools, criação).
+ */
+function invalidatePortfolioCache() {
+  const allKeys = bqCache.keys();
+  const portfolioKeys = allKeys.filter(k => k.startsWith('bq:/api/portfolio'));
+  if (portfolioKeys.length > 0) {
+    bqCache.del(portfolioKeys);
+    console.log(`🗑️ Cache invalidado: ${portfolioKeys.length} chave(s) de portfolio`);
+  }
+}
+
 // Configuração de sessão
 const isProduction = process.env.NODE_ENV === 'production';
 const isDevMode = process.env.DEV_MODE === 'true';
@@ -867,6 +880,29 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
       };
     });
 
+    // 5. Append projetos Supabase-only (criados pelo Formulário, sem BigQuery)
+    const bqCodes = new Set(bqData.map(row => row.project_code_norm));
+    for (const p of supabaseProjects) {
+      if (p.project_code && !bqCodes.has(p.project_code)) {
+        const features = featuresMap[p.project_code] || {};
+        enrichedData.push({
+          project_code_norm: p.project_code,
+          project_name: p.name || p.comercial_name || p.project_code,
+          comercial_name: p.comercial_name || null,
+          status: p.status || 'a iniciar',
+          service_type: p.service_type || null,
+          nome_time: p.teams?.team_name || null,
+          lider: p.users_otus?.name || null,
+          client: p.companies?.name || null,
+          _team_id: p.team_id,
+          _company_id: p.company_id,
+          _project_manager_id: p.project_manager_id,
+          _source: 'supabase_only',
+          ...features,
+        });
+      }
+    }
+
     // Deduplica por project_code_norm (BQ pode ter linhas duplicadas)
     const seenCodes = new Set();
     const deduplicatedData = enrichedData.filter(row => {
@@ -958,6 +994,7 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     }
 
     const result = await updateProjectField(projectCode, field, value);
+    invalidatePortfolioCache();
     await logAction(req, 'update', 'portfolio', projectCode, field, { value, oldValue });
     await trackTimeSaving(req, 'portfolio_field_update', { resourceType: 'project', resourceId: projectCode, resourceName: field });
 
@@ -1016,6 +1053,7 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
     }
 
     const result = await updateProjectToolField(projectCode, field, value);
+    invalidatePortfolioCache();
     await logAction(req, 'update', 'portfolio-tools', projectCode, field, { value, oldValue });
 
     res.json({ success: true, data: result });
@@ -2794,7 +2832,7 @@ const bigqueryClient = {
   queryNomeTimeByTeamName,
 };
 
-setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator: WeeklyReportGenerator });
+setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator: WeeklyReportGenerator, invalidatePortfolioCache });
 
 /**
  * Rota: GET /api/admin/user-views
