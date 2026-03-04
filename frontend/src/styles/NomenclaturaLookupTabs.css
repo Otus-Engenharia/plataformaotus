@@ -1,0 +1,398 @@
+/**
+ * Estilos: Sub-abas de Lookup para Nomenclatura
+ */
+
+/* ===== Container ===== */
+.nlt-container {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.nlt-section-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0.875rem 1rem 0;
+}
+
+/* ===== Tabs ===== */
+.nlt-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0.5rem 1rem 0;
+  border-bottom: 1px solid #e5e7eb;
+  overflow-x: auto;
+}
+
+.nlt-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  margin-bottom: -1px;
+}
+
+.nlt-tab:hover {
+  color: #1a1a1a;
+  background: #f9fafb;
+}
+
+.nlt-tab--active {
+  color: #1a1a1a;
+  font-weight: 600;
+  border-bottom-color: #f59e0b;
+}
+
+.nlt-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 9px;
+}
+
+.nlt-tab--active .nlt-tab-count {
+  background: #16a34a;
+  color: white;
+}
+
+/* ===== Tab Content ===== */
+.nlt-content {
+  padding: 0;
+}
+
+.nlt-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.nlt-content-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nlt-content-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nlt-param-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.nlt-char-count-group {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.nlt-char-count-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.nlt-char-count-input {
+  width: 44px;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+  color: #1a1a1a;
+  background: white;
+  transition: border-color 0.15s;
+}
+
+.nlt-char-count-input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.nlt-char-count-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.nlt-char-count-display {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* ===== Import button ===== */
+.nlt-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #1a1a1a;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.nlt-import-btn:hover:not(:disabled) {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.nlt-import-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Save button ===== */
+.nlt-save-btn {
+  padding: 0.375rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: not-allowed;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.nlt-save-btn--active {
+  background: #fbbf24;
+  border-color: #f59e0b;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+.nlt-save-btn--active:hover {
+  background: #f59e0b;
+}
+
+/* ===== Messages ===== */
+.nlt-msg {
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.nlt-msg--ok {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.nlt-msg--error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.nlt-msg--warn {
+  background: #fffbeb;
+  color: #a16207;
+}
+
+/* ===== Table ===== */
+.nlt-table-wrap {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.nlt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.nlt-table thead {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
+}
+
+.nlt-table th {
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nlt-th-name {
+  width: 55%;
+}
+
+.nlt-th-abbr {
+  width: 35%;
+}
+
+.nlt-th-actions {
+  width: 10%;
+}
+
+.nlt-table td {
+  padding: 0.25rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.nlt-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.nlt-row--warn {
+  background: #fffbeb !important;
+}
+
+.nlt-cell-input {
+  width: 100%;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: #1a1a1a;
+  background: transparent;
+  transition: border-color 0.15s;
+}
+
+.nlt-cell-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: white;
+}
+
+.nlt-cell-input:hover {
+  border-color: #d1d5db;
+}
+
+.nlt-cell-abbr {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.nlt-abbr-display {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  background: #f3f4f6;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+}
+
+.nlt-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.nlt-remove-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.nlt-empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 1.5rem 1rem !important;
+  font-size: 0.8125rem;
+}
+
+/* ===== Add row ===== */
+.nlt-add-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.nlt-add-input {
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  color: #1a1a1a;
+  transition: border-color 0.15s;
+}
+
+.nlt-add-input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.nlt-add-name {
+  flex: 1;
+}
+
+.nlt-add-abbr {
+  width: 100px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.nlt-add-btn {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #22c55e;
+  border-radius: 6px;
+  background: #f0fdf4;
+  color: #16a34a;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.nlt-add-btn:hover:not(:disabled) {
+  background: #22c55e;
+  color: white;
+}
+
+.nlt-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

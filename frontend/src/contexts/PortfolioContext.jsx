@@ -26,6 +26,7 @@ export function PortfolioProvider({ children }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastFetchedAt, setLastFetchedAt] = useState(null);
 
   // Filtros compartilhados (Time e Lider)
   const [timeFilter, setTimeFilter] = useState([]);
@@ -49,6 +50,7 @@ export function PortfolioProvider({ children }) {
         const dataArray = Array.isArray(response.data.data) ? response.data.data : [];
         console.log(`Portfolio: ${dataArray.length} registros carregados`);
         setData(dataArray);
+        setLastFetchedAt(Date.now());
       } else {
         setError('Erro ao carregar dados');
       }
@@ -59,6 +61,13 @@ export function PortfolioProvider({ children }) {
       setLoading(false);
     }
   }, []);
+
+  // Refetch se dados estiverem stale (usado ao navegar entre páginas)
+  const refreshIfStale = useCallback((maxAgeMs = 30000) => {
+    if (!lastFetchedAt || Date.now() - lastFetchedAt > maxAgeMs) {
+      fetchPortfolioData();
+    }
+  }, [lastFetchedAt, fetchPortfolioData]);
 
   // Carrega dados na montagem
   useEffect(() => {
@@ -424,6 +433,7 @@ export function PortfolioProvider({ children }) {
     loading,
     error,
     fetchPortfolioData,
+    refreshIfStale,
 
     // Filtros compartilhados
     timeFilter,
