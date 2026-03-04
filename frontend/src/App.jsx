@@ -103,6 +103,9 @@ const VistaClienteInicioView = lazy(() => import('./pages/vista-cliente/VistaCli
 const VistaClienteApontamentosView = lazy(() => import('./pages/vista-cliente/VistaClienteApontamentosView'));
 const VistaClienteMarcosView = lazy(() => import('./pages/vista-cliente/VistaClienteMarcosView'));
 
+// Lideres - Marcos
+const MarcosLiderView = lazy(() => import('./pages/lideres-projeto/MarcosLiderView'));
+
 // Economia de Horas
 const TimeSavingsDashboardView = lazy(() => import('./pages/time-savings/TimeSavingsDashboardView'));
 
@@ -294,6 +297,9 @@ function Sidebar({ collapsed, onToggle, area }) {
   // State para badge de solicitações de contato pendentes
   const [pendingContactRequestCount, setPendingContactRequestCount] = useState(0);
 
+  // State para badge de marcos pendentes (edições não vistas + baselines pendentes)
+  const [pendingMarcosCount, setPendingMarcosCount] = useState(0);
+
   // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
     if (area === 'okrs') {
@@ -361,6 +367,14 @@ function Sidebar({ collapsed, onToggle, area }) {
         .then(res => {
           if (res.data.success) {
             setPendingContactRequestCount(res.data.data.count || 0);
+          }
+        })
+        .catch(() => {});
+
+      axios.get('/api/marcos-projeto/pending-count', { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            setPendingMarcosCount(res.data.data.total || 0);
           }
         })
         .catch(() => {});
@@ -610,6 +624,21 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">Solicitações</span>
         {pendingContactRequestCount > 0 && (
           <span className="nav-notification-badge">{pendingContactRequestCount}</span>
+        )}
+      </Link>
+      <Link
+        to="/lideres-projeto/marcos"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/marcos' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Marcos')}
+      >
+        <span className="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 3v18l7-3 7 3V3H5zm12 13.97l-5-2.14-5 2.14V5h10v11.97z" />
+          </svg>
+        </span>
+        <span className="nav-text">Marcos</span>
+        {pendingMarcosCount > 0 && (
+          <span className="nav-notification-badge">{pendingMarcosCount}</span>
         )}
       </Link>
       {isPrivileged && (
@@ -1444,6 +1473,11 @@ function AppContent() {
               <Route path="curva-s" element={<CurvaSView />} />
               <Route path="baselines" element={<BaselinesView />} />
               <Route path="solicitacoes" element={<SolicitacoesView />} />
+              <Route path="marcos" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <MarcosLiderView />
+                </Suspense>
+              } />
               <Route path="alocacao-times" element={isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />} />
               <Route path="horas" element={<HorasView />} />
               <Route path="indicadores-vendas" element={
