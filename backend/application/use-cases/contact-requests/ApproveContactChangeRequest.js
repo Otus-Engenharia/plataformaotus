@@ -3,6 +3,11 @@
  * Equipe de dados aprova a solicitação e aplica a alteração no banco.
  */
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function safeUuid(value) {
+  return value && UUID_RE.test(String(value)) ? String(value) : null;
+}
+
 class ApproveContactChangeRequest {
   #repository;
   #contactService;
@@ -32,17 +37,17 @@ class ApproveContactChangeRequest {
         position: payload.position,
         companyId: payload.company_id,
       });
-      resultContactId = contact.id;
+      resultContactId = safeUuid(contact.id);
     } else if (type === 'editar_contato') {
       const newValues = payload.new_values || payload;
       await this.#contactService.updateContact(request.targetContactId, newValues);
-      resultContactId = request.targetContactId;
+      resultContactId = safeUuid(request.targetContactId);
     } else if (type === 'nova_empresa') {
       const company = await this.#contactService.createCompany({
         name: payload.name,
         companyType: payload.company_type,
       });
-      resultCompanyId = company.id;
+      resultCompanyId = safeUuid(company.id);
     } else if (type === 'nova_disciplina') {
       await this.#contactService.createStandardDiscipline({
         name: payload.name,
