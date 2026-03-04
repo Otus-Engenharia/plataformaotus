@@ -10,6 +10,24 @@ import { getSupabaseClient } from '../../supabase.js';
 
 const TABLE = 'contact_change_requests';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_FIELDS = [
+  'target_contact_id', 'target_company_id',
+  'requested_by_id', 'reviewed_by_id',
+  'result_contact_id', 'result_company_id',
+];
+
+/** Garante que campos UUID contêm valores válidos (ou null) */
+function sanitizeUuidFields(data) {
+  for (const field of UUID_FIELDS) {
+    if (data[field] && !UUID_RE.test(String(data[field]))) {
+      console.warn(`⚠️ Campo ${field} com valor não-UUID: "${data[field]}", convertendo para null`);
+      data[field] = null;
+    }
+  }
+  return data;
+}
+
 /**
  * Converte row do banco em entidade, com fallback para dados raw
  * quando a validação do construtor falha (ex: payload vazio, email faltando).
@@ -57,7 +75,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
   }
 
   async save(request) {
-    const data = request.toPersistence();
+    const data = sanitizeUuidFields(request.toPersistence());
     delete data.id; // Auto-generated
 
     const { data: inserted, error } = await this.#supabase
@@ -96,10 +114,16 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
       .order('created_at', { ascending: true });
 
     if (error) {
+      console.error('❌ findPending query error:', error.code, error.message);
       throw new Error(`Erro ao listar solicitações pendentes: ${error.message}`);
     }
 
-    return (data || []).map(safeFromPersistence);
+    const rows = data || [];
+    if (rows.length === 0) {
+      console.warn('⚠️ findPending: query retornou 0 rows (verificar se há pendentes no banco)');
+    }
+
+    return rows.map(safeFromPersistence);
   }
 
   async findByRequester(email) {
@@ -166,7 +190,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
   }
 
   async update(request) {
-    const data = request.toPersistence();
+    const data = sanitizeUuidFields(request.toPersistence());
     const id = data.id;
     delete data.id;
     delete data.created_at;
