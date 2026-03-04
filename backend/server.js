@@ -3839,6 +3839,40 @@ app.get('/api/okrs/check-ins', requireAuth, async (req, res) => {
 });
 
 /**
+ * Rota: GET /api/okrs/recovery-plans
+ * Busca planos de recuperação de múltiplos Key Results (batch)
+ * Query params: keyResultIds (comma-separated)
+ */
+app.get('/api/okrs/recovery-plans', requireAuth, async (req, res) => {
+  try {
+    const keyResultIds = req.query.keyResultIds
+      ? req.query.keyResultIds.split(',').map(id => parseInt(id))
+      : [];
+
+    if (keyResultIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from('okr_recovery_plans')
+      .select('*')
+      .in('key_result_id', keyResultIds)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('❌ Erro ao buscar planos de recuperação (batch):', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar planos de recuperação',
+    });
+  }
+});
+
+/**
  * Rota: POST /api/okrs/check-ins
  * Cria um novo check-in de OKR
  */
