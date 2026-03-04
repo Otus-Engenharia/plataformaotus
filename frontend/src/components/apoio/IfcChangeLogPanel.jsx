@@ -2,7 +2,8 @@
  * Painel de IFC Change Log
  *
  * Exibe mudanças recentes detectadas nas pastas IFC do Google Drive,
- * com filtros por projeto, categoria e período.
+ * com filtros por projeto, categoria e período, indicadores de resumo
+ * e validação automática de nomenclatura.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -11,12 +12,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import './IfcChangeLogPanel.css';
 
 const CATEGORY_CONFIG = {
-  nova_revisao: { label: 'Nova Revisão', color: '#22c55e', bg: '#22c55e15' },
-  mudanca_fase: { label: 'Mudança de Fase', color: '#3b82f6', bg: '#3b82f615' },
+  nova_revisao: { label: 'Nova Revisao', color: '#22c55e', bg: '#22c55e15' },
+  mudanca_fase: { label: 'Mudanca de Fase', color: '#3b82f6', bg: '#3b82f615' },
   novo_arquivo: { label: 'Novo Arquivo', color: '#a855f7', bg: '#a855f715' },
 };
 
 const DAYS_OPTIONS = [
+  { value: 1, label: '1 dia' },
   { value: 7, label: '7 dias' },
   { value: 14, label: '14 dias' },
   { value: 30, label: '30 dias' },
@@ -51,6 +53,23 @@ function CategoryBadge({ category }) {
   );
 }
 
+function NomenclaturaBadge({ conforme, erros }) {
+  if (conforme === null || conforme === undefined) {
+    return <span className="ifc-cl-nom-badge ifc-cl-nom--na" title="Sem padrao configurado">—</span>;
+  }
+  if (conforme) {
+    return <span className="ifc-cl-nom-badge ifc-cl-nom--ok" title="Conforme">OK</span>;
+  }
+  return (
+    <span
+      className="ifc-cl-nom-badge ifc-cl-nom--error"
+      title={erros?.length ? erros.join('\n') : 'Nao conforme'}
+    >
+      NC
+    </span>
+  );
+}
+
 function ChangeDescription({ log }) {
   if (log.category === 'mudanca_fase' && log.previous_phase && log.new_phase) {
     return <span className="ifc-cl-desc">{log.previous_phase} → {log.new_phase}</span>;
@@ -61,6 +80,60 @@ function ChangeDescription({ log }) {
   return null;
 }
 
+function SummaryCards({ summary, loading }) {
+  if (loading || !summary) {
+    return (
+      <div className="ifc-cl-summary">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="ifc-cl-stat-card ifc-cl-stat--loading">
+            <div className="ifc-cl-stat-value">—</div>
+            <div className="ifc-cl-stat-label">Carregando...</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const nomTotal = summary.nomenclatura.conformes + summary.nomenclatura.naoConformes;
+  const nomPct = nomTotal > 0 ? Math.round((summary.nomenclatura.conformes / nomTotal) * 100) : null;
+
+  return (
+    <div className="ifc-cl-summary">
+      <div className="ifc-cl-stat-card">
+        <div className="ifc-cl-stat-value">{summary.totalMudancas}</div>
+        <div className="ifc-cl-stat-label">Mudancas</div>
+      </div>
+      <div className="ifc-cl-stat-card ifc-cl-stat--green">
+        <div className="ifc-cl-stat-value">{summary.porCategoria.nova_revisao}</div>
+        <div className="ifc-cl-stat-label">Revisoes</div>
+      </div>
+      <div className="ifc-cl-stat-card ifc-cl-stat--blue">
+        <div className="ifc-cl-stat-value">{summary.porCategoria.mudanca_fase}</div>
+        <div className="ifc-cl-stat-label">Mud. Fase</div>
+      </div>
+      <div className="ifc-cl-stat-card ifc-cl-stat--purple">
+        <div className="ifc-cl-stat-value">{summary.porCategoria.novo_arquivo}</div>
+        <div className="ifc-cl-stat-label">Novos Arq.</div>
+      </div>
+      <div className="ifc-cl-stat-card">
+        <div className="ifc-cl-stat-value">{summary.projetosAtivos}</div>
+        <div className="ifc-cl-stat-label">Projetos</div>
+      </div>
+      <div className="ifc-cl-stat-card">
+        <div className="ifc-cl-stat-value">{formatFileSize(summary.tamanhoTotal)}</div>
+        <div className="ifc-cl-stat-label">Vol. Total</div>
+      </div>
+      {nomTotal > 0 && (
+        <div className={`ifc-cl-stat-card ${nomPct >= 80 ? 'ifc-cl-stat--green' : nomPct >= 50 ? 'ifc-cl-stat--yellow' : 'ifc-cl-stat--red'}`}>
+          <div className="ifc-cl-stat-value">{nomPct}%</div>
+          <div className="ifc-cl-stat-label">Nomenclatura</div>
+          <div className="ifc-cl-stat-sub">{summary.nomenclatura.conformes}/{nomTotal}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function IfcChangeLogPanel() {
   const { isPrivileged } = useAuth();
 
@@ -69,10 +142,12 @@ export default function IfcChangeLogPanel() {
   const [error, setError] = useState(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
 
   const limit = 30;
 
@@ -95,9 +170,24 @@ export default function IfcChangeLogPanel() {
     }
   }, [page, days]);
 
+  const fetchSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      const res = await ifcChangelogApi.getSummary({ days });
+      if (res.data?.success) {
+        setSummary(res.data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar resumo:', err);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [days]);
+
   useEffect(() => {
     fetchLogs();
-  }, [fetchLogs]);
+    fetchSummary();
+  }, [fetchLogs, fetchSummary]);
 
   const handleScanAll = async () => {
     if (scanning) return;
@@ -107,8 +197,8 @@ export default function IfcChangeLogPanel() {
       const res = await ifcChangelogApi.scanAll();
       if (res.data?.success) {
         setScanResult(res.data.data);
-        // Recarregar logs após scan
         fetchLogs();
+        fetchSummary();
       }
     } catch (err) {
       console.error('Erro no scan:', err);
@@ -146,7 +236,7 @@ export default function IfcChangeLogPanel() {
               )}
             </button>
           )}
-          <button className="ifc-cl-refresh-btn" onClick={fetchLogs} disabled={loading}>
+          <button className="ifc-cl-refresh-btn" onClick={() => { fetchLogs(); fetchSummary(); }} disabled={loading}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -168,6 +258,9 @@ export default function IfcChangeLogPanel() {
           <button className="ifc-cl-toast-close" onClick={() => setScanResult(null)}>&times;</button>
         </div>
       )}
+
+      {/* Summary Cards */}
+      <SummaryCards summary={summary} loading={summaryLoading} />
 
       {/* Filters */}
       <div className="ifc-cl-filters">
@@ -231,6 +324,7 @@ export default function IfcChangeLogPanel() {
                   <th style={{ width: 100 }}>Projeto</th>
                   <th style={{ width: 130 }}>Categoria</th>
                   <th>Arquivo</th>
+                  <th style={{ width: 50 }}>Nom.</th>
                   <th style={{ width: 120 }}>Detalhe</th>
                   <th style={{ width: 80 }}>Tamanho</th>
                   <th style={{ width: 130 }}>Detectado em</th>
@@ -242,6 +336,9 @@ export default function IfcChangeLogPanel() {
                     <td className="ifc-cl-project-code">{log.project_code}</td>
                     <td><CategoryBadge category={log.category} /></td>
                     <td className="ifc-cl-file-name" title={log.file_name}>{log.file_name}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <NomenclaturaBadge conforme={log.nomenclatura_conforme} erros={log.nomenclatura_erros} />
+                    </td>
                     <td><ChangeDescription log={log} /></td>
                     <td className="ifc-cl-file-size">{formatFileSize(log.file_size)}</td>
                     <td className="ifc-cl-date">{formatDate(log.created_at)}</td>

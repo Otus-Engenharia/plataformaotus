@@ -17,7 +17,8 @@ export const VIEWS = {
       'status',
       'client',
       'nome_time',
-      'lider'
+      'lider',
+      'service_type'
     ]
   },
   valores: {
@@ -80,6 +81,7 @@ export const COLUMN_NAMES_PT = {
   'client': 'Cliente',
   'nome_time': 'Time',
   'lider': 'Lider',
+  'service_type': 'Tipo de<br/>Serviço',
   'valor_contrato_total': 'Contrato<br/>(R$)',
   'valor_aditivo_total': 'Aditivos<br/>(R$)',
   'valor_total_contrato_mais_aditivos': 'Total<br/>(R$)',
@@ -141,6 +143,7 @@ export const COLUMN_WIDTHS = {
   'lider': 110,
   'client': 120,
   'comercial_name': 160,
+  'service_type': 120,
   'data_inicio_cronograma': 100,
   'data_termino_cronograma': 100,
   'duracao_contrato_total_meses': 90,

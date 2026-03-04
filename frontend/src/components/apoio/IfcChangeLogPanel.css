@@ -112,6 +112,106 @@
   opacity: 1;
 }
 
+/* ── Summary Cards ── */
+.ifc-cl-summary {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.ifc-cl-stat-card {
+  flex: 1;
+  min-width: 100px;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.ifc-cl-stat-card.ifc-cl-stat--loading {
+  opacity: 0.5;
+}
+
+.ifc-cl-stat-card.ifc-cl-stat--green {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.ifc-cl-stat-card.ifc-cl-stat--blue {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.ifc-cl-stat-card.ifc-cl-stat--purple {
+  border-color: #e9d5ff;
+  background: #faf5ff;
+}
+
+.ifc-cl-stat-card.ifc-cl-stat--yellow {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.ifc-cl-stat-card.ifc-cl-stat--red {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.ifc-cl-stat-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.ifc-cl-stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}
+
+.ifc-cl-stat-sub {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  margin-top: 1px;
+}
+
+/* ── Nomenclatura Badge ── */
+.ifc-cl-nom-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: default;
+}
+
+.ifc-cl-nom--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ifc-cl-nom--error {
+  background: #fef2f2;
+  color: #991b1b;
+  cursor: help;
+}
+
+.ifc-cl-nom--na {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
 /* ── Filters ── */
 .ifc-cl-filters {
   display: flex;

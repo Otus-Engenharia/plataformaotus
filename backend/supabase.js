@@ -5774,6 +5774,7 @@ export async function fetchProjectsFromSupabase() {
       project_code,
       comercial_name,
       status,
+      service_type,
       team_id,
       company_id,
       project_manager_id,
@@ -5803,6 +5804,7 @@ export async function updateProjectField(projectCode, field, value) {
   const fieldMap = {
     'comercial_name': 'comercial_name',
     'status': 'status',
+    'service_type': 'service_type',
     'client': 'company_id',
     'nome_time': 'team_id',
     'lider': 'project_manager_id'
