@@ -17,6 +17,7 @@ import { PlataformaACD } from '../value-objects/PlataformaACD.js';
 class Project {
   // --- projects table ---
   #id;
+  #projectCode;
   #name;
   #companyId;
   #description;
@@ -64,6 +65,7 @@ class Project {
 
   constructor({
     id = null,
+    projectCode = null,
     name,
     companyId,
     description = null,
@@ -113,6 +115,7 @@ class Project {
 
     // --- projects ---
     this.#id = id;
+    this.#projectCode = projectCode || null;
     this.#name = name.trim().toUpperCase();
     this.#companyId = companyId;
     this.#description = description?.trim() || null;
@@ -236,6 +239,7 @@ class Project {
   toPersistence() {
     return {
       project: {
+        ...(this.#projectCode && { project_code: this.#projectCode }),
         name: this.#name,
         company_id: this.#companyId,
         description: this.#description,
@@ -287,6 +291,7 @@ class Project {
   toResponse() {
     return {
       id: this.#id,
+      project_code: this.#projectCode,
       code: this.code,
       name: this.#name,
       company_id: this.#companyId,
