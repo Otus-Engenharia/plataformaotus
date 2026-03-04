@@ -13,6 +13,7 @@ description: |
   - "mergear para develop" / "finalizar feature"
   - "mergear para main" / "preparar deploy"
   - "sincronizar" / "atualizar repo" / "pull"
+  - "auditar branches" / "verificar graph" / "checar integridade"
   - Qualquer pedido de commit/push/sync no contexto do projeto relatorio
 ---
 
@@ -94,27 +95,130 @@ git merge --no-ff feature/nome -m "feat: merge feature/nome into develop - descr
 git push origin develop
 ```
 
-### 0B: Limpeza de branches já mergeados
-
-**Após 0A, limpar branches que já estão 100% mergeados em develop.**
-
-**Detecção:**
+**Verificação pós-merge (confirmar que nada ficou para trás):**
 ```bash
-git branch -r --merged origin/develop | grep -v HEAD | grep -v '/develop$' | grep -v '/main$'
+# Re-checar se ainda há branches com commits não integrados
+echo "=== Verificação pós-0A ==="
+STILL_PENDING=0
+for branch in $(git branch -r | grep -v HEAD | grep -v '/develop$' | grep -v '/main$'); do
+  if [ -n "$(git log origin/develop..$branch --oneline 2>/dev/null)" ]; then
+    echo "AINDA PENDENTE: $branch"
+    STILL_PENDING=$((STILL_PENDING + 1))
+  fi
+done
+if [ "$STILL_PENDING" -eq 0 ]; then
+  echo "Todos os branches remotos integrados em develop."
+fi
 ```
 
-**Limpeza automática (sem perguntar):**
+**Também verificar se develop e main estão sincronizados:**
 ```bash
-# Para cada branch mergeado:
-git push origin --delete feature/nome    # Deletar remoto
-git branch -d feature/nome 2>/dev/null   # Deletar local (se existir)
+MAIN_AHEAD=$(git log develop..main --oneline 2>/dev/null | wc -l | tr -d ' ')
+if [ "$MAIN_AHEAD" -gt 0 ]; then
+  echo "ATENÇÃO: main tem $MAIN_AHEAD commits que não estão em develop (hotfixes não sincronizados)"
+  echo "Sincronizando develop com main..."
+  git merge main -m "fix: sincronizar develop com main (hotfixes pendentes)"
+  git push origin develop
+fi
+```
+
+### 0B: Auditoria de Integridade dos Branches
+
+**Após 0A, verificar que TODOS os branches foram devidamente integrados.**
+NUNCA deletar branches — eles fazem parte do histórico visual do GitFlow.
+
+**Verificação 1 — Branches REMOTOS não integrados em develop:**
+```bash
+echo "=== Branches remotos NÃO integrados em develop ==="
+for branch in $(git branch -r | grep -v HEAD | grep -v '/develop$' | grep -v '/main$'); do
+  commits=$(git log origin/develop..$branch --oneline 2>/dev/null)
+  if [ -n "$commits" ]; then
+    echo "PENDENTE: $branch"
+    echo "$commits"
+  fi
+done
+```
+
+**Verificação 2 — Branches LOCAIS não integrados em develop:**
+```bash
+echo "=== Branches locais NÃO integrados em develop ==="
+for branch in $(git branch --format='%(refname:short)' | grep -E '^(feature|hotfix)/'); do
+  commits=$(git log develop..$branch --oneline 2>/dev/null)
+  if [ -n "$commits" ]; then
+    echo "PENDENTE: $branch (local)"
+    echo "$commits"
+  fi
+done
+```
+
+**Verificação 3 — Hotfixes em main que NÃO estão em develop (inconsistência de fluxo):**
+```bash
+echo "=== Commits em main que NÃO estão em develop (possível hotfix não sincronizado) ==="
+git log develop..main --oneline
+```
+
+**Se encontrar inconsistências:**
+1. Branches com commits pendentes → incorporar via 0A (voltar e repetir)
+2. Commits em main que não estão em develop → sincronizar develop com main:
+   ```bash
+   git checkout develop
+   git merge main -m "fix: sincronizar develop com main (hotfixes pendentes)"
+   git push origin develop
+   ```
+3. Informar ao usuário o estado final
+
+**Resumo da auditoria:**
+```bash
+echo ""
+echo "=== Resumo Passo Zero ==="
+PENDING_REMOTE=$(git branch -r | grep -v HEAD | grep -v '/develop$' | grep -v '/main$' | while read b; do [ -n "$(git log origin/develop..$b --oneline 2>/dev/null)" ] && echo "$b"; done | wc -l | tr -d ' ')
+PENDING_LOCAL=$(git branch --format='%(refname:short)' | grep -E '^(feature|hotfix)/' | while read b; do [ -n "$(git log develop..$b --oneline 2>/dev/null)" ] && echo "$b"; done | wc -l | tr -d ' ')
+MAIN_AHEAD=$(git log develop..main --oneline 2>/dev/null | wc -l | tr -d ' ')
+STASH_COUNT=$(git stash list 2>/dev/null | wc -l | tr -d ' ')
+echo "Branches remotos com trabalho pendente: $PENDING_REMOTE"
+echo "Branches locais com trabalho pendente: $PENDING_LOCAL"
+echo "Commits em main não sincronizados em develop: $MAIN_AHEAD"
+echo "Stashes acumulados: $STASH_COUNT"
 ```
 
 **Regras:**
-1. NUNCA deletar `main` ou `develop`
-2. Deletar automaticamente — sem perguntar
-3. Informar ao usuário quantos branches foram limpos
-4. Se `git push --delete` falhar, apenas avisar e continuar
+1. **NUNCA deletar branches** — são histórico do GitFlow
+2. O objetivo é INTEGRAR, não limpar
+3. Se tudo estiver integrado, informar "Tudo sincronizado, nenhum trabalho pendente"
+4. Se houver branches pendentes, listar e incorporar via 0A
+
+### 0C: Revisão de Stashes Acumulados
+
+**Executar após 0B. Stashes antigos em branches já mergeados são descartáveis.**
+
+```bash
+git stash list
+```
+
+**Análise automática:**
+```bash
+# Verificar quais stashes estão em branches já mergeados em develop
+git stash list --format="%gd %s" | while read stashref desc; do
+  branch=$(echo "$desc" | sed -E 's/(WIP on |On )([^:]+):.*/\2/')
+  if git branch --merged develop | grep -qE "^\s*${branch}$" 2>/dev/null; then
+    echo "SEGURO DESCARTAR: $stashref ($branch já está em develop)"
+  else
+    echo "MANTER: $stashref ($branch ainda não mergeado)"
+  fi
+done
+```
+
+**Regras:**
+1. NUNCA descartar stashes automaticamente — apenas informar ao usuário
+2. Stashes em branches já mergeados em develop: informar que são seguros para descartar
+3. Stashes em `main` ou `develop`: avisar que podem conter trabalho importante
+4. Se houver mais de 5 stashes, recomendar limpeza manual ao usuário
+
+**Ação do usuário (se quiser limpar):**
+```bash
+git stash drop stash@{N}   # Descartar stash específico
+git stash clear             # Descartar TODOS (destrutivo — confirmar com usuário)
+```
 
 ---
 
@@ -122,7 +226,7 @@ git branch -d feature/nome 2>/dev/null   # Deletar local (se existir)
 
 **Gatilho**: "sync", "começar a trabalhar", "pull"
 
-**Executar Passo Zero (0A + 0B) primeiro.**
+**Executar Passo Zero (0A + 0B + 0C) primeiro.**
 
 ```bash
 cd "e:/Git/relatorio"
@@ -299,6 +403,8 @@ git branch -d feature/NOME
 git push origin --delete feature/NOME
 ```
 
+**Executar Passo Zero (0A + 0B)** após o merge para integrar branches pendentes e auditar consistência.
+
 ### Opção B: Merge local (se urgente)
 
 ```bash
@@ -311,13 +417,15 @@ git branch -d feature/NOME
 git push origin --delete feature/NOME
 ```
 
+**Executar Passo Zero (0A + 0B)** após o merge para integrar branches pendentes e auditar consistência.
+
 ---
 
 ## Fluxo 6: Deploy para Produção
 
 **Gatilho**: "deploy otus", "fazer deploy", "subir para produção"
 
-**Executar Passo Zero (0A + 0B) primeiro — incorporar pendentes e limpar mergeados.**
+**Executar Passo Zero (0A + 0B + 0C) primeiro — incorporar pendentes, limpar mergeados e revisar stashes.**
 
 ### Passo 1: Preparar main
 
@@ -332,12 +440,15 @@ git pull origin main
 ### Passo 2: Merge develop → main
 
 ```bash
+## Consultar features incluídas:
+## git log main..develop --oneline
 git merge --no-ff develop -m "$(cat <<'EOF'
-chore: merge develop para deploy em produção
+deploy: merge develop into main - DESCRIÇÃO_CURTA_DAS_FEATURES
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 EOF
 )"
+## Substituir DESCRIÇÃO_CURTA_DAS_FEATURES por resumo das features incluídas
 ```
 
 ### Passo 3: Tag (opcional, recomendado)
@@ -379,6 +490,35 @@ git merge main
 git push origin develop
 ```
 
+### Passo 7: Auditoria pós-deploy
+
+Após sincronizar develop com main, verificar que tudo está consistente:
+
+```bash
+echo "=== Auditoria pós-deploy ==="
+# Verificar se develop e main estão sincronizados
+DIFF=$(git log develop..main --oneline 2>/dev/null | wc -l | tr -d ' ')
+if [ "$DIFF" -gt 0 ]; then
+  echo "ATENÇÃO: main tem $DIFF commits não sincronizados em develop"
+else
+  echo "OK: develop e main estão sincronizados"
+fi
+
+# Verificar branches com trabalho pendente
+PENDING=0
+for branch in $(git branch -r | grep -v HEAD | grep -v '/develop$' | grep -v '/main$'); do
+  if [ -n "$(git log origin/develop..$branch --oneline 2>/dev/null)" ]; then
+    echo "PENDENTE: $branch"
+    PENDING=$((PENDING + 1))
+  fi
+done
+if [ "$PENDING" -eq 0 ]; then
+  echo "OK: Todos os branches remotos integrados em develop"
+fi
+
+echo "=== Deploy concluído com sucesso ==="
+```
+
 ---
 
 ## Fluxo 7: Hotfix (Correção Urgente em Produção)
@@ -405,6 +545,7 @@ git push origin develop
    git branch -d hotfix/NOME
    git push origin --delete hotfix/NOME
    ```
+8. Executar **Passo Zero (0A + 0B)** para integrar branches pendentes e auditar consistência do graph.
 
 ---
 
@@ -426,7 +567,10 @@ git push origin develop
 → Passo Zero (0A+0B) + Fluxo 7 (hotfix)
 
 ### Cenário 6: "finalizar feature"
-→ Executar Fluxo 5 (PR para develop) + limpeza do branch (0B)
+→ Executar Fluxo 5 (PR para develop) + **Passo Zero (0A + 0B)** (integrar pendentes e auditar)
+
+### Cenário 7: "auditar branches" / "verificar graph" / "checar integridade"
+→ Passo Zero completo (0A + 0B + 0C) apenas — integrar, auditar e revisar stashes
 
 ---
 

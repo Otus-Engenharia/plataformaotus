@@ -8,6 +8,12 @@ import express from 'express';
 import { hasFullAccess } from '../auth-config.js';
 import { SupabaseContactChangeRequestRepository } from '../infrastructure/repositories/SupabaseContactChangeRequestRepository.js';
 import { createContact, updateContact, createCompany, createStandardDiscipline } from '../supabase.js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function safeUuid(value) {
+  return value && UUID_RE.test(value) ? value : null;
+}
+
 import {
   CreateContactChangeRequest,
   ListContactChangeRequests,
@@ -53,7 +59,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
         targetContactId: target_contact_id,
         targetCompanyId: target_company_id,
         projectCode: project_code,
-        requestedById: req.user?.id || null,
+        requestedById: safeUuid(req.user?.id),
         requestedByEmail: req.user?.email,
         requestedByName: req.user?.name || null,
       });
@@ -147,14 +153,14 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
 
       const approveRequest = new ApproveContactChangeRequest(repo, contactService);
       const data = await approveRequest.execute({
-        requestId: Number(req.params.id),
-        reviewerId: req.user?.id || null,
+        requestId: req.params.id,
+        reviewerId: safeUuid(req.user?.id),
         reviewerEmail: req.user?.email,
         reviewerName: req.user?.name || null,
       });
 
       if (logAction) {
-        await logAction(req, 'approve', 'contact_change_request', Number(req.params.id), 'Solicitação de contato aprovada', {
+        await logAction(req, 'approve', 'contact_change_request', req.params.id, 'Solicitação de contato aprovada', {
           result_contact_id: data.resultContactId,
           result_company_id: data.resultCompanyId,
         });
@@ -182,15 +188,15 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
 
       const rejectRequest = new RejectContactChangeRequest(repo);
       const data = await rejectRequest.execute({
-        requestId: Number(req.params.id),
-        reviewerId: req.user?.id || null,
+        requestId: req.params.id,
+        reviewerId: safeUuid(req.user?.id),
         reviewerEmail: req.user?.email,
         reviewerName: req.user?.name || null,
         reason,
       });
 
       if (logAction) {
-        await logAction(req, 'reject', 'contact_change_request', Number(req.params.id), 'Solicitação de contato rejeitada', {
+        await logAction(req, 'reject', 'contact_change_request', req.params.id, 'Solicitação de contato rejeitada', {
           reason,
         });
       }

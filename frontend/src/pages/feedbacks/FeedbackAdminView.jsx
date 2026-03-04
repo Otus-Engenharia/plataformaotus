@@ -20,6 +20,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { getSeenFeedbackIds, markFeedbackSeen, markAllFeedbacksSeen, pruneSeenIds } from '../../utils/feedbackSeenTracker';
 import './FeedbackAdminView.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -212,6 +213,9 @@ export default function FeedbackAdminView({ category = 'all' }) {
   // Mapa de email -> nome do usuário
   const [usersMap, setUsersMap] = useState({});
 
+  // Seen/unseen tracking
+  const [seenIds, setSeenIds] = useState(() => getSeenFeedbackIds(user?.id));
+
   // Drag and drop
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
@@ -229,7 +233,14 @@ export default function FeedbackAdminView({ category = 'all' }) {
 
       if (!feedbacksRes.ok) throw new Error('Erro ao carregar feedbacks');
       const feedbacksData = await feedbacksRes.json();
-      setFeedbacks(feedbacksData.data || []);
+      const fetchedFeedbacks = feedbacksData.data || [];
+      setFeedbacks(fetchedFeedbacks);
+
+      // Limpar IDs vistos que não existem mais
+      if (user?.id && fetchedFeedbacks.length > 0) {
+        const pruned = pruneSeenIds(user.id, fetchedFeedbacks.map(f => f.id));
+        setSeenIds(pruned);
+      }
 
       // Criar mapa de email -> nome
       if (usersRes.ok) {
@@ -265,6 +276,11 @@ export default function FeedbackAdminView({ category = 'all' }) {
     setEditStatus(normalizeStatus(feedback.status));
     setEditAnalysis(feedback.admin_analysis || '');
     setEditAction(feedback.admin_action || '');
+    // Marcar como visto
+    if (user?.id) {
+      markFeedbackSeen(user.id, feedback.id);
+      setSeenIds(prev => new Set([...prev, String(feedback.id)]));
+    }
   };
 
   const closeModal = () => {
@@ -377,6 +393,11 @@ export default function FeedbackAdminView({ category = 'all' }) {
       setFeedbacks((prev) =>
         prev.map((f) => (f.id === feedback.id ? { ...f, status: newStatus } : f))
       );
+      // Marcar como visto ao arrastar
+      if (user?.id) {
+        markFeedbackSeen(user.id, feedback.id);
+        setSeenIds(prev => new Set([...prev, String(feedback.id)]));
+      }
     } catch (err) {
       alert(err.message);
     } finally {
@@ -570,6 +591,17 @@ export default function FeedbackAdminView({ category = 'all' }) {
     return Object.keys(TIPO_CONFIG);
   }, [category]);
 
+  // Contagem de não vistos
+  const unseenCount = useMemo(() => {
+    return categoryFilteredFeedbacks.filter(f => !seenIds.has(String(f.id))).length;
+  }, [categoryFilteredFeedbacks, seenIds]);
+
+  const handleMarkAllRead = () => {
+    if (!user?.id) return;
+    markAllFeedbacksSeen(user.id, feedbacks.map(f => f.id));
+    setSeenIds(new Set(feedbacks.map(f => String(f.id))));
+  };
+
   const hasActiveFilters = filterStatus || filterTipo || searchTerm;
 
   const clearFilters = () => {
@@ -643,6 +675,12 @@ export default function FeedbackAdminView({ category = 'all' }) {
               <Icons.Kanban />
             </button>
           </div>
+          {unseenCount > 0 && (
+            <button onClick={handleMarkAllRead} className="btn-mark-read" title="Marcar todos como lidos">
+              <Icons.CheckCircle />
+              Marcar {unseenCount} como lidos
+            </button>
+          )}
           <button onClick={fetchFeedbacks} className="btn-refresh">
             <Icons.Refresh />
             Atualizar
@@ -790,7 +828,7 @@ export default function FeedbackAdminView({ category = 'all' }) {
                     <tr
                       key={feedback.id}
                       onClick={() => openModal(feedback)}
-                      className="feedback-row"
+                      className={`feedback-row ${!seenIds.has(String(feedback.id)) ? 'feedback-row--unseen' : ''}`}
                     >
                       <td className="cell-date">
                         <span className="date-day">{formatDateShort(feedback.created_at)}</span>
@@ -803,6 +841,7 @@ export default function FeedbackAdminView({ category = 'all' }) {
                       </td>
                       <td className="cell-content">
                         <span className="feedback-title">
+                          {!seenIds.has(String(feedback.id)) && <span className="unseen-dot" />}
                           {feedback.titulo || feedback.feedback_text?.substring(0, 60) + '...'}
                         </span>
                       </td>
@@ -865,16 +904,18 @@ export default function FeedbackAdminView({ category = 'all' }) {
                     columnFeedbacks.map((feedback) => {
                       const tipoConfig = TIPO_CONFIG[feedback.type] || TIPO_CONFIG.outro;
                       const isDragging = draggingId === feedback.id;
+                      const isUnseen = !seenIds.has(String(feedback.id));
                       return (
                         <div
                           key={feedback.id}
-                          className={`kanban-card ${isDragging ? 'dragging' : ''} ${canEdit ? 'draggable' : ''}`}
+                          className={`kanban-card ${isDragging ? 'dragging' : ''} ${canEdit ? 'draggable' : ''} ${isUnseen ? 'kanban-card--unseen' : ''}`}
                           draggable={canEdit}
                           onDragStart={(e) => handleDragStart(e, feedback)}
                           onDragEnd={handleDragEnd}
                           onClick={() => openModal(feedback)}
                         >
                           <div className="kanban-card-header">
+                            {isUnseen && <span className="unseen-dot" title="Novo - ainda não visto" />}
                             <span className={`tipo-badge tipo-badge--${feedback.type || 'outro'}`}>
                               <span className="tipo-icon">{tipoConfig.icon}</span>
                               {tipoConfig.label}
