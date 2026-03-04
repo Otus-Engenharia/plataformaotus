@@ -21,6 +21,7 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { API_URL } from '../../api';
+import { useVistaCliente } from '../../contexts/VistaClienteContext';
 import {
   isResolved, isReproved, translatePriority,
   processIssueData, computeIndicators,
@@ -37,25 +38,6 @@ ChartJS.register(
   CategoryScale, LinearScale, BarElement, ArcElement,
   Title, Tooltip, Legend, ChartDataLabels
 );
-
-// ---- Constants ----
-const FINALIZED_STATUSES = [
-  'churn pelo cliente', 'close', 'obra finalizada', 'termo de encerramento',
-  'termo de encerrame', 'encerrado', 'finalizado', 'concluído', 'concluido',
-  'cancelado', 'execução', 'execucao',
-];
-const PAUSED_STATUSES = ['pausado', 'pausa', 'em pausa', 'pausado pelo cliente', 'suspenso', 'suspensão'];
-
-const isFinalizedStatus = (s) => {
-  if (!s) return false;
-  const low = String(s).toLowerCase().trim();
-  return FINALIZED_STATUSES.some(f => low === f.toLowerCase().trim() || low.includes(f.toLowerCase().trim()));
-};
-const isPausedStatus = (s) => {
-  if (!s) return false;
-  const low = String(s).toLowerCase().trim();
-  return PAUSED_STATUSES.some(p => low === p.toLowerCase().trim() || low.includes(p.toLowerCase().trim()));
-};
 
 // Chart.js center text plugin for donut
 const centerTextPlugin = {
@@ -153,9 +135,13 @@ const COLOR_REPROVED = '#d97706';
 //  Main Component
 // ============================================================
 function VistaClienteApontamentosView() {
-  const [portfolio, setPortfolio] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [showOnlyActive, setShowOnlyActive] = useState(true);
+  const {
+    selectedProjectId, setSelectedProjectId,
+    showOnlyActive, setShowOnlyActive,
+    selectedProject, construflowId,
+    sortedProjects,
+  } = useVistaCliente();
+
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -163,36 +149,6 @@ function VistaClienteApontamentosView() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [breakdownOpen, setBreakdownOpen] = useState(false);
-
-  // ---- Portfolio fetch ----
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await axios.get(`${API_URL}/api/portfolio`, { withCredentials: true });
-        const data = res.data.data || [];
-        setPortfolio(data);
-        const valid = data
-          .filter(p => p.project_code_norm && !isFinalizedStatus(p.status) && !isPausedStatus(p.status))
-          .reduce((acc, p) => {
-            if (!acc.find(x => x.project_code_norm === p.project_code_norm)) acc.push(p);
-            return acc;
-          }, [])
-          .sort((a, b) => (a.project_name || '').localeCompare(b.project_name || '', 'pt-BR'));
-        if (valid.length > 0) setSelectedProjectId(valid[0].project_code_norm);
-      } catch (err) {
-        console.error('Erro ao buscar portfolio:', err);
-      }
-    }
-    load();
-  }, []);
-
-  // ---- Selected project ----
-  const selectedProject = useMemo(() => {
-    if (!selectedProjectId) return null;
-    return portfolio.find(p => String(p.project_code_norm || p.project_code) === String(selectedProjectId));
-  }, [portfolio, selectedProjectId]);
-
-  const construflowId = selectedProject?.construflow_id;
 
   // ---- Issues fetch ----
   useEffect(() => {
@@ -345,23 +301,6 @@ function VistaClienteApontamentosView() {
       return tB.days - tA.days;
     });
   }, [clientOpenIssues]);
-
-  // ---- Project selector ----
-  const sortedProjects = useMemo(() => {
-    return portfolio
-      .filter(p => {
-        if (!p.project_code_norm) return false;
-        if (showOnlyActive) {
-          if (isFinalizedStatus(p.status) || isPausedStatus(p.status)) return false;
-        }
-        return true;
-      })
-      .reduce((acc, p) => {
-        if (!acc.find(x => x.project_code_norm === p.project_code_norm)) acc.push(p);
-        return acc;
-      }, [])
-      .sort((a, b) => (a.project_name || '').localeCompare(b.project_name || '', 'pt-BR'));
-  }, [portfolio, showOnlyActive]);
 
   // ---- Helpers ----
   const toggleRow = (id) => {

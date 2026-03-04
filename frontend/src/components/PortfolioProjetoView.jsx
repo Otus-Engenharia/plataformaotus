@@ -265,12 +265,32 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [], onFieldUpdate
         <div className="ppv-hero-content">
           <div className="ppv-hero-top">
             <h2 className="ppv-hero-name">{heroData.name || heroData.code}</h2>
-            {heroData.status && (
-              <span className={`ppv-status-badge ppv-status-${statusType}`}>
-                <span className="ppv-status-dot"></span>
-                {heroData.status}
-              </span>
-            )}
+            <div className="ppv-status-badge-wrapper">
+              {editingField === 'status' ? (
+                <StatusDropdown
+                  value={heroData.status}
+                  onChange={(newVal) => {
+                    updatePortfolioField(projectCode, 'status', newVal, heroData.status);
+                    onFieldUpdate?.(projectCode, 'status', newVal);
+                    setEditingField(null);
+                  }}
+                  inline
+                  defaultOpen
+                />
+              ) : (
+                <span
+                  className={`ppv-status-badge ppv-status-${statusType}${canEdit ? ' ppv-status-editable' : ''}`}
+                  onClick={() => canEdit && setEditingField('status')}
+                  title={canEdit ? 'Clique para alterar a fase' : ''}
+                >
+                  <span className="ppv-status-dot"></span>
+                  {heroData.status || 'Definir fase'}
+                  {canEdit && <span className="ppv-status-edit-icon"><PencilIcon /></span>}
+                  {statusSaved && <span className="ppv-editable-check">&#10003;</span>}
+                </span>
+              )}
+              {statusError && <span className="ppv-status-error">{statusError.message}</span>}
+            </div>
           </div>
           {heroMeta.length > 0 && (
             <p className="ppv-hero-meta">{heroMeta.join(' · ')}</p>
@@ -326,37 +346,6 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [], onFieldUpdate
             )}
           </div>
 
-          {/* Campo editavel: Fase Atual */}
-          <div
-            className={`ppv-editable-field${statusSaved ? ' ppv-editable-saved' : ''}${statusError ? ' ppv-editable-error' : ''}${editingField === 'status' ? ' ppv-editable-active' : ''}`}
-            title={canEdit ? 'Clique para editar' : ''}
-          >
-            <span className="ppv-editable-label">Fase atual</span>
-            {editingField === 'status' ? (
-              <StatusDropdown
-                value={heroData.status}
-                onChange={(newVal) => {
-                  updatePortfolioField(projectCode, 'status', newVal, heroData.status);
-                  onFieldUpdate?.(projectCode, 'status', newVal);
-                  setEditingField(null);
-                }}
-                inline
-                defaultOpen
-              />
-            ) : (
-              <div
-                className="ppv-editable-value-row"
-                onClick={() => canEdit && setEditingField('status')}
-              >
-                <span className={heroData.status ? 'ppv-editable-value' : 'ppv-editable-placeholder'}>
-                  {heroData.status || 'Definir fase'}
-                </span>
-                {canEdit && <span className="ppv-editable-icon"><PencilIcon /></span>}
-                {statusSaved && <span className="ppv-editable-check">&#10003;</span>}
-                {statusError && <span className="ppv-editable-error-msg">{statusError.message}</span>}
-              </div>
-            )}
-          </div>
 
         </div>
       </div>

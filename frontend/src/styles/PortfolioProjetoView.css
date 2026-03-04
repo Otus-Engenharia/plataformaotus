@@ -152,6 +152,37 @@
   box-shadow: 0 0 6px rgba(99, 102, 241, 0.3);
 }
 
+/* Editable badge */
+.ppv-status-badge-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+.ppv-status-editable {
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+.ppv-status-editable:hover {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+  transform: scale(1.03);
+}
+.ppv-status-edit-icon {
+  margin-left: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ppv-status-editable:hover .ppv-status-edit-icon {
+  opacity: 0.6;
+}
+.ppv-status-error {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: #ef4444;
+  white-space: nowrap;
+}
+
 /* ============================= */
 /* Hero Meta                     */
 /* ============================= */

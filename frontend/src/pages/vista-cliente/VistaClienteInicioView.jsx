@@ -11,32 +11,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
+import { useVistaCliente } from '../../contexts/VistaClienteContext';
 import VistaClienteKpiStrip from './VistaClienteKpiStrip';
 import MarcosProjetoSection from './MarcosProjetoSection';
 import RelatosSection from './RelatosSection';
 import ChartSection from './ChartSection';
 import ChangeLogPanel from '../../components/curva-s-progresso/ChangeLogPanel';
 import '../../styles/VistaClienteView.css';
-
-// Status finalizados (excluir do seletor de projetos ativos)
-const FINALIZED_STATUSES = [
-  'churn pelo cliente', 'close', 'obra finalizada', 'termo de encerramento',
-  'termo de encerrame', 'encerrado', 'finalizado', 'concluído', 'concluido',
-  'cancelado', 'execução', 'execucao',
-];
-const PAUSED_STATUSES = ['pausado', 'pausa', 'em pausa', 'pausado pelo cliente', 'suspenso', 'suspensão'];
-
-const isFinalizedStatus = (status) => {
-  if (!status) return false;
-  const s = String(status).toLowerCase().trim();
-  return FINALIZED_STATUSES.some(f => s === f.toLowerCase().trim() || s.includes(f.toLowerCase().trim()));
-};
-
-const isPausedStatus = (status) => {
-  if (!status) return false;
-  const s = String(status).toLowerCase().trim();
-  return PAUSED_STATUSES.some(p => s === p.toLowerCase().trim() || s.includes(p.toLowerCase().trim()));
-};
 
 function getHealthLevel(idp) {
   if (idp == null) return 'warning';
@@ -46,10 +27,14 @@ function getHealthLevel(idp) {
 }
 
 function VistaClienteInicioView() {
-  // ---- Estado geral ----
-  const [portfolio, setPortfolio] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [showOnlyActive, setShowOnlyActive] = useState(true);
+  // ---- Estado compartilhado (contexto) ----
+  const {
+    selectedProjectId, setSelectedProjectId,
+    showOnlyActive, setShowOnlyActive,
+    selectedProject, projectCode, smartsheetId, projectName, projectId, construflowId,
+    sortedProjects,
+  } = useVistaCliente();
+
   const [lastUpdate, setLastUpdate] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -84,44 +69,9 @@ function VistaClienteInicioView() {
   // Apontamentos (contagens)
   const [apontamentosCount, setApontamentosCount] = useState({ total: 0 });
 
-  // ---- Projeto selecionado ----
-  const selectedProject = portfolio.find(p =>
-    String(p.project_code_norm || p.project_code) === String(selectedProjectId)
-  );
-  const projectCode = selectedProject?.project_code_norm || selectedProject?.project_code || selectedProjectId;
-  const smartsheetId = selectedProject?.smartsheet_id;
-  const projectName = selectedProject?.project_name;
-  const projectId = selectedProject?.id;
-  const construflowId = selectedProject?.construflow_id;
-
   // IDP para health dot
   const idp = progress?.idp_baseline != null ? progress.idp_baseline : progress?.idp;
 
-  // ---- Fetch portfolio ----
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await axios.get(`${API_URL}/api/portfolio`, { withCredentials: true });
-        const data = res.data.data || [];
-        setPortfolio(data);
-
-        const valid = data
-          .filter(p => p.project_code_norm && !isFinalizedStatus(p.status) && !isPausedStatus(p.status))
-          .reduce((acc, p) => {
-            if (!acc.find(x => x.project_code_norm === p.project_code_norm)) acc.push(p);
-            return acc;
-          }, [])
-          .sort((a, b) => (a.project_name || '').localeCompare(b.project_name || '', 'pt-BR'));
-
-        if (valid.length > 0) {
-          setSelectedProjectId(valid[0].project_code_norm);
-        }
-      } catch (err) {
-        console.error('Erro ao buscar portfolio:', err);
-      }
-    }
-    load();
-  }, []);
 
   useEffect(() => {
     if (selectedProjectId) setLastUpdate(new Date());
@@ -344,21 +294,6 @@ function VistaClienteInicioView() {
       return next;
     });
   };
-
-  // ---- Projetos filtrados ----
-  const sortedProjects = portfolio
-    .filter(p => {
-      if (!p.project_code_norm) return false;
-      if (showOnlyActive) {
-        if (isFinalizedStatus(p.status) || isPausedStatus(p.status)) return false;
-      }
-      return true;
-    })
-    .reduce((acc, p) => {
-      if (!acc.find(x => x.project_code_norm === p.project_code_norm)) acc.push(p);
-      return acc;
-    }, [])
-    .sort((a, b) => (a.project_name || '').localeCompare(b.project_name || '', 'pt-BR'));
 
   return (
     <div className="vista-cliente-container">
