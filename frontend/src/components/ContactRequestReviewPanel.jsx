@@ -25,9 +25,11 @@ function ContactRequestReviewPanel() {
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [processing, setProcessing] = useState(null);
+  const [error, setError] = useState(null);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = activeTab === 'pendentes'
         ? { status: 'pendente' }
@@ -45,6 +47,7 @@ function ContactRequestReviewPanel() {
       setRequests(response.data.data || []);
     } catch (err) {
       console.error('Erro ao buscar solicitações:', err);
+      setError('Erro ao carregar solicitações. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -206,6 +209,18 @@ function ContactRequestReviewPanel() {
       {/* Lista de solicitações */}
       {loading ? (
         <div className="cr-loading">Carregando solicitações...</div>
+      ) : error ? (
+        <div className="cr-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" strokeWidth="1.5">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{error}</span>
+          <button className="cr-retry-btn" onClick={fetchRequests} style={{ marginTop: 8, padding: '6px 16px', cursor: 'pointer', border: '1px solid #ccc', borderRadius: 4, background: '#fff' }}>
+            Tentar novamente
+          </button>
+        </div>
       ) : filteredRequests.length === 0 ? (
         <div className="cr-empty">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
