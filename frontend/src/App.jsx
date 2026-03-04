@@ -388,7 +388,7 @@ function Sidebar({ collapsed, onToggle, area }) {
   // Atualizar last_seen e limpar badge quando acessar feedbacks
   useEffect(() => {
     if (!user?.id) return;
-    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/gerenciar-feedbacks') {
+    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/gerenciar-feedbacks' || location.pathname.startsWith('/bug-reports')) {
       localStorage.setItem(`feedbacks_last_seen_${user.id}`, new Date().toISOString());
       setFeedbackUpdatesCount(0);
     }
