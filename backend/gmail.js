@@ -73,7 +73,7 @@ export async function createGmailDraft(userId, { to, subject, body, htmlBody }) 
     const textBody = body || 'Este email requer um cliente que suporte HTML.';
     const emailLines = [
       `To: ${toHeader}`,
-      `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+      `Subject: ${subject}`,
       `Content-Type: multipart/alternative; boundary="${boundary}"`,
       'MIME-Version: 1.0',
       '',
@@ -96,7 +96,7 @@ export async function createGmailDraft(userId, { to, subject, body, htmlBody }) 
     // Email simples em texto
     const emailLines = [
       `To: ${toHeader}`,
-      `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+      `Subject: ${subject}`,
       'Content-Type: text/plain; charset=utf-8',
       'MIME-Version: 1.0',
       '',
