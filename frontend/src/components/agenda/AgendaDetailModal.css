@@ -34,6 +34,7 @@
   animation: detail-slide-up 0.2s ease;
   display: flex;
   flex-direction: column;
+  height: 85vh;
   max-height: 85vh;
   border-top: 4px solid var(--modal-accent, #1a73e8);
 }
