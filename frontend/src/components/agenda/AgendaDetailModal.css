@@ -796,6 +796,39 @@
   pointer-events: none;
 }
 
+/* Favorites toggle */
+.detail-modal__favorites-toggle {
+  padding: 0 0 6px;
+  display: flex;
+  align-items: center;
+}
+
+.detail-modal__favorites-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #e8eaed;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #9aa0a6;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.detail-modal__favorites-toggle-btn.is-active {
+  background: #fffbeb;
+  border-color: #fbbf24;
+  color: #b45309;
+}
+
+.detail-modal__favorites-toggle-btn:hover:not(.is-active) {
+  background: #f8f9fa;
+}
+
 /* Empty state for projects */
 .detail-modal__project-empty {
   font-size: 12px;

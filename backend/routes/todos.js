@@ -22,6 +22,24 @@ import { TaskPriority } from '../domain/todos/value-objects/TaskPriority.js';
 const router = express.Router();
 
 let todoRepository = null;
+let cachedOtusProjectId = null;
+
+async function getOtusProjectId() {
+  if (cachedOtusProjectId !== null) return cachedOtusProjectId;
+  try {
+    const supabase = getSupabaseClient();
+    const { data } = await supabase
+      .from('projects')
+      .select('id')
+      .ilike('name', 'Otus')
+      .limit(1)
+      .single();
+    if (data) cachedOtusProjectId = data.id;
+  } catch (err) {
+    console.warn('Aviso: Projeto "Otus" não encontrado:', err.message);
+  }
+  return cachedOtusProjectId;
+}
 
 function getRepository() {
   if (!todoRepository) {
@@ -214,6 +232,11 @@ function createRoutes(requireAuth, logAction) {
         });
       }
 
+      let resolvedProjectId = project_id ? parseInt(project_id, 10) : null;
+      if (!resolvedProjectId) {
+        resolvedProjectId = await getOtusProjectId();
+      }
+
       const createTodo = new CreateTodo(repository);
       const todo = await createTodo.execute({
         name,
@@ -222,7 +245,7 @@ function createRoutes(requireAuth, logAction) {
         dueDate: due_date || null,
         assignee: assignee || req.user?.id,
         createdBy: req.user?.id,
-        projectId: project_id ? parseInt(project_id, 10) : null,
+        projectId: resolvedProjectId,
         agendaTaskId: agenda_task_id ? parseInt(agenda_task_id, 10) : null,
       });
 
