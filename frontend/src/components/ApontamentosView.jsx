@@ -112,6 +112,14 @@ const PRIORITY_TRANSLATION = {
   'alta': 'Alta',
   'média': 'Média',
   'baixa': 'Baixa',
+  '3': 'Alta',
+  '2': 'Média',
+  '1': 'Baixa',
+};
+
+const isHighPriority = (priority) => {
+  const p = String(priority || '').toLowerCase();
+  return ['high', 'alta', '3'].includes(p);
 };
 
 // Mapeamento de fases (fallback se não vier do banco)
@@ -427,10 +435,7 @@ function ApontamentosView({
 
     const resolvidos = filteredIssues.filter(i => isResolved(i.status));
     const ativos = filteredIssues.filter(i => !isResolved(i.status) && !isReproved(i.status));
-    const ativosAltaPrioridade = ativos.filter(i => {
-      const priority = String(i.priority || '').toLowerCase();
-      return priority === 'high' || priority === 'alta';
-    });
+    const ativosAltaPrioridade = ativos.filter(i => isHighPriority(i.priority));
     const reprovados = filteredIssues.filter(i => isReproved(i.status));
 
     return {
@@ -1213,10 +1218,10 @@ function ApontamentosSection({ title, issues, projectId }) {
     const total = issues.length;
     const resolvidos = issues.filter(i => isResolved(i.status)).length;
     const ativos = issues.filter(i => !isResolved(i.status) && !isReproved(i.status)).length;
-    const ativosAltaPrioridade = issues.filter(i => 
-      !isResolved(i.status) && 
-      !isReproved(i.status) && 
-      String(i.priority).toLowerCase() === 'alta'
+    const ativosAltaPrioridade = issues.filter(i =>
+      !isResolved(i.status) &&
+      !isReproved(i.status) &&
+      isHighPriority(i.priority)
     ).length;
     const reprovados = issues.filter(i => isReproved(i.status)).length;
     const percentualAltaPrioridade = ativos > 0 
