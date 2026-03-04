@@ -294,7 +294,7 @@
 /* Stats Cards */
 .chk-stats {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
 }
 
@@ -1301,7 +1301,7 @@
   }
 
   .chk-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .chk-sectors-grid {
@@ -1343,4 +1343,141 @@
   .chk-presentation__dots {
     order: -1;
   }
+}
+
+/* Initiatives stat card variant */
+.chk-stat__icon--info {
+  background: rgba(255, 208, 0, 0.15);
+  color: #b89500;
+}
+
+.chk-stat__value--info {
+  color: #b89500;
+}
+
+.chk-stat--active-info {
+  border-color: #ffd000;
+  background: rgba(255, 208, 0, 0.08);
+}
+
+/* Initiative badge */
+.chk-badge--info {
+  background: rgba(255, 208, 0, 0.15);
+  color: #b89500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.chk-badge--info svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* =============================================
+   PRESENTATION MODE - Initiatives/Action Plans
+   ============================================= */
+
+.chk-presentation__section--initiatives {
+  border-color: rgba(255, 208, 0, 0.3);
+  background: rgba(255, 208, 0, 0.06);
+}
+
+.chk-presentation__section--initiatives .chk-presentation__section-title {
+  color: #ffd000;
+}
+
+.chk-presentation__section--initiatives .chk-presentation__section-title svg {
+  color: #ffd000;
+}
+
+.chk-presentation__initiatives {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chk-presentation__initiative {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.chk-presentation__initiative-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.chk-presentation__initiative-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  flex: 1;
+  line-height: 1.4;
+}
+
+.chk-presentation__action-plans {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid rgba(255, 208, 0, 0.2);
+}
+
+.chk-presentation__action-plan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+}
+
+.chk-presentation__action-plan-title {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  flex: 1;
+  line-height: 1.3;
+}
+
+.chk-presentation__action-plan-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chk-presentation__action-plan-responsible {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.chk-presentation__action-plan-date {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.chk-presentation__initiatives-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.chk-presentation__initiatives-dod-value {
+  font-weight: 700;
+  color: #ffd000;
+  font-size: 0.9rem;
 }

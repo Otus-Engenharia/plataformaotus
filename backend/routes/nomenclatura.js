@@ -19,6 +19,32 @@ const LOOKUP_TABLE = 'nomenclatura_lookup_entries';
  */
 function createRoutes(requireAuth, isPrivileged, logAction) {
 
+  /**
+   * GET /api/nomenclatura/projects/configured
+   * Lista projetos que possuem lookup entries configuradas
+   * Query: ?exclude=PROJ01 (opcional, exclui o projeto atual)
+   */
+  router.get('/projects/configured', requireAuth, async (req, res) => {
+    try {
+      const { exclude } = req.query;
+      const supabase = getSupabaseServiceClient();
+
+      const { data, error } = await supabase
+        .from(LOOKUP_TABLE)
+        .select('project_code');
+
+      if (error) throw error;
+
+      const unique = [...new Set((data || []).map(d => d.project_code))].sort();
+      const filtered = exclude ? unique.filter(p => p !== exclude) : unique;
+
+      res.json({ success: true, data: filtered });
+    } catch (error) {
+      console.error('Erro ao listar projetos configurados:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   router.get('/:projectCode/validate', requireAuth, async (req, res) => {
     try {
       const { projectCode } = req.params;
