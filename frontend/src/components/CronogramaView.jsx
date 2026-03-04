@@ -16,6 +16,7 @@ function CronogramaView({ selectedProjectId, portfolio = [] }) {
   const [cronogramaData, setCronogramaData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [fallbackInfo, setFallbackInfo] = useState(null);
   const [activeTab, setActiveTab] = useState('entregas'); // 'entregas' ou 'atrasos'
   const [weeksFilter, setWeeksFilter] = useState(2); // Filtro de semanas (padrão: 2 semanas)
   const [disciplinaFilter, setDisciplinaFilter] = useState([]); // Filtro de disciplinas (múltipla escolha)
@@ -145,6 +146,11 @@ function CronogramaView({ selectedProjectId, portfolio = [] }) {
       .then(response => {
         if (response.data.success) {
           setCronogramaData(response.data.data || []);
+          if (response.data._fallback) {
+            setFallbackInfo({ snapshotDate: response.data._snapshotDate });
+          } else {
+            setFallbackInfo(null);
+          }
         } else {
           setError(response.data.error || 'Erro ao carregar cronograma');
         }
@@ -891,6 +897,14 @@ Fico à disposição.`;
 
   return (
     <div className="cronograma-container">
+      {fallbackInfo && (
+        <div className="curva-s-fallback-banner">
+          Dados baseados no snapshot de {fallbackInfo.snapshotDate
+            ? new Date(fallbackInfo.snapshotDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+            : 'data desconhecida'
+          }. A sincronização está em recuperação.
+        </div>
+      )}
       {/* Cards de KPIs */}
       <div className="cronograma-kpis">
         <div className="cronograma-kpi-card cronograma-kpi-vermelho">

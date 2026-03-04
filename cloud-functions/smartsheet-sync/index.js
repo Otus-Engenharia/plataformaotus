@@ -436,6 +436,7 @@ export async function syncSmartsheetToBigQuery(req, res) {
     const allRows = [];
     let processedSheets = 0;
     let failedSheets = 0;
+    const failedSheetNames = [];
 
     for (const sheet of sheets) {
       try {
@@ -451,6 +452,7 @@ export async function syncSmartsheetToBigQuery(req, res) {
       } catch (err) {
         log('error', `Erro ao processar planilha ${sheet.name}`, { error: err.message });
         failedSheets++;
+        failedSheetNames.push(sheet.name);
       }
 
       // Rate limiting
@@ -461,9 +463,21 @@ export async function syncSmartsheetToBigQuery(req, res) {
       totalRows: allRows.length,
       processedSheets,
       failedSheets,
+      failedSheetNames,
     });
 
-    // Proteção contra truncate com poucos dados
+    // Alertar no Discord quando planilhas falham (clientes dependem destes dados)
+    if (failedSheets > 0) {
+      const failedList = failedSheetNames.join(', ');
+      await sendDiscordNotification(
+        `⚠️ **${failedSheets} planilhas falharam no sync**\n` +
+        `Projetos afetados (dados antigos mantidos): ${failedList}\n` +
+        `Projetos sincronizados com sucesso: ${processedSheets}`,
+        true
+      );
+    }
+
+    // Proteção de segurança: verificar se dados coletados são razoáveis
     if (CONFIG.syncMode === 'full') {
       try {
         const [countResult] = await bigqueryClient.query({
@@ -472,8 +486,8 @@ export async function syncSmartsheetToBigQuery(req, res) {
         const currentProjects = Number(countResult[0]?.cnt || 0);
         const uniqueNewProjects = new Set(allRows.map(r => r.ID_Projeto)).size;
 
-        if (currentProjects > 10 && uniqueNewProjects < currentProjects * 0.5) {
-          const msg = `Proteção ativada: sync traria ${uniqueNewProjects} projetos mas tabela atual tem ${currentProjects}. Possível perda de acesso ao Smartsheet. Abortando truncate.`;
+        if (currentProjects > 10 && uniqueNewProjects < currentProjects * 0.85) {
+          const msg = `Proteção ativada: sync traria ${uniqueNewProjects} projetos mas tabela atual tem ${currentProjects} (threshold 85%). Possível perda de acesso ao Smartsheet. Abortando.`;
           log('error', msg);
           await sendDiscordNotification(msg, true);
           if (res) res.status(500).json({ success: false, error: msg });
@@ -484,8 +498,17 @@ export async function syncSmartsheetToBigQuery(req, res) {
       } catch (checkErr) {
         log('warn', 'Não foi possível verificar contagem atual, continuando...', { error: checkErr.message });
       }
+    }
 
-      await truncateTable();
+    // DELETE per-project: só remove dados dos projetos que foram sincronizados com sucesso.
+    // Projetos que falharam no fetch mantêm seus dados antigos na tabela.
+    const successProjectIds = [...new Set(allRows.map(r => r.ID_Projeto))];
+    if (successProjectIds.length > 0) {
+      const escapedIds = successProjectIds.map(id => `'${String(id).replace(/'/g, "''")}'`).join(',');
+      const deleteQuery = `DELETE FROM \`${CONFIG.bigquery.projectId}.${CONFIG.bigquery.dataset}.${CONFIG.bigquery.table}\` WHERE ID_Projeto IN (${escapedIds})`;
+      log('info', `Deletando dados antigos de ${successProjectIds.length} projetos sincronizados...`);
+      await bigqueryClient.query({ query: deleteQuery, location: CONFIG.bigquery.location });
+      log('info', `Dados antigos deletados para ${successProjectIds.length} projetos`);
     }
 
     const inserted = await insertToBigQuery(allRows);
@@ -507,16 +530,7 @@ export async function syncSmartsheetToBigQuery(req, res) {
 
     log('info', '✅ Sincronização concluída!', result);
 
-    // Notificar sucesso no Discord (opcional - só em caso de muitas falhas)
-    if (failedSheets > 0) {
-      await sendDiscordNotification(
-        `**Sincronização concluída com avisos**\n` +
-        `• Planilhas: ${processedSheets} OK, ${failedSheets} falharam\n` +
-        `• Linhas inseridas: ${inserted.toLocaleString()}\n` +
-        `• Duração: ${duration}s`,
-        false
-      );
-    }
+    // Nota: alertas de falha já foram enviados antes do DELETE/INSERT (com nomes das planilhas)
 
     if (res) res.status(200).json(result);
     return result;

@@ -60,6 +60,9 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   const [requestingBaseline, setRequestingBaseline] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(null);
 
+  // Fallback state (dados de snapshot quando tabela principal está vazia)
+  const [fallbackInfo, setFallbackInfo] = useState(null);
+
   // Buscar dados do projeto selecionado no portfolio
   const selectedProject = portfolio?.find(p =>
     String(p.project_code_norm || p.project_code) === String(selectedProjectId)
@@ -142,6 +145,12 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
         setVisibleBaselines(null);
         setShowExecutado(true);
         setShowBaseline(true);
+        // Detectar dados de fallback (snapshot)
+        if (res.data.data._fallback) {
+          setFallbackInfo({ snapshotDate: res.data.data._snapshotDate });
+        } else {
+          setFallbackInfo(null);
+        }
       }
     } catch (err) {
       console.error('Erro ao buscar série temporal:', err);
@@ -378,6 +387,16 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
 
   return (
     <div className="curva-s-progresso-container">
+      {/* Banner de fallback - dados de snapshot */}
+      {fallbackInfo && (
+        <div className="curva-s-fallback-banner">
+          Dados baseados no snapshot de {fallbackInfo.snapshotDate
+            ? new Date(fallbackInfo.snapshotDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+            : 'data desconhecida'
+          }. A sincronização está em recuperação.
+        </div>
+      )}
+
       {/* KPI Cards */}
       <ProgressKpiCards progress={progress} prazos={prazos} faseAtual={selectedProject?.fase_atual || selectedProject?.status} loading={loading} />
 

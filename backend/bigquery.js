@@ -1581,6 +1581,19 @@ export async function queryCronograma(smartsheetId, projectName = null) {
       }
     }
 
+    // Estratégia 3: Fallback para snapshot mais recente (dados nunca vazios para clientes)
+    if (rows.length === 0) {
+      console.warn('⚠️ [queryCronograma] Tabela principal vazia, tentando snapshot mais recente...');
+      const fallback = await querySnapshotFallbackForCronograma(smartsheetId, projectName);
+      if (fallback.rows.length > 0) {
+        console.log(`✅ [queryCronograma] Fallback: ${fallback.rows.length} tarefas do snapshot ${fallback.snapshotDate}`);
+        const result = fallback.rows;
+        result._fallback = true;
+        result._snapshotDate = fallback.snapshotDate;
+        return result;
+      }
+    }
+
     console.log(`✅ Query de cronograma retornou ${rows.length} linhas no total`);
     return rows;
   } catch (error) {
@@ -2338,11 +2351,224 @@ export async function queryCurvaSProgressoTasks(smartsheetId, projectName = null
       rows = await executeQuery(query);
     }
 
+    // Estratégia 3: Fallback para snapshot mais recente (dados nunca vazios para clientes)
+    if (rows.length === 0) {
+      console.warn('⚠️ [queryCurvaSProgressoTasks] Tabela principal vazia, tentando snapshot mais recente...');
+      const fallback = await querySnapshotFallbackForProgress(smartsheetId, projectName);
+      if (fallback.rows.length > 0) {
+        console.log(`✅ [queryCurvaSProgressoTasks] Fallback: ${fallback.rows.length} tarefas do snapshot ${fallback.snapshotDate}`);
+        const result = fallback.rows;
+        result._fallback = true;
+        result._snapshotDate = fallback.snapshotDate;
+        return result;
+      }
+    }
+
     console.log(`✅ [queryCurvaSProgressoTasks] ${rows.length} tarefas Level 5 encontradas`);
     return rows;
   } catch (error) {
     console.error('❌ Erro ao buscar tarefas para Curva S:', error.message);
     throw new Error(`Erro ao buscar tarefas para Curva S: ${error.message}`);
+  }
+}
+
+/**
+ * Fallback: busca tarefas Level 5 do snapshot mais recente para Curva S de Progresso.
+ * Usado quando a tabela principal (smartsheet_data_projetos) está vazia para o projeto.
+ * Retorna dados no mesmo formato que queryCurvaSProgressoTasks.
+ */
+async function querySnapshotFallbackForProgress(smartsheetId, projectName = null) {
+  const snapshotProject = 'dadosindicadores';
+  const snapshotDataset = 'smartsheet_atrasos';
+  const snapshotTable = 'smartsheet_snapshot';
+
+  const baseQuery = `
+    WITH latest_snapshot AS (
+      SELECT MAX(snapshot_date) AS max_date
+      FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\`
+      WHERE {{WHERE_CLAUSE}}
+    ),
+    snapshot_tasks AS (
+      SELECT
+        snap.ID_Projeto,
+        snap.NomeDaPlanilha,
+        snap.NomeDaTarefa,
+        snap.Disciplina,
+        CAST(snap.Level AS INT64) AS Level,
+        snap.Status,
+        snap.DataDeInicio,
+        snap.DataDeTermino,
+        CAST(NULL AS DATE) AS DataDeInicioBaselineOtus,
+        CAST(NULL AS DATE) AS DataDeFimBaselineOtus,
+        CAST(NULL AS STRING) AS VarianciaBaselineOtus,
+        CAST(snap.rowNumber AS INT64) AS rowNumber,
+        CAST(snap.Duracao AS STRING) AS Duracao,
+        snap.snapshot_date
+      FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
+      CROSS JOIN latest_snapshot ls
+      WHERE {{WHERE_CLAUSE_SNAP}}
+        AND snap.snapshot_date = ls.max_date
+        AND snap.NomeDaPlanilha NOT LIKE '%(Backup%'
+        AND snap.NomeDaPlanilha NOT LIKE '%Cópia%'
+        AND snap.NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+        AND snap.NomeDaPlanilha NOT LIKE '%Copy%'
+    ),
+    tasks_with_hierarchy AS (
+      SELECT
+        *,
+        LAST_VALUE(IF(Level = 2, NomeDaTarefa, NULL) IGNORE NULLS)
+          OVER (
+            PARTITION BY ID_Projeto
+            ORDER BY rowNumber
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) AS fase_nome
+      FROM snapshot_tasks
+    )
+    SELECT
+      ID_Projeto,
+      NomeDaPlanilha,
+      NomeDaTarefa,
+      Disciplina,
+      Status,
+      DataDeInicio,
+      DataDeTermino,
+      DataDeInicioBaselineOtus,
+      DataDeFimBaselineOtus,
+      VarianciaBaselineOtus,
+      rowNumber,
+      Duracao,
+      fase_nome,
+      snapshot_date
+    FROM tasks_with_hierarchy
+    WHERE Level = 5
+      AND Disciplina IS NOT NULL
+      AND TRIM(Disciplina) != ''
+    ORDER BY rowNumber
+  `;
+
+  try {
+    let rows = [];
+
+    if (smartsheetId) {
+      const escapedId = String(smartsheetId).replace(/'/g, "''");
+      const idClause = `ID_Projeto = '${escapedId}'`;
+      const query = baseQuery
+        .replace('{{WHERE_CLAUSE}}', idClause)
+        .replace('{{WHERE_CLAUSE_SNAP}}', `snap.${idClause}`);
+      rows = await executeQuery(query);
+    }
+
+    if (rows.length === 0 && projectName) {
+      const escapedName = String(projectName).replace(/'/g, "''");
+      const namePattern = `LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', ''))`;
+      const whereClause = `LOWER(REGEXP_REPLACE(
+        REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+        r'[^a-zA-Z0-9]', ''
+      )) LIKE CONCAT('%', ${namePattern}, '%')`;
+      const snapClause = `LOWER(REGEXP_REPLACE(
+        REGEXP_REPLACE(snap.NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+        r'[^a-zA-Z0-9]', ''
+      )) LIKE CONCAT('%', ${namePattern}, '%')`;
+      const query = baseQuery
+        .replace('{{WHERE_CLAUSE}}', whereClause)
+        .replace('{{WHERE_CLAUSE_SNAP}}', snapClause);
+      rows = await executeQuery(query);
+    }
+
+    const snapshotDate = rows.length > 0 ? String(rows[0].snapshot_date?.value || rows[0].snapshot_date || '').split('T')[0] : null;
+    return { rows, snapshotDate };
+  } catch (error) {
+    console.error('❌ [querySnapshotFallbackForProgress] Erro:', error.message);
+    return { rows: [], snapshotDate: null };
+  }
+}
+
+/**
+ * Fallback: busca tarefas do snapshot mais recente para Cronograma.
+ * Retorna TODAS as levels (não apenas Level 5) no formato de queryCronograma.
+ * Campos ausentes no snapshot (baseline, pagamento, KPI) retornam NULL.
+ */
+async function querySnapshotFallbackForCronograma(smartsheetId, projectName = null) {
+  const snapshotProject = 'dadosindicadores';
+  const snapshotDataset = 'smartsheet_atrasos';
+  const snapshotTable = 'smartsheet_snapshot';
+
+  const baseQuery = `
+    WITH latest_snapshot AS (
+      SELECT MAX(snapshot_date) AS max_date
+      FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\`
+      WHERE {{WHERE_CLAUSE}}
+    )
+    SELECT
+      snap.ID_Projeto,
+      snap.NomeDaPlanilha,
+      snap.NomeDaTarefa,
+      snap.DataDeInicio,
+      snap.DataDeTermino,
+      CAST(NULL AS STRING) AS CaminhoCriticoMarco,
+      snap.Disciplina,
+      snap.Level,
+      snap.Status,
+      CAST(NULL AS STRING) AS KPI,
+      snap.Categoria_de_atraso,
+      snap.Motivo_de_atraso,
+      CAST(NULL AS TIMESTAMP) AS DataAtualizacao,
+      CAST(NULL AS INT64) AS rowId,
+      snap.rowNumber,
+      CAST(snap.Duracao AS STRING) AS Duracao,
+      CAST(NULL AS DATE) AS DataDeInicioBaselineOtus,
+      CAST(NULL AS DATE) AS DataDeFimBaselineOtus,
+      CAST(NULL AS STRING) AS VarianciaBaselineOtus,
+      snap.ObservacaoOtus,
+      CAST(NULL AS STRING) AS LiberaPagamento,
+      CAST(NULL AS STRING) AS MedicaoPagamento,
+      snap.snapshot_date
+    FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
+    CROSS JOIN latest_snapshot ls
+    WHERE {{WHERE_CLAUSE_SNAP}}
+      AND snap.snapshot_date = ls.max_date
+      AND snap.NomeDaPlanilha NOT LIKE '%(Backup%'
+      AND snap.NomeDaPlanilha NOT LIKE '%Cópia%'
+      AND snap.NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+      AND snap.NomeDaPlanilha NOT LIKE '%Copy%'
+    ORDER BY snap.DataDeTermino ASC, snap.NomeDaTarefa ASC
+  `;
+
+  try {
+    let rows = [];
+
+    if (smartsheetId) {
+      const escapedId = String(smartsheetId).replace(/'/g, "''");
+      const idClause = `ID_Projeto = '${escapedId}'`;
+      const query = baseQuery
+        .replace('{{WHERE_CLAUSE}}', idClause)
+        .replace('{{WHERE_CLAUSE_SNAP}}', `snap.${idClause}`);
+      rows = await executeQuery(query);
+    }
+
+    if (rows.length === 0 && projectName) {
+      const escapedName = String(projectName).replace(/'/g, "''");
+      const namePattern = `LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', ''))`;
+      const snapClause = `LOWER(REGEXP_REPLACE(
+        REGEXP_REPLACE(snap.NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+        r'[^a-zA-Z0-9]', ''
+      )) LIKE CONCAT('%', ${namePattern}, '%')`;
+      // For latest_snapshot CTE, use same clause but without snap. prefix
+      const whereClause = `LOWER(REGEXP_REPLACE(
+        REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
+        r'[^a-zA-Z0-9]', ''
+      )) LIKE CONCAT('%', ${namePattern}, '%')`;
+      const query = baseQuery
+        .replace('{{WHERE_CLAUSE}}', whereClause)
+        .replace('{{WHERE_CLAUSE_SNAP}}', snapClause);
+      rows = await executeQuery(query);
+    }
+
+    const snapshotDate = rows.length > 0 ? String(rows[0].snapshot_date?.value || rows[0].snapshot_date || '').split('T')[0] : null;
+    return { rows, snapshotDate };
+  } catch (error) {
+    console.error('❌ [querySnapshotFallbackForCronograma] Erro:', error.message);
+    return { rows: [], snapshotDate: null };
   }
 }
 
@@ -3059,5 +3285,33 @@ export async function queryHorasComplianceOperacao(semanas = 8) {
   } catch (error) {
     console.error('❌ [queryHorasComplianceOperacao]', error.message);
     throw new Error(`Erro ao buscar horas de compliance: ${error.message}`);
+  }
+}
+
+/**
+ * Diagnóstico: saúde dos dados SmartSheet no BigQuery.
+ * Retorna contagem de linhas e última atualização por projeto.
+ */
+export async function querySmartsheetHealth() {
+  const table = 'smartsheet_data_projetos';
+  const query = `
+    SELECT
+      ID_Projeto,
+      NomeDaPlanilha,
+      COUNT(*) as total_rows,
+      COUNTIF(Level = 5) as level5_rows,
+      MAX(DataAtualizacao) as last_update
+    FROM \`${projectId}.smartsheet.${table}\`
+    GROUP BY ID_Projeto, NomeDaPlanilha
+    ORDER BY NomeDaPlanilha
+  `;
+
+  try {
+    const rows = await executeQuery(query);
+    console.log(`✅ [querySmartsheetHealth] ${rows.length} projetos na tabela`);
+    return rows;
+  } catch (error) {
+    console.error('❌ [querySmartsheetHealth]', error.message);
+    throw new Error(`Erro ao buscar saúde SmartSheet: ${error.message}`);
   }
 }
