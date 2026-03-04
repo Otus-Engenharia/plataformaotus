@@ -1,8 +1,11 @@
 /**
- * Vista do Cliente - Marcos do Projeto (CRUD)
+ * Vista do Cliente - Marcos do Projeto
  *
- * Gerenciamento completo de marcos (milestones) por projeto.
- * Suporta importação do Smartsheet e cadastro manual.
+ * Gerenciamento de marcos (milestones) por projeto na perspectiva do cliente.
+ * - CRUD simplificado (nome, descricao, data expectativa)
+ * - Exibe dados enriquecidos do Smartsheet quando vinculado
+ * - Solicitacao de nova baseline com snapshot dos marcos
+ * - Historico de solicitacoes de baseline
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -11,13 +14,6 @@ import { API_URL } from '../../api';
 import { useVistaCliente } from '../../contexts/VistaClienteContext';
 import '../../styles/VistaClienteView.css';
 import './VistaClienteMarcosView.css';
-
-const STATUS_OPTIONS = [
-  { value: 'pendente', label: 'Pendente', className: 'pendente' },
-  { value: 'andamento', label: 'Em Andamento', className: 'andamento' },
-  { value: 'atrasado', label: 'Atrasado', className: 'atrasado' },
-  { value: 'feito', label: 'Feito', className: 'feito' },
-];
 
 function formatDateInput(dateStr) {
   if (!dateStr) return '';
@@ -33,6 +29,39 @@ function formatDateDisplay(dateStr) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
+function formatDateTimeBR(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function getStatusLabel(status) {
+  const map = {
+    pendente: 'Pendente',
+    andamento: 'Em Andamento',
+    atrasado: 'Atrasado',
+    feito: 'Feito',
+    'Complete': 'Feito',
+    'In Progress': 'Em Andamento',
+    'Not Started': 'Pendente',
+    'Late': 'Atrasado',
+  };
+  return map[status] || status || '-';
+}
+
+function getStatusClass(status) {
+  if (!status) return 'pendente';
+  const low = status.toLowerCase();
+  if (low === 'feito' || low === 'complete' || low === 'concluido' || low === 'concluído') return 'feito';
+  if (low === 'andamento' || low === 'in progress' || low === 'em andamento') return 'andamento';
+  if (low === 'atrasado' || low === 'late') return 'atrasado';
+  return 'pendente';
+}
+
 function VistaClienteMarcosView() {
   const {
     selectedProjectId, setSelectedProjectId,
@@ -43,73 +72,104 @@ function VistaClienteMarcosView() {
 
   const [marcos, setMarcos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [importing, setImporting] = useState(false);
 
-  // Form state
+  // Form state (create/edit)
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
-    nome: '', status: 'pendente', prazo_baseline: '', prazo_atual: '', descricao: '',
+    nome: '', descricao: '', cliente_expectativa_data: '',
   });
 
-  // Fetch marcos
+  // Baseline request modal
+  const [showBaselineModal, setShowBaselineModal] = useState(false);
+  const [baselineJustificativa, setBaselineJustificativa] = useState('');
+  const [baselineSubmitting, setBaselineSubmitting] = useState(false);
+  const [baselinePending, setBaselinePending] = useState(false);
+
+  // Baseline requests history
+  const [baselineRequests, setBaselineRequests] = useState([]);
+  const [baselineRequestsLoading, setBaselineRequestsLoading] = useState(false);
+
+  // --- Fetch marcos (enriched, with fallback) ---
   const fetchMarcos = useCallback(async () => {
     if (!projectCode) { setMarcos([]); return; }
     setLoading(true);
     try {
+      // Try enriched endpoint first
+      const params = new URLSearchParams();
+      params.set('projectCode', projectCode);
+      if (smartsheetId) params.set('smartsheetId', smartsheetId);
+      if (projectName) params.set('projectName', projectName);
+
       const res = await axios.get(
-        `${API_URL}/api/marcos-projeto?projectCode=${encodeURIComponent(projectCode)}`,
+        `${API_URL}/api/marcos-projeto/enriched?${params}`,
         { withCredentials: true }
       );
       setMarcos(res.data?.data || []);
-    } catch (err) {
-      console.error('Erro ao buscar marcos:', err);
-      setMarcos([]);
+    } catch (enrichedErr) {
+      console.warn('Enriched endpoint failed, falling back:', enrichedErr.message);
+      try {
+        const res = await axios.get(
+          `${API_URL}/api/marcos-projeto?projectCode=${encodeURIComponent(projectCode)}`,
+          { withCredentials: true }
+        );
+        setMarcos(res.data?.data || []);
+      } catch (fallbackErr) {
+        console.error('Erro ao buscar marcos:', fallbackErr);
+        setMarcos([]);
+      }
     } finally {
       setLoading(false);
+    }
+  }, [projectCode, smartsheetId, projectName]);
+
+  // --- Fetch baseline requests ---
+  const fetchBaselineRequests = useCallback(async () => {
+    if (!projectCode) { setBaselineRequests([]); return; }
+    setBaselineRequestsLoading(true);
+    try {
+      const res = await axios.get(
+        `${API_URL}/api/marcos-projeto/baseline-requests?projectCode=${encodeURIComponent(projectCode)}`,
+        { withCredentials: true }
+      );
+      const data = res.data?.data || [];
+      setBaselineRequests(data);
+      // Check if there is a pending baseline request
+      setBaselinePending(data.some(r => r.status === 'pendente'));
+    } catch (err) {
+      console.error('Erro ao buscar solicitacoes de baseline:', err);
+      setBaselineRequests([]);
+      setBaselinePending(false);
+    } finally {
+      setBaselineRequestsLoading(false);
     }
   }, [projectCode]);
 
   useEffect(() => { fetchMarcos(); }, [fetchMarcos]);
+  useEffect(() => { fetchBaselineRequests(); }, [fetchBaselineRequests]);
 
-  // Import from Smartsheet
-  const handleImport = async () => {
-    if (!projectCode || (!smartsheetId && !projectName)) return;
-    setImporting(true);
-    try {
-      const res = await axios.post(
-        `${API_URL}/api/marcos-projeto/import`,
-        { projectCode, smartsheetId, projectName },
-        { withCredentials: true }
-      );
-      if (res.data.success) {
-        await fetchMarcos();
-        alert(`${res.data.imported} marco(s) importado(s) do Smartsheet.`);
-      }
-    } catch (err) {
-      console.error('Erro ao importar marcos:', err);
-      alert('Erro ao importar marcos: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  // Create / Update
+  // --- Create / Update ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.nome.trim()) return;
+
+    const payload = {
+      nome: form.nome.trim(),
+      descricao: form.descricao.trim() || null,
+      cliente_expectativa_data: form.cliente_expectativa_data || null,
+    };
 
     try {
       if (editingId) {
         await axios.put(
           `${API_URL}/api/marcos-projeto/${editingId}`,
-          { ...form, nome: form.nome.trim() },
+          payload,
           { withCredentials: true }
         );
       } else {
         await axios.post(
           `${API_URL}/api/marcos-projeto`,
-          { ...form, project_code: projectCode, nome: form.nome.trim() },
+          { ...payload, project_code: projectCode },
           { withCredentials: true }
         );
       }
@@ -121,7 +181,7 @@ function VistaClienteMarcosView() {
     }
   };
 
-  // Delete
+  // --- Delete ---
   const handleDelete = async (id, nome) => {
     if (!confirm(`Remover marco "${nome}"?`)) return;
     try {
@@ -133,46 +193,70 @@ function VistaClienteMarcosView() {
     }
   };
 
-  // Edit
+  // --- Edit ---
   const handleEdit = (marco) => {
     setEditingId(marco.id);
     setForm({
       nome: marco.nome || '',
-      status: marco.status || 'pendente',
-      prazo_baseline: formatDateInput(marco.prazo_baseline),
-      prazo_atual: formatDateInput(marco.prazo_atual),
       descricao: marco.descricao || '',
+      cliente_expectativa_data: formatDateInput(marco.cliente_expectativa_data),
     });
     setShowForm(true);
   };
 
-  // Move up/down
-  const handleMove = async (index, direction) => {
-    const swapIdx = index + direction;
-    if (swapIdx < 0 || swapIdx >= marcos.length) return;
-
-    const items = [
-      { id: marcos[index].id, sort_order: marcos[swapIdx].sort_order },
-      { id: marcos[swapIdx].id, sort_order: marcos[index].sort_order },
-    ];
-
+  // --- Baseline Request ---
+  const handleBaselineRequest = async () => {
+    if (!baselineJustificativa.trim()) return;
+    setBaselineSubmitting(true);
     try {
-      await axios.put(`${API_URL}/api/marcos-projeto/reorder`, { items }, { withCredentials: true });
-      await fetchMarcos();
+      const marcos_snapshot = marcos.map(m => ({
+        marco_id: m.id,
+        nome: m.nome,
+        cliente_expectativa_data: m.cliente_expectativa_data || null,
+        descricao: m.descricao || null,
+      }));
+
+      await axios.post(
+        `${API_URL}/api/marcos-projeto/baseline-request`,
+        {
+          project_code: projectCode,
+          justificativa: baselineJustificativa.trim(),
+          marcos_snapshot,
+        },
+        { withCredentials: true }
+      );
+
+      setShowBaselineModal(false);
+      setBaselineJustificativa('');
+      setBaselinePending(true);
+      await fetchBaselineRequests();
     } catch (err) {
-      console.error('Erro ao reordenar:', err);
+      console.error('Erro ao solicitar baseline:', err);
+      alert('Erro ao solicitar nova baseline: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setBaselineSubmitting(false);
     }
   };
 
   const resetForm = () => {
     setShowForm(false);
     setEditingId(null);
-    setForm({ nome: '', status: 'pendente', prazo_baseline: '', prazo_atual: '', descricao: '' });
+    setForm({ nome: '', descricao: '', cliente_expectativa_data: '' });
+  };
+
+  // --- Baseline request status badge ---
+  const getBaselineStatusBadge = (status) => {
+    switch (status) {
+      case 'pendente': return { label: 'Pendente', className: 'pendente' };
+      case 'aprovada': return { label: 'Aprovada', className: 'aprovada' };
+      case 'rejeitada': return { label: 'Rejeitada', className: 'rejeitada' };
+      default: return { label: status, className: 'pendente' };
+    }
   };
 
   return (
     <div className="vista-cliente-container">
-      {/* Header - same pattern as InicioView */}
+      {/* Header */}
       <div className="vc-header">
         <div className="vc-header-title-row">
           <h1 className="vc-project-title">Marcos do Projeto</h1>
@@ -204,16 +288,22 @@ function VistaClienteMarcosView() {
       {/* Actions bar */}
       {projectCode && (
         <div className="vcm-actions">
-          <button className="vcm-btn vcm-btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+          <button
+            className="vcm-btn vcm-btn-primary"
+            onClick={() => { resetForm(); setShowForm(true); }}
+          >
             + Novo Marco
           </button>
           <button
-            className="vcm-btn vcm-btn-secondary"
-            onClick={handleImport}
-            disabled={importing || (!smartsheetId && !projectName)}
-            title={!smartsheetId && !projectName ? 'Projeto sem Smartsheet vinculado' : 'Importar marcos do Smartsheet'}
+            className="vcm-btn vcm-btn-baseline"
+            onClick={() => setShowBaselineModal(true)}
+            disabled={marcos.length === 0}
+            title={marcos.length === 0 ? 'Cadastre marcos antes de solicitar baseline' : 'Solicitar revisao da baseline de marcos'}
           >
-            {importing ? 'Importando...' : 'Importar do Smartsheet'}
+            Solicitar Nova Baseline
+            {baselinePending && (
+              <span className="vcm-baseline-pending-badge">Pendente</span>
+            )}
           </button>
         </div>
       )}
@@ -235,27 +325,11 @@ function VistaClienteMarcosView() {
                 />
               </div>
               <div className="vcm-field">
-                <label>Status</label>
-                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-                  {STATUS_OPTIONS.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="vcm-field">
-                <label>Prazo Baseline</label>
+                <label>Data de Expectativa</label>
                 <input
                   type="date"
-                  value={form.prazo_baseline}
-                  onChange={e => setForm({ ...form, prazo_baseline: e.target.value })}
-                />
-              </div>
-              <div className="vcm-field">
-                <label>Prazo Atual</label>
-                <input
-                  type="date"
-                  value={form.prazo_atual}
-                  onChange={e => setForm({ ...form, prazo_atual: e.target.value })}
+                  value={form.cliente_expectativa_data}
+                  onChange={e => setForm({ ...form, cliente_expectativa_data: e.target.value })}
                 />
               </div>
               <div className="vcm-field vcm-field-full">
@@ -280,10 +354,13 @@ function VistaClienteMarcosView() {
         </div>
       )}
 
-      {/* Marcos list */}
+      {/* Marcos table */}
       <div className="vcm-list-card">
         {loading ? (
-          <div className="vcm-empty">Carregando marcos...</div>
+          <div className="vcm-loading">
+            <div className="vcm-loading-spinner" />
+            Carregando marcos...
+          </div>
         ) : !projectCode ? (
           <div className="vcm-empty">Selecione um projeto para gerenciar marcos.</div>
         ) : marcos.length === 0 ? (
@@ -291,85 +368,206 @@ function VistaClienteMarcosView() {
             Nenhum marco cadastrado para este projeto.
             <br />
             <span className="vcm-empty-hint">
-              Use "Importar do Smartsheet" para trazer os marcos existentes ou crie manualmente.
+              Crie marcos manualmente usando o botao "+ Novo Marco" acima.
             </span>
           </div>
         ) : (
-          <table className="vcm-table">
-            <thead>
-              <tr>
-                <th className="vcm-th-order">#</th>
-                <th>Nome</th>
-                <th>Status</th>
-                <th>Prazo Baseline</th>
-                <th>Prazo Atual</th>
-                <th>Variacao</th>
-                <th>Origem</th>
-                <th className="vcm-th-actions">Acoes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {marcos.map((m, idx) => {
-                const statusOpt = STATUS_OPTIONS.find(s => s.value === m.status) || STATUS_OPTIONS[0];
-                const variacao = m.variacao_dias;
-                return (
-                  <tr key={m.id}>
-                    <td className="vcm-td-order">
-                      <div className="vcm-order-btns">
+          <div className="vcm-table-wrapper">
+            <table className="vcm-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Descricao</th>
+                  <th>Expectativa Cliente</th>
+                  <th>Status Cronograma</th>
+                  <th>Data Cronograma</th>
+                  <th>Variacao</th>
+                  <th className="vcm-th-actions">Acoes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {marcos.map((m) => {
+                  const isLinked = !!(m.smartsheet_status || m.smartsheet_data_termino);
+                  const statusClass = isLinked ? getStatusClass(m.smartsheet_status) : null;
+                  const variacao = m.variacao_dias;
+
+                  return (
+                    <tr key={m.id}>
+                      <td className="vcm-td-nome">
+                        <span className="vcm-nome">{m.nome}</span>
+                      </td>
+                      <td className="vcm-td-descricao">
+                        {m.descricao ? (
+                          <span className="vcm-descricao-text">{m.descricao}</span>
+                        ) : (
+                          <span className="vcm-text-muted">-</span>
+                        )}
+                      </td>
+                      <td>{formatDateDisplay(m.cliente_expectativa_data)}</td>
+                      <td>
+                        {isLinked ? (
+                          <span className={`vcm-status-badge ${statusClass}`}>
+                            {getStatusLabel(m.smartsheet_status)}
+                          </span>
+                        ) : (
+                          <span className="vcm-awaiting-link">Aguardando vinculo</span>
+                        )}
+                      </td>
+                      <td>
+                        {isLinked
+                          ? formatDateDisplay(m.smartsheet_data_termino)
+                          : <span className="vcm-text-muted">-</span>
+                        }
+                      </td>
+                      <td>
+                        {isLinked && variacao != null && variacao !== 0 ? (
+                          <span className={`vcm-variacao ${variacao > 0 ? 'atrasado' : 'adiantado'}`}>
+                            {variacao > 0 ? '+' : ''}{variacao}d
+                          </span>
+                        ) : (
+                          <span className="vcm-text-muted">-</span>
+                        )}
+                      </td>
+                      <td className="vcm-td-actions">
                         <button
-                          className="vcm-order-btn"
-                          onClick={() => handleMove(idx, -1)}
-                          disabled={idx === 0}
-                          title="Mover para cima"
-                        >&#9650;</button>
+                          className="vcm-action-btn edit"
+                          onClick={() => handleEdit(m)}
+                          title="Editar"
+                        >
+                          &#9998;
+                        </button>
                         <button
-                          className="vcm-order-btn"
-                          onClick={() => handleMove(idx, 1)}
-                          disabled={idx === marcos.length - 1}
-                          title="Mover para baixo"
-                        >&#9660;</button>
-                      </div>
-                    </td>
-                    <td className="vcm-td-nome">
-                      <span className="vcm-nome">{m.nome}</span>
-                      {m.descricao && (
-                        <span className="vcm-descricao">{m.descricao}</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`vcm-status-badge ${statusOpt.className}`}>
-                        {statusOpt.label}
-                      </span>
-                    </td>
-                    <td>{formatDateDisplay(m.prazo_baseline)}</td>
-                    <td>{formatDateDisplay(m.prazo_atual)}</td>
-                    <td>
-                      {variacao != null && variacao !== 0 ? (
-                        <span className={`vcm-variacao ${variacao > 0 ? 'atrasado' : 'adiantado'}`}>
-                          {variacao > 0 ? '+' : ''}{variacao}d
-                        </span>
-                      ) : '-'}
-                    </td>
-                    <td>
-                      <span className={`vcm-source-badge ${m.source === 'smartsheet' ? 'smartsheet' : 'manual'}`}>
-                        {m.source === 'smartsheet' ? 'Smartsheet' : 'Manual'}
-                      </span>
-                    </td>
-                    <td className="vcm-td-actions">
-                      <button className="vcm-action-btn edit" onClick={() => handleEdit(m)} title="Editar">
-                        &#9998;
-                      </button>
-                      <button className="vcm-action-btn delete" onClick={() => handleDelete(m.id, m.nome)} title="Remover">
-                        &#10005;
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                          className="vcm-action-btn delete"
+                          onClick={() => handleDelete(m.id, m.nome)}
+                          title="Remover"
+                        >
+                          &#10005;
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
+
+      {/* Baseline Request Modal */}
+      {showBaselineModal && (
+        <div className="vcm-modal-overlay" onClick={() => setShowBaselineModal(false)}>
+          <div className="vcm-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="vcm-modal-header">
+              <h3>Solicitar Nova Baseline</h3>
+              <button
+                className="vcm-modal-close"
+                onClick={() => setShowBaselineModal(false)}
+                title="Fechar"
+              >
+                &#10005;
+              </button>
+            </div>
+
+            <div className="vcm-modal-body">
+              <p className="vcm-modal-description">
+                Ao solicitar uma nova baseline, o lider do projeto sera notificado para
+                revisar os marcos e suas datas. Um snapshot dos marcos atuais sera enviado
+                junto com sua justificativa.
+              </p>
+
+              {/* Marco summary */}
+              <div className="vcm-baseline-summary">
+                <h4>Marcos atuais ({marcos.length})</h4>
+                <div className="vcm-baseline-summary-list">
+                  {marcos.map(m => (
+                    <div key={m.id} className="vcm-baseline-summary-item">
+                      <span className="vcm-baseline-summary-name">{m.nome}</span>
+                      <span className="vcm-baseline-summary-date">
+                        {formatDateDisplay(m.cliente_expectativa_data)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Justificativa */}
+              <div className="vcm-field">
+                <label>Justificativa *</label>
+                <textarea
+                  value={baselineJustificativa}
+                  onChange={e => setBaselineJustificativa(e.target.value)}
+                  placeholder="Explique o motivo da solicitacao de nova baseline..."
+                  rows={4}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="vcm-modal-footer">
+              <button
+                className="vcm-btn vcm-btn-baseline"
+                onClick={handleBaselineRequest}
+                disabled={baselineSubmitting || !baselineJustificativa.trim()}
+              >
+                {baselineSubmitting ? 'Enviando...' : 'Enviar Solicitacao'}
+              </button>
+              <button
+                className="vcm-btn vcm-btn-ghost"
+                onClick={() => setShowBaselineModal(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Baseline Requests History */}
+      {projectCode && (
+        <div className="vcm-baseline-history">
+          <div className="vcm-baseline-history-header">
+            <h3>Historico de Solicitacoes de Baseline</h3>
+          </div>
+
+          {baselineRequestsLoading ? (
+            <div className="vcm-loading vcm-loading-sm">
+              <div className="vcm-loading-spinner" />
+              Carregando historico...
+            </div>
+          ) : baselineRequests.length === 0 ? (
+            <div className="vcm-empty vcm-empty-sm">
+              Nenhuma solicitacao de baseline registrada.
+            </div>
+          ) : (
+            <div className="vcm-baseline-requests-list">
+              {baselineRequests.map((req) => {
+                const badge = getBaselineStatusBadge(req.status);
+                return (
+                  <div key={req.id} className="vcm-baseline-request-item">
+                    <div className="vcm-baseline-request-top">
+                      <span className="vcm-baseline-request-date">
+                        {formatDateTimeBR(req.created_at)}
+                      </span>
+                      <span className={`vcm-baseline-status-badge ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <div className="vcm-baseline-request-justificativa">
+                      {req.justificativa}
+                    </div>
+                    {req.status === 'rejeitada' && req.rejection_reason && (
+                      <div className="vcm-baseline-rejection">
+                        <span className="vcm-baseline-rejection-label">Motivo da rejeicao:</span>
+                        {req.rejection_reason}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
