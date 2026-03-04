@@ -40,8 +40,16 @@ function getUseCase() {
  * @param {Object} [options.details] - Metadados extras
  */
 export async function trackTimeSaving(req, catalogId, { resourceType, resourceId, resourceName, details } = {}) {
-  if (!req.isAuthenticated?.() || !req.user) return;
-  if (req.user.setor_name !== 'Operação') return;
+  if (!req.isAuthenticated?.() || !req.user) {
+    console.warn(`[TimeSavings] SKIP: usuário não autenticado (catalogId=${catalogId})`);
+    return;
+  }
+
+  const setor = req.user.setor_name;
+  if (setor !== 'Operação') {
+    console.warn(`[TimeSavings] SKIP: setor="${setor || '(null)'}" ≠ Operação | ${req.user.email} | catalogId=${catalogId}`);
+    return;
+  }
 
   try {
     await getUseCase().execute({
@@ -53,7 +61,8 @@ export async function trackTimeSaving(req, catalogId, { resourceType, resourceId
       resourceName,
       details,
     });
+    console.log(`[TimeSavings] OK: ${catalogId} | ${req.user.email}`);
   } catch (error) {
-    console.error(`[TimeSavings] Erro ao registrar economia [${catalogId}]:`, error.message);
+    console.error(`[TimeSavings] ERRO [${catalogId}] ${req.user.email}:`, error.message);
   }
 }
