@@ -843,7 +843,6 @@ export async function queryIssues(construflowId) {
     FROM \`${projectId}.${issuesDataset}.${issuesTable}\` i
     WHERE CAST(i.projectId AS STRING) = '${escapedProjectId}'
     ORDER BY i.createdAt DESC
-    LIMIT 1000
   `;
 
   try {
