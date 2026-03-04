@@ -58,7 +58,7 @@ function extractGoogleId(value) {
   return match ? match[1] : trimmed;
 }
 
-function FerramentasView({ selectedProjectId, portfolio = [] }) {
+function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
   const { canEditPortfolio } = useAuth();
   const [activeTab, setActiveTab] = useState('config');
   const [saving, setSaving] = useState({});
@@ -180,6 +180,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
         { field, value: newValue, oldValue: currentValue },
         { withCredentials: true }
       );
+      onToolUpdate?.(projectCode, field, newValue);
     } catch (err) {
       console.error('Erro ao atualizar status:', err);
       setLocalOverrides(prev => {
@@ -222,6 +223,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
         { withCredentials: true }
       );
       setLocalOverrides(prev => ({ ...prev, [field]: finalValue }));
+      onToolUpdate?.(projectCode, field, finalValue);
       setEditingField(null);
     } catch (err) {
       console.error('Erro ao salvar:', err);
@@ -303,6 +305,7 @@ function FerramentasView({ selectedProjectId, portfolio = [] }) {
         { withCredentials: true }
       );
       setLocalOverrides(prev => ({ ...prev, [tagsModal.field]: newValue }));
+      onToolUpdate?.(projectCode, tagsModal.field, newValue);
       setTagsModal(null);
     } catch (err) {
       console.error('Erro ao salvar disciplinas:', err);

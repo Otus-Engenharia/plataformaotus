@@ -25,6 +25,23 @@ const tablePortfolio = process.env.BIGQUERY_TABLE_PORTFOLIO || 'portfolio';
 const location = process.env.BIGQUERY_LOCATION || 'southamerica-east1';
 
 /**
+ * Remove acentos de uma string (NFD + strip combining marks)
+ * Usado para comparação accent-insensitive com nomes no BigQuery
+ */
+function stripAccents(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Gera cláusula SQL accent-insensitive para comparar coluna lider com nome
+ * Usa NORMALIZE + REGEXP_REPLACE no BigQuery para remover diacríticos
+ */
+function leaderWhereClause(escapedName, prefix = 'WHERE') {
+  const cleanName = stripAccents(escapedName);
+  return ` ${prefix} LOWER(REGEXP_REPLACE(NORMALIZE(lider, NFD), r'\\p{M}', '')) = LOWER('${cleanName}')`;
+}
+
+/**
  * Função genérica para executar queries no BigQuery
  * @param {string} query - Query SQL a ser executada
  * @param {Object} [params] - Parâmetros nomeados para a query (ex: { mes: '2025-01-01' })
@@ -235,8 +252,8 @@ export async function queryPortfolio(leaderName = null) {
     }
     // Escapa o nome para evitar SQL injection
     const escapedName = leaderName.replace(/'/g, "''");
-    // Compara o nome (case-insensitive)
-    query += ` WHERE LOWER(lider) = LOWER('${escapedName}')`;
+    // Compara o nome (case + accent insensitive)
+    query += leaderWhereClause(escapedName, 'WHERE');
   }
 
   query += ` ORDER BY 1 DESC`;
@@ -310,10 +327,10 @@ export async function queryCurvaS(leaderName = null, projectCode = null) {
       WHERE project_code_norm IS NOT NULL
   `;
 
-  // Filtro por líder se fornecido
+  // Filtro por líder se fornecido (accent-insensitive)
   if (leaderName) {
     const escapedName = leaderName.replace(/'/g, "''");
-    query += ` AND LOWER(lider) = LOWER('${escapedName}')`;
+    query += leaderWhereClause(escapedName, 'AND');
   }
 
   query += `
@@ -583,7 +600,8 @@ export async function queryCustosPorUsuarioProjeto(leaderName = null, projectCod
       return [];
     }
     const escapedName = leaderName.replace(/'/g, "''");
-    portfolioFilter = `AND LOWER(lider) = LOWER('${escapedName}')`;
+    const cleanName = stripAccents(escapedName);
+    portfolioFilter = `AND LOWER(REGEXP_REPLACE(NORMALIZE(lider, NFD), r'\\p{M}', '')) = LOWER('${cleanName}')`;
   }
 
   let projectFilter = '';
@@ -1965,7 +1983,7 @@ export async function queryControlePassivo(leaderName = null) {
 
   if (leaderName) {
     const escapedName = leaderName.replace(/'/g, "''");
-    query += ` AND LOWER(lider) = LOWER('${escapedName}')`;
+    query += leaderWhereClause(escapedName, 'AND');
   }
 
   query += `

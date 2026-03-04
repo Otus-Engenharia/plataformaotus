@@ -5,7 +5,7 @@
  * Estrutura reutilizável para outras vistas com subvistas
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ApontamentosView from './ApontamentosView';
@@ -202,6 +202,13 @@ function ProjetosView() {
       setLastUpdate(new Date());
     }
   }, [selectedProjectId]);
+
+  // Callback para atualizar portfolio state quando ferramentas são editadas
+  const handleToolUpdate = useCallback((projectCode, field, value) => {
+    setPortfolio(prev => prev.map(p =>
+      p.project_code_norm === projectCode ? { ...p, [field]: value } : p
+    ));
+  }, []);
 
   const handleSubviewChange = (subviewId) => {
     setActiveSubview(subviewId);
@@ -406,9 +413,10 @@ function ProjetosView() {
       <div className="projetos-content">
         {SubviewComponent ? (
           activeSubview === 'portfolio' ? (
-            <SubviewComponent 
+            <SubviewComponent
               selectedProjectId={selectedProjectId}
               portfolio={portfolio}
+              onFieldUpdate={handleToolUpdate}
             />
           ) : activeSubview === 'apontamentos' ? (
             <SubviewComponent 
@@ -422,6 +430,7 @@ function ProjetosView() {
             <SubviewComponent
               selectedProjectId={selectedProjectId}
               portfolio={portfolio}
+              onToolUpdate={handleToolUpdate}
             />
           ) : activeSubview === 'cronograma' ? (
             <SubviewComponent
