@@ -161,6 +161,63 @@ class SupabaseIfcChangeLogRepository extends IfcChangeLogRepository {
     };
   }
 
+  async getRecentSummary(days = 7) {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const sinceISO = since.toISOString();
+
+    // Buscar todos os logs do período (sem paginação) para agregar
+    const { data, error } = await this.#supabase
+      .from(CHANGE_LOGS_TABLE)
+      .select('project_code, category, file_name, file_size')
+      .gte('created_at', sinceISO);
+
+    if (error) {
+      throw new Error(`Erro ao buscar resumo: ${error.message}`);
+    }
+
+    const rows = data || [];
+    const porCategoria = { nova_revisao: 0, mudanca_fase: 0, novo_arquivo: 0 };
+    const projectSet = new Set();
+    let tamanhoTotal = 0;
+
+    for (const row of rows) {
+      if (porCategoria[row.category] !== undefined) {
+        porCategoria[row.category]++;
+      }
+      projectSet.add(row.project_code);
+      tamanhoTotal += Number(row.file_size) || 0;
+    }
+
+    return {
+      totalMudancas: rows.length,
+      porCategoria,
+      projetosAtivos: projectSet.size,
+      tamanhoTotal,
+      logs: rows,
+    };
+  }
+
+  async getNomenclaturaPatternsForProjects(projectCodes) {
+    if (!projectCodes.length) return new Map();
+
+    const { data, error } = await this.#supabase
+      .from('project_nomenclatura')
+      .select('project_code, segments')
+      .eq('tipo', 'modelos')
+      .in('project_code', projectCodes);
+
+    if (error) {
+      throw new Error(`Erro ao buscar nomenclaturas: ${error.message}`);
+    }
+
+    const map = new Map();
+    for (const row of (data || [])) {
+      map.set(row.project_code, row.segments);
+    }
+    return map;
+  }
+
   // --- Project Features (read-only) ---
 
   async findProjectsWithIfcLinks() {

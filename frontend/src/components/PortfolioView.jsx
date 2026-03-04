@@ -26,7 +26,7 @@ import '../styles/PortfolioView.css';
 import StatusDropdown, { getStatusColor } from './StatusDropdown';
 
 // Colunas editaveis (apenas na vista 'info')
-const EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
+const EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time', 'lider', 'service_type'];
 // Colunas editaveis por lideres (sem 'lider' por seguranca)
 const LEADER_EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
 
@@ -69,6 +69,7 @@ function PortfolioView() {
   const [showAIniciar, setShowAIniciar] = useState(false);
   const [showNoTeam, setShowNoTeam] = useState(false);
   const [showNoLeader, setShowNoLeader] = useState(false);
+  const [showCompatibilizacao, setShowCompatibilizacao] = useState(true);
   const [showContractInfoColumns, setShowContractInfoColumns] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'project_order', direction: 'asc' });
 
@@ -209,6 +210,11 @@ function PortfolioView() {
     }).length;
   }, [data, showFinalizedProjects, showPausedProjects, showAIniciar]);
 
+  const compatibilizacaoCount = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.filter(row => row && row.service_type === 'compatibilizacao').length;
+  }, [data]);
+
   // Verifica se coluna e editavel
   const isEditableColumn = (columnKey) => {
     if (activeView !== 'info') return false;
@@ -223,6 +229,43 @@ function PortfolioView() {
     const projectCode = row.project_code_norm;
     const isEditing = editingCell?.projectCode === projectCode && editingCell?.field === col.key;
     const canEdit = isEditableColumn(col.key);
+
+    // Tipo de Serviço: label amigável + edição inline
+    if (col.key === 'service_type') {
+      const serviceLabels = { coordenacao: 'Coordenação', compatibilizacao: 'Compatibilização' };
+      if (isEditing && canEdit) {
+        return (
+          <select
+            className="inline-select"
+            defaultValue={value || ''}
+            autoFocus
+            onChange={(e) => {
+              updatePortfolioField(projectCode, col.key, e.target.value || null, value);
+              setEditingCell(null);
+            }}
+            onBlur={() => setEditingCell(null)}
+            onKeyDown={(e) => e.key === 'Escape' && setEditingCell(null)}
+          >
+            <option value="">Selecionar...</option>
+            <option value="coordenacao">Coordenação</option>
+            <option value="compatibilizacao">Compatibilização</option>
+          </select>
+        );
+      }
+      const justSaved = savedCell?.projectCode === projectCode && savedCell?.field === col.key;
+      const cellError = errorCell?.projectCode === projectCode && errorCell?.field === col.key ? errorCell : null;
+      return (
+        <span
+          className={`${canEdit ? 'editable-cell' : ''}${justSaved ? ' just-saved' : ''}${cellError ? ' has-error' : ''}`}
+          onClick={canEdit ? () => setEditingCell({ projectCode, field: col.key }) : undefined}
+          title={canEdit ? 'Clique para editar' : undefined}
+        >
+          {serviceLabels[value] || '-'}
+          {justSaved && <span className="save-check">&#10003;</span>}
+          {cellError && <span className="inline-error-tooltip">{cellError.message}</span>}
+        </span>
+      );
+    }
 
     // Status SEMPRE renderiza como badge colorido (edit on/off, admin/non-admin)
     if (col.key === 'status' && activeView === 'info') {
@@ -462,6 +505,14 @@ function PortfolioView() {
       });
     }
 
+    // Filtro por compatibilização
+    if (!showCompatibilizacao) {
+      filtered = filtered.filter(row => {
+        if (!row || typeof row !== 'object') return false;
+        return row.service_type !== 'compatibilizacao';
+      });
+    }
+
     // Filtro por Status
     if (statusFilter && statusFilter.length > 0) {
       filtered = filtered.filter(row => {
@@ -550,7 +601,7 @@ function PortfolioView() {
     });
 
     return filtered;
-  }, [data, searchTerm, statusFilter, timeFilter, liderFilter, clientFilter, differenceFilter, sortConfig, showFinalizedProjects, showPausedProjects, showAIniciar, showNoTeam, showNoLeader]);
+  }, [data, searchTerm, statusFilter, timeFilter, liderFilter, clientFilter, differenceFilter, sortConfig, showFinalizedProjects, showPausedProjects, showAIniciar, showNoTeam, showNoLeader, showCompatibilizacao]);
 
   // Handlers
   const handleSort = (columnKey) => {
@@ -949,6 +1000,19 @@ function PortfolioView() {
                 />
                 <span className="toggle-slider"></span>
                 <span className="toggle-label">Sem Lider <span className="toggle-count">{noLeaderCount}</span></span>
+              </label>
+            </div>
+
+            {/* Toggle para compatibilização */}
+            <div className="finalized-toggle-wrapper">
+              <label className="finalized-toggle">
+                <input
+                  type="checkbox"
+                  checked={showCompatibilizacao}
+                  onChange={(e) => setShowCompatibilizacao(e.target.checked)}
+                />
+                <span className="toggle-slider"></span>
+                <span className="toggle-label">Compatibilização <span className="toggle-count">{compatibilizacaoCount}</span></span>
               </label>
             </div>
 
