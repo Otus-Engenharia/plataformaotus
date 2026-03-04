@@ -127,6 +127,8 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
   const [loadingComments, setLoadingComments] = useState(false);
   const [projectsTab, setProjectsTab] = useState('selected'); // 'selected' | 'add'
   const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [favoriteProjects, setFavoriteProjects] = useState([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Get current user from auth context
   const { user } = useAuth();
@@ -151,7 +153,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
     async function fetchData() {
       setLoadingTodos(true);
       try {
-        const [todosRes, detailsRes, projRes, commentsRes] = await Promise.all([
+        const [todosRes, detailsRes, projRes, favProjRes, commentsRes] = await Promise.all([
           axios.get('/api/agenda/tasks/todos', {
             params: { agendaTaskIds: String(task.id) },
             withCredentials: true,
@@ -160,6 +162,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
             withCredentials: true,
           }),
           axios.get('/api/agenda/tasks/form/projects', { withCredentials: true }),
+          axios.get('/api/agenda/tasks/form/favorite-projects', { withCredentials: true }),
           axios.get(`/api/agenda/tasks/${task.id}/comments`, { withCredentials: true }),
         ]);
 
@@ -175,6 +178,9 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
           }
           if (projRes.data.success) {
             setAllAvailableProjects(projRes.data.data || []);
+          }
+          if (favProjRes.data.success) {
+            setFavoriteProjects(favProjRes.data.data || []);
           }
           if (commentsRes.data.success) {
             setComments(commentsRes.data.data || []);
@@ -720,7 +726,8 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
 
   const filteredAddProjects = useMemo(() => {
     const linkedIds = new Set(projects.map(p => p.id));
-    let available = allAvailableProjects.filter(p => !linkedIds.has(p.id));
+    const source = showFavoritesOnly ? favoriteProjects : allAvailableProjects;
+    let available = source.filter(p => !linkedIds.has(p.id));
     if (projectSearchQuery.trim()) {
       const q = projectSearchQuery.toLowerCase();
       available = available.filter(p =>
@@ -729,7 +736,7 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
       );
     }
     return available.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
-  }, [allAvailableProjects, projects, projectSearchQuery]);
+  }, [allAvailableProjects, favoriteProjects, showFavoritesOnly, projects, projectSearchQuery]);
 
   const handleQuickAddProject = useCallback(async (projectId) => {
     if (!task) return;
@@ -916,10 +923,22 @@ function AgendaDetailModal({ task, isOpen, onClose, onTaskUpdate, onTaskDelete }
                       />
                     </div>
                   </div>
+                  <div className="detail-modal__favorites-toggle">
+                    <button
+                      type="button"
+                      className={`detail-modal__favorites-toggle-btn${showFavoritesOnly ? ' is-active' : ''}`}
+                      onClick={() => setShowFavoritesOnly(prev => !prev)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                      Favoritos
+                    </button>
+                  </div>
                   <div className="detail-modal__add-project-list">
                     {filteredAddProjects.length === 0 ? (
                       <div className="detail-modal__project-empty">
-                        {projectSearchQuery ? 'Nenhum projeto encontrado' : 'Todos os projetos ja foram adicionados'}
+                        {projectSearchQuery ? 'Nenhum projeto encontrado' : showFavoritesOnly ? 'Nenhum projeto favoritado' : 'Todos os projetos ja foram adicionados'}
                       </div>
                     ) : (
                       filteredAddProjects.slice(0, 50).map(p => (
