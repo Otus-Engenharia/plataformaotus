@@ -64,13 +64,16 @@ function EquipeView({ selectedProjectId, portfolio = [] }) {
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/api/projetos/equipe`, {
-        params: { projectId: construflowId },
+        params: { projectId: construflowId, includeDismissed: true },
         withCredentials: true
       });
       const data = response.data.data || [];
-      setEquipe([...data].sort((a, b) =>
-        (a.discipline?.discipline_name || '').localeCompare(b.discipline?.discipline_name || '', 'pt-BR')
-      ));
+      setEquipe([...data].sort((a, b) => {
+        // Ativos primeiro, demitidos depois
+        if (a.status === 'ativo' && b.status === 'demitido') return -1;
+        if (a.status === 'demitido' && b.status === 'ativo') return 1;
+        return (a.discipline?.discipline_name || '').localeCompare(b.discipline?.discipline_name || '', 'pt-BR');
+      }));
     } catch (err) {
       console.error('Erro ao buscar equipe:', err);
     } finally {
@@ -171,7 +174,7 @@ function EquipeView({ selectedProjectId, portfolio = [] }) {
               <line x1="9" y1="21" x2="9" y2="9" />
             </svg>
             Projetistas
-            <span className="equipe-tab-badge">{equipe.length}</span>
+            <span className="equipe-tab-badge">{equipe.filter(e => e.status === 'ativo').length}</span>
           </button>
 
           {/* Sub-aba 4: Controle de Disciplinas */}

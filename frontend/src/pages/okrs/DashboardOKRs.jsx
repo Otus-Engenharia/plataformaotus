@@ -187,7 +187,7 @@ function getStatusColor(value) {
 }
 
 // Sector Card Component
-function SectorCard({ sector, objectives, checkIns, index }) {
+function SectorCard({ sector, objectives, checkIns, index, initiativesProgress = {} }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
 
@@ -309,6 +309,14 @@ function SectorCard({ sector, objectives, checkIns, index }) {
                     <span className="okr-objective-mini__krs">
                       {(obj.key_results || []).length} KR{(obj.key_results || []).length !== 1 ? 's' : ''}
                     </span>
+                    {initiativesProgress[obj.id]?.total > 0 && (
+                      <span className="okr-objective-mini__metric">
+                        <span className="okr-objective-mini__metric-label">Iniciativas</span>
+                        <span className="okr-objective-mini__metric-value">
+                          {initiativesProgress[obj.id].completed}/{initiativesProgress[obj.id].total}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 </Link>
               );
@@ -352,6 +360,7 @@ export default function DashboardOKRs() {
   const [sectors, setSectors] = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [checkIns, setCheckIns] = useState([]);
+  const [initiativesProgress, setInitiativesProgress] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -405,13 +414,24 @@ export default function DashboardOKRs() {
       );
 
       if (allKrIds.length > 0) {
-        const checkInsResponse = await axios.get('/api/okrs/check-ins', {
-          params: { keyResultIds: allKrIds.join(',') },
-          withCredentials: true
-        });
+        const allObjIds = filteredObjectives.map(obj => obj.id);
+        const [checkInsResponse, initProgressResponse] = await Promise.all([
+          axios.get('/api/okrs/check-ins', {
+            params: { keyResultIds: allKrIds.join(',') },
+            withCredentials: true
+          }),
+          allObjIds.length > 0
+            ? axios.get('/api/okrs/initiatives-progress', {
+                params: { objectiveIds: allObjIds.join(',') },
+                withCredentials: true
+              })
+            : Promise.resolve({ data: { data: {} } })
+        ]);
         setCheckIns(checkInsResponse.data.data || []);
+        setInitiativesProgress(initProgressResponse.data.data || {});
       } else {
         setCheckIns([]);
+        setInitiativesProgress({});
       }
     } catch (err) {
       console.error('Error fetching OKRs data:', err);
@@ -441,6 +461,17 @@ export default function DashboardOKRs() {
       return progress !== null && progress < 70;
     }).length;
   }, 0);
+
+  // Initiative stats
+  const totalInitiatives = Object.values(initiativesProgress)
+    .reduce((acc, p) => acc + (p.total || 0), 0);
+  const completedInitiatives = Object.values(initiativesProgress)
+    .reduce((acc, p) => acc + (p.completed || 0), 0);
+  const initiativeDodRate = (() => {
+    const measured = Object.values(initiativesProgress).filter(p => p.avg_progress !== null);
+    if (measured.length === 0) return null;
+    return Math.round(measured.reduce((acc, p) => acc + p.avg_progress, 0) / measured.length);
+  })();
 
   // Get objectives by sector
   const getObjectivesBySector = (sectorId) =>
@@ -670,6 +701,19 @@ export default function DashboardOKRs() {
           variant={delayedKRs > 0 ? 'danger' : 'default'}
           delay={150}
         />
+
+        <MetricCard
+          title="Iniciativas"
+          value={totalInitiatives === 0 ? '—' : `${completedInitiatives}/${totalInitiatives}`}
+          subtitle={totalInitiatives === 0 ? 'nenhuma cadastrada' : initiativeDodRate !== null ? `${initiativeDodRate}% DoD concluído` : 'sem critérios'}
+          icon={
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/>
+            </svg>
+          }
+          variant={totalInitiatives === 0 ? 'default' : initiativeDodRate !== null && initiativeDodRate >= 80 ? 'success' : initiativeDodRate !== null && initiativeDodRate < 50 ? 'warning' : 'default'}
+          delay={200}
+        />
       </section>
 
       {/* Company OKRs Section */}
@@ -752,6 +796,7 @@ export default function DashboardOKRs() {
                 objectives={getObjectivesBySector(sector.id)}
                 checkIns={getCheckInsBySector(sector.id)}
                 index={index}
+                initiativesProgress={initiativesProgress}
               />
             ))}
           </div>

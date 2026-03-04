@@ -83,6 +83,16 @@ const icons = {
     <svg viewBox="0 0 24 24" width="16" height="16">
       <path fill="currentColor" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
     </svg>
+  ),
+  initiative: (
+    <svg viewBox="0 0 24 24" width="18" height="18">
+      <path fill="currentColor" d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/>
+    </svg>
+  ),
+  rocket: (
+    <svg viewBox="0 0 24 24" width="18" height="18">
+      <path fill="currentColor" d="M9.19 6.35c-2.04 2.29-3.44 5.58-3.57 5.89L2 10.69l4.05-4.05c.47-.47 1.15-.68 1.81-.55l1.33.26zM11.17 17.01c2.29-2.04 5.58-3.44 5.89-3.57L15.51 17l-4.05 4.05c-.47.47-1.15.68-1.81.55l-1.33-.26 2.85-4.33zM19.31 2.5c-2.76-.35-5.62.48-7.72 2.59l-.37.37c-1.82 1.82-3.07 4.1-3.82 6.24l4.91 4.91c2.14-.75 4.42-2 6.24-3.82l.37-.37c2.11-2.1 2.94-4.96 2.59-7.72L19.31 2.5z"/>
+    </svg>
   )
 };
 
@@ -181,7 +191,7 @@ function SectorCard({ sector, isActive, onClick }) {
 }
 
 // KR Item Component
-function KRItem({ kr, monthNames }) {
+function KRItem({ kr, monthNames, initiativesProgress = {} }) {
   const statusInfo = statusConfig[kr.status] || statusConfig.on_track;
 
   return (
@@ -206,6 +216,12 @@ function KRItem({ kr, monthNames }) {
             <span className="chk-badge chk-badge--secondary">
               {icons.chat}
               {kr.comments.length}
+            </span>
+          )}
+          {initiativesProgress[kr.objective?.id]?.total > 0 && (
+            <span className="chk-badge chk-badge--info">
+              {icons.initiative}
+              {initiativesProgress[kr.objective?.id].completed}/{initiativesProgress[kr.objective?.id].total} inic.
             </span>
           )}
         </div>
@@ -246,6 +262,9 @@ export default function CheckInMeeting() {
   const [checkIns, setCheckIns] = useState([]);
   const [comments, setComments] = useState([]);
   const [recoveryPlans, setRecoveryPlans] = useState([]);
+  const [initiatives, setInitiatives] = useState([]);
+  const [initiativesProgress, setInitiativesProgress] = useState({});
+  const [actionPlans, setActionPlans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -294,7 +313,9 @@ export default function CheckInMeeting() {
       setKeyResults(enrichedKRs);
 
       const krIds = enrichedKRs.map(kr => kr.id);
-      const [checkInsResponse, recoveryPlansResponse] = await Promise.all([
+      const allObjectiveIds = [...new Set(enrichedKRs.map(kr => kr.objective?.id).filter(Boolean))];
+
+      const [checkInsResponse, recoveryPlansResponse, initProgressResponse, initBatchResponse] = await Promise.all([
         axios.get('/api/okrs/check-ins', {
           params: { keyResultIds: krIds.join(',') },
           withCredentials: true
@@ -302,11 +323,39 @@ export default function CheckInMeeting() {
         axios.get('/api/okrs/recovery-plans', {
           params: { keyResultIds: krIds.join(',') },
           withCredentials: true
-        })
+        }),
+        allObjectiveIds.length > 0
+          ? axios.get('/api/okrs/initiatives-progress', {
+              params: { objectiveIds: allObjectiveIds.join(',') },
+              withCredentials: true
+            })
+          : Promise.resolve({ data: { data: {} } }),
+        allObjectiveIds.length > 0
+          ? axios.get('/api/okrs/initiatives-batch', {
+              params: { objectiveIds: allObjectiveIds.join(',') },
+              withCredentials: true
+            })
+          : Promise.resolve({ data: { data: [] } })
       ]);
+
       setCheckIns(checkInsResponse.data.data || []);
       setComments([]);
       setRecoveryPlans(recoveryPlansResponse.data.data || []);
+      setInitiativesProgress(initProgressResponse.data.data || {});
+      const initiativesData = initBatchResponse.data.data || [];
+      setInitiatives(initiativesData);
+
+      // Fetch action plans for all initiatives
+      const initIds = initiativesData.map(i => i.id);
+      if (initIds.length > 0) {
+        const actionPlansResponse = await axios.get('/api/okrs/action-plans', {
+          params: { initiativeIds: initIds.join(',') },
+          withCredentials: true
+        });
+        setActionPlans(actionPlansResponse.data.data || []);
+      } else {
+        setActionPlans([]);
+      }
 
     } catch (err) {
       console.error('Error fetching check-in data:', err);
@@ -402,8 +451,14 @@ export default function CheckInMeeting() {
     const delayed = enrichedKRs.filter(kr => kr.monthsBehind.length > 0).length;
     const needsPlan = enrichedKRs.filter(kr => kr.needsRecoveryPlan).length;
     const withComments = enrichedKRs.filter(kr => kr.comments.length > 0).length;
-    return { total, delayed, needsPlan, withComments };
-  }, [enrichedKRs]);
+
+    const totalInitiatives = Object.values(initiativesProgress)
+      .reduce((acc, p) => acc + (p.total || 0), 0);
+    const completedInitiatives = Object.values(initiativesProgress)
+      .reduce((acc, p) => acc + (p.completed || 0), 0);
+
+    return { total, delayed, needsPlan, withComments, totalInitiatives, completedInitiatives };
+  }, [enrichedKRs, initiativesProgress]);
 
   const sectorProgress = useMemo(() => {
     const grouped = {};
@@ -600,6 +655,65 @@ export default function CheckInMeeting() {
                 </div>
               </div>
             )}
+
+            {(() => {
+              const objInitiatives = initiatives.filter(i => i.objective_id === currentKR.objective?.id);
+              if (objInitiatives.length === 0) return null;
+              const objProgress = initiativesProgress[currentKR.objective?.id];
+              return (
+                <div className="chk-presentation__section chk-presentation__section--initiatives">
+                  <h3 className="chk-presentation__section-title">
+                    {icons.rocket}
+                    Planos de Ação ({objInitiatives.length} iniciativa{objInitiatives.length !== 1 ? 's' : ''})
+                  </h3>
+                  <div className="chk-presentation__initiatives">
+                    {objInitiatives.map(init => {
+                      const initPlans = actionPlans.filter(ap => ap.initiative_id === init.id);
+                      return (
+                        <div key={init.id} className="chk-presentation__initiative">
+                          <div className="chk-presentation__initiative-header">
+                            <span className="chk-presentation__initiative-title">{init.title}</span>
+                            <span className={`chk-badge chk-badge--${init.status === 'completed' ? 'success' : init.status === 'in_progress' ? 'warning' : 'secondary'}`}>
+                              {init.status === 'completed' ? 'Concluída' : init.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
+                            </span>
+                          </div>
+                          {initPlans.length > 0 && (
+                            <div className="chk-presentation__action-plans">
+                              {initPlans.map(plan => (
+                                <div key={plan.id} className="chk-presentation__action-plan">
+                                  <span className="chk-presentation__action-plan-title">{plan.title}</span>
+                                  <div className="chk-presentation__action-plan-meta">
+                                    {plan.responsible?.name && (
+                                      <span className="chk-presentation__action-plan-responsible">
+                                        {plan.responsible.name}
+                                      </span>
+                                    )}
+                                    {plan.due_date && (
+                                      <span className="chk-presentation__action-plan-date">
+                                        {new Date(plan.due_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                      </span>
+                                    )}
+                                    <span className={`chk-badge chk-badge--${plan.status === 'completed' ? 'success' : plan.status === 'in_progress' ? 'warning' : 'secondary'}`}>
+                                      {plan.status === 'completed' ? 'Concluído' : plan.status === 'in_progress' ? 'Em andamento' : 'Pendente'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {objProgress?.avg_progress !== null && objProgress?.avg_progress !== undefined && (
+                      <div className="chk-presentation__initiatives-footer">
+                        <span>DoD geral do objetivo:</span>
+                        <span className="chk-presentation__initiatives-dod-value">{objProgress.avg_progress}%</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </main>
 
@@ -725,6 +839,14 @@ export default function CheckInMeeting() {
             onClick={() => setFilterType('has_comments')}
             variant="info"
           />
+          <StatCard
+            icon={icons.initiative}
+            value={stats.totalInitiatives === 0 ? '—' : `${stats.completedInitiatives}/${stats.totalInitiatives}`}
+            label="Iniciativas"
+            isActive={false}
+            onClick={() => {}}
+            variant="info"
+          />
         </div>
 
         {/* Sectors Panel */}
@@ -805,7 +927,7 @@ export default function CheckInMeeting() {
                 </div>
                 <div className="chk-kr-group__items">
                   {krs.map(kr => (
-                    <KRItem key={kr.id} kr={kr} monthNames={monthNames} />
+                    <KRItem key={kr.id} kr={kr} monthNames={monthNames} initiativesProgress={initiativesProgress} />
                   ))}
                 </div>
               </div>
