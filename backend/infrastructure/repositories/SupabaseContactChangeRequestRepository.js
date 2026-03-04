@@ -10,6 +10,44 @@ import { getSupabaseClient } from '../../supabase.js';
 
 const TABLE = 'contact_change_requests';
 
+/**
+ * Converte row do banco em entidade, com fallback para dados raw
+ * quando a validação do construtor falha (ex: payload vazio, email faltando).
+ * Isso evita que UMA row inválida quebre a listagem inteira.
+ */
+function safeFromPersistence(row) {
+  try {
+    return ContactChangeRequest.fromPersistence(row);
+  } catch (err) {
+    console.warn(`⚠️ Solicitação id=${row.id} com dados inválidos, retornando raw:`, err.message);
+    return {
+      toResponse: () => ({
+        id: row.id,
+        request_type: row.request_type,
+        request_type_label: row.request_type,
+        status: row.status,
+        payload: row.payload || {},
+        target_contact_id: row.target_contact_id,
+        target_company_id: row.target_company_id,
+        project_code: row.project_code,
+        requested_by_id: row.requested_by_id,
+        requested_by_email: row.requested_by_email,
+        requested_by_name: row.requested_by_name,
+        reviewed_by_id: row.reviewed_by_id,
+        reviewed_by_email: row.reviewed_by_email,
+        reviewed_by_name: row.reviewed_by_name,
+        reviewed_at: row.reviewed_at,
+        rejection_reason: row.rejection_reason,
+        result_contact_id: row.result_contact_id,
+        result_company_id: row.result_company_id,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        is_pending: row.status === 'pendente',
+      }),
+    };
+  }
+}
+
 class SupabaseContactChangeRequestRepository extends ContactChangeRequestRepository {
   #supabase;
 
@@ -61,7 +99,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
       throw new Error(`Erro ao listar solicitações pendentes: ${error.message}`);
     }
 
-    return (data || []).map(row => ContactChangeRequest.fromPersistence(row));
+    return (data || []).map(safeFromPersistence);
   }
 
   async findByRequester(email) {
@@ -76,7 +114,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
       throw new Error(`Erro ao listar solicitações do usuário: ${error.message}`);
     }
 
-    return (data || []).map(row => ContactChangeRequest.fromPersistence(row));
+    return (data || []).map(safeFromPersistence);
   }
 
   async findByProjectCode(projectCode) {
@@ -90,7 +128,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
       throw new Error(`Erro ao listar solicitações do projeto: ${error.message}`);
     }
 
-    return (data || []).map(row => ContactChangeRequest.fromPersistence(row));
+    return (data || []).map(safeFromPersistence);
   }
 
   async findAll({ status, requestType } = {}) {
@@ -111,7 +149,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
       throw new Error(`Erro ao listar solicitações: ${error.message}`);
     }
 
-    return (data || []).map(row => ContactChangeRequest.fromPersistence(row));
+    return (data || []).map(safeFromPersistence);
   }
 
   async countPending() {
