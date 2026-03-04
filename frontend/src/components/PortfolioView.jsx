@@ -37,6 +37,7 @@ function PortfolioView() {
     loading,
     error,
     fetchPortfolioData,
+    refreshIfStale,
     timeFilter,
     setTimeFilter,
     liderFilter,
@@ -72,6 +73,11 @@ function PortfolioView() {
   const [showCompatibilizacao, setShowCompatibilizacao] = useState(true);
   const [showContractInfoColumns, setShowContractInfoColumns] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'project_order', direction: 'asc' });
+
+  // Refetch dados ao navegar para esta página (se stale > 30s)
+  useEffect(() => {
+    refreshIfStale(30000);
+  }, [refreshIfStale]);
 
   // Fecha dropdowns ao clicar fora
   useEffect(() => {

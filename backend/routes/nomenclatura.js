@@ -11,6 +11,7 @@ import { validateFileName } from '../shared/nomenclatura-validator.js';
 
 const router = express.Router();
 const TABLE = 'project_nomenclatura';
+const LOOKUP_TABLE = 'nomenclatura_lookup_entries';
 
 /**
  * GET /api/nomenclatura/:projectCode
@@ -192,7 +193,225 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
     }
   });
 
+  // =========================================================================
+  // Lookup entries (tabelas auxiliares de siglas)
+  // =========================================================================
+
+  /**
+   * GET /api/nomenclatura/:projectCode/lookups
+   * Busca todas as entries de lookup do projeto, agrupadas por param_name
+   * Query: ?param_name=DISCIPLINA (opcional, filtra por parâmetro)
+   */
+  router.get('/:projectCode/lookups', requireAuth, async (req, res) => {
+    try {
+      const { projectCode } = req.params;
+      const { param_name } = req.query;
+      const supabase = getSupabaseServiceClient();
+
+      let query = supabase
+        .from(LOOKUP_TABLE)
+        .select('id, param_name, full_name, abbreviation, sort_order')
+        .eq('project_code', projectCode)
+        .order('param_name')
+        .order('sort_order');
+
+      if (param_name) {
+        query = query.eq('param_name', param_name);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const grouped = {};
+      for (const entry of (data || [])) {
+        if (!grouped[entry.param_name]) grouped[entry.param_name] = [];
+        grouped[entry.param_name].push(entry);
+      }
+
+      res.json({ success: true, data: grouped });
+    } catch (error) {
+      console.error('Erro ao buscar lookups:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * PUT /api/nomenclatura/:projectCode/lookups/:paramName
+   * Bulk replace: substitui todas as entries de um param
+   * Body: { entries: [{ full_name, abbreviation, sort_order? }] }
+   */
+  router.put('/:projectCode/lookups/:paramName', requireAuth, async (req, res) => {
+    try {
+      if (!isPrivileged(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      const { projectCode, paramName } = req.params;
+      const { entries } = req.body;
+
+      if (!Array.isArray(entries)) {
+        return res.status(400).json({ success: false, error: 'entries deve ser um array' });
+      }
+
+      for (const e of entries) {
+        if (!e.full_name || !e.abbreviation) {
+          return res.status(400).json({
+            success: false,
+            error: 'Cada entry deve ter full_name e abbreviation',
+          });
+        }
+      }
+
+      const supabase = getSupabaseServiceClient();
+
+      // Remove entries existentes
+      const { error: delError } = await supabase
+        .from(LOOKUP_TABLE)
+        .delete()
+        .eq('project_code', projectCode)
+        .eq('param_name', paramName);
+
+      if (delError) throw delError;
+
+      // Insere novas entries
+      if (entries.length > 0) {
+        const rows = entries.map((e, i) => ({
+          project_code: projectCode,
+          param_name: paramName,
+          full_name: e.full_name.trim(),
+          abbreviation: e.abbreviation.trim().toUpperCase(),
+          sort_order: e.sort_order ?? i,
+        }));
+
+        const { error: insError } = await supabase
+          .from(LOOKUP_TABLE)
+          .insert(rows);
+
+        if (insError) throw insError;
+      }
+
+      if (logAction) {
+        await logAction(req, 'update', 'nomenclatura_lookup', projectCode, paramName, {
+          count: entries.length,
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Erro ao salvar lookups:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * DELETE /api/nomenclatura/:projectCode/lookups/:paramName
+   * Remove todas as entries de um parâmetro
+   */
+  router.delete('/:projectCode/lookups/:paramName', requireAuth, async (req, res) => {
+    try {
+      if (!isPrivileged(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      const { projectCode, paramName } = req.params;
+      const supabase = getSupabaseServiceClient();
+
+      const { error } = await supabase
+        .from(LOOKUP_TABLE)
+        .delete()
+        .eq('project_code', projectCode)
+        .eq('param_name', paramName);
+
+      if (error) throw error;
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Erro ao deletar lookups:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/nomenclatura/:projectCode/lookups/:paramName/import
+   * Retorna preview de entries importadas da plataforma (não salva)
+   * Disponível para DISCIPLINA e FASE
+   */
+  router.post('/:projectCode/lookups/:paramName/import', requireAuth, async (req, res) => {
+    try {
+      if (!isPrivileged(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      const { paramName } = req.params;
+      const { char_count } = req.body;
+      const supabase = getSupabaseServiceClient();
+      let entries = [];
+
+      if (paramName === 'DISCIPLINA') {
+        const { data, error } = await supabase
+          .from('standard_disciplines')
+          .select('discipline_name, short_name')
+          .eq('status', 'validado')
+          .order('discipline_name');
+
+        if (error) throw error;
+
+        const len = char_count || 3;
+        entries = (data || []).map((d, i) => ({
+          full_name: d.discipline_name,
+          abbreviation: (d.short_name || d.discipline_name.substring(0, len)).toUpperCase().substring(0, len),
+          sort_order: i,
+        }));
+      } else if (paramName === 'FASE') {
+        const { data, error } = await supabase
+          .from('curva_s_default_phase_weights')
+          .select('phase_name, sort_order')
+          .order('sort_order');
+
+        if (error) throw error;
+
+        const len = char_count || 2;
+        entries = (data || []).map((p) => ({
+          full_name: p.phase_name,
+          abbreviation: generatePhaseAbbreviation(p.phase_name, len),
+          sort_order: p.sort_order,
+        }));
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: `Importação não disponível para ${paramName}. Disponível para: DISCIPLINA, FASE`,
+        });
+      }
+
+      res.json({ success: true, data: { entries } });
+    } catch (error) {
+      console.error('Erro ao importar lookups:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   return router;
+}
+
+/**
+ * Gera abreviação de fase a partir das iniciais das palavras
+ * "Estudo Preliminar" -> "EP", "Pré-executivo" -> "PE"
+ */
+function generatePhaseAbbreviation(phaseName, len) {
+  const words = phaseName.split(/[\s-]+/).filter(w => w.length > 0);
+  // Tenta usar iniciais das primeiras N palavras
+  let abbr = words
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, len);
+
+  // Se ficou menor que len, preenche com letras da primeira palavra
+  if (abbr.length < len) {
+    abbr = phaseName.replace(/[\s-]+/g, '').substring(0, len).toUpperCase();
+  }
+
+  return abbr;
 }
 
 export { createRoutes };
