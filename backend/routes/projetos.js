@@ -32,7 +32,7 @@ function getRepository() {
   return projetoRepository;
 }
 
-function createRoutes(requireAuth, canAccessFormularioPassagem, logAction) {
+function createRoutes(requireAuth, canAccessFormularioPassagem, logAction, invalidatePortfolioCache) {
   const repository = getRepository();
 
   // Middleware de permissão do formulário
@@ -288,6 +288,11 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction) {
           'Projeto criado via Formulário de Passagem',
           { name: result.name }
         );
+      }
+
+      // Invalidar cache do portfolio para o novo projeto aparecer imediatamente
+      if (invalidatePortfolioCache) {
+        invalidatePortfolioCache();
       }
 
       // Notificação Discord (fire-and-forget)

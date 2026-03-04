@@ -5772,6 +5772,7 @@ export async function fetchProjectsFromSupabase() {
     .from('projects')
     .select(`
       project_code,
+      name,
       comercial_name,
       status,
       service_type,

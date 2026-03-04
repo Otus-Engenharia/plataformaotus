@@ -30,7 +30,7 @@ import { createRoutes as createNomenclaturaRoutes } from './nomenclatura.js';
  * @param {Function} middleware.isPrivileged - Função para verificar privilégios
  * @param {Function} middleware.logAction - Função para registrar ações
  */
-export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator }) {
+export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator, invalidatePortfolioCache }) {
   // Rotas de Feedbacks (DDD)
   const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction, withBqCache);
   app.use('/api/feedbacks', feedbackRoutes);
@@ -44,7 +44,7 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   app.use('/api/estudos-custos', estudoCustoRoutes);
 
   // Rotas de Projetos (DDD) - Formulário de Passagem
-  const projetoRoutes = createProjetoRoutes(requireAuth, canAccessFormularioPassagem, logAction);
+  const projetoRoutes = createProjetoRoutes(requireAuth, canAccessFormularioPassagem, logAction, invalidatePortfolioCache);
   app.use('/api/projetos', projetoRoutes);
 
   // Rotas de Agenda (DDD)

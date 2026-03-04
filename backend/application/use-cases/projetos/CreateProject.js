@@ -21,18 +21,23 @@ class CreateProject {
       throw new Error('Disciplina "Cliente" não encontrada no sistema');
     }
 
-    // 2. Criar entidade (validação via Value Objects no construtor)
+    // 2. Gerar project_code a partir do nome (usado como identificador no portfolio)
+    const projectCode = input.name.trim().toUpperCase();
+
+    // 3. Criar entidade (validação via Value Objects no construtor)
     const project = Project.create({
       ...input,
+      projectCode,
       clienteDisciplineId,
     });
 
-    // 3. Persistir em todas as tabelas
+    // 4. Persistir em todas as tabelas
     const savedData = await this.#projetoRepository.saveProject(project);
 
-    // 4. Retornar resposta
+    // 5. Retornar resposta
     return {
       id: savedData.id,
+      project_code: savedData.project_code || projectCode,
       name: savedData.name,
       status: savedData.status,
     };
