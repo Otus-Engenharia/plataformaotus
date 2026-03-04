@@ -12,6 +12,7 @@
   background: #fff;
   border-radius: 12px;
   width: 750px;
+  height: 520px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
