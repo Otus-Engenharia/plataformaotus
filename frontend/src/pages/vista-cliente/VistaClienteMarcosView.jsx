@@ -8,26 +8,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
+import { useVistaCliente } from '../../contexts/VistaClienteContext';
 import '../../styles/VistaClienteView.css';
 import './VistaClienteMarcosView.css';
-
-const FINALIZED_STATUSES = [
-  'churn pelo cliente', 'close', 'obra finalizada', 'termo de encerramento',
-  'termo de encerrame', 'encerrado', 'finalizado', 'concluído', 'concluido',
-  'cancelado', 'execução', 'execucao',
-];
-const PAUSED_STATUSES = ['pausado', 'pausa', 'em pausa', 'pausado pelo cliente', 'suspenso', 'suspensão'];
-
-const isFinalizedStatus = (s) => {
-  if (!s) return false;
-  const low = String(s).toLowerCase().trim();
-  return FINALIZED_STATUSES.some(f => low === f.toLowerCase().trim() || low.includes(f.toLowerCase().trim()));
-};
-const isPausedStatus = (s) => {
-  if (!s) return false;
-  const low = String(s).toLowerCase().trim();
-  return PAUSED_STATUSES.some(p => low === p.toLowerCase().trim() || low.includes(p.toLowerCase().trim()));
-};
 
 const STATUS_OPTIONS = [
   { value: 'pendente', label: 'Pendente', className: 'pendente' },
@@ -51,9 +34,12 @@ function formatDateDisplay(dateStr) {
 }
 
 function VistaClienteMarcosView() {
-  const [portfolio, setPortfolio] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [showOnlyActive, setShowOnlyActive] = useState(true);
+  const {
+    selectedProjectId, setSelectedProjectId,
+    showOnlyActive, setShowOnlyActive,
+    selectedProject, projectCode, smartsheetId, projectName,
+    sortedProjects,
+  } = useVistaCliente();
 
   const [marcos, setMarcos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -65,39 +51,6 @@ function VistaClienteMarcosView() {
   const [form, setForm] = useState({
     nome: '', status: 'pendente', prazo_baseline: '', prazo_atual: '', descricao: '',
   });
-
-  const selectedProject = portfolio.find(p =>
-    String(p.project_code_norm || p.project_code) === String(selectedProjectId)
-  );
-  const projectCode = selectedProject?.project_code_norm || selectedProject?.project_code || selectedProjectId;
-  const smartsheetId = selectedProject?.smartsheet_id;
-  const projectName = selectedProject?.project_name;
-
-  // Fetch portfolio
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await axios.get(`${API_URL}/api/portfolio`, { withCredentials: true });
-        const data = res.data.data || [];
-        setPortfolio(data);
-
-        const valid = data
-          .filter(p => p.project_code_norm && !isFinalizedStatus(p.status) && !isPausedStatus(p.status))
-          .reduce((acc, p) => {
-            if (!acc.find(x => x.project_code_norm === p.project_code_norm)) acc.push(p);
-            return acc;
-          }, [])
-          .sort((a, b) => (a.project_name || '').localeCompare(b.project_name || '', 'pt-BR'));
-
-        if (valid.length > 0) {
-          setSelectedProjectId(valid[0].project_code_norm);
-        }
-      } catch (err) {
-        console.error('Erro ao buscar portfolio:', err);
-      }
-    }
-    load();
-  }, []);
 
   // Fetch marcos
   const fetchMarcos = useCallback(async () => {
@@ -216,21 +169,6 @@ function VistaClienteMarcosView() {
     setEditingId(null);
     setForm({ nome: '', status: 'pendente', prazo_baseline: '', prazo_atual: '', descricao: '' });
   };
-
-  // Filtered projects
-  const sortedProjects = portfolio
-    .filter(p => {
-      if (!p.project_code_norm) return false;
-      if (showOnlyActive) {
-        if (isFinalizedStatus(p.status) || isPausedStatus(p.status)) return false;
-      }
-      return true;
-    })
-    .reduce((acc, p) => {
-      if (!acc.find(x => x.project_code_norm === p.project_code_norm)) acc.push(p);
-      return acc;
-    }, [])
-    .sort((a, b) => (a.project_name || '').localeCompare(b.project_name || '', 'pt-BR'));
 
   return (
     <div className="vista-cliente-container">
