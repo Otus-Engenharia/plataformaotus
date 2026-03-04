@@ -53,6 +53,11 @@ class CalculateProgress {
       };
     }
 
+    // Propagar flag de fallback (dados de snapshot) para a resposta
+    const fallbackInfo = tasks._fallback
+      ? { _fallback: true, _snapshotDate: tasks._snapshotDate }
+      : {};
+
     // Supabase: pesos e mappings (fallback para arrays vazios se indisponível)
     let phases = [], disciplines = [], activities = [], overrides = [], mappingsRaw = [];
     try {
@@ -92,6 +97,7 @@ class CalculateProgress {
     return {
       ...result,
       weights: weightConfig.toResponse(),
+      ...fallbackInfo,
     };
   }
 }

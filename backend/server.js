@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName, queryHorasComplianceOperacao } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName, queryHorasComplianceOperacao, querySmartsheetHealth } from './bigquery.js';
 import cron from 'node-cron';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos, canEditPortfolio } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
@@ -1436,6 +1436,28 @@ app.post('/api/admin/cache/clear', requireAuth, (req, res) => {
   res.json({ success: true, message: 'Cache limpo com sucesso' });
 });
 
+// SmartSheet health check - diagnóstico de dados por projeto
+app.get('/api/admin/smartsheet-health', requireAuth, async (req, res) => {
+  if (!isPrivileged(req.user)) {
+    return res.status(403).json({ success: false, error: 'Acesso negado' });
+  }
+  try {
+    const projects = await querySmartsheetHealth();
+    const empty = projects.filter(p => p.total_rows === 0 || p.level5_rows === 0);
+    res.json({
+      success: true,
+      data: {
+        total_projects: projects.length,
+        empty_projects: empty.length,
+        projects,
+      },
+    });
+  } catch (error) {
+    console.error('Erro smartsheet-health:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/admin/colaboradores', requireAuth, async (req, res) => {
   try {
     if (!isPrivileged(req.user)) {
@@ -1788,11 +1810,16 @@ app.get('/api/projetos/cronograma', requireAuth, withBqCache(900), async (req, r
     const data = await queryCronograma(smartsheetId, projectName);
     console.log(`✅ queryCronograma retornou ${data.length} resultados`);
     
-    res.json({
+    const response = {
       success: true,
       count: data.length,
-      data: data
-    });
+      data: data,
+    };
+    if (data._fallback) {
+      response._fallback = true;
+      response._snapshotDate = data._snapshotDate;
+    }
+    res.json(response);
   } catch (error) {
     console.error('❌ Erro ao buscar cronograma:');
     console.error('   Mensagem:', error.message);

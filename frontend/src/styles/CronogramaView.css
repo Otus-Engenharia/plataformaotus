@@ -9,6 +9,18 @@
   margin: 0 auto;
 }
 
+/* Fallback banner - dados de snapshot (reutilizado da Curva S) */
+.cronograma-container .curva-s-fallback-banner {
+  background: #fef3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-bottom: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
 /* Cards de KPIs */
 .cronograma-kpis {
   display: grid;

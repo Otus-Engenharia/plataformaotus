@@ -53,6 +53,11 @@ class GetProgressTimeSeries {
       return { timeseries: [], snapshot_curves: [], progress: null, weights: null };
     }
 
+    // Propagar flag de fallback (dados de snapshot) para a resposta
+    const fallbackInfo = tasks._fallback
+      ? { _fallback: true, _snapshotDate: tasks._snapshotDate }
+      : {};
+
     // Supabase: pesos e mappings (fallback para arrays vazios se indisponível)
     let phases = [], disciplines = [], activities = [], overrides = [], mappingsRaw = [];
     try {
@@ -305,6 +310,7 @@ class GetProgressTimeSeries {
       prazos: { prazo_baseline, prazo_baseline_label, prazo_reprogramado, prazo_atual, variacao_dias },
       progress: enrichedProgress,
       weights: weightConfig.toResponse(),
+      ...fallbackInfo,
     };
   }
 
