@@ -2,14 +2,15 @@
  * Componente: Vista de Relatos (Diário de Projeto)
  *
  * Container principal da aba "Relatos" em ProjetosView.
- * Exibe lista de relatos do projeto com filtros por tipo e prioridade.
+ * Exibe lista de relatos do projeto com filtros chip por tipo, prioridade e status.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
 import RelatoCard from './RelatoCard';
 import RelatoForm from './RelatoForm';
+import { RelatoIcon } from './RelatoIcons';
 import '../../styles/RelatosView.css';
 
 function RelatosView({ selectedProjectId, portfolio }) {
@@ -22,6 +23,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
   // Filtros
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroPrioridade, setFiltroPrioridade] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('');
 
   // Formulário
   const [showForm, setShowForm] = useState(false);
@@ -145,48 +147,156 @@ function RelatosView({ selectedProjectId, portfolio }) {
     }
   };
 
-  // Contadores para o footer
-  const statsByPrioridade = {};
-  for (const p of prioridades) {
-    statsByPrioridade[p.slug] = relatos.filter(r => r.prioridade_slug === p.slug).length;
-  }
+  const clearFilters = () => {
+    setFiltroTipo('');
+    setFiltroPrioridade('');
+    setFiltroStatus('');
+  };
+
+  const hasFilters = filtroTipo || filtroPrioridade || filtroStatus;
+
+  // Stats
+  const stats = useMemo(() => {
+    const total = relatos.length;
+    const ativos = relatos.filter(r => !r.is_resolved).length;
+    const resolvidos = total - ativos;
+    return { total, ativos, resolvidos };
+  }, [relatos]);
+
+  // Chip counts
+  const tipoChipCounts = useMemo(() => {
+    const counts = {};
+    tipos.forEach(t => { counts[t.slug] = 0; });
+    relatos.forEach(r => {
+      if (counts[r.tipo_slug] !== undefined) counts[r.tipo_slug]++;
+    });
+    return counts;
+  }, [relatos, tipos]);
+
+  const prioridadeChipCounts = useMemo(() => {
+    const counts = {};
+    prioridades.forEach(p => { counts[p.slug] = 0; });
+    relatos.forEach(r => {
+      if (counts[r.prioridade_slug] !== undefined) counts[r.prioridade_slug]++;
+    });
+    return counts;
+  }, [relatos, prioridades]);
+
+  // Filter by status (client-side)
+  const filteredRelatos = useMemo(() => {
+    if (!filtroStatus) return relatos;
+    if (filtroStatus === 'ativos') return relatos.filter(r => !r.is_resolved);
+    if (filtroStatus === 'resolvidos') return relatos.filter(r => r.is_resolved);
+    return relatos;
+  }, [relatos, filtroStatus]);
 
   if (!projectCode) {
     return (
       <div className="relatos-container">
-        <div className="relatos-empty">Selecione um projeto para ver os relatos.</div>
+        <div className="relatos-empty">
+          <RelatoIcon name="clipboard" size={36} color="#d1d5db" />
+          <p>Selecione um projeto para ver os relatos.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="relatos-container">
-      {/* Header com filtros */}
+      {/* Header com stats inline + filtros chip */}
       <div className="relatos-header">
-        <div className="relatos-header-left">
+        <div className="relatos-header-top">
           <h3 className="relatos-title">Relatos</h3>
-          <div className="relatos-filters">
-            <select
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value)}
-              className="relatos-filter-select"
-            >
-              <option value="">Todos os tipos</option>
-              {tipos.map(t => (
-                <option key={t.slug} value={t.slug}>{t.label}</option>
-              ))}
-            </select>
+          <div className="relatos-stat-strip">
+            <span className="relatos-stat-pill">
+              <strong>{stats.total}</strong> total
+            </span>
+            <span className="relatos-stat-pill relatos-stat-pill--active">
+              <strong>{stats.ativos}</strong> ativos
+            </span>
+            <span className="relatos-stat-pill relatos-stat-pill--resolved">
+              <strong>{stats.resolvidos}</strong> resolvidos
+            </span>
+          </div>
+        </div>
 
-            <select
-              value={filtroPrioridade}
-              onChange={(e) => setFiltroPrioridade(e.target.value)}
-              className="relatos-filter-select"
-            >
-              <option value="">Todas prioridades</option>
-              {prioridades.map(p => (
-                <option key={p.slug} value={p.slug}>{p.label}</option>
+        <div className="relatos-filter-rows">
+          {/* Tipo chips */}
+          <div className="relatos-filter-group">
+            <span className="relatos-filter-label">Tipo</span>
+            <div className="relatos-chips">
+              <button
+                className={`relatos-chip ${filtroTipo === '' ? 'active' : ''}`}
+                onClick={() => setFiltroTipo('')}
+              >
+                Todos
+              </button>
+              {tipos.map(t => (
+                <button
+                  key={t.slug}
+                  className={`relatos-chip ${filtroTipo === t.slug ? 'active' : ''}`}
+                  onClick={() => setFiltroTipo(filtroTipo === t.slug ? '' : t.slug)}
+                  style={filtroTipo === t.slug ? { background: t.color, borderColor: t.color, color: '#fff' } : {}}
+                >
+                  <span className="relatos-chip-dot" style={{ backgroundColor: t.color }} />
+                  {t.label}
+                  {tipoChipCounts[t.slug] > 0 && (
+                    <span className="relatos-chip-count">{tipoChipCounts[t.slug]}</span>
+                  )}
+                </button>
               ))}
-            </select>
+            </div>
+          </div>
+
+          {/* Prioridade chips */}
+          <div className="relatos-filter-group">
+            <span className="relatos-filter-label">Prioridade</span>
+            <div className="relatos-chips">
+              <button
+                className={`relatos-chip ${filtroPrioridade === '' ? 'active' : ''}`}
+                onClick={() => setFiltroPrioridade('')}
+              >
+                Todas
+              </button>
+              {prioridades.map(p => (
+                <button
+                  key={p.slug}
+                  className={`relatos-chip ${filtroPrioridade === p.slug ? 'active' : ''}`}
+                  onClick={() => setFiltroPrioridade(filtroPrioridade === p.slug ? '' : p.slug)}
+                  style={filtroPrioridade === p.slug ? { background: p.color, borderColor: p.color, color: '#fff' } : {}}
+                >
+                  {p.label}
+                  {prioridadeChipCounts[p.slug] > 0 && (
+                    <span className="relatos-chip-count">{prioridadeChipCounts[p.slug]}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Status chips */}
+          <div className="relatos-filter-group">
+            <span className="relatos-filter-label">Status</span>
+            <div className="relatos-chips">
+              <button
+                className={`relatos-chip ${filtroStatus === '' ? 'active' : ''}`}
+                onClick={() => setFiltroStatus('')}
+              >
+                Todos
+              </button>
+              <button
+                className={`relatos-chip ${filtroStatus === 'ativos' ? 'active' : ''}`}
+                onClick={() => setFiltroStatus(filtroStatus === 'ativos' ? '' : 'ativos')}
+              >
+                Ativos
+              </button>
+              <button
+                className={`relatos-chip ${filtroStatus === 'resolvidos' ? 'active' : ''}`}
+                onClick={() => setFiltroStatus(filtroStatus === 'resolvidos' ? '' : 'resolvidos')}
+              >
+                Resolvidos
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -196,38 +306,44 @@ function RelatosView({ selectedProjectId, portfolio }) {
 
       {loading ? (
         <div className="relatos-loading">Carregando relatos...</div>
+      ) : filteredRelatos.length === 0 ? (
+        <div className="relatos-empty">
+          <RelatoIcon name="clipboard" size={36} color="#d1d5db" />
+          <p>
+            {hasFilters
+              ? 'Nenhum relato encontrado com os filtros selecionados.'
+              : 'Nenhum relato encontrado para este projeto.'}
+          </p>
+          {hasFilters && (
+            <button className="relatos-clear-filters" onClick={clearFilters}>
+              Limpar filtros
+            </button>
+          )}
+        </div>
       ) : (
         <div className="relatos-list">
-          {relatos.map(relato => (
+          {filteredRelatos.map(relato => (
             <RelatoCard
               key={relato.id}
               relato={relato}
+              variant="internal"
               isExpanded={expandedId === relato.id}
               onToggleExpand={() => setExpandedId(expandedId === relato.id ? null : relato.id)}
               onEdit={() => { setEditingRelato(relato); setShowForm(true); }}
               onDelete={() => handleDelete(relato.id)}
             />
           ))}
-          {relatos.length === 0 && !loading && (
-            <div className="relatos-empty">Nenhum relato encontrado para este projeto.</div>
-          )}
         </div>
       )}
 
-      {/* Footer com estatísticas */}
+      {/* Footer */}
       <div className="relatos-footer">
-        <div className="relatos-stats">
-          <span className="relatos-stat-total">Total: {relatos.length} relatos</span>
-          {prioridades.map(p => {
-            const count = statsByPrioridade[p.slug] || 0;
-            if (count === 0) return null;
-            return (
-              <span key={p.slug} className="relatos-stat-item" style={{ color: p.color }}>
-                {p.label}: {count}
-              </span>
-            );
-          })}
-        </div>
+        <span className="relatos-footer-text">
+          {filteredRelatos.length < relatos.length
+            ? `Mostrando ${filteredRelatos.length} de ${relatos.length} relatos`
+            : `${relatos.length} relatos`
+          }
+        </span>
         <button
           className="relatos-add-btn"
           onClick={() => { setEditingRelato(null); setShowForm(true); }}

@@ -1,26 +1,16 @@
-/**
- * Componente: Card de Relato
- *
- * Exibe um relato individual com badges de tipo e prioridade,
- * data/autor e conteúdo expandível.
- */
-
 import React from 'react';
+import { RelatoIcon, TIPO_ICON_MAP } from './RelatoIcons';
 
-const TIPO_ICONS = {
-  'alert-triangle': '\u26A0',
-  'check-circle': '\u2705',
-  'x-circle': '\u26D4',
-  'info': '\u2139\uFE0F',
-  'lightbulb': '\uD83D\uDCA1',
-};
+function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete, variant = 'internal' }) {
+  const isClient = variant === 'client';
 
-function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
+
+  const iconName = TIPO_ICON_MAP[relato.tipo_slug] || 'info';
 
   return (
     <div
@@ -29,14 +19,13 @@ function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
     >
       <div className="relato-card-header" onClick={onToggleExpand}>
         <div className="relato-card-main">
-          <div className="relato-card-title-row">
-            <span className="relato-card-icon">
-              {TIPO_ICONS[relato.tipo_slug === 'risco' ? 'alert-triangle' :
-                relato.tipo_slug === 'decisao' ? 'check-circle' :
-                relato.tipo_slug === 'bloqueio' ? 'x-circle' :
-                relato.tipo_slug === 'licao-aprendida' ? 'lightbulb' : 'info'] || '\u2139\uFE0F'}
+          <div className="relato-card-top-row">
+            <span
+              className="relato-card-icon-wrapper"
+              style={{ backgroundColor: relato.tipo_color + '14' }}
+            >
+              <RelatoIcon name={iconName} size={15} color={relato.tipo_color} />
             </span>
-            <span className="relato-card-titulo">{relato.titulo}</span>
             <span
               className="relato-badge relato-badge-tipo"
               style={{ backgroundColor: relato.tipo_color, color: '#fff' }}
@@ -46,14 +35,30 @@ function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
             <span
               className="relato-badge relato-badge-prioridade"
               style={{
-                backgroundColor: relato.prioridade_color + '20',
+                backgroundColor: relato.prioridade_color + '15',
                 color: relato.prioridade_color,
-                border: `1px solid ${relato.prioridade_color}`,
+                border: `1px solid ${relato.prioridade_color}40`,
               }}
             >
-              {relato.prioridade_label?.toUpperCase()}
+              {relato.prioridade_label}
             </span>
+            {relato.code && (
+              <span className="relato-card-code">{relato.code}</span>
+            )}
+            {relato.is_resolved && (
+              <span className="relato-card-resolved-badge">
+                <RelatoIcon name="check" size={12} color="#15803d" />
+                Resolvido
+              </span>
+            )}
           </div>
+
+          <h4 className="relato-card-titulo">{relato.titulo}</h4>
+
+          {!isExpanded && relato.descricao && (
+            <p className="relato-card-preview">{relato.descricao}</p>
+          )}
+
           <div className="relato-card-meta">
             <span className="relato-card-date">{formatDate(relato.created_at)}</span>
             {relato.author_name && (
@@ -63,25 +68,26 @@ function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
               </>
             )}
             {relato.construflow_issue_code && (
-              <span className="relato-card-construflow-badge" title="Apontamento Construflow vinculado">
+              <span className="relato-card-construflow-badge">
+                <RelatoIcon name="link" size={11} color="#e65100" />
                 {relato.construflow_issue_code}
               </span>
             )}
-            {relato.is_resolved && (
-              <span className="relato-card-resolved-badge">Resolvido</span>
-            )}
           </div>
         </div>
+
         <div className="relato-card-header-actions">
-          <button
-            className="relato-card-edit-btn"
-            onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            title="Editar relato"
-          >
-            &#9998;
-          </button>
+          {!isClient && (
+            <button
+              className="relato-card-edit-btn"
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              title="Editar relato"
+            >
+              &#9998;
+            </button>
+          )}
           <span className={`relato-card-chevron ${isExpanded ? 'relato-card-chevron-open' : ''}`}>
-            &#9660;
+            <RelatoIcon name="chevron-down" size={16} color="#9ca3af" />
           </span>
         </div>
       </div>
@@ -89,14 +95,16 @@ function RelatoCard({ relato, isExpanded, onToggleExpand, onEdit, onDelete }) {
       {isExpanded && (
         <div className="relato-card-body">
           <p className="relato-card-descricao">{relato.descricao}</p>
-          <div className="relato-card-actions">
-            <button className="relato-action-btn relato-action-edit" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
-              Editar
-            </button>
-            <button className="relato-action-btn relato-action-delete" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
-              Remover
-            </button>
-          </div>
+          {!isClient && (
+            <div className="relato-card-actions">
+              <button className="relato-action-btn relato-action-edit" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+                Editar
+              </button>
+              <button className="relato-action-btn relato-action-delete" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+                Remover
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
