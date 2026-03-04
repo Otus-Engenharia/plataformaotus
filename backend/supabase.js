@@ -4690,9 +4690,10 @@ export async function deleteModuleOverride(overrideId) {
 /**
  * Busca a equipe/disciplinas de um projeto com joins nas tabelas relacionadas
  * @param {string} construflowId - ID do projeto no Construflow (de project_features)
+ * @param {{ includeDismissed?: boolean }} options - Opções de filtro
  * @returns {Promise<Array>}
  */
-export async function fetchProjectDisciplines(construflowId) {
+export async function fetchProjectDisciplines(construflowId, { includeDismissed = false } = {}) {
   if (!construflowId) return [];
 
   const supabase = getSupabaseClient();
@@ -4707,7 +4708,7 @@ export async function fetchProjectDisciplines(construflowId) {
     return [];
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('project_disciplines')
     .select(`
       id,
@@ -4722,13 +4723,24 @@ export async function fetchProjectDisciplines(construflowId) {
       status,
       created_at,
       update_at,
+      demitido_em,
+      demitido_por,
+      motivo_demissao,
+      replaced_by,
       project:project_id(id, name, project_code),
       discipline:discipline_id(id, discipline_name, short_name),
       company:company_id(id, name, status),
       contact:contact_id(id, name, email, phone, position)
     `)
-    .eq('project_id', projectFeature.project_id)
-    .eq('status', 'ativo');
+    .eq('project_id', projectFeature.project_id);
+
+  if (includeDismissed) {
+    query = query.in('status', ['ativo', 'demitido']);
+  } else {
+    query = query.eq('status', 'ativo');
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Erro ao buscar equipe do projeto: ${error.message}`);
@@ -5525,6 +5537,72 @@ export async function deleteProjectDiscipline(id) {
   if (error) {
     throw new Error(`Erro ao desativar equipe: ${error.message}`);
   }
+}
+
+/**
+ * Demite um projetista do projeto (mantém registro visível como histórico)
+ * @param {number} id - ID do registro em project_disciplines
+ * @param {{ demitido_por?: string, motivo_demissao?: string, replaced_by?: number }} opts
+ */
+export async function dismissProjectDiscipline(id, { demitido_por, motivo_demissao, replaced_by } = {}) {
+  const supabase = getSupabaseClient();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('project_disciplines')
+    .update({
+      status: 'demitido',
+      demitido_em: now,
+      demitido_por: demitido_por || null,
+      motivo_demissao: motivo_demissao || null,
+      replaced_by: replaced_by || null,
+      update_at: now,
+    })
+    .eq('id', id)
+    .select(`
+      id, status, demitido_em, demitido_por, motivo_demissao, replaced_by,
+      discipline:discipline_id(id, discipline_name, short_name),
+      company:company_id(id, name),
+      contact:contact_id(id, name, email)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao demitir projetista: ${error.message}`);
+  }
+  return data;
+}
+
+/**
+ * Reativa um projetista demitido (limpa campos de demissão)
+ * @param {number} id - ID do registro em project_disciplines
+ */
+export async function reactivateProjectDiscipline(id) {
+  const supabase = getSupabaseClient();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('project_disciplines')
+    .update({
+      status: 'ativo',
+      demitido_em: null,
+      demitido_por: null,
+      motivo_demissao: null,
+      replaced_by: null,
+      update_at: now,
+    })
+    .eq('id', id)
+    .select(`
+      id, status,
+      discipline:discipline_id(id, discipline_name, short_name),
+      contact:contact_id(id, name)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao reativar projetista: ${error.message}`);
+  }
+  return data;
 }
 
 // ============================================

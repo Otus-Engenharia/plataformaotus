@@ -64,6 +64,7 @@ import {
   fetchProjectDisciplines, fetchStandardDisciplines, fetchCompanies, fetchContacts,
   createContact, updateContact,
   createProjectDiscipline, updateProjectDiscipline, deleteProjectDiscipline,
+  dismissProjectDiscipline, reactivateProjectDiscipline,
   getProjectIdByConstruflow, getOrCreateProjectIdForEquipe,
   // Mapeamentos de disciplinas
   fetchDisciplineMappings, createOrUpdateDisciplineMapping, deleteDisciplineMapping,
@@ -3839,6 +3840,40 @@ app.get('/api/okrs/check-ins', requireAuth, async (req, res) => {
 });
 
 /**
+ * Rota: GET /api/okrs/recovery-plans
+ * Busca planos de recuperação de múltiplos Key Results (batch)
+ * Query params: keyResultIds (comma-separated)
+ */
+app.get('/api/okrs/recovery-plans', requireAuth, async (req, res) => {
+  try {
+    const keyResultIds = req.query.keyResultIds
+      ? req.query.keyResultIds.split(',').map(id => parseInt(id))
+      : [];
+
+    if (keyResultIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from('okr_recovery_plans')
+      .select('*')
+      .in('key_result_id', keyResultIds)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('❌ Erro ao buscar planos de recuperação (batch):', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar planos de recuperação',
+    });
+  }
+});
+
+/**
  * Rota: POST /api/okrs/check-ins
  * Cria um novo check-in de OKR
  */
@@ -4085,6 +4120,44 @@ app.get('/api/okrs/initiatives-progress', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Erro ao buscar progresso de iniciativas',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/initiatives-batch
+ * Retorna iniciativas de múltiplos objetivos (batch)
+ * Query params: objectiveIds (comma-separated UUIDs)
+ */
+app.get('/api/okrs/initiatives-batch', requireAuth, async (req, res) => {
+  try {
+    const objectiveIds = req.query.objectiveIds
+      ? req.query.objectiveIds.split(',')
+      : [];
+
+    if (objectiveIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    const { data, error } = await supabase
+      .from('okr_initiatives')
+      .select(`
+        id, objective_id, title, status,
+        responsible_user:responsible_id(id, name, avatar_url)
+      `)
+      .in('objective_id', objectiveIds)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('❌ Erro ao buscar iniciativas em batch:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar iniciativas',
     });
   }
 });
@@ -7363,7 +7436,8 @@ app.get('/api/projetos/equipe', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'projectId é obrigatório' });
     }
 
-    const data = await fetchProjectDisciplines(projectId);
+    const includeDismissed = req.query.includeDismissed === 'true';
+    const data = await fetchProjectDisciplines(projectId, { includeDismissed });
     res.json({ success: true, count: data.length, data });
   } catch (error) {
     console.error('❌ Erro ao buscar equipe do projeto:', error);
@@ -7625,6 +7699,44 @@ app.delete('/api/projetos/equipe/:id', requireAuth, async (req, res) => {
     res.json({ success: true, message: 'Equipe removida com sucesso' });
   } catch (error) {
     console.error('❌ Erro ao remover equipe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PATCH /api/projetos/equipe/:id/demitir
+ * Demite um projetista do projeto (mantém registro como histórico)
+ */
+app.patch('/api/projetos/equipe/:id/demitir', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { motivo_demissao, replaced_by } = req.body;
+    const demitido_por = req.user?.email || 'unknown';
+
+    const data = await dismissProjectDiscipline(id, {
+      demitido_por,
+      motivo_demissao: motivo_demissao || null,
+      replaced_by: replaced_by || null,
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao demitir projetista:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PATCH /api/projetos/equipe/:id/reativar
+ * Reativa um projetista demitido
+ */
+app.patch('/api/projetos/equipe/:id/reativar', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = await reactivateProjectDiscipline(id);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Erro ao reativar projetista:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

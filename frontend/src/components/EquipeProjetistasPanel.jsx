@@ -57,10 +57,20 @@ function EquipeProjetistasPanel({
   const [showMyRequests, setShowMyRequests] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(null);
 
+  // --- Estado modal de demissão ---
+  const [showDismissModal, setShowDismissModal] = useState(false);
+  const [dismissingItem, setDismissingItem] = useState(null);
+  const [dismissMotivo, setDismissMotivo] = useState('');
+  const [dismissing, setDismissing] = useState(false);
+
   // --- Estado modal de solicitação (para leaders) ---
   const [requestModalType, setRequestModalType] = useState(null);
   const [requestFormData, setRequestFormData] = useState({});
   const [savingRequest, setSavingRequest] = useState(false);
+
+  // Contagens pré-calculadas
+  const activeCount = equipe.filter(e => e.status === 'ativo').length;
+  const dismissedCount = equipe.filter(e => e.status === 'demitido').length;
 
   // Buscar minhas solicitações
   const fetchMyRequests = useCallback(async () => {
@@ -157,6 +167,56 @@ function EquipeProjetistasPanel({
     } catch (err) {
       console.error('Erro ao desativar:', err);
     }
+  };
+
+  const openDismissModal = (item) => {
+    setDismissingItem(item);
+    setDismissMotivo('');
+    setDismissing(false);
+    setShowDismissModal(true);
+  };
+
+  const handleDismiss = async () => {
+    if (!dismissingItem || dismissing) return;
+    setDismissing(true);
+    try {
+      await axios.patch(`${API_URL}/api/projetos/equipe/${dismissingItem.id}/demitir`, {
+        motivo_demissao: dismissMotivo || null,
+      }, { withCredentials: true });
+      setShowDismissModal(false);
+      setDismissingItem(null);
+      setRequestSuccess('Projetista demitido com sucesso');
+      setTimeout(() => setRequestSuccess(null), 4000);
+      if (onEquipeChange) onEquipeChange();
+      if (onCrossRefChange) onCrossRefChange();
+    } catch (err) {
+      console.error('Erro ao demitir:', err);
+      alert(err.response?.data?.error || 'Erro ao demitir projetista.');
+    } finally {
+      setDismissing(false);
+    }
+  };
+
+  const handleReactivate = async (id) => {
+    if (!window.confirm('Reativar este projetista no projeto?')) return;
+    try {
+      await axios.patch(`${API_URL}/api/projetos/equipe/${id}/reativar`, {}, { withCredentials: true });
+      setRequestSuccess('Projetista reativado com sucesso');
+      setTimeout(() => setRequestSuccess(null), 4000);
+      if (onEquipeChange) onEquipeChange();
+      if (onCrossRefChange) onCrossRefChange();
+    } catch (err) {
+      console.error('Erro ao reativar:', err);
+      alert(err.response?.data?.error || 'Erro ao reativar projetista.');
+    }
+  };
+
+  // Verifica se é o último ativo de uma disciplina
+  const isLastActiveInDiscipline = (item) => {
+    return equipe.filter(e =>
+      e.status === 'ativo' &&
+      e.discipline_id === item.discipline_id
+    ).length <= 1;
   };
 
   const getFilteredContacts = () => {
@@ -324,7 +384,12 @@ function EquipeProjetistasPanel({
               <line x1="9" y1="21" x2="9" y2="9" />
             </svg>
             <h4>Cadastro de Disciplinas</h4>
-            <span className="ecli-count">{equipe.length} {equipe.length === 1 ? 'disciplina' : 'disciplinas'}</span>
+            <span className="ecli-count">
+              {activeCount} {activeCount === 1 ? 'disciplina' : 'disciplinas'}
+              {dismissedCount > 0 && (
+                <span className="ecli-dismissed-count"> ({dismissedCount} demitido{dismissedCount > 1 ? 's' : ''})</span>
+              )}
+            </span>
           </div>
           {hasFullAccess && (
             <button className="ecli-add-btn" onClick={handleAdd}>
@@ -360,19 +425,25 @@ function EquipeProjetistasPanel({
                 </tr>
               ) : (
                 equipe.map(item => {
+                  const isDismissed = item.status === 'demitido';
                   const email = item.email || item.contact?.email;
                   const phone = item.phone || item.contact?.phone;
                   const position = item.position || item.contact?.position;
                   const hasCompany = !!item.company?.name;
                   const hasContact = !!item.contact?.name;
-                  const completeness = hasCompany && hasContact ? 'complete' : hasCompany || hasContact ? 'partial' : 'minimal';
+                  const completeness = isDismissed ? 'dismissed' : hasCompany && hasContact ? 'complete' : hasCompany || hasContact ? 'partial' : 'minimal';
+
+                  const dismissedTooltip = isDismissed
+                    ? `Demitido em ${item.demitido_em ? new Date(item.demitido_em).toLocaleDateString('pt-BR') : '-'}${item.motivo_demissao ? ` — ${item.motivo_demissao}` : ''}`
+                    : '';
 
                   return (
-                    <tr key={item.id}>
+                    <tr key={item.id} className={isDismissed ? 'ecli-row--demitido' : ''} title={dismissedTooltip}>
                       <td>
                         <div className="ecli-discipline-cell">
                           <span className={`ecli-dot ecli-dot--${completeness}`} />
                           <span>{item.discipline?.discipline_name || '-'}</span>
+                          {isDismissed && <span className="ecli-badge-demitido">Demitido</span>}
                         </div>
                       </td>
                       <td>
@@ -381,7 +452,11 @@ function EquipeProjetistasPanel({
                           {item.company?.status === 'pendente' && <PendingAlert />}
                         </div>
                       </td>
-                      <td>{item.contact?.name || '-'}</td>
+                      <td>
+                        <span className={isDismissed ? 'ecli-contact-name--dismissed' : ''}>
+                          {item.contact?.name || '-'}
+                        </span>
+                      </td>
                       <td>{position || '-'}</td>
                       <td>
                         {email ? <a href={`mailto:${email}`} className="ecli-link">{email}</a> : '-'}
@@ -396,18 +471,36 @@ function EquipeProjetistasPanel({
                       </td>
                       {hasFullAccess && (
                         <td className="ecli-td-actions">
-                          <button className="ecli-action-btn" onClick={() => handleEdit(item)} title="Editar">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          </button>
-                          <button className="ecli-action-btn ecli-action-btn--danger" onClick={() => handleDelete(item.id)} title="Desativar">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M3 6h18" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
+                          {isDismissed ? (
+                            <button className="ecli-action-btn ecli-action-btn--success" onClick={() => handleReactivate(item.id)} title="Reativar" aria-label="Reativar projetista">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="23 4 23 10 17 10" />
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <>
+                              <button className="ecli-action-btn" onClick={() => handleEdit(item)} title="Editar" aria-label="Editar membro">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                              <button className="ecli-action-btn ecli-action-btn--warning" onClick={() => openDismissModal(item)} title="Demitir do projeto" aria-label="Demitir do projeto">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                  <circle cx="8.5" cy="7" r="4" />
+                                  <line x1="18" y1="11" x2="23" y2="11" />
+                                </svg>
+                              </button>
+                              <button className="ecli-action-btn ecli-action-btn--danger" onClick={() => handleDelete(item.id)} title="Desativar" aria-label="Desativar membro">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -491,7 +584,7 @@ function EquipeProjetistasPanel({
           <div className="ecli-modal">
             <div className="ecli-modal-header">
               <h3>{editingItem ? 'Editar Membro' : 'Adicionar Membro'}</h3>
-              <button className="ecli-modal-close" onClick={() => setShowModal(false)}>
+              <button className="ecli-modal-close" onClick={() => setShowModal(false)} aria-label="Fechar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -575,13 +668,71 @@ function EquipeProjetistasPanel({
         </div>
       )}
 
+      {/* === MODAL DE DEMISSÃO === */}
+      {showDismissModal && dismissingItem && (
+        <div className="ecli-modal-overlay">
+          <div className="ecli-modal">
+            <div className="ecli-modal-header ecli-modal-header--warning">
+              <h3>Demitir Projetista</h3>
+              <button className="ecli-modal-close" onClick={() => setShowDismissModal(false)} aria-label="Fechar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ecli-modal-body">
+              <div className="ecli-dismiss-info">
+                <div className="ecli-dismiss-info-row">
+                  <span className="ecli-dismiss-label">Disciplina:</span>
+                  <span>{dismissingItem.discipline?.discipline_name || '-'}</span>
+                </div>
+                <div className="ecli-dismiss-info-row">
+                  <span className="ecli-dismiss-label">Empresa:</span>
+                  <span>{dismissingItem.company?.name || '-'}</span>
+                </div>
+                <div className="ecli-dismiss-info-row">
+                  <span className="ecli-dismiss-label">Contato:</span>
+                  <span>{dismissingItem.contact?.name || '-'}</span>
+                </div>
+              </div>
+
+              {isLastActiveInDiscipline(dismissingItem) && (
+                <div className="ecli-dismiss-warning" role="alert">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 22h20L12 2z" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+                    <path d="M12 9v5" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="12" cy="17" r="1" fill="#1F2937" />
+                  </svg>
+                  <span>Esta é a única pessoa ativa nesta disciplina. Comunicações ficarão sem destinatário.</span>
+                </div>
+              )}
+
+              <div className="ecli-form-group">
+                <label>Motivo da demissão (opcional)</label>
+                <textarea
+                  value={dismissMotivo}
+                  onChange={e => setDismissMotivo(e.target.value)}
+                  placeholder="Ex: Contrato encerrado, substituição de fornecedor..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="ecli-modal-footer">
+              <button className="ecli-btn-cancel" onClick={() => setShowDismissModal(false)}>Cancelar</button>
+              <button className="ecli-btn-dismiss" onClick={handleDismiss} disabled={dismissing}>{dismissing ? 'Demitindo...' : 'Confirmar Demissão'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* === MODAL DE SOLICITAÇÃO (leaders) === */}
       {requestModalType && (
         <div className="ecli-modal-overlay">
           <div className="ecli-modal">
             <div className="ecli-modal-header">
               <h3>{getRequestModalTitle()}</h3>
-              <button className="ecli-modal-close" onClick={() => setRequestModalType(null)}>
+              <button className="ecli-modal-close" onClick={() => setRequestModalType(null)} aria-label="Fechar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />

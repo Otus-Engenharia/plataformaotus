@@ -315,6 +315,11 @@ function NomenclaturaLookupTabs({ projectCode, segments, lookups, canEdit, onLoo
   }, [segments]);
 
   const [activeTab, setActiveTab] = useState(null);
+  const [showCopyPanel, setShowCopyPanel] = useState(false);
+  const [sourceProjects, setSourceProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState('');
+  const [copying, setCopying] = useState(false);
+  const [copyMsg, setCopyMsg] = useState(null);
 
   // Sincronizar tab ativa quando paramNames mudar
   useEffect(() => {
@@ -327,13 +332,99 @@ function NomenclaturaLookupTabs({ projectCode, segments, lookups, canEdit, onLoo
   const activeSegment = segments.find(s => s.type === 'param' && s.name === activeTab);
   const activeCharCount = activeSegment?.char_count || null;
 
+  const handleOpenCopyPanel = async () => {
+    setShowCopyPanel(true);
+    setCopyMsg(null);
+    setSelectedProject('');
+    try {
+      const res = await axios.get(`${API_URL}/api/nomenclatura/projects/configured?exclude=${projectCode}`, { withCredentials: true });
+      setSourceProjects(res.data?.data || []);
+    } catch (err) {
+      console.error('Erro ao buscar projetos:', err);
+      setCopyMsg({ type: 'error', text: 'Erro ao buscar projetos disponíveis' });
+    }
+  };
+
+  const handleCopyFromProject = async () => {
+    if (!selectedProject) return;
+    setCopying(true);
+    setCopyMsg(null);
+    try {
+      const res = await axios.get(`${API_URL}/api/nomenclatura/${selectedProject}/lookups`, { withCredentials: true });
+      const sourceLookups = res.data?.data || {};
+
+      let copiedCount = 0;
+      for (const [paramName, entries] of Object.entries(sourceLookups)) {
+        if (entries.length > 0) {
+          await axios.put(
+            `${API_URL}/api/nomenclatura/${projectCode}/lookups/${paramName}`,
+            { entries },
+            { withCredentials: true }
+          );
+          onLookupSaved(paramName, entries);
+          copiedCount += entries.length;
+        }
+      }
+
+      setCopyMsg({ type: 'ok', text: `${copiedCount} siglas copiadas de ${selectedProject}!` });
+      setShowCopyPanel(false);
+      setSelectedProject('');
+    } catch (err) {
+      console.error('Erro ao copiar lookups:', err);
+      setCopyMsg({ type: 'error', text: err.response?.data?.error || 'Erro ao copiar' });
+    } finally {
+      setCopying(false);
+    }
+  };
+
   if (paramNames.length === 0) {
     return null;
   }
 
   return (
     <div className="nlt-container">
-      <h4 className="nlt-section-title">Tabelas Auxiliares de Siglas</h4>
+      <div className="nlt-section-header">
+        <h4 className="nlt-section-title">Tabelas Auxiliares de Siglas</h4>
+        {canEdit && (
+          <button type="button" className="nlt-copy-project-btn" onClick={handleOpenCopyPanel}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            Copiar de outro projeto
+          </button>
+        )}
+      </div>
+
+      {showCopyPanel && (
+        <div className="nlt-copy-panel">
+          <select
+            className="nlt-copy-select"
+            value={selectedProject}
+            onChange={e => setSelectedProject(e.target.value)}
+          >
+            <option value="">Selecionar projeto...</option>
+            {sourceProjects.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <button
+            type="button"
+            className="nlt-copy-btn"
+            onClick={handleCopyFromProject}
+            disabled={!selectedProject || copying}
+          >
+            {copying ? 'Copiando...' : 'Copiar'}
+          </button>
+          <button
+            type="button"
+            className="nlt-copy-cancel"
+            onClick={() => { setShowCopyPanel(false); setCopyMsg(null); }}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      {copyMsg && <div className={`nlt-msg nlt-msg--${copyMsg.type}`} style={{ margin: '0 1rem 0.5rem' }}>{copyMsg.text}</div>}
 
       {/* Tab buttons */}
       <div className="nlt-tabs">

@@ -1,0 +1,367 @@
+/* ============================================================
+   Vista do Cliente - Marcos CRUD
+   ============================================================ */
+
+/* ---- Actions bar ---- */
+.vcm-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.vcm-btn {
+  font-family: var(--vc-font-body, 'DM Sans', system-ui, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: var(--vc-radius-sm, 6px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.vcm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vcm-btn-primary {
+  background: var(--vc-accent, #f5c400);
+  color: #1c1917;
+  border-color: var(--vc-accent, #f5c400);
+}
+
+.vcm-btn-primary:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.vcm-btn-secondary {
+  background: var(--vc-surface, #fff);
+  color: var(--vc-text-primary, #1c1917);
+  border-color: var(--vc-border, #e7e5e4);
+}
+
+.vcm-btn-secondary:hover:not(:disabled) {
+  border-color: var(--vc-border-hover, #d6d3d1);
+  background: #fafaf8;
+}
+
+.vcm-btn-ghost {
+  background: transparent;
+  color: var(--vc-text-secondary, #78716c);
+}
+
+.vcm-btn-ghost:hover {
+  color: var(--vc-text-primary, #1c1917);
+}
+
+/* ---- Form Card ---- */
+.vcm-form-card {
+  background: var(--vc-surface, #fff);
+  border: 1px solid var(--vc-border, #e7e5e4);
+  border-radius: var(--vc-radius, 10px);
+  padding: 20px;
+  box-shadow: var(--vc-shadow-card, 0 1px 3px rgba(28,25,23,0.04));
+  animation: vcFadeInUp 0.2s ease;
+}
+
+.vcm-form-card h3 {
+  margin: 0 0 16px;
+  font-family: var(--vc-font-display, 'Bricolage Grotesque', system-ui);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vc-text-primary, #1c1917);
+}
+
+.vcm-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.vcm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vcm-field-full {
+  grid-column: 1 / -1;
+}
+
+.vcm-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vc-text-secondary, #78716c);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.vcm-field input,
+.vcm-field select,
+.vcm-field textarea {
+  font-family: var(--vc-font-body, 'DM Sans', system-ui);
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--vc-border, #e7e5e4);
+  border-radius: var(--vc-radius-sm, 6px);
+  background: var(--vc-bg, #fafaf8);
+  color: var(--vc-text-primary, #1c1917);
+  transition: border-color 0.15s;
+}
+
+.vcm-field input:focus,
+.vcm-field select:focus,
+.vcm-field textarea:focus {
+  outline: none;
+  border-color: var(--vc-accent, #f5c400);
+}
+
+.vcm-field textarea {
+  resize: vertical;
+  min-height: 48px;
+}
+
+.vcm-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ---- List Card ---- */
+.vcm-list-card {
+  background: var(--vc-surface, #fff);
+  border: 1px solid var(--vc-border, #e7e5e4);
+  border-radius: var(--vc-radius, 10px);
+  box-shadow: var(--vc-shadow-card, 0 1px 3px rgba(28,25,23,0.04));
+  overflow: hidden;
+}
+
+.vcm-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--vc-text-secondary, #78716c);
+  font-size: 14px;
+}
+
+.vcm-empty-hint {
+  font-size: 12px;
+  color: var(--vc-text-muted, #a8a29e);
+  margin-top: 4px;
+  display: inline-block;
+}
+
+/* ---- Table ---- */
+.vcm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.vcm-table thead {
+  background: var(--vc-bg, #fafaf8);
+  border-bottom: 1px solid var(--vc-border, #e7e5e4);
+}
+
+.vcm-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vc-text-secondary, #78716c);
+  white-space: nowrap;
+}
+
+.vcm-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vc-border, #e7e5e4);
+  vertical-align: middle;
+}
+
+.vcm-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vcm-table tbody tr:hover {
+  background: rgba(245, 196, 0, 0.03);
+}
+
+.vcm-th-order {
+  width: 48px;
+}
+
+.vcm-th-actions {
+  width: 80px;
+  text-align: center;
+}
+
+/* ---- Order buttons ---- */
+.vcm-td-order {
+  text-align: center;
+}
+
+.vcm-order-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.vcm-order-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--vc-text-muted, #a8a29e);
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.vcm-order-btn:hover:not(:disabled) {
+  color: var(--vc-text-primary, #1c1917);
+  background: var(--vc-bg, #fafaf8);
+}
+
+.vcm-order-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ---- Nome column ---- */
+.vcm-td-nome {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vcm-nome {
+  font-weight: 500;
+  color: var(--vc-text-primary, #1c1917);
+}
+
+.vcm-descricao {
+  font-size: 11px;
+  color: var(--vc-text-muted, #a8a29e);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Status badges ---- */
+.vcm-status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.vcm-status-badge.feito {
+  background: var(--vc-success-bg, rgba(21,128,61,0.08));
+  color: var(--vc-success, #15803d);
+}
+
+.vcm-status-badge.andamento {
+  background: var(--vc-warning-bg, rgba(217,119,6,0.08));
+  color: var(--vc-warning, #d97706);
+}
+
+.vcm-status-badge.atrasado {
+  background: var(--vc-danger-bg, rgba(220,38,38,0.08));
+  color: var(--vc-danger, #dc2626);
+}
+
+.vcm-status-badge.pendente {
+  background: rgba(120, 113, 108, 0.08);
+  color: var(--vc-text-secondary, #78716c);
+}
+
+/* ---- Variacao ---- */
+.vcm-variacao {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.vcm-variacao.atrasado {
+  color: var(--vc-danger, #dc2626);
+}
+
+.vcm-variacao.adiantado {
+  color: var(--vc-success, #15803d);
+}
+
+/* ---- Source badge ---- */
+.vcm-source-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.vcm-source-badge.smartsheet {
+  background: rgba(0, 120, 212, 0.08);
+  color: #0078d4;
+}
+
+.vcm-source-badge.manual {
+  background: rgba(120, 113, 108, 0.06);
+  color: var(--vc-text-muted, #a8a29e);
+}
+
+/* ---- Action buttons ---- */
+.vcm-td-actions {
+  text-align: center;
+}
+
+.vcm-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.vcm-action-btn.edit {
+  color: var(--vc-text-muted, #a8a29e);
+}
+
+.vcm-action-btn.edit:hover {
+  color: var(--vc-accent, #f5c400);
+  background: var(--vc-accent-dim, rgba(245,196,0,0.1));
+}
+
+.vcm-action-btn.delete {
+  color: var(--vc-text-muted, #a8a29e);
+}
+
+.vcm-action-btn.delete:hover {
+  color: var(--vc-danger, #dc2626);
+  background: var(--vc-danger-bg, rgba(220,38,38,0.08));
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .vcm-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vcm-table {
+    font-size: 12px;
+  }
+
+  .vcm-table th,
+  .vcm-table td {
+    padding: 8px;
+  }
+}

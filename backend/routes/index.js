@@ -21,6 +21,7 @@ import { createRoutes as createTimeSavingsRoutes } from './time-savings.js';
 import { createRoutes as createIfcChangeLogRoutes } from './ifc-changelog.js';
 import { createRoutes as createContactRequestRoutes } from './contact-requests.js';
 import { createRoutes as createNomenclaturaRoutes } from './nomenclatura.js';
+import { createRoutes as createMarcosProjetoRoutes } from './marcos-projeto.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -101,5 +102,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const nomenclaturaRoutes = createNomenclaturaRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/nomenclatura', nomenclaturaRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/contact-requests, /api/nomenclatura');
+  // Rotas de Marcos do Projeto
+  const marcosProjetoRoutes = createMarcosProjetoRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigqueryClient);
+  app.use('/api/marcos-projeto', marcosProjetoRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto');
 }

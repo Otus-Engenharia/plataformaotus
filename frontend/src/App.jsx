@@ -100,6 +100,7 @@ const WhiteboardView = lazy(() => import('./pages/whiteboard/WhiteboardView'));
 // Vista do Cliente
 const VistaClienteInicioView = lazy(() => import('./pages/vista-cliente/VistaClienteInicioView'));
 const VistaClienteApontamentosView = lazy(() => import('./pages/vista-cliente/VistaClienteApontamentosView'));
+const VistaClienteMarcosView = lazy(() => import('./pages/vista-cliente/VistaClienteMarcosView'));
 
 // Economia de Horas
 const TimeSavingsDashboardView = lazy(() => import('./pages/time-savings/TimeSavingsDashboardView'));
@@ -777,6 +778,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.demandas}</span>
         <span className="nav-text">Apontamentos</span>
+      </Link>
+      <Link
+        to="/vista-cliente/marcos"
+        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/marcos' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Marcos')}
+      >
+        <span className="nav-icon">{icons.indicadores}</span>
+        <span className="nav-text">Marcos</span>
       </Link>
     </>
   );
@@ -1532,6 +1541,7 @@ function AppContent() {
               <Route index element={<Navigate to="inicio" replace />} />
               <Route path="inicio" element={<VistaClienteInicioView />} />
               <Route path="apontamentos" element={<VistaClienteApontamentosView />} />
+              <Route path="marcos" element={<VistaClienteMarcosView />} />
             </Route>
             <Route
               path="/horas"
