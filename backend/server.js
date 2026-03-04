@@ -884,6 +884,10 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
     const bqCodes = new Set(bqData.map(row => row.project_code_norm));
     for (const p of supabaseProjects) {
       if (p.project_code && !bqCodes.has(p.project_code)) {
+        // Se filtro de líder ativo, só incluir projetos Supabase-only deste líder
+        if (leaderName && p.users_otus?.name?.toLowerCase() !== leaderName.toLowerCase()) {
+          continue;
+        }
         const features = featuresMap[p.project_code] || {};
         enrichedData.push({
           project_code_norm: p.project_code,

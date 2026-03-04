@@ -24,7 +24,7 @@ const PencilIcon = () => (
   </svg>
 );
 
-function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
+function PortfolioProjetoView({ selectedProjectId, portfolio = [], onFieldUpdate }) {
   const [projectData, setProjectData] = useState(null);
   const [error, setError] = useState(null);
   const [editingField, setEditingField] = useState(null); // 'comercial_name' | 'status'
@@ -305,6 +305,7 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
                   const newVal = e.target.value.trim();
                   if (newVal !== (heroData.comercialName || '')) {
                     updatePortfolioField(projectCode, 'comercial_name', newVal, heroData.comercialName);
+                    onFieldUpdate?.(projectCode, 'comercial_name', newVal);
                   }
                   setEditingField(null);
                 }}
@@ -336,6 +337,7 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [] }) {
                 value={heroData.status}
                 onChange={(newVal) => {
                   updatePortfolioField(projectCode, 'status', newVal, heroData.status);
+                  onFieldUpdate?.(projectCode, 'status', newVal);
                   setEditingField(null);
                 }}
                 inline
