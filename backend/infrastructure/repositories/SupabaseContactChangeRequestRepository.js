@@ -6,7 +6,7 @@
 
 import { ContactChangeRequestRepository } from '../../domain/contact-requests/ContactChangeRequestRepository.js';
 import { ContactChangeRequest } from '../../domain/contact-requests/entities/ContactChangeRequest.js';
-import { getSupabaseClient } from '../../supabase.js';
+import { getSupabaseServiceClient } from '../../supabase.js';
 
 const TABLE = 'contact_change_requests';
 
@@ -70,7 +70,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
 
   constructor() {
     super();
-    this.#supabase = getSupabaseClient();
+    this.#supabase = getSupabaseServiceClient();
   }
 
   async save(request) {
@@ -117,12 +117,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
       throw new Error(`Erro ao listar solicitações pendentes: ${error.message}`);
     }
 
-    const rows = data || [];
-    if (rows.length === 0) {
-      console.warn('findPending: query retornou 0 rows (verificar se ha pendentes no banco)');
-    }
-
-    return rows.map(safeFromPersistence);
+    return (data || []).map(safeFromPersistence);
   }
 
   async findByRequester(email) {
