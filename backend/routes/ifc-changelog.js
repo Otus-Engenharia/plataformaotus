@@ -12,7 +12,9 @@ import {
   ScanAllFolders,
   ListChangeLogs,
   ListRecentChanges,
+  GetChangeLogSummary,
 } from '../application/use-cases/ifc-changelog/index.js';
+import { validateFilesInBatch } from '../shared/nomenclatura-validator.js';
 
 const router = express.Router();
 let repository = null;
@@ -57,20 +59,54 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   });
 
   /**
+   * GET /api/ifc-changelog/summary
+   * Estatísticas agregadas de mudanças IFC com validação de nomenclatura.
+   * Query: ?days=7
+   */
+  router.get('/summary', requireAuth, async (req, res) => {
+    try {
+      const { days = 7 } = req.query;
+      const useCase = new GetChangeLogSummary(getRepository());
+      const result = await useCase.execute({ days: Number(days) });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao buscar resumo IFC:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * GET /api/ifc-changelog/recent
-   * Mudanças recentes em todos os projetos.
+   * Mudanças recentes em todos os projetos, enriquecidas com validação de nomenclatura.
    * Query: ?page=1&limit=20&days=7
    */
   router.get('/recent', requireAuth, async (req, res) => {
     try {
       const { page = 1, limit = 20, days = 7 } = req.query;
-      const useCase = new ListRecentChanges(getRepository());
+      const repo = getRepository();
+      const useCase = new ListRecentChanges(repo);
       const result = await useCase.execute({
         page: Number(page),
         limit: Number(limit),
         days: Number(days),
       });
-      res.json({ success: true, ...result });
+
+      // Enriquecer com validação de nomenclatura
+      const projectCodes = [...new Set(result.data.map(l => l.project_code))];
+      const patterns = await repo.getNomenclaturaPatternsForProjects(projectCodes);
+      const validations = validateFilesInBatch(result.data, patterns);
+
+      const enrichedData = result.data.map(log => {
+        const key = `${log.project_code}::${log.file_name}`;
+        const validation = validations.get(key) || { conforme: null, erros: [] };
+        return {
+          ...log,
+          nomenclatura_conforme: validation.conforme,
+          nomenclatura_erros: validation.erros,
+        };
+      });
+
+      res.json({ success: true, ...result, data: enrichedData });
     } catch (error) {
       console.error('Erro ao buscar mudanças recentes:', error);
       res.status(500).json({ success: false, error: error.message });

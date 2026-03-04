@@ -832,6 +832,7 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
       supabaseMap.set(p.project_code, {
         comercial_name: p.comercial_name,
         status: p.status,
+        service_type: p.service_type || null,
         nome_time: p.teams?.team_name || null,
         lider: p.users_otus?.name || null,
         client: p.companies?.name || null,
@@ -853,6 +854,7 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
         // Supabase sobrescreve campos editáveis (tempo real)
         ...(supabase.comercial_name != null && { comercial_name: supabase.comercial_name }),
         ...(supabase.status != null && { status: supabase.status }),
+        ...(supabase.service_type != null && { service_type: supabase.service_type }),
         ...(supabase.nome_time != null && { nome_time: supabase.nome_time }),
         ...(supabase.lider != null && { lider: supabase.lider }),
         ...(supabase.client != null && { client: supabase.client }),
@@ -923,7 +925,7 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     const { field, value, oldValue } = req.body;
 
     // Campos permitidos: todos com canEditPortfolio podem editar todos os campos
-    const allowedFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
+    const allowedFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider', 'service_type'];
 
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido` });

@@ -27,4 +27,10 @@ export const ifcChangelogApi = {
       params,
       withCredentials: true,
     }),
+
+  getSummary: (params = {}) =>
+    axios.get(`${API_URL}/api/ifc-changelog/summary`, {
+      params,
+      withCredentials: true,
+    }),
 };
