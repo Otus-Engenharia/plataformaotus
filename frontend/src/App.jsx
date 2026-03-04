@@ -12,6 +12,7 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, us
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
 import { PortfolioProvider } from './contexts/PortfolioContext';
+import { VistaClienteProvider } from './contexts/VistaClienteContext';
 import axios from 'axios';
 import DevImpersonationPanel from './components/DevImpersonationPanel';
 import IndicadoresLiderancaView from './components/IndicadoresLiderancaView';
@@ -1531,9 +1532,11 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   {canAccessVistaClienteArea ? (
-                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                      <Outlet />
-                    </Suspense>
+                    <VistaClienteProvider>
+                      <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                        <Outlet />
+                      </Suspense>
+                    </VistaClienteProvider>
                   ) : <Navigate to="/home" replace />}
                 </ProtectedRoute>
               }
