@@ -26,11 +26,36 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-function ProgressKpiCards({ progress, prazos, loading }) {
+const FASE_LABELS = {
+  'a iniciar': 'A Iniciar',
+  'planejamento': 'Planejamento',
+  'fase 01': 'Est. Preliminar',
+  'fase 02': 'Anteprojeto',
+  'fase 03': 'Pré-executivo',
+  'fase 04': 'Executivo',
+  'fase 05': 'Liberado Obra',
+  'pausado - f01': 'Est. Preliminar',
+  'pausado - f02': 'Anteprojeto',
+  'pausado - f03': 'Pré-executivo',
+  'pausado - f04': 'Executivo',
+  'termo de encerramento': 'Finalizado',
+  'execução': 'Finalizado',
+  'obra finalizada': 'Finalizado',
+  'close': 'Finalizado',
+  'churn pelo cliente': 'Cancelado',
+};
+
+function getFaseLabel(status) {
+  if (!status) return '-';
+  const key = status.toLowerCase().trim();
+  return FASE_LABELS[key] || status;
+}
+
+function ProgressKpiCards({ progress, prazos, faseAtual, loading }) {
   if (loading) {
     return (
       <div className="progress-kpi-strip">
-        {[...Array(6)].map((_, i) => (
+        {[...Array(7)].map((_, i) => (
           <div key={i} className="kpi-chip loading"><span>...</span></div>
         ))}
       </div>
@@ -72,6 +97,13 @@ function ProgressKpiCards({ progress, prazos, loading }) {
         <span className="kpi-chip-label">Progresso</span>
         <span className="kpi-chip-value">{progressPercent.toFixed(2)}%</span>
         <span className="kpi-chip-detail">Plan. {plannedProgress.toFixed(1)}%</span>
+      </div>
+      <div className="kpi-chip">
+        <span className="kpi-chip-label">Fase Atual</span>
+        <span className="kpi-chip-value" style={{ fontSize: 14 }}>{getFaseLabel(faseAtual)}</span>
+        {faseAtual && faseAtual.toLowerCase().startsWith('pausado') && (
+          <span className="kpi-chip-detail" style={{ color: '#d97706' }}>Pausado</span>
+        )}
       </div>
       <div className="kpi-chip">
         <span className="kpi-chip-label">IDP</span>

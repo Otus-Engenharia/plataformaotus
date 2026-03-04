@@ -17,6 +17,9 @@ const REPROGRAMADO_COLORS = [
 // Cor do Executado (amber)
 const EXECUTADO_COLOR = '#F59E0B';
 
+// Cor do Cronograma Atual (laranja claro)
+const CRONOGRAMA_ATUAL_COLOR = 'rgba(245, 158, 11, 0.5)';
+
 function getReprogramadoColor(index, total) {
   if (total <= REPROGRAMADO_COLORS.length) {
     const step = REPROGRAMADO_COLORS.length / total;
@@ -49,6 +52,7 @@ export {
   BASELINE_COLORS,
   REPROGRAMADO_COLORS,
   EXECUTADO_COLOR,
+  CRONOGRAMA_ATUAL_COLOR,
   EXECUTADO_BAR_COLOR,
   BASELINE_BAR_COLORS,
   getBaselineColor,

@@ -8,8 +8,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
-import RelatoCard from './RelatoCard';
 import RelatoForm from './RelatoForm';
+import RelatosKanbanBoard from './RelatosKanbanBoard';
 import { RelatoIcon } from './RelatoIcons';
 import '../../styles/RelatosView.css';
 
@@ -23,7 +23,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
   // Filtros
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroPrioridade, setFiltroPrioridade] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState('');
+  const [filtroPeriodo, setFiltroPeriodo] = useState('');
 
   // Formulário
   const [showForm, setShowForm] = useState(false);
@@ -52,7 +52,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
     } else {
       setRelatos([]);
     }
-  }, [projectCode, filtroTipo, filtroPrioridade]);
+  }, [projectCode]);
 
   const fetchTipos = async () => {
     try {
@@ -77,11 +77,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (filtroTipo) params.append('tipo', filtroTipo);
-      if (filtroPrioridade) params.append('prioridade', filtroPrioridade);
-
-      const url = `${API_URL}/api/relatos/project/${encodeURIComponent(projectCode)}${params.toString() ? '?' + params.toString() : ''}`;
+      const url = `${API_URL}/api/relatos/project/${encodeURIComponent(projectCode)}`;
       const res = await axios.get(url, { withCredentials: true });
 
       if (res.data.success) {
@@ -93,7 +89,7 @@ function RelatosView({ selectedProjectId, portfolio }) {
     } finally {
       setLoading(false);
     }
-  }, [projectCode, filtroTipo, filtroPrioridade]);
+  }, [projectCode]);
 
   const handleCreate = async (data) => {
     try {
@@ -150,17 +146,14 @@ function RelatosView({ selectedProjectId, portfolio }) {
   const clearFilters = () => {
     setFiltroTipo('');
     setFiltroPrioridade('');
-    setFiltroStatus('');
+    setFiltroPeriodo('');
   };
 
-  const hasFilters = filtroTipo || filtroPrioridade || filtroStatus;
+  const hasFilters = filtroTipo || filtroPrioridade || filtroPeriodo;
 
   // Stats
   const stats = useMemo(() => {
-    const total = relatos.length;
-    const ativos = relatos.filter(r => !r.is_resolved).length;
-    const resolvidos = total - ativos;
-    return { total, ativos, resolvidos };
+    return { total: relatos.length };
   }, [relatos]);
 
   // Chip counts
@@ -182,13 +175,26 @@ function RelatosView({ selectedProjectId, portfolio }) {
     return counts;
   }, [relatos, prioridades]);
 
-  // Filter by status (client-side)
+  // Filtragem client-side (período + prioridade; tipo controla colunas do Kanban)
   const filteredRelatos = useMemo(() => {
-    if (!filtroStatus) return relatos;
-    if (filtroStatus === 'ativos') return relatos.filter(r => !r.is_resolved);
-    if (filtroStatus === 'resolvidos') return relatos.filter(r => r.is_resolved);
-    return relatos;
-  }, [relatos, filtroStatus]);
+    let result = relatos;
+
+    if (filtroPeriodo === 'esta-semana') {
+      const now = new Date();
+      const day = now.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+      result = result.filter(r => new Date(r.created_at) >= weekStart);
+    } else if (filtroPeriodo === 'este-mes') {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      result = result.filter(r => new Date(r.created_at) >= monthStart);
+    }
+
+    if (filtroPrioridade) result = result.filter(r => r.prioridade_slug === filtroPrioridade);
+
+    return result;
+  }, [relatos, filtroPrioridade, filtroPeriodo]);
 
   if (!projectCode) {
     return (
@@ -210,12 +216,6 @@ function RelatosView({ selectedProjectId, portfolio }) {
           <div className="relatos-stat-strip">
             <span className="relatos-stat-pill">
               <strong>{stats.total}</strong> total
-            </span>
-            <span className="relatos-stat-pill relatos-stat-pill--active">
-              <strong>{stats.ativos}</strong> ativos
-            </span>
-            <span className="relatos-stat-pill relatos-stat-pill--resolved">
-              <strong>{stats.resolvidos}</strong> resolvidos
             </span>
           </div>
         </div>
@@ -274,66 +274,57 @@ function RelatosView({ selectedProjectId, portfolio }) {
             </div>
           </div>
 
-          {/* Status chips */}
+          {/* Período chips */}
           <div className="relatos-filter-group">
-            <span className="relatos-filter-label">Status</span>
+            <span className="relatos-filter-label">Período</span>
             <div className="relatos-chips">
               <button
-                className={`relatos-chip ${filtroStatus === '' ? 'active' : ''}`}
-                onClick={() => setFiltroStatus('')}
+                className={`relatos-chip ${filtroPeriodo === '' ? 'active' : ''}`}
+                onClick={() => setFiltroPeriodo('')}
               >
-                Todos
+                Sempre
               </button>
               <button
-                className={`relatos-chip ${filtroStatus === 'ativos' ? 'active' : ''}`}
-                onClick={() => setFiltroStatus(filtroStatus === 'ativos' ? '' : 'ativos')}
+                className={`relatos-chip ${filtroPeriodo === 'este-mes' ? 'active' : ''}`}
+                onClick={() => setFiltroPeriodo(filtroPeriodo === 'este-mes' ? '' : 'este-mes')}
               >
-                Ativos
+                Este mês
               </button>
               <button
-                className={`relatos-chip ${filtroStatus === 'resolvidos' ? 'active' : ''}`}
-                onClick={() => setFiltroStatus(filtroStatus === 'resolvidos' ? '' : 'resolvidos')}
+                className={`relatos-chip ${filtroPeriodo === 'esta-semana' ? 'active' : ''}`}
+                onClick={() => setFiltroPeriodo(filtroPeriodo === 'esta-semana' ? '' : 'esta-semana')}
               >
-                Resolvidos
+                Esta semana
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Lista de relatos */}
+      {/* Kanban board */}
       {error && <div className="relatos-error">{error}</div>}
 
       {loading ? (
         <div className="relatos-loading">Carregando relatos...</div>
-      ) : filteredRelatos.length === 0 ? (
+      ) : filteredRelatos.length === 0 && hasFilters ? (
         <div className="relatos-empty">
           <RelatoIcon name="clipboard" size={36} color="#d1d5db" />
-          <p>
-            {hasFilters
-              ? 'Nenhum relato encontrado com os filtros selecionados.'
-              : 'Nenhum relato encontrado para este projeto.'}
-          </p>
-          {hasFilters && (
-            <button className="relatos-clear-filters" onClick={clearFilters}>
-              Limpar filtros
-            </button>
-          )}
+          <p>Nenhum relato encontrado com os filtros selecionados.</p>
+          <button className="relatos-clear-filters" onClick={clearFilters}>
+            Limpar filtros
+          </button>
         </div>
       ) : (
-        <div className="relatos-list">
-          {filteredRelatos.map(relato => (
-            <RelatoCard
-              key={relato.id}
-              relato={relato}
-              variant="internal"
-              isExpanded={expandedId === relato.id}
-              onToggleExpand={() => setExpandedId(expandedId === relato.id ? null : relato.id)}
-              onEdit={() => { setEditingRelato(relato); setShowForm(true); }}
-              onDelete={() => handleDelete(relato.id)}
-            />
-          ))}
-        </div>
+        <RelatosKanbanBoard
+          relatos={filteredRelatos}
+          tipos={tipos}
+          filtroTipo={filtroTipo}
+          expandedId={expandedId}
+          onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+          onEdit={(relato) => { setEditingRelato(relato); setShowForm(true); }}
+          onDelete={handleDelete}
+          variant="internal"
+        />
       )}
 
       {/* Footer */}

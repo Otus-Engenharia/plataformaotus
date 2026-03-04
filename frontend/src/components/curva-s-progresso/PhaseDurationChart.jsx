@@ -20,7 +20,7 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar } from 'react-chartjs-2';
-import { EXECUTADO_COLOR, BASELINE_COLORS, getBaselineColor } from './snapshotColors';
+import { EXECUTADO_COLOR, CRONOGRAMA_ATUAL_COLOR, BASELINE_COLORS, getBaselineColor } from './snapshotColors';
 
 ChartJS.register(
   CategoryScale,
@@ -46,45 +46,82 @@ const EyeOffIcon = () => (
   </svg>
 );
 
-function PhaseDurationChart({ data, visibleDatasets, onToggleDataset }) {
+// Mapa status do portfolio → índice da fase atual no gráfico
+// -1 = nenhuma fase iniciou, 99 = todas finalizadas
+const STATUS_TO_PHASE_INDEX = {
+  'a iniciar': -1,
+  'planejamento': -1,
+  'fase 01': 0,
+  'fase 02': 1,
+  'fase 03': 2,
+  'fase 04': 3,
+  'pausado - f01': 0,
+  'pausado - f02': 1,
+  'pausado - f03': 2,
+  'pausado - f04': 3,
+  'termo de encerramento': 99,
+  'execução': 99,
+  'obra finalizada': 99,
+  'close': 99,
+  'churn pelo cliente': -1,
+};
+
+function PhaseDurationChart({ data, visibleDatasets, onToggleDataset, faseAtual }) {
   const [baselinesOpen, setBaselinesOpen] = useState(true);
 
   const { phases, actual, baselines } = data || {};
 
   // Derivar keys dos datasets
-  const EXECUTADO_KEY = 'executado';
+  const FINALIZADO_KEY = 'finalizado';
+  const A_INICIAR_KEY = 'a_iniciar';
 
   const isVisible = (key) => {
     if (!visibleDatasets) return true;
     return visibleDatasets.has(key);
   };
 
+  // Índice da fase atual no array de fases
+  const faseAtualIndex = useMemo(() => {
+    if (!faseAtual || !phases) return -1;
+    const key = faseAtual.toLowerCase().trim();
+    const idx = STATUS_TO_PHASE_INDEX[key];
+    return idx != null ? idx : -1;
+  }, [faseAtual, phases]);
+
   // Montar datasets Chart.js
   const chartData = useMemo(() => {
     if (!phases || !actual) return { labels: [], datasets: [] };
 
     const datasets = [];
+    const datalabelConfig = {
+      display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
+      color: '#fff',
+      font: { size: 11, weight: '600' },
+      anchor: 'center',
+      align: 'center',
+      formatter: (v) => `${v}d`,
+    };
 
-    // Dataset Executado
-    if (isVisible(EXECUTADO_KEY)) {
-      datasets.push({
-        label: 'Executado',
-        data: phases.map(f => actual.executado?.[f] ?? 0),
-        backgroundColor: EXECUTADO_COLOR,
-        borderColor: EXECUTADO_COLOR,
-        borderWidth: 0,
-        barThickness: 18,
-        borderRadius: 3,
-        datalabels: {
-          display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
-          color: '#fff',
-          font: { size: 11, weight: '600' },
-          anchor: 'center',
-          align: 'center',
-          formatter: (v) => `${v}d`,
-        },
-      });
-    }
+    // Dataset único de duração real com cor por barra (Finalizado=amber, Cronograma Atual=laranja claro)
+    const showFinalizado = isVisible(FINALIZADO_KEY);
+    const showCronograma = isVisible(A_INICIAR_KEY);
+
+    datasets.push({
+      label: 'Duração Real',
+      data: phases.map((f, idx) => {
+        const isFinalizado = faseAtualIndex >= 0 && idx < faseAtualIndex;
+        if (isFinalizado && !showFinalizado) return 0;
+        if (!isFinalizado && !showCronograma) return 0;
+        return actual.executado?.[f] ?? 0;
+      }),
+      backgroundColor: phases.map((_, idx) =>
+        faseAtualIndex >= 0 && idx < faseAtualIndex ? EXECUTADO_COLOR : CRONOGRAMA_ATUAL_COLOR
+      ),
+      borderWidth: 0,
+      barThickness: 18,
+      borderRadius: 3,
+      datalabels: datalabelConfig,
+    });
 
     // Datasets por baseline
     (baselines || []).forEach((bl, idx) => {
@@ -99,14 +136,7 @@ function PhaseDurationChart({ data, visibleDatasets, onToggleDataset }) {
         borderWidth: 0,
         barThickness: 18,
         borderRadius: 3,
-        datalabels: {
-          display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
-          color: '#fff',
-          font: { size: 11, weight: '600' },
-          anchor: 'center',
-          align: 'center',
-          formatter: (v) => `${v}d`,
-        },
+        datalabels: datalabelConfig,
       });
     });
 
@@ -114,7 +144,7 @@ function PhaseDurationChart({ data, visibleDatasets, onToggleDataset }) {
       labels: phases,
       datasets,
     };
-  }, [phases, actual, baselines, visibleDatasets]);
+  }, [phases, actual, baselines, visibleDatasets, faseAtualIndex]);
 
   const chartHeight = Math.max(200, (phases?.length || 1) * 70 + 60);
 
@@ -129,7 +159,7 @@ function PhaseDurationChart({ data, visibleDatasets, onToggleDataset }) {
           label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw} dias`,
         },
       },
-      datalabels: {}, // configurado por dataset
+      datalabels: { display: false }, // desabilitado globalmente, cada dataset configura o seu
     },
     scales: {
       x: {
@@ -170,9 +200,18 @@ function PhaseDurationChart({ data, visibleDatasets, onToggleDataset }) {
         {/* Executado */}
         <ToggleRow
           color={EXECUTADO_COLOR}
-          label="Executado"
-          visible={isVisible(EXECUTADO_KEY)}
-          onToggle={() => onToggleDataset(EXECUTADO_KEY)}
+          label="Finalizado"
+          visible={isVisible(FINALIZADO_KEY)}
+          onToggle={() => onToggleDataset(FINALIZADO_KEY)}
+          solid
+        />
+
+        {/* Cronograma Atual */}
+        <ToggleRow
+          color={CRONOGRAMA_ATUAL_COLOR}
+          label="Cronograma Atual"
+          visible={isVisible(A_INICIAR_KEY)}
+          onToggle={() => onToggleDataset(A_INICIAR_KEY)}
           solid
         />
 

@@ -149,33 +149,152 @@
   background: rgba(0, 0, 0, 0.1);
 }
 
-/* Lista */
-.relatos-list {
+/* ============================================
+   Kanban Board
+   ============================================ */
+
+.relatos-kanban {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: calc(100vh - 340px);
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 0 8px;
+  min-height: 300px;
   scrollbar-width: thin;
   scrollbar-color: #d1d5db transparent;
 }
 
-.relatos-list::-webkit-scrollbar {
-  width: 6px;
+.relatos-kanban::-webkit-scrollbar {
+  height: 6px;
 }
 
-.relatos-list::-webkit-scrollbar-track {
+.relatos-kanban::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.relatos-list::-webkit-scrollbar-thumb {
+.relatos-kanban::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 3px;
 }
 
-.relatos-list::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+/* Column */
+.relatos-kanban__column {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  max-height: calc(100vh - 340px);
+  min-height: 200px;
+}
+
+/* Single column mode: expand to full width */
+.relatos-kanban--single .relatos-kanban__column {
+  flex: 1 1 auto;
+  min-width: 280px;
+  max-width: 100%;
+}
+
+/* Column header */
+.relatos-kanban__column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 3px solid var(--column-color, #e5e7eb);
+  background: white;
+  border-radius: 10px 10px 0 0;
+  flex-shrink: 0;
+}
+
+.relatos-kanban__column-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1f2937;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.relatos-kanban__column-title::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--column-color, #6b7280);
+  flex-shrink: 0;
+}
+
+.relatos-kanban__column-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  color: var(--column-color, #6b7280);
+  min-width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(107, 114, 128, 0.1);
+  border-radius: 6px;
+  padding: 0 6px;
+}
+
+/* Column body (scrollable card area) */
+.relatos-kanban__column-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.relatos-kanban__column-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.relatos-kanban__column-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.relatos-kanban__column-body::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* Empty column placeholder */
+.relatos-kanban__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 20px 12px;
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-style: italic;
+  border: 1px dashed #e5e7eb;
+  border-radius: 8px;
+  margin: 4px;
+}
+
+/* Responsive Kanban */
+@media (max-width: 768px) {
+  .relatos-kanban {
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  .relatos-kanban__column {
+    flex: none;
+    width: 100%;
+    max-height: 400px;
+  }
 }
 
 .relatos-loading {
