@@ -105,7 +105,7 @@ app.use(helmet({
 // Rate Limiting: Proteção contra ataques DDoS
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 500, // Máximo 500 requisições por IP
+  max: 5000, // Máximo 5000 requisições por IP (escritório compartilha IP)
   message: 'Muitas requisições deste IP, tente novamente em 15 minutos.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -4763,30 +4763,9 @@ app.delete('/api/okrs/:id', requireAuth, async (req, res) => {
 });
 
 /**
- * Rota: GET /api/okrs/:id
- * Retorna um OKR específico com seus Key Results
- */
-app.get('/api/okrs/:id', requireAuth, async (req, res) => {
-  try {
-    const okrId = req.params.id;
-    const okr = await fetchOKRById(okrId);
-
-    res.json({
-      success: true,
-      data: okr,
-    });
-  } catch (error) {
-    console.error('❌ Erro ao buscar OKR:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao buscar OKR',
-    });
-  }
-});
-
-/**
  * Rota: GET /api/okrs/sector-weight-sum
  * Retorna a soma dos pesos dos OKRs de um setor para um quarter
+ * IMPORTANTE: Deve ficar ANTES de /api/okrs/:id para não ser capturada como :id
  */
 app.get('/api/okrs/sector-weight-sum', requireAuth, async (req, res) => {
   try {
@@ -4824,6 +4803,28 @@ app.get('/api/okrs/sector-weight-sum', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Erro ao calcular soma de pesos',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/okrs/:id
+ * Retorna um OKR específico com seus Key Results
+ */
+app.get('/api/okrs/:id', requireAuth, async (req, res) => {
+  try {
+    const okrId = req.params.id;
+    const okr = await fetchOKRById(okrId);
+
+    res.json({
+      success: true,
+      data: okr,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar OKR:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar OKR',
     });
   }
 });
