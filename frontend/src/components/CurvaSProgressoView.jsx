@@ -379,7 +379,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   return (
     <div className="curva-s-progresso-container">
       {/* KPI Cards */}
-      <ProgressKpiCards progress={progress} prazos={prazos} loading={loading} />
+      <ProgressKpiCards progress={progress} prazos={prazos} faseAtual={selectedProject?.fase_atual || selectedProject?.status} loading={loading} />
 
       {/* Feedback de sucesso */}
       {requestSuccess && (
@@ -573,6 +573,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
               data={phaseDurations}
               visibleDatasets={visiblePhaseDurationsDatasets}
               onToggleDataset={togglePhaseDurationDataset}
+              faseAtual={selectedProject?.fase_atual || selectedProject?.status}
             />
           ) : (
             <div className="curva-s-empty">Dados de fases não disponíveis para este projeto.</div>

@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
-import RelatoCard from '../../components/relatos/RelatoCard';
+import RelatosKanbanBoard from '../../components/relatos/RelatosKanbanBoard';
 import { RelatoIcon } from '../../components/relatos/RelatoIcons';
 
 function RelatosSection({ projectCode }) {
@@ -19,7 +19,7 @@ function RelatosSection({ projectCode }) {
 
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroPrioridade, setFiltroPrioridade] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState(''); // '', 'ativos', 'resolvidos'
+  const [filtroPeriodo, setFiltroPeriodo] = useState('');
 
   const [expandedId, setExpandedId] = useState(null);
 
@@ -34,7 +34,7 @@ function RelatosSection({ projectCode }) {
     } else {
       setRelatos([]);
     }
-  }, [projectCode, filtroTipo, filtroPrioridade]);
+  }, [projectCode]);
 
   const fetchTipos = async () => {
     try {
@@ -58,12 +58,8 @@ function RelatosSection({ projectCode }) {
     if (!projectCode) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filtroTipo) params.set('tipo', filtroTipo);
-      if (filtroPrioridade) params.set('prioridade', filtroPrioridade);
-
       const res = await axios.get(
-        `${API_URL}/api/relatos/project/${encodeURIComponent(projectCode)}?${params}`,
+        `${API_URL}/api/relatos/project/${encodeURIComponent(projectCode)}`,
         { withCredentials: true }
       );
       if (res.data.success) setRelatos(res.data.data || []);
@@ -72,36 +68,33 @@ function RelatosSection({ projectCode }) {
     } finally {
       setLoading(false);
     }
-  }, [projectCode, filtroTipo, filtroPrioridade]);
+  }, [projectCode]);
 
   // Computed stats
   const stats = useMemo(() => {
-    const total = relatos.length;
-    const ativos = relatos.filter(r => !r.is_resolved).length;
-    const resolvidos = relatos.filter(r => r.is_resolved).length;
+    return { total: relatos.length };
+  }, [relatos]);
 
-    const byTipo = {};
-    tipos.forEach(t => { byTipo[t.slug] = { label: t.label, color: t.color, count: 0 }; });
-    relatos.forEach(r => {
-      if (byTipo[r.tipo_slug]) byTipo[r.tipo_slug].count++;
-    });
-
-    const byPrioridade = {};
-    prioridades.forEach(p => { byPrioridade[p.slug] = { label: p.label, color: p.color, count: 0 }; });
-    relatos.forEach(r => {
-      if (byPrioridade[r.prioridade_slug]) byPrioridade[r.prioridade_slug].count++;
-    });
-
-    return { total, ativos, resolvidos, byTipo, byPrioridade };
-  }, [relatos, tipos, prioridades]);
-
-  // Filter by status (client-side)
+  // Filtragem client-side (período + prioridade; tipo controla colunas do Kanban)
   const filteredRelatos = useMemo(() => {
-    if (!filtroStatus) return relatos;
-    if (filtroStatus === 'ativos') return relatos.filter(r => !r.is_resolved);
-    if (filtroStatus === 'resolvidos') return relatos.filter(r => r.is_resolved);
-    return relatos;
-  }, [relatos, filtroStatus]);
+    let result = relatos;
+
+    if (filtroPeriodo === 'esta-semana') {
+      const now = new Date();
+      const day = now.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+      result = result.filter(r => new Date(r.created_at) >= weekStart);
+    } else if (filtroPeriodo === 'este-mes') {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      result = result.filter(r => new Date(r.created_at) >= monthStart);
+    }
+
+    if (filtroPrioridade) result = result.filter(r => r.prioridade_slug === filtroPrioridade);
+
+    return result;
+  }, [relatos, filtroPrioridade, filtroPeriodo]);
 
   // Count per tipo chip (from filtered results)
   const tipoChipCounts = useMemo(() => {
@@ -131,27 +124,6 @@ function RelatosSection({ projectCode }) {
           <span className="vc-relatos-stat-value">{stats.total}</span>
           <span className="vc-relatos-stat-label">Total</span>
         </div>
-        <div className="vc-relatos-stat-card">
-          <span className="vc-relatos-stat-value vc-relatos-stat-value--active">{stats.ativos}</span>
-          <span className="vc-relatos-stat-label">Ativos</span>
-        </div>
-        <div className="vc-relatos-stat-card">
-          <span className="vc-relatos-stat-value vc-relatos-stat-value--resolved">{stats.resolvidos}</span>
-          <span className="vc-relatos-stat-label">Resolvidos</span>
-        </div>
-        <div className="vc-relatos-stat-divider" />
-        {Object.entries(stats.byTipo)
-          .filter(([, v]) => v.count > 0)
-          .map(([slug, v]) => (
-            <div key={slug} className="vc-relatos-stat-card vc-relatos-stat-card--tipo">
-              <span className="vc-relatos-stat-value" style={{ color: v.color }}>{v.count}</span>
-              <span className="vc-relatos-stat-label">
-                <span className="vc-relatos-stat-dot" style={{ backgroundColor: v.color }} />
-                {v.label}
-              </span>
-            </div>
-          ))
-        }
       </div>
 
       {/* Filters */}
@@ -208,61 +180,56 @@ function RelatosSection({ projectCode }) {
         </div>
 
         <div className="vc-relatos-filter-group">
-          <span className="vc-relatos-filter-label">Status</span>
+          <span className="vc-relatos-filter-label">Período</span>
           <div className="vc-relatos-chips">
             <button
-              className={`vc-relatos-chip ${filtroStatus === '' ? 'active' : ''}`}
-              onClick={() => setFiltroStatus('')}
+              className={`vc-relatos-chip ${filtroPeriodo === '' ? 'active' : ''}`}
+              onClick={() => setFiltroPeriodo('')}
             >
-              Todos
+              Sempre
             </button>
             <button
-              className={`vc-relatos-chip ${filtroStatus === 'ativos' ? 'active' : ''}`}
-              onClick={() => setFiltroStatus(filtroStatus === 'ativos' ? '' : 'ativos')}
+              className={`vc-relatos-chip ${filtroPeriodo === 'este-mes' ? 'active' : ''}`}
+              onClick={() => setFiltroPeriodo(filtroPeriodo === 'este-mes' ? '' : 'este-mes')}
             >
-              Ativos
+              Este mês
             </button>
             <button
-              className={`vc-relatos-chip ${filtroStatus === 'resolvidos' ? 'active' : ''}`}
-              onClick={() => setFiltroStatus(filtroStatus === 'resolvidos' ? '' : 'resolvidos')}
+              className={`vc-relatos-chip ${filtroPeriodo === 'esta-semana' ? 'active' : ''}`}
+              onClick={() => setFiltroPeriodo(filtroPeriodo === 'esta-semana' ? '' : 'esta-semana')}
             >
-              Resolvidos
+              Esta semana
             </button>
           </div>
         </div>
       </div>
 
-      {/* List */}
+      {/* Kanban board */}
       {loading ? (
         <div className="vc-relatos-loading">
           <div className="vc-relatos-loading-spinner" />
           Carregando relatos...
         </div>
-      ) : filteredRelatos.length === 0 ? (
+      ) : filteredRelatos.length === 0 && (filtroTipo || filtroPrioridade || filtroPeriodo) ? (
         <div className="vc-relatos-empty">
           <RelatoIcon name="clipboard" size={40} color="#d1d5db" />
           <p>Nenhum relato encontrado</p>
-          {(filtroTipo || filtroPrioridade || filtroStatus) && (
-            <button
-              className="vc-relatos-clear-filters"
-              onClick={() => { setFiltroTipo(''); setFiltroPrioridade(''); setFiltroStatus(''); }}
-            >
-              Limpar filtros
-            </button>
-          )}
+          <button
+            className="vc-relatos-clear-filters"
+            onClick={() => { setFiltroTipo(''); setFiltroPrioridade(''); setFiltroPeriodo(''); }}
+          >
+            Limpar filtros
+          </button>
         </div>
       ) : (
-        <div className="vc-relatos-grid">
-          {filteredRelatos.map(relato => (
-            <RelatoCard
-              key={relato.id}
-              relato={relato}
-              variant="client"
-              isExpanded={expandedId === relato.id}
-              onToggleExpand={() => setExpandedId(expandedId === relato.id ? null : relato.id)}
-            />
-          ))}
-        </div>
+        <RelatosKanbanBoard
+          relatos={filteredRelatos}
+          tipos={tipos}
+          filtroTipo={filtroTipo}
+          expandedId={expandedId}
+          onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+          variant="client"
+        />
       )}
 
       {/* Footer summary */}
