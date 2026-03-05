@@ -142,6 +142,49 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
   });
 
   /**
+   * GET /api/contact-requests/debug
+   * Diagnóstico: executa queries Supabase e retorna resultados brutos
+   */
+  router.get('/debug', requireAuth, async (req, res) => {
+    try {
+      if (!hasFullAccess(req.user)) {
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
+      const supabase = repo.getClient();
+
+      const countResult = await supabase
+        .from('contact_change_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pendente');
+
+      const selectAll = await supabase
+        .from('contact_change_requests')
+        .select('*')
+        .eq('status', 'pendente')
+        .order('created_at', { ascending: true });
+
+      const selectNoOrder = await supabase
+        .from('contact_change_requests')
+        .select('*')
+        .eq('status', 'pendente');
+
+      const selectMinimal = await supabase
+        .from('contact_change_requests')
+        .select('id, status, request_type, created_at')
+        .eq('status', 'pendente');
+
+      res.json({
+        count: { count: countResult.count, error: countResult.error },
+        selectAll: { rows: selectAll.data?.length, error: selectAll.error, first3: selectAll.data?.slice(0, 3) },
+        selectNoOrder: { rows: selectNoOrder.data?.length, error: selectNoOrder.error },
+        selectMinimal: { rows: selectMinimal.data?.length, error: selectMinimal.error, first3: selectMinimal.data?.slice(0, 3) },
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message, stack: error.stack });
+    }
+  });
+
+  /**
    * POST /api/contact-requests/:id/approve
    * Equipe de dados aprova a solicitação
    */

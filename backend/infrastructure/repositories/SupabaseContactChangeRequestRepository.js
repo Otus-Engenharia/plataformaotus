@@ -17,11 +17,10 @@ const UUID_FIELDS = [
   'result_contact_id', 'result_company_id',
 ];
 
-/** Garante que campos UUID contêm valores válidos (ou null) */
 function sanitizeUuidFields(data) {
   for (const field of UUID_FIELDS) {
     if (data[field] && !UUID_RE.test(String(data[field]))) {
-      console.warn(`⚠️ Campo ${field} com valor não-UUID: "${data[field]}", convertendo para null`);
+      console.warn(`Campo ${field} com valor nao-UUID: "${data[field]}", convertendo para null`);
       data[field] = null;
     }
   }
@@ -74,6 +73,11 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
     this.#supabase = getSupabaseServiceClient();
   }
 
+  /** Expõe o client Supabase para diagnóstico (endpoint /debug) */
+  getClient() {
+    return this.#supabase;
+  }
+
   async save(request) {
     const data = sanitizeUuidFields(request.toPersistence());
     delete data.id; // Auto-generated
@@ -114,7 +118,7 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('❌ findPending query error:', error.code, error.message);
+      console.error('findPending query error:', error.code, error.message);
       throw new Error(`Erro ao listar solicitações pendentes: ${error.message}`);
     }
 
