@@ -342,27 +342,23 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
         const variancia = t.VarianciaBaselineOtus;
         const dataTermino = t.DataDeTermino;
 
+        const entry = {
+          nome,
+          status: normalizeStatus(t.Status, variancia),
+          prazo_atual: sanitizeDate(dataTermino),
+          prazo_baseline: sanitizeDate(t.DataDeFimBaselineOtus),
+          variacao_dias: variancia != null ? Number(variancia) : 0,
+        };
+
         if (marcosMap.has(nome)) {
           const existing = marcosMap.get(nome);
           const existingDate = existing.prazo_atual ? new Date(existing.prazo_atual) : null;
-          const newDate = dataTermino ? new Date(dataTermino) : null;
+          const newDate = entry.prazo_atual ? new Date(entry.prazo_atual) : null;
           if (newDate && (!existingDate || newDate > existingDate)) {
-            marcosMap.set(nome, {
-              nome,
-              status: normalizeStatus(t.Status, variancia),
-              prazo_atual: dataTermino || null,
-              prazo_baseline: t.DataDeFimBaselineOtus || null,
-              variacao_dias: variancia != null ? Number(variancia) : 0,
-            });
+            marcosMap.set(nome, entry);
           }
         } else {
-          marcosMap.set(nome, {
-            nome,
-            status: normalizeStatus(t.Status, variancia),
-            prazo_atual: dataTermino || null,
-            prazo_baseline: t.DataDeFimBaselineOtus || null,
-            variacao_dias: variancia != null ? Number(variancia) : 0,
-          });
+          marcosMap.set(nome, entry);
         }
       });
 
@@ -399,6 +395,110 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
       res.json({ success: true, imported: data?.length || 0, data: data || [] });
     } catch (error) {
       console.error('Erro ao importar marcos:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/marcos-projeto/import-all
+   * Importa marcos de TODOS os projetos do portfólio de uma vez.
+   * Requer privilégio de admin/director.
+   */
+  router.post('/import-all', requireAuth, async (req, res) => {
+    try {
+      if (!isPrivileged(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      if (!bigqueryClient?.queryPortfolio || !bigqueryClient?.queryCronograma) {
+        return res.status(500).json({ success: false, error: 'BigQuery client não disponível' });
+      }
+
+      const portfolio = await bigqueryClient.queryPortfolio();
+      const projects = portfolio.filter(p => p.project_code_norm && (p.smartsheet_id || p.project_name));
+
+      const results = { total: projects.length, imported: 0, skipped: 0, errors: [], details: [] };
+
+      for (const project of projects) {
+        const pc = project.project_code_norm;
+        const ssId = project.smartsheet_id || null;
+        const pName = project.project_name || pc;
+
+        try {
+          const tasks = await bigqueryClient.queryCronograma(ssId, pName);
+
+          const marcosMap = new Map();
+          tasks.forEach(t => {
+            const marco = t.CaminhoCriticoMarco;
+            if (!marco || !String(marco).trim()) return;
+            if (String(marco).trim().toUpperCase().startsWith('INT')) return;
+
+            const nome = String(marco).trim();
+            const variancia = t.VarianciaBaselineOtus;
+            const dataTermino = t.DataDeTermino;
+
+            const entry = {
+              nome,
+              status: normalizeStatus(t.Status, variancia),
+              prazo_atual: sanitizeDate(dataTermino),
+              prazo_baseline: sanitizeDate(t.DataDeFimBaselineOtus),
+              variacao_dias: variancia != null ? Number(variancia) : 0,
+            };
+
+            if (marcosMap.has(nome)) {
+              const existing = marcosMap.get(nome);
+              const existingDate = existing.prazo_atual ? new Date(existing.prazo_atual) : null;
+              const newDate = entry.prazo_atual ? new Date(entry.prazo_atual) : null;
+              if (newDate && (!existingDate || newDate > existingDate)) {
+                marcosMap.set(nome, entry);
+              }
+            } else {
+              marcosMap.set(nome, entry);
+            }
+          });
+
+          const marcosToImport = Array.from(marcosMap.values());
+          if (marcosToImport.length === 0) {
+            results.skipped++;
+            results.details.push({ project: pc, imported: 0, message: 'Nenhum marco encontrado' });
+            continue;
+          }
+
+          const rows = marcosToImport.map((m, idx) => ({
+            project_code: pc,
+            nome: m.nome,
+            status: m.status,
+            prazo_baseline: m.prazo_baseline,
+            prazo_atual: m.prazo_atual,
+            variacao_dias: m.variacao_dias,
+            source: 'smartsheet',
+            sort_order: idx,
+            created_by: req.user?.id || null,
+            updated_at: new Date().toISOString(),
+          }));
+
+          const { data, error } = await supabase()
+            .from(TABLE)
+            .upsert(rows, { onConflict: 'project_code,nome' })
+            .select();
+
+          if (error) throw error;
+
+          const count = data?.length || 0;
+          results.imported += count;
+          results.details.push({ project: pc, imported: count });
+        } catch (err) {
+          results.errors.push({ project: pc, error: err.message });
+        }
+      }
+
+      if (logAction) {
+        await logAction(req, 'import-all', 'marco_projeto', null, `Importação em massa: ${results.imported} marcos de ${results.total} projetos`);
+      }
+
+      res.json({ success: true, ...results });
+    } catch (error) {
+      console.error('Erro ao importar marcos em massa:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -890,6 +990,19 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
   });
 
   return router;
+}
+
+/**
+ * Extrai data de valores BigQuery que podem vir como JSON objeto {"value":"2024-01-15"}
+ */
+function sanitizeDate(val) {
+  if (!val) return null;
+  if (typeof val === 'object' && val.value) return val.value;
+  const s = String(val).trim();
+  if (s.startsWith('{')) {
+    try { return JSON.parse(s).value || null; } catch { return null; }
+  }
+  return s || null;
 }
 
 /**

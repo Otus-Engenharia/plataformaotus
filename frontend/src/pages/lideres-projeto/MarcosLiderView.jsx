@@ -5,8 +5,7 @@
  * 1. Painel de Atividades (notificacoes de edicao + solicitacoes de baseline)
  * 2. Tabela de Marcos (enriched com dados do Smartsheet)
  * 3. Modal de vinculacao de tarefa do cronograma
- * 4. Importacao do Smartsheet
- * 5. CRUD completo de marcos
+ * 4. CRUD completo de marcos
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -129,10 +128,7 @@ function MarcosLiderView() {
   const [linkSearch, setLinkSearch] = useState('');
   const [linkBaseline, setLinkBaseline] = useState(false);
 
-  /* ---- Section 4: Import State ---- */
-  const [importing, setImporting] = useState(false);
-
-  /* ---- Section 5: CRUD Form State ---- */
+  /* ---- Section 4: CRUD Form State ---- */
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
@@ -424,31 +420,6 @@ function MarcosLiderView() {
   }, [cronogramaTasks, linkSearch]);
 
   /* ================================================================
-     SECTION 4: IMPORT HANDLER
-     ================================================================ */
-
-  const handleImport = async () => {
-    if (!projectCode || (!smartsheetId && !projectName)) return;
-    setImporting(true);
-    try {
-      const res = await axios.post(
-        `${API_URL}/api/marcos-projeto/import`,
-        { projectCode, smartsheetId, projectName },
-        { withCredentials: true }
-      );
-      if (res.data.success) {
-        await fetchMarcos();
-        alert(`${res.data.imported} marco(s) importado(s) do Smartsheet.`);
-      }
-    } catch (err) {
-      console.error('Erro ao importar marcos:', err);
-      alert('Erro ao importar marcos: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  /* ================================================================
      COMPUTED
      ================================================================ */
 
@@ -643,7 +614,7 @@ function MarcosLiderView() {
         </div>
       )}
 
-      {/* ---- Section 4: Actions Bar (Import + New Marco) ---- */}
+      {/* ---- Section 4: Actions Bar ---- */}
       {projectCode && (
         <div className="mlv-actions-bar">
           <button
@@ -652,22 +623,10 @@ function MarcosLiderView() {
           >
             + Novo Marco
           </button>
-          <button
-            className="mlv-btn mlv-btn-secondary"
-            onClick={handleImport}
-            disabled={importing || (!smartsheetId && !projectName)}
-            title={
-              !smartsheetId && !projectName
-                ? 'Projeto sem Smartsheet vinculado'
-                : 'Importar marcos do Smartsheet'
-            }
-          >
-            {importing ? 'Importando...' : 'Importar do Smartsheet'}
-          </button>
         </div>
       )}
 
-      {/* ---- Section 5: Create/Edit Form ---- */}
+      {/* ---- Create/Edit Form ---- */}
       {showForm && (
         <div className="mlv-form-card">
           <h3>{editingId ? 'Editar Marco' : 'Novo Marco'}</h3>
@@ -742,7 +701,7 @@ function MarcosLiderView() {
             Nenhum marco cadastrado para este projeto.
             <br />
             <span className="mlv-empty-hint">
-              Use "Importar do Smartsheet" para trazer os marcos existentes ou crie manualmente.
+              Use "+ Novo Marco" para criar marcos manualmente.
             </span>
           </div>
         ) : (
