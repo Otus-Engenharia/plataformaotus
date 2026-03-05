@@ -73,6 +73,11 @@ class SupabaseContactChangeRequestRepository extends ContactChangeRequestReposit
     this.#supabase = getSupabaseServiceClient();
   }
 
+  /** Expõe o client Supabase para diagnóstico (endpoint /debug) */
+  getClient() {
+    return this.#supabase;
+  }
+
   async save(request) {
     const data = sanitizeUuidFields(request.toPersistence());
     delete data.id; // Auto-generated
