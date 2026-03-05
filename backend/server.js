@@ -136,10 +136,14 @@ function withBqCache(ttlSeconds) {
     const hasFullAccess = ['dev', 'ceo', 'director', 'admin'].includes(role);
     const cacheIdentifier = hasFullAccess ? 'shared' : (effectiveUser?.email || 'anon');
 
-    const key = `bq:${req.path}:${cacheIdentifier}:${JSON.stringify(sortedQuery)}`;
+    // req.baseUrl inclui o mount path do router (ex: /api/contact-requests)
+    // req.path é relativo ao router (ex: /pending)
+    // Sem baseUrl, routers diferentes com mesmos paths colidem no cache
+    const fullPath = req.baseUrl + req.path;
+    const key = `bq:${fullPath}:${cacheIdentifier}:${JSON.stringify(sortedQuery)}`;
     const cached = bqCache.get(key);
     if (cached) {
-      console.log(`📦 Cache HIT: ${req.path} (${ttlSeconds}s TTL)`);
+      console.log(`📦 Cache HIT: ${fullPath} (${ttlSeconds}s TTL)`);
       return res.json(cached);
     }
 
@@ -147,7 +151,7 @@ function withBqCache(ttlSeconds) {
     res.json = (body) => {
       if (res.statusCode === 200 && body?.success !== false) {
         bqCache.set(key, body, ttlSeconds);
-        console.log(`💾 Cache SET: ${req.path} (TTL: ${ttlSeconds}s)`);
+        console.log(`💾 Cache SET: ${fullPath} (TTL: ${ttlSeconds}s)`);
       }
       return originalJson(body);
     };
