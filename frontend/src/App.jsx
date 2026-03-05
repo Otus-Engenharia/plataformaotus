@@ -14,6 +14,7 @@ import { OracleProvider, useOracle } from './contexts/OracleContext';
 import { PortfolioProvider } from './contexts/PortfolioContext';
 import { VistaClienteProvider } from './contexts/VistaClienteContext';
 import axios from 'axios';
+import { getSeenFeedbackIds } from './utils/feedbackSeenTracker';
 import DevImpersonationPanel from './components/DevImpersonationPanel';
 import IndicadoresLiderancaView from './components/IndicadoresLiderancaView';
 import ProjetosView from './components/ProjetosView';
@@ -357,8 +358,16 @@ function Sidebar({ collapsed, onToggle, area }) {
       axios.get('/api/feedbacks/pending-counts', { withCredentials: true })
         .then(res => {
           if (res.data.success) {
-            setPendingBugCount(res.data.data.bugs || 0);
-            setPendingFeedbackCount(res.data.data.feedbacks || 0);
+            const d = res.data.data;
+            // Filtrar por seenIds para mostrar apenas pendentes não vistos
+            if (user?.id && d.bugs_ids && d.feedbacks_ids) {
+              const seenIds = getSeenFeedbackIds(user.id);
+              setPendingBugCount(d.bugs_ids.filter(id => !seenIds.has(String(id))).length);
+              setPendingFeedbackCount(d.feedbacks_ids.filter(id => !seenIds.has(String(id))).length);
+            } else {
+              setPendingBugCount(d.bugs || 0);
+              setPendingFeedbackCount(d.feedbacks || 0);
+            }
           }
         })
         .catch(() => {});
@@ -382,8 +391,15 @@ function Sidebar({ collapsed, onToggle, area }) {
 
     fetchBadgeCounts();
     const interval = setInterval(fetchBadgeCounts, 120000); // 2 min
-    return () => clearInterval(interval);
-  }, [isPrivileged]);
+
+    // Recalcular badges quando admin marca feedbacks como vistos
+    window.addEventListener('feedbacks-seen-updated', fetchBadgeCounts);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('feedbacks-seen-updated', fetchBadgeCounts);
+    };
+  }, [isPrivileged, user?.id]);
 
   // Atualizar last_seen e limpar badge quando acessar feedbacks
   useEffect(() => {

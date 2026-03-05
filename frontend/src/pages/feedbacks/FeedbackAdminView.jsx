@@ -276,10 +276,11 @@ export default function FeedbackAdminView({ category = 'all' }) {
     setEditStatus(normalizeStatus(feedback.status));
     setEditAnalysis(feedback.admin_analysis || '');
     setEditAction(feedback.admin_action || '');
-    // Marcar como visto
+    // Marcar como visto e atualizar badge do sidebar
     if (user?.id) {
       markFeedbackSeen(user.id, feedback.id);
       setSeenIds(prev => new Set([...prev, String(feedback.id)]));
+      window.dispatchEvent(new Event('feedbacks-seen-updated'));
     }
   };
 
@@ -600,6 +601,7 @@ export default function FeedbackAdminView({ category = 'all' }) {
     if (!user?.id) return;
     markAllFeedbacksSeen(user.id, feedbacks.map(f => f.id));
     setSeenIds(new Set(feedbacks.map(f => String(f.id))));
+    window.dispatchEvent(new Event('feedbacks-seen-updated'));
   };
 
   const hasActiveFilters = filterStatus || filterTipo || searchTerm;
@@ -675,12 +677,6 @@ export default function FeedbackAdminView({ category = 'all' }) {
               <Icons.Kanban />
             </button>
           </div>
-          {unseenCount > 0 && (
-            <button onClick={handleMarkAllRead} className="btn-mark-read" title="Marcar todos como lidos">
-              <Icons.CheckCircle />
-              Marcar {unseenCount} como lidos
-            </button>
-          )}
           <button onClick={fetchFeedbacks} className="btn-refresh">
             <Icons.Refresh />
             Atualizar
@@ -791,11 +787,19 @@ export default function FeedbackAdminView({ category = 'all' }) {
             Mostrando <strong>{filteredFeedbacks.length}</strong> de{' '}
             <strong>{feedbacks.length}</strong> feedbacks
           </span>
-          {hasActiveFilters && (
-            <button className="btn-clear-filters" onClick={clearFilters}>
-              Limpar filtros
-            </button>
-          )}
+          <div className="filters-footer__actions">
+            {unseenCount > 0 && (
+              <button onClick={handleMarkAllRead} className="btn-mark-read" title="Marcar todos como vistos">
+                <Icons.CheckCircle />
+                Marcar {unseenCount} como vistos
+              </button>
+            )}
+            {hasActiveFilters && (
+              <button className="btn-clear-filters" onClick={clearFilters}>
+                Limpar filtros
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
