@@ -1,46 +1,34 @@
 /**
- * Componente: Painel de Cobertura de Disciplinas
+ * Componente: Painel de Controle de Disciplinas (Redesign v2)
  *
- * Análise cruzada mostrando disciplinas cadastradas em cada sistema:
- * Smartsheet (cronograma), ConstruFlow (issues), Otus (equipe).
- * Destaca disciplinas pendentes e permite mapeamento personalizado.
+ * Layout orientado a AÇÕES com 3 categorias:
+ * 1. Cadastrar na Otus (alta prioridade) - disciplinas em SS+CF mas não na Otus
+ * 2. Verificar Cadastro (média prioridade) - disciplinas com cobertura parcial
+ * 3. Regularizado - disciplinas presentes em todos os 3 sistemas
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import '../styles/DisciplineCoveragePanel.css';
 
-// Ícones SVG inline
-const CheckIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+// ===== SVG Icons =====
+
+const CheckIcon = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
-const DashIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <line x1="7" y1="12" x2="17" y2="12" />
-  </svg>
-);
-
-const AlertIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 9v4" />
-    <circle cx="12" cy="16" r="0.5" fill="currentColor" />
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-  </svg>
-);
-
 const PlusIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 
 const LinkIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
   </svg>
@@ -53,76 +41,170 @@ const CloseIcon = () => (
   </svg>
 );
 
-// Badge de completude colorido
-function CompletionBadge({ percentage }) {
-  let color, bg;
-  if (percentage >= 100) { color = '#a16207'; bg = '#fef9c3'; }
-  else if (percentage >= 80) { color = '#15803d'; bg = '#dcfce7'; }
-  else if (percentage >= 50) { color = '#a16207'; bg = '#fef3c7'; }
-  else { color = '#dc2626'; bg = '#fef2f2'; }
-
-  return (
-    <span
-      className="dcov-badge"
-      style={{ color, background: bg }}
-      title={`${percentage}% das disciplinas externas estão presentes em todos os 3 sistemas (Smartsheet, ConstruFlow e Otus)`}
-    >
-      {percentage >= 100 ? (
-        <>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          100%
-        </>
-      ) : (
-        `${percentage}%`
-      )}
-    </span>
-  );
-}
-
-// Indicador de status por célula da matriz
-function StatusIndicator({ present, missing, mapped }) {
-  if (missing) {
-    return (
-      <span className="dcov-status dcov-status--missing" title="Pendente de registro - requer ação do coordenador">
-        <AlertIcon />
-      </span>
-    );
-  }
-  if (present) {
-    return (
-      <span
-        className={`dcov-status dcov-status--present${mapped ? ' dcov-status--mapped' : ''}`}
-        title={mapped ? `Conectado manualmente a "${mapped}"` : 'Presente neste sistema'}
-      >
-        <CheckIcon />
-      </span>
-    );
-  }
-  return (
-    <span className="dcov-status dcov-status--absent" title="Não encontrado neste sistema">
-      <DashIcon />
-    </span>
-  );
-}
-
-const InfoIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="16" x2="12" y2="12" />
-    <line x1="12" y1="8" x2="12.01" y2="8" />
+const ChevronIcon = ({ open }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 );
+
+const AlertCircleIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
+// ===== Progress Ring =====
+
+function ProgressRing({ percentage, complete, total }) {
+  const size = 72;
+  const strokeWidth = 6;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
+
+  let color;
+  if (percentage >= 100) color = '#16a34a';
+  else if (percentage >= 80) color = '#16a34a';
+  else if (percentage >= 50) color = '#d97706';
+  else color = '#dc2626';
+
+  return (
+    <div className="dcov-ring-wrapper" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="dcov-ring-svg">
+        <circle
+          className="dcov-ring-bg"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          className="dcov-ring-fill"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+          style={{
+            strokeDasharray: circumference,
+            strokeDashoffset: offset,
+            stroke: color,
+          }}
+        />
+      </svg>
+      <div className="dcov-ring-center">
+        <span className="dcov-ring-percent" style={{ color }}>{percentage}%</span>
+        <span className="dcov-ring-label">Cobertura</span>
+      </div>
+    </div>
+  );
+}
+
+// ===== Action Summary Strip =====
+
+function ActionSummaryStrip({ cadastrarCount, verificarCount, regularizadoCount, sectionRefs }) {
+  const scrollTo = (ref) => {
+    if (ref?.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  return (
+    <div className="dcov-strip">
+      <button
+        type="button"
+        className={`dcov-pill dcov-pill--red${cadastrarCount === 0 ? ' dcov-pill--muted' : ''}`}
+        onClick={() => scrollTo(sectionRefs.cadastrar)}
+        disabled={cadastrarCount === 0}
+      >
+        <span className="dcov-pill-icon"><AlertCircleIcon /></span>
+        <span className="dcov-pill-text">
+          <span className="dcov-pill-count">{cadastrarCount}</span>
+          <span className="dcov-pill-label">Cadastrar</span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        className={`dcov-pill dcov-pill--amber${verificarCount === 0 ? ' dcov-pill--muted' : ''}`}
+        onClick={() => scrollTo(sectionRefs.verificar)}
+        disabled={verificarCount === 0}
+      >
+        <span className="dcov-pill-icon"><SearchIcon /></span>
+        <span className="dcov-pill-text">
+          <span className="dcov-pill-count">{verificarCount}</span>
+          <span className="dcov-pill-label">Verificar</span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        className={`dcov-pill dcov-pill--green${regularizadoCount === 0 ? ' dcov-pill--muted' : ''}`}
+        onClick={() => scrollTo(sectionRefs.regularizado)}
+        disabled={regularizadoCount === 0}
+      >
+        <span className="dcov-pill-icon"><CheckIcon size={14} /></span>
+        <span className="dcov-pill-text">
+          <span className="dcov-pill-count">{regularizadoCount}</span>
+          <span className="dcov-pill-label">Regularizado</span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
+// ===== Collapsible Section =====
+
+function CollapsibleSection({ title, count, variant, defaultOpen, children, sectionRef }) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className={`dcov-section dcov-section--${variant}`} ref={sectionRef}>
+      <button
+        type="button"
+        className="dcov-section-header"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
+        <span className="dcov-section-header-dot" />
+        {title}
+        <span className="dcov-section-header-count">({count})</span>
+        <span className={`dcov-section-chevron${open ? ' dcov-section-chevron--open' : ''}`}>
+          <ChevronIcon open={open} />
+        </span>
+      </button>
+      {open && (
+        <div className="dcov-section-body">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== Main Component =====
 
 function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDisciplines = [], projectId, onMappingChange }) {
   const [expandedMapping, setExpandedMapping] = useState(null);
   const [selectedDisciplineId, setSelectedDisciplineId] = useState('');
   const [freeTextTarget, setFreeTextTarget] = useState('');
-  const [mappingMode, setMappingMode] = useState('standard'); // 'standard' | 'free'
+  const [mappingMode, setMappingMode] = useState('standard');
   const [savingMapping, setSavingMapping] = useState(false);
 
-  // Salva mapeamento personalizado (padrão ou livre)
+  // Refs for scroll-to
+  const cadastrarRef = useRef(null);
+  const verificarRef = useRef(null);
+  const regularizadoRef = useRef(null);
+
+  // Save mapping
   const handleSaveMapping = async (discipline) => {
     if (mappingMode === 'standard' && !selectedDisciplineId) return;
     if (mappingMode === 'free' && !freeTextTarget.trim()) return;
@@ -156,7 +238,7 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
     }
   };
 
-  // Remove mapeamento personalizado
+  // Remove mapping
   const handleRemoveMapping = async (mappingId) => {
     try {
       await axios.delete(`${API_URL}/api/projetos/equipe/mapeamentos-disciplinas/${mappingId}`, { withCredentials: true });
@@ -166,12 +248,13 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="dcov-panel dcov-panel--loading">
-        <div className="dcov-panel-header">
-          <div className="dcov-panel-title-row">
-            <h4 className="dcov-panel-title">Cobertura de Disciplinas</h4>
+        <div className="dcov-hero">
+          <div className="dcov-hero-text">
+            <h4 className="dcov-panel-title">Controle de Disciplinas</h4>
           </div>
         </div>
         <div className="dcov-loading" role="status">
@@ -190,8 +273,8 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
   if (!hasExternalData && otus.length === 0) {
     return (
       <div className="dcov-panel dcov-panel--empty">
-        <div className="dcov-panel-header">
-          <h4 className="dcov-panel-title">Cobertura de Disciplinas</h4>
+        <div className="dcov-hero">
+          <h4 className="dcov-panel-title">Controle de Disciplinas</h4>
         </div>
         <p className="dcov-empty-text">
           Nenhuma disciplina encontrada nos sistemas externos para este projeto.
@@ -200,319 +283,330 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
     );
   }
 
-  // Sub-grupos do backend
+  // ===== Data transformation: 6 sub-groups → 3 action buckets =====
   const g = groups || {};
-  const completeList = g.completeInAll3 || [];
 
-  // Sub-grupos de pendências (ordem: vermelho → laranja → amarelo)
-  const pendencySubgroups = [
-    { key: 'notInOtus', items: g.notInOtus || [], label: 'Somente não na Otus', tooltip: 'Presente no Smartsheet e ConstruFlow, mas NÃO registrada na Otus. Registre ou conecte manualmente', color: 'red' },
-    { key: 'onlySmartsheet', items: g.onlySmartsheet || [], label: 'Somente no Smartsheet', tooltip: 'Presente apenas no Smartsheet. Falta no ConstruFlow e na Otus', color: 'orange' },
-    { key: 'onlyConstruflow', items: g.onlyConstruflow || [], label: 'Somente no ConstruFlow', tooltip: 'Presente apenas no ConstruFlow. Falta no Smartsheet e na Otus', color: 'orange' },
-    { key: 'onlyOtus', items: g.onlyOtus || [], label: 'Somente na Otus', tooltip: 'Cadastrada na Otus mas não encontrada no Smartsheet nem no ConstruFlow. Pode indicar nome divergente nos sistemas externos', color: 'orange' },
-    { key: 'missingConstruflow', items: g.missingConstruflow || [], label: 'Falta no ConstruFlow', tooltip: 'Presente no Smartsheet e Otus, mas não encontrada no ConstruFlow', color: 'yellow' },
-    { key: 'missingSmartsheet', items: g.missingSmartsheet || [], label: 'Falta no Smartsheet', tooltip: 'Presente no ConstruFlow e Otus, mas não encontrada no Smartsheet', color: 'yellow' },
-  ].filter(sg => sg.items.length > 0);
+  const cadastrarNaOtus = g.notInOtus || [];
 
-  const totalPending = pendencySubgroups.reduce((sum, sg) => sum + sg.items.length, 0);
+  const verificarCadastro = [
+    ...(g.onlySmartsheet || []).map(d => ({ ...d, _tag: 'Somente no Smartsheet', _tagColor: 'orange' })),
+    ...(g.onlyConstruflow || []).map(d => ({ ...d, _tag: 'Somente no ConstruFlow', _tagColor: 'orange' })),
+    ...(g.onlyOtus || []).map(d => ({ ...d, _tag: 'Somente na Otus', _tagColor: 'orange' })),
+    ...(g.missingConstruflow || []).map(d => ({ ...d, _tag: 'Falta no ConstruFlow', _tagColor: 'yellow' })),
+    ...(g.missingSmartsheet || []).map(d => ({ ...d, _tag: 'Falta no Smartsheet', _tagColor: 'yellow' })),
+  ];
 
-  // Renderiza uma linha da matriz
-  const renderDisciplineRow = (d, groupType) => {
-    const isAction = groupType === 'pending';
+  const regularizado = g.completeInAll3 || [];
+
+  // Render inline mapping form
+  const renderMappingForm = (discipline) => (
+    <div className="dcov-mapping-row">
+      <div className="dcov-mapping-content">
+        <span className="dcov-mapping-label">
+          Conectar &ldquo;{discipline.name}&rdquo; a:
+        </span>
+
+        <div className="dcov-mapping-mode-toggle">
+          <button
+            type="button"
+            className={`dcov-mode-btn${mappingMode === 'standard' ? ' dcov-mode-btn--active' : ''}`}
+            onClick={() => setMappingMode('standard')}
+          >
+            Disciplina Otus
+          </button>
+          <button
+            type="button"
+            className={`dcov-mode-btn${mappingMode === 'free' ? ' dcov-mode-btn--active' : ''}`}
+            onClick={() => setMappingMode('free')}
+          >
+            Nome livre
+          </button>
+        </div>
+
+        <div className="dcov-mapping-controls">
+          {mappingMode === 'standard' ? (
+            <select
+              className="dcov-mapping-select"
+              value={selectedDisciplineId}
+              onChange={(e) => setSelectedDisciplineId(e.target.value)}
+            >
+              <option value="">Selecione...</option>
+              {standardDisciplines.map(sd => (
+                <option key={sd.id} value={sd.id}>
+                  {sd.discipline_name}{sd.short_name ? ` (${sd.short_name})` : ''}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              className="dcov-mapping-input"
+              value={freeTextTarget}
+              onChange={(e) => setFreeTextTarget(e.target.value)}
+              placeholder="Ex: Elétrico, dados e SPDA"
+            />
+          )}
+          <button
+            className="dcov-mapping-btn dcov-mapping-btn--save"
+            onClick={() => handleSaveMapping(discipline)}
+            disabled={
+              savingMapping ||
+              (mappingMode === 'standard' && !selectedDisciplineId) ||
+              (mappingMode === 'free' && !freeTextTarget.trim())
+            }
+          >
+            {savingMapping ? 'Salvando...' : 'Salvar'}
+          </button>
+          <button
+            className="dcov-mapping-btn dcov-mapping-btn--cancel"
+            onClick={() => {
+              setExpandedMapping(null);
+              setSelectedDisciplineId('');
+              setFreeTextTarget('');
+              setMappingMode('standard');
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render a discipline card for "Cadastrar" section
+  const renderCadastrarCard = (d) => {
     const isExpanded = expandedMapping === d.normKey;
     const canRegisterInOtus = !d.inOtus && !d.hasCustomMapping;
     const canLinkMapping = !d.hasCustomMapping;
 
     return (
       <React.Fragment key={d.normKey}>
-        <div className={`dcov-matrix-row${isAction ? ' dcov-matrix-row--action' : ''}`}>
-          <div className="dcov-matrix-col-name">
-            {d.name}
-            {d.hasCustomMapping && d.mappedToName && (
-              <span
-                className={`dcov-custom-badge${d.isFreeMapping ? ' dcov-custom-badge--free' : ''}`}
-                title={
-                  d.isFreeMapping
-                    ? `Mapeamento livre: "${d.name}" → "${d.mappedToName}"`
-                    : `Conectado à disciplina Otus "${d.mappedToName}"`
-                }
-              >
-                <LinkIcon /> {d.mappedToName}
-                <button
-                  className="dcov-custom-badge-remove"
-                  onClick={() => handleRemoveMapping(d.mappingId)}
-                  title="Remover conexão personalizada"
-                  aria-label={`Remover mapeamento de ${d.name}`}
+        <div className="dcov-card dcov-card--high">
+          <div className="dcov-card-info">
+            <div className="dcov-card-name">
+              {d.name}
+              {d.hasCustomMapping && d.mappedToName && (
+                <span
+                  className={`dcov-custom-badge${d.isFreeMapping ? ' dcov-custom-badge--free' : ''}`}
+                  title={
+                    d.isFreeMapping
+                      ? `Mapeamento livre: "${d.name}" → "${d.mappedToName}"`
+                      : `Conectado à disciplina Otus "${d.mappedToName}"`
+                  }
                 >
-                  <CloseIcon />
-                </button>
-              </span>
-            )}
-          </div>
-          <div className="dcov-matrix-col-system">
-            <StatusIndicator present={d.inSmartsheet} />
-          </div>
-          <div className="dcov-matrix-col-system">
-            <StatusIndicator present={d.inConstruflow} />
-          </div>
-          <div className="dcov-matrix-col-system">
-            {d.inOtus ? (
-              <StatusIndicator present={true} mapped={d.hasCustomMapping ? d.mappedToName : null} />
-            ) : (
-              <StatusIndicator missing={isAction} present={false} />
-            )}
-          </div>
-          <div className="dcov-matrix-col-action">
-            {isAction && (
-              <div className="dcov-action-buttons">
-                {canRegisterInOtus && onQuickAdd && (
+                  <LinkIcon /> {d.mappedToName}
                   <button
-                    className="dcov-quick-add"
-                    onClick={() => onQuickAdd(d.name)}
-                    title="Cadastrar esta disciplina na equipe do projeto (cria novo registro na Otus)"
-                    aria-label={`Cadastrar ${d.name} na Otus`}
+                    className="dcov-custom-badge-remove"
+                    onClick={() => handleRemoveMapping(d.mappingId)}
+                    title="Remover conexão"
+                    aria-label={`Remover mapeamento de ${d.name}`}
                   >
-                    <PlusIcon />
+                    <CloseIcon />
                   </button>
-                )}
-                {canLinkMapping && standardDisciplines.length > 0 && (
-                  <button
-                    className="dcov-mapping-toggle"
-                    onClick={() => {
-                      setExpandedMapping(isExpanded ? null : d.normKey);
-                      setSelectedDisciplineId('');
-                    }}
-                    title="Vincular esta disciplina externa a uma disciplina padrão Otus (nomes diferentes, mesma disciplina)"
-                    aria-label={`Vincular ${d.name}`}
-                  >
-                    <LinkIcon />
-                  </button>
-                )}
-              </div>
+                </span>
+              )}
+            </div>
+            <div className="dcov-card-desc">Presente no Smartsheet e ConstruFlow, falta na Otus</div>
+          </div>
+          <div className="dcov-card-actions">
+            {canRegisterInOtus && onQuickAdd && (
+              <button
+                className="dcov-btn-primary"
+                onClick={() => onQuickAdd(d.name)}
+                aria-label={`Cadastrar ${d.name} na Otus`}
+              >
+                <PlusIcon /> Cadastrar
+              </button>
+            )}
+            {canLinkMapping && standardDisciplines.length > 0 && (
+              <button
+                className="dcov-btn-secondary"
+                onClick={() => {
+                  setExpandedMapping(isExpanded ? null : d.normKey);
+                  setSelectedDisciplineId('');
+                  setFreeTextTarget('');
+                  setMappingMode('standard');
+                }}
+                aria-label={`Vincular ${d.name}`}
+              >
+                <LinkIcon /> Vincular
+              </button>
             )}
           </div>
         </div>
+        {isExpanded && renderMappingForm(d)}
+      </React.Fragment>
+    );
+  };
 
-        {/* Dropdown inline de mapeamento */}
-        {isExpanded && (
-          <div className="dcov-mapping-row">
-            <div className="dcov-mapping-content">
-              <span className="dcov-mapping-label">
-                Conectar "{d.name}" a:
-              </span>
+  // Render a discipline card for "Verificar" section
+  const renderVerificarCard = (d) => {
+    const isExpanded = expandedMapping === d.normKey;
+    const canLinkMapping = !d.hasCustomMapping;
 
-              {/* Toggle entre modo padrão e livre */}
-              <div className="dcov-mapping-mode-toggle">
-                <button
-                  type="button"
-                  className={`dcov-mode-btn${mappingMode === 'standard' ? ' dcov-mode-btn--active' : ''}`}
-                  onClick={() => setMappingMode('standard')}
-                  title="Vincular a uma disciplina cadastrada na Otus"
-                >
-                  Disciplina Otus
-                </button>
-                <button
-                  type="button"
-                  className={`dcov-mode-btn${mappingMode === 'free' ? ' dcov-mode-btn--active' : ''}`}
-                  onClick={() => setMappingMode('free')}
-                  title="Mapear para um nome livre (quando o nome no outro sistema é diferente)"
-                >
-                  Nome livre
-                </button>
-              </div>
-
-              <div className="dcov-mapping-controls">
-                {mappingMode === 'standard' ? (
-                  <select
-                    className="dcov-mapping-select"
-                    value={selectedDisciplineId}
-                    onChange={(e) => setSelectedDisciplineId(e.target.value)}
-                    title="Selecione a disciplina Otus equivalente a esta disciplina externa"
-                  >
-                    <option value="">Selecione...</option>
-                    {standardDisciplines.map(sd => (
-                      <option key={sd.id} value={sd.id}>
-                        {sd.discipline_name}{sd.short_name ? ` (${sd.short_name})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    className="dcov-mapping-input"
-                    value={freeTextTarget}
-                    onChange={(e) => setFreeTextTarget(e.target.value)}
-                    placeholder="Ex: Elétrico, dados e SPDA"
-                    title="Digite o nome exato como aparece no outro sistema"
-                  />
-                )}
-                <button
-                  className="dcov-mapping-btn dcov-mapping-btn--save"
-                  onClick={() => handleSaveMapping(d)}
-                  disabled={
-                    savingMapping ||
-                    (mappingMode === 'standard' && !selectedDisciplineId) ||
-                    (mappingMode === 'free' && !freeTextTarget.trim())
+    return (
+      <React.Fragment key={d.normKey}>
+        <div className="dcov-card dcov-card--medium">
+          <div className="dcov-card-info">
+            <div className="dcov-card-name">
+              {d.name}
+              {d._tag && (
+                <span className={`dcov-card-tag dcov-card-tag--${d._tagColor}`}>
+                  {d._tag}
+                </span>
+              )}
+              {d.hasCustomMapping && d.mappedToName && (
+                <span
+                  className={`dcov-custom-badge${d.isFreeMapping ? ' dcov-custom-badge--free' : ''}`}
+                  title={
+                    d.isFreeMapping
+                      ? `Mapeamento livre: "${d.name}" → "${d.mappedToName}"`
+                      : `Conectado à disciplina Otus "${d.mappedToName}"`
                   }
-                  title="Salvar conexão entre as disciplinas"
                 >
-                  {savingMapping ? 'Salvando...' : 'Salvar'}
-                </button>
-                <button
-                  className="dcov-mapping-btn dcov-mapping-btn--cancel"
-                  onClick={() => {
-                    setExpandedMapping(null);
-                    setSelectedDisciplineId('');
-                    setFreeTextTarget('');
-                    setMappingMode('standard');
-                  }}
-                  title="Cancelar mapeamento"
-                >
-                  Cancelar
-                </button>
-              </div>
+                  <LinkIcon /> {d.mappedToName}
+                  <button
+                    className="dcov-custom-badge-remove"
+                    onClick={() => handleRemoveMapping(d.mappingId)}
+                    title="Remover conexão"
+                    aria-label={`Remover mapeamento de ${d.name}`}
+                  >
+                    <CloseIcon />
+                  </button>
+                </span>
+              )}
             </div>
           </div>
-        )}
+          <div className="dcov-card-actions">
+            {!d.inOtus && !d.hasCustomMapping && onQuickAdd && (
+              <button
+                className="dcov-btn-primary"
+                onClick={() => onQuickAdd(d.name)}
+                aria-label={`Cadastrar ${d.name} na Otus`}
+              >
+                <PlusIcon /> Cadastrar
+              </button>
+            )}
+            {canLinkMapping && standardDisciplines.length > 0 && (
+              <button
+                className="dcov-btn-secondary"
+                onClick={() => {
+                  setExpandedMapping(isExpanded ? null : d.normKey);
+                  setSelectedDisciplineId('');
+                  setFreeTextTarget('');
+                  setMappingMode('standard');
+                }}
+                aria-label={`Vincular ${d.name}`}
+              >
+                <LinkIcon /> Vincular
+              </button>
+            )}
+          </div>
+        </div>
+        {isExpanded && renderMappingForm(d)}
       </React.Fragment>
     );
   };
 
   return (
     <div className="dcov-panel">
-      {/* Header */}
-      <div className="dcov-panel-header">
-        <div className="dcov-panel-title-row">
-          <div className="dcov-panel-title-left">
-            <h4 className="dcov-panel-title">Cobertura de Disciplinas</h4>
-            {hasExternalData && (
-              <CompletionBadge percentage={analysis.completionPercentage} />
-            )}
-            <span className="dcov-info-icon" title="Este painel compara as disciplinas cadastradas em 3 sistemas: Smartsheet (cronograma), ConstruFlow (apontamentos) e Otus (equipe do projeto). O ideal é que todas estejam presentes nos 3 sistemas. Use o botão '+' para cadastrar e o ícone de link para vincular nomes diferentes que representam a mesma disciplina.">
-              <InfoIcon />
-            </span>
-          </div>
+      {/* A: Hero - Title + Progress Ring */}
+      <div className="dcov-hero">
+        <div className="dcov-hero-text">
+          <h4 className="dcov-panel-title">Controle de Disciplinas</h4>
+          <p className="dcov-hero-subtitle">
+            <strong>{analysis.completeInAll3 || 0}</strong> de <strong>{analysis.totalUnique || 0}</strong> disciplinas regularizadas nos 3 sistemas
+          </p>
         </div>
+        {hasExternalData && (
+          <ProgressRing
+            percentage={analysis.completionPercentage || 0}
+            complete={analysis.completeInAll3 || 0}
+            total={analysis.totalUnique || 0}
+          />
+        )}
       </div>
 
       <div className="dcov-panel-body">
-        {/* System Count Indicators */}
-        <div className="dcov-system-counts">
-          <div className="dcov-system-count dcov-system-count--ss" title="Disciplinas encontradas no cronograma Smartsheet">
-            <span className="dcov-system-count-value">{analysis.smartsheetCount || 0}</span>
-            <span className="dcov-system-count-label">Smartsheet</span>
-          </div>
-          <div className="dcov-system-count dcov-system-count--cf" title="Disciplinas com apontamentos no ConstruFlow">
-            <span className="dcov-system-count-value">{analysis.construflowCount || 0}</span>
-            <span className="dcov-system-count-label">ConstruFlow</span>
-          </div>
-          <div className="dcov-system-count dcov-system-count--otus" title="Disciplinas cadastradas na equipe Otus">
-            <span className="dcov-system-count-value">{analysis.otusCount || 0}</span>
-            <span className="dcov-system-count-label">Otus</span>
-          </div>
-        </div>
+        {/* B: Action Summary Strip */}
+        <ActionSummaryStrip
+          cadastrarCount={cadastrarNaOtus.length}
+          verificarCount={verificarCadastro.length}
+          regularizadoCount={regularizado.length}
+          sectionRefs={{
+            cadastrar: cadastrarRef,
+            verificar: verificarRef,
+            regularizado: regularizadoRef,
+          }}
+        />
 
-        {/* Summary Cards */}
-        <div className="dcov-summary-cards">
-          <div className="dcov-card" title="Total de disciplinas únicas encontradas em todos os sistemas combinados">
-            <span className="dcov-card-value">{analysis.totalUnique || 0}</span>
-            <span className="dcov-card-label">Total Encontradas</span>
-          </div>
-          <div className="dcov-card dcov-card--success" title="Disciplinas presentes em todos os 3 sistemas: Smartsheet, ConstruFlow e Otus">
-            <span className="dcov-card-value">{analysis.completeInAll3 || 0}</span>
-            <span className="dcov-card-label">Completo (3/3)</span>
-          </div>
-          <div
-            className={`dcov-card ${totalPending > 0 ? 'dcov-card--danger' : 'dcov-card--success'}`}
-            title="Disciplinas que faltam em pelo menos 1 dos 3 sistemas - requerem ação"
+        {/* C: Cadastrar na Otus (always open) */}
+        {cadastrarNaOtus.length > 0 && (
+          <CollapsibleSection
+            title="Cadastrar na Otus"
+            count={cadastrarNaOtus.length}
+            variant="red"
+            defaultOpen={true}
+            sectionRef={cadastrarRef}
           >
-            <span className="dcov-card-value">{totalPending}</span>
-            <span className="dcov-card-label">Pendentes</span>
-          </div>
-        </div>
+            {cadastrarNaOtus.map(d => renderCadastrarCard(d))}
+          </CollapsibleSection>
+        )}
 
-        {/* Discipline Matrix */}
-        <div className="dcov-matrix">
-          {/* Column headers */}
-          <div className="dcov-matrix-header">
-            <div className="dcov-matrix-col-name" title="Nome da disciplina conforme registrado nos sistemas">Disciplina</div>
-            <div className="dcov-matrix-col-system">
-              <span className="dcov-system-label dcov-system-label--ss" title="Disciplinas encontradas no cronograma Smartsheet do projeto">Smartsheet</span>
-            </div>
-            <div className="dcov-matrix-col-system">
-              <span className="dcov-system-label dcov-system-label--cf" title="Disciplinas com apontamentos registrados no ConstruFlow">ConstruFlow</span>
-            </div>
-            <div className="dcov-matrix-col-system">
-              <span className="dcov-system-label dcov-system-label--otus" title="Disciplinas cadastradas na equipe do projeto na plataforma Otus">Otus</span>
-            </div>
-            <div className="dcov-matrix-col-action"></div>
-          </div>
+        {/* D: Verificar Cadastro (collapsed if there are cadastrar items) */}
+        {verificarCadastro.length > 0 && (
+          <CollapsibleSection
+            title="Verificar Cadastro"
+            count={verificarCadastro.length}
+            variant="amber"
+            defaultOpen={cadastrarNaOtus.length === 0}
+            sectionRef={verificarRef}
+          >
+            {verificarCadastro.map(d => renderVerificarCard(d))}
+          </CollapsibleSection>
+        )}
 
-          {/* Pending Group - Requer Atenção com sub-grupos */}
-          {totalPending > 0 && (
-            <div className="dcov-group dcov-group--action">
-              <div
-                className="dcov-group-label"
-                title="Disciplinas que NÃO estão registradas em todos os 3 sistemas. Requerem ação do coordenador"
-              >
-                <span className="dcov-group-dot dcov-group-dot--action" />
-                Requer Atenção ({totalPending})
+        {/* E: Regularizado (always collapsed) */}
+        {regularizado.length > 0 && (
+          <CollapsibleSection
+            title="Regularizado"
+            count={regularizado.length}
+            variant="green"
+            defaultOpen={false}
+            sectionRef={regularizadoRef}
+          >
+            {regularizado.map(d => (
+              <div key={d.normKey} className="dcov-completed-row">
+                {d.name}
+                <div className="dcov-completed-checks">
+                  <span className="dcov-mini-check" title="Smartsheet"><CheckIcon size={12} /></span>
+                  <span className="dcov-mini-check" title="ConstruFlow"><CheckIcon size={12} /></span>
+                  <span className="dcov-mini-check" title="Otus"><CheckIcon size={12} /></span>
+                </div>
               </div>
+            ))}
+          </CollapsibleSection>
+        )}
 
-              {pendencySubgroups.map(sg => (
-                <React.Fragment key={sg.key}>
-                  <div
-                    className={`dcov-subgroup-label dcov-subgroup--${sg.color}`}
-                    title={sg.tooltip}
-                  >
-                    <span className={`dcov-subgroup-dot dcov-subgroup-dot--${sg.color}`} />
-                    {sg.label} ({sg.items.length})
-                  </div>
-                  {sg.items.map(d => renderDisciplineRow(d, 'pending'))}
-                </React.Fragment>
-              ))}
+        {/* F: System Details (collapsible disclosure) */}
+        <details className="dcov-disclosure">
+          <summary>Detalhes dos Sistemas</summary>
+          <div className="dcov-disclosure-body">
+            <div className="dcov-system-item dcov-system-item--ss">
+              <span className="dcov-system-item-value">{analysis.smartsheetCount || 0}</span>
+              <span className="dcov-system-item-label">Smartsheet</span>
             </div>
-          )}
-
-          {/* Complete Group */}
-          {completeList.length > 0 && (
-            <div className="dcov-group dcov-group--complete">
-              <div
-                className="dcov-group-label"
-                title="Disciplinas presentes nos 3 sistemas: Smartsheet, ConstruFlow e Otus. Nenhuma ação necessária"
-              >
-                <span className="dcov-group-dot dcov-group-dot--complete" />
-                Completo ({completeList.length})
-              </div>
-              {completeList.map(d => renderDisciplineRow(d, 'complete'))}
+            <div className="dcov-system-item dcov-system-item--cf">
+              <span className="dcov-system-item-value">{analysis.construflowCount || 0}</span>
+              <span className="dcov-system-item-label">ConstruFlow</span>
             </div>
-          )}
-        </div>
-
-        {/* Legend */}
-        <div className="dcov-legend" title="Legenda dos indicadores de status do painel">
-          <div className="dcov-legend-item">
-            <span className="dcov-status dcov-status--present" style={{ width: 20, height: 20 }}><CheckIcon /></span>
-            <span>Presente</span>
+            <div className="dcov-system-item dcov-system-item--otus">
+              <span className="dcov-system-item-value">{analysis.otusCount || 0}</span>
+              <span className="dcov-system-item-label">Otus</span>
+            </div>
           </div>
-          <div className="dcov-legend-item">
-            <span className="dcov-status dcov-status--absent" style={{ width: 20, height: 20 }}><DashIcon /></span>
-            <span>Ausente</span>
-          </div>
-          <div className="dcov-legend-item">
-            <span className="dcov-status dcov-status--missing" style={{ width: 20, height: 20, animation: 'none' }}><AlertIcon /></span>
-            <span>Pendente</span>
-          </div>
-          <div className="dcov-legend-item">
-            <span className="dcov-custom-badge" style={{ fontSize: '0.6rem' }}><LinkIcon /> Mapeado</span>
-            <span>Conexão padrão</span>
-          </div>
-          <div className="dcov-legend-item">
-            <span className="dcov-custom-badge dcov-custom-badge--free" style={{ fontSize: '0.6rem' }}><LinkIcon /> Livre</span>
-            <span>Mapeamento livre</span>
-          </div>
-        </div>
-        </div>
+        </details>
+      </div>
     </div>
   );
 }
