@@ -335,6 +335,12 @@
   font-weight: 600;
 }
 
+.filters-footer__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .btn-clear-filters {
   padding: 0.5rem 1rem;
   background: transparent;
