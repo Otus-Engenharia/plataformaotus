@@ -208,7 +208,7 @@ class SupabaseFeedbackRepository extends FeedbackRepository {
   async getPendingCounts() {
     const { data, error } = await this.#supabase
       .from(FEEDBACKS_TABLE)
-      .select('type')
+      .select('id, type')
       .eq('status', 'pendente');
 
     if (error) {
@@ -218,16 +218,20 @@ class SupabaseFeedbackRepository extends FeedbackRepository {
     const BUG_TYPES = ['bug', 'erro'];
     let bugs = 0;
     let feedbacks = 0;
+    const bugs_ids = [];
+    const feedbacks_ids = [];
 
     for (const row of data || []) {
       if (BUG_TYPES.includes(row.type)) {
         bugs++;
+        bugs_ids.push(row.id);
       } else {
         feedbacks++;
+        feedbacks_ids.push(row.id);
       }
     }
 
-    return { bugs, feedbacks };
+    return { bugs, feedbacks, bugs_ids, feedbacks_ids };
   }
 
   /**
