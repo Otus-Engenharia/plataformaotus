@@ -4735,9 +4735,9 @@ export async function fetchProjectDisciplines(construflowId, { includeDismissed 
     .eq('project_id', projectFeature.project_id);
 
   if (includeDismissed) {
-    query = query.in('status', ['ativo', 'demitido']);
+    query = query.or('status.eq.ativo,status.eq.demitido,status.is.null');
   } else {
-    query = query.eq('status', 'ativo');
+    query = query.or('status.eq.ativo,status.is.null');
   }
 
   const { data, error } = await query;
@@ -5197,7 +5197,7 @@ export async function fetchProjectDisciplinesBatch(projectIds) {
       discipline:discipline_id(id, discipline_name, short_name)
     `)
     .in('project_id', projectIds)
-    .eq('status', 'ativo');
+    .or('status.eq.ativo,status.is.null');
 
   if (error) {
     console.error('Erro batch project_disciplines:', error);
