@@ -63,9 +63,13 @@ function EquipeProjetistasPanel({
   const [dismissMotivo, setDismissMotivo] = useState('');
   const [dismissing, setDismissing] = useState(false);
 
-  // --- Estado modal de solicitação (para leaders) ---
-  const [requestModalType, setRequestModalType] = useState(null);
-  const [requestFormData, setRequestFormData] = useState({});
+  // --- Estado modal unificado de solicitação (para leaders) ---
+  const [showUnifiedModal, setShowUnifiedModal] = useState(false);
+  const [unifiedSections, setUnifiedSections] = useState({
+    disciplina: { enabled: false, name: '' },
+    empresa: { enabled: false, name: '', discipline_ids: [] },
+    contato: { enabled: false, discipline_id: '', company_id: '', name: '', email: '', phone: '', position: '' },
+  });
   const [savingRequest, setSavingRequest] = useState(false);
 
   // Contagens pré-calculadas
@@ -227,103 +231,134 @@ function EquipeProjetistasPanel({
   const getDisciplineName = (id) => disciplinas.find(d => d.id === id)?.discipline_name || '-';
   const getCompanyName = (id) => empresas.find(e => e.id === id)?.name || '-';
 
-  // === FUNÇÕES DE SOLICITAÇÃO (para leaders) ===
+  // === FUNÇÕES DE SOLICITAÇÃO UNIFICADA (para leaders) ===
 
-  const openRequestModal = (type) => {
-    if (type === 'novo_contato') {
-      setRequestFormData({ discipline_id: '', company_id: '', name: '', email: '', phone: '', position: '' });
-    } else if (type === 'nova_empresa') {
-      setRequestFormData({ name: '', discipline_ids: [] });
-    } else {
-      setRequestFormData({ name: '' });
-    }
-    setRequestModalType(type);
+  const openUnifiedRequestModal = () => {
+    setUnifiedSections({
+      disciplina: { enabled: false, name: '' },
+      empresa: { enabled: false, name: '', discipline_ids: [] },
+      contato: { enabled: false, discipline_id: '', company_id: '', name: '', email: '', phone: '', position: '' },
+    });
+    setShowUnifiedModal(true);
   };
 
-  const toggleRequestDiscipline = (discId) => {
-    setRequestFormData(prev => {
-      const ids = prev.discipline_ids || [];
+  const toggleUnifiedSection = (section) => {
+    setUnifiedSections(prev => ({
+      ...prev,
+      [section]: { ...prev[section], enabled: !prev[section].enabled },
+    }));
+  };
+
+  const updateUnifiedSection = (section, field, value) => {
+    setUnifiedSections(prev => ({
+      ...prev,
+      [section]: { ...prev[section], [field]: value },
+    }));
+  };
+
+  const toggleUnifiedDiscipline = (discId) => {
+    setUnifiedSections(prev => {
+      const ids = prev.empresa.discipline_ids || [];
       return {
         ...prev,
-        discipline_ids: ids.includes(discId)
-          ? ids.filter(id => id !== discId)
-          : [...ids, discId],
+        empresa: {
+          ...prev.empresa,
+          discipline_ids: ids.includes(discId)
+            ? ids.filter(id => id !== discId)
+            : [...ids, discId],
+        },
       };
     });
   };
 
-  const getRequestModalTitle = () => {
-    switch (requestModalType) {
-      case 'nova_disciplina': return 'Solicitar Nova Disciplina';
-      case 'novo_contato': return 'Solicitar Novo Contato';
-      case 'nova_empresa': return 'Solicitar Nova Empresa';
-      default: return '';
-    }
-  };
+  const handleUnifiedSubmit = async () => {
+    const { disciplina, empresa, contato } = unifiedSections;
+    const enabledCount = [disciplina.enabled, empresa.enabled, contato.enabled].filter(Boolean).length;
+    if (enabledCount === 0) return;
 
-  const getRequestNameLabel = () => {
-    switch (requestModalType) {
-      case 'nova_disciplina': return 'Nome da Disciplina';
-      case 'nova_empresa': return 'Nome da Empresa';
-      default: return 'Nome';
+    // Validar seções habilitadas
+    if (disciplina.enabled && !disciplina.name.trim()) {
+      alert('Nome da disciplina é obrigatório'); return;
     }
-  };
-
-  const handleSubmitRequest = async () => {
-    if (requestModalType === 'novo_contato') {
-      if (!requestFormData.name?.trim()) { alert('Nome é obrigatório'); return; }
-      if (!requestFormData.discipline_id) { alert('Selecione uma disciplina'); return; }
-    } else if (requestModalType === 'nova_empresa') {
-      if (!requestFormData.name?.trim()) { alert('Nome é obrigatório'); return; }
-      if (!requestFormData.discipline_ids || requestFormData.discipline_ids.length === 0) {
-        alert('Selecione ao menos uma disciplina associada'); return;
+    if (empresa.enabled) {
+      if (!empresa.name.trim()) { alert('Nome da empresa é obrigatório'); return; }
+      if (!empresa.discipline_ids || empresa.discipline_ids.length === 0) {
+        alert('Selecione ao menos uma disciplina para a empresa'); return;
       }
-    } else {
-      if (!requestFormData.name?.trim()) { alert('Nome é obrigatório'); return; }
+    }
+    if (contato.enabled) {
+      if (!contato.name.trim()) { alert('Nome do contato é obrigatório'); return; }
+      if (!contato.discipline_id) { alert('Selecione uma disciplina para o contato'); return; }
     }
 
     setSavingRequest(true);
     try {
-      let payload;
-      if (requestModalType === 'novo_contato') {
-        const selectedDiscipline = disciplinas.find(d => String(d.id) === String(requestFormData.discipline_id));
-        const selectedCompany = empresas.find(e => String(e.id) === String(requestFormData.company_id));
-        payload = {
-          discipline_id: requestFormData.discipline_id,
-          discipline_name: selectedDiscipline?.discipline_name || '',
-          company_id: requestFormData.company_id || null,
-          company_name: selectedCompany?.name || '',
-          name: requestFormData.name,
-          email: requestFormData.email || '',
-          phone: requestFormData.phone || '',
-          position: requestFormData.position || '',
-        };
-      } else if (requestModalType === 'nova_empresa') {
-        const selectedDisciplines = requestFormData.discipline_ids
-          .map(id => disciplinas.find(d => String(d.id) === String(id)))
-          .filter(Boolean);
-        payload = {
-          name: requestFormData.name.trim(),
-          discipline_ids: requestFormData.discipline_ids,
-          discipline_names: selectedDisciplines.map(d => d.discipline_name),
-        };
-      } else {
-        payload = { name: requestFormData.name.trim() };
+      const requests = [];
+
+      if (disciplina.enabled) {
+        requests.push(
+          axios.post(`${API_URL}/api/contact-requests`, {
+            request_type: 'nova_disciplina',
+            project_code: projectCode,
+            payload: { name: disciplina.name.trim() },
+          }, { withCredentials: true })
+        );
       }
 
-      await axios.post(`${API_URL}/api/contact-requests`, {
-        request_type: requestModalType,
-        project_code: projectCode,
-        payload,
-      }, { withCredentials: true });
+      if (empresa.enabled) {
+        const selectedDisciplines = empresa.discipline_ids
+          .map(id => disciplinas.find(d => String(d.id) === String(id)))
+          .filter(Boolean);
+        requests.push(
+          axios.post(`${API_URL}/api/contact-requests`, {
+            request_type: 'nova_empresa',
+            project_code: projectCode,
+            payload: {
+              name: empresa.name.trim(),
+              discipline_ids: empresa.discipline_ids,
+              discipline_names: selectedDisciplines.map(d => d.discipline_name),
+            },
+          }, { withCredentials: true })
+        );
+      }
 
-      setRequestModalType(null);
-      setRequestSuccess(`Solicitação enviada com sucesso!`);
+      if (contato.enabled) {
+        const selectedDiscipline = disciplinas.find(d => String(d.id) === String(contato.discipline_id));
+        const selectedCompany = empresas.find(e => String(e.id) === String(contato.company_id));
+        requests.push(
+          axios.post(`${API_URL}/api/contact-requests`, {
+            request_type: 'novo_contato',
+            project_code: projectCode,
+            payload: {
+              discipline_id: contato.discipline_id,
+              discipline_name: selectedDiscipline?.discipline_name || '',
+              company_id: contato.company_id || null,
+              company_name: selectedCompany?.name || '',
+              name: contato.name.trim(),
+              email: contato.email || '',
+              phone: contato.phone || '',
+              position: contato.position || '',
+            },
+          }, { withCredentials: true })
+        );
+      }
+
+      const results = await Promise.allSettled(requests);
+      const failures = results.filter(r => r.status === 'rejected');
+
+      setShowUnifiedModal(false);
+      if (failures.length === 0) {
+        setRequestSuccess('Solicitação enviada com sucesso!');
+      } else if (failures.length < requests.length) {
+        setRequestSuccess('Algumas solicitações foram enviadas. Verifique abaixo.');
+      } else {
+        alert('Erro ao enviar solicitações. Tente novamente.');
+      }
       setTimeout(() => setRequestSuccess(null), 4000);
       fetchMyRequests();
     } catch (err) {
-      console.error('Erro ao enviar solicitação:', err);
-      alert('Erro ao enviar solicitação. Tente novamente.');
+      console.error('Erro ao enviar solicitações:', err);
+      alert('Erro ao enviar solicitações. Tente novamente.');
     } finally {
       setSavingRequest(false);
     }
@@ -339,38 +374,6 @@ function EquipeProjetistasPanel({
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
           <span>{requestSuccess}</span>
-        </div>
-      )}
-
-      {/* === BOTÕES DE SOLICITAÇÃO (apenas para leaders) === */}
-      {!hasFullAccess && (
-        <div className="ecli-leader-actions">
-          <span className="ecli-leader-actions-label">Solicitar Cadastro:</span>
-          <div className="ecli-leader-actions-btns">
-            <button className="ecli-leader-btn" onClick={() => openRequestModal('nova_disciplina')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-              Nova Disciplina
-            </button>
-            <button className="ecli-leader-btn" onClick={() => openRequestModal('novo_contato')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="8.5" cy="7" r="4" />
-                <line x1="20" y1="8" x2="20" y2="14" />
-                <line x1="23" y1="11" x2="17" y2="11" />
-              </svg>
-              Novo Contato
-            </button>
-            <button className="ecli-leader-btn" onClick={() => openRequestModal('nova_empresa')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-              Nova Empresa
-            </button>
-          </div>
         </div>
       )}
 
@@ -391,13 +394,21 @@ function EquipeProjetistasPanel({
               )}
             </span>
           </div>
-          {hasFullAccess && (
+          {hasFullAccess ? (
             <button className="ecli-add-btn" onClick={handleAdd}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
               Adicionar
+            </button>
+          ) : (
+            <button className="ecli-add-btn" onClick={openUnifiedRequestModal}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Solicitar Cadastro
             </button>
           )}
         </div>
@@ -726,130 +737,177 @@ function EquipeProjetistasPanel({
         </div>
       )}
 
-      {/* === MODAL DE SOLICITAÇÃO (leaders) === */}
-      {requestModalType && (
+      {/* === MODAL UNIFICADO DE SOLICITAÇÃO (leaders) === */}
+      {showUnifiedModal && (
         <div className="ecli-modal-overlay">
-          <div className="ecli-modal">
+          <div className="ecli-modal ecli-modal--wide">
             <div className="ecli-modal-header">
-              <h3>{getRequestModalTitle()}</h3>
-              <button className="ecli-modal-close" onClick={() => setRequestModalType(null)} aria-label="Fechar">
+              <h3>Solicitar Cadastro</h3>
+              <button className="ecli-modal-close" onClick={() => setShowUnifiedModal(false)} aria-label="Fechar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
-            <div className="ecli-modal-body">
-              {requestModalType === 'novo_contato' ? (
-                <>
-                  <div className="ecli-form-group">
-                    <label>Disciplina <span className="ecli-required">*</span></label>
-                    <select
-                      value={requestFormData.discipline_id}
-                      onChange={e => setRequestFormData({ ...requestFormData, discipline_id: e.target.value })}
-                    >
-                      <option value="">Selecione a disciplina...</option>
-                      {disciplinas.map(d => (
-                        <option key={d.id} value={d.id}>{d.discipline_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="ecli-form-group">
-                    <label>Empresa</label>
-                    <select
-                      value={requestFormData.company_id}
-                      onChange={e => setRequestFormData({ ...requestFormData, company_id: e.target.value })}
-                    >
-                      <option value="">Selecione a empresa...</option>
-                      {empresas.map(emp => (
-                        <option key={emp.id} value={emp.id}>{emp.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="ecli-form-group">
-                    <label>Nome do Contato <span className="ecli-required">*</span></label>
-                    <input
-                      type="text"
-                      value={requestFormData.name}
-                      onChange={e => setRequestFormData({ ...requestFormData, name: e.target.value })}
-                      placeholder="Nome completo"
-                    />
-                  </div>
-                  <div className="ecli-form-row">
+            <div className="ecli-modal-body" style={{ gap: '12px' }}>
+              <p className="ecli-unified-hint">Selecione o que deseja solicitar. Você pode combinar vários itens.</p>
+
+              {/* Seção: Nova Disciplina */}
+              <div className={`ecli-unified-section ${unifiedSections.disciplina.enabled ? 'ecli-unified-section--enabled' : ''}`}>
+                <label className="ecli-unified-section-header" onClick={() => toggleUnifiedSection('disciplina')}>
+                  <input type="checkbox" checked={unifiedSections.disciplina.enabled} onChange={() => {}} />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                  <span>Nova Disciplina</span>
+                </label>
+                {unifiedSections.disciplina.enabled && (
+                  <div className="ecli-unified-section-body">
                     <div className="ecli-form-group">
-                      <label>Email</label>
+                      <label>Nome da Disciplina <span className="ecli-required">*</span></label>
                       <input
-                        type="email"
-                        value={requestFormData.email}
-                        onChange={e => setRequestFormData({ ...requestFormData, email: e.target.value })}
-                        placeholder="email@exemplo.com"
-                      />
-                    </div>
-                    <div className="ecli-form-group">
-                      <label>Telefone</label>
-                      <input
-                        type="tel"
-                        value={requestFormData.phone}
-                        onChange={e => setRequestFormData({ ...requestFormData, phone: e.target.value })}
-                        placeholder="00 00000-0000"
+                        type="text"
+                        value={unifiedSections.disciplina.name}
+                        onChange={e => updateUnifiedSection('disciplina', 'name', e.target.value)}
+                        placeholder="Ex: Estrutura Metálica"
                       />
                     </div>
                   </div>
-                  <div className="ecli-form-group">
-                    <label>Cargo</label>
-                    <input
-                      type="text"
-                      value={requestFormData.position}
-                      onChange={e => setRequestFormData({ ...requestFormData, position: e.target.value })}
-                      placeholder="Cargo ou função"
-                    />
-                  </div>
-                </>
-              ) : requestModalType === 'nova_empresa' ? (
-                <>
-                  <div className="ecli-form-group">
-                    <label>Nome da Empresa <span className="ecli-required">*</span></label>
-                    <input
-                      type="text"
-                      value={requestFormData.name}
-                      onChange={e => setRequestFormData({ ...requestFormData, name: e.target.value })}
-                      placeholder="Nome da empresa"
-                    />
-                  </div>
-                  <div className="ecli-form-group">
-                    <label>Disciplinas Associadas <span className="ecli-required">*</span></label>
-                    <div className="ecli-checkbox-list">
-                      {disciplinas.map(d => (
-                        <label key={d.id} className="ecli-checkbox-item">
-                          <input
-                            type="checkbox"
-                            checked={(requestFormData.discipline_ids || []).includes(String(d.id))}
-                            onChange={() => toggleRequestDiscipline(String(d.id))}
-                          />
-                          <span>{d.discipline_name}</span>
-                        </label>
-                      ))}
-                      {disciplinas.length === 0 && (
-                        <span className="ecli-checkbox-empty">Nenhuma disciplina disponível</span>
-                      )}
+                )}
+              </div>
+
+              {/* Seção: Nova Empresa */}
+              <div className={`ecli-unified-section ${unifiedSections.empresa.enabled ? 'ecli-unified-section--enabled' : ''}`}>
+                <label className="ecli-unified-section-header" onClick={() => toggleUnifiedSection('empresa')}>
+                  <input type="checkbox" checked={unifiedSections.empresa.enabled} onChange={() => {}} />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                  <span>Nova Empresa</span>
+                </label>
+                {unifiedSections.empresa.enabled && (
+                  <div className="ecli-unified-section-body">
+                    <div className="ecli-form-group">
+                      <label>Nome da Empresa <span className="ecli-required">*</span></label>
+                      <input
+                        type="text"
+                        value={unifiedSections.empresa.name}
+                        onChange={e => updateUnifiedSection('empresa', 'name', e.target.value)}
+                        placeholder="Nome da empresa"
+                      />
+                    </div>
+                    <div className="ecli-form-group">
+                      <label>Disciplinas Associadas <span className="ecli-required">*</span></label>
+                      <div className="ecli-checkbox-list">
+                        {disciplinas.map(d => (
+                          <label key={d.id} className="ecli-checkbox-item">
+                            <input
+                              type="checkbox"
+                              checked={(unifiedSections.empresa.discipline_ids || []).includes(String(d.id))}
+                              onChange={() => toggleUnifiedDiscipline(String(d.id))}
+                            />
+                            <span>{d.discipline_name}</span>
+                          </label>
+                        ))}
+                        {disciplinas.length === 0 && (
+                          <span className="ecli-checkbox-empty">Nenhuma disciplina disponível</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </>
-              ) : (
-                <div className="ecli-form-group">
-                  <label>{getRequestNameLabel()} <span className="ecli-required">*</span></label>
-                  <input
-                    type="text"
-                    value={requestFormData.name}
-                    onChange={e => setRequestFormData({ ...requestFormData, name: e.target.value })}
-                    placeholder={getRequestNameLabel()}
-                  />
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Seção: Novo Contato */}
+              <div className={`ecli-unified-section ${unifiedSections.contato.enabled ? 'ecli-unified-section--enabled' : ''}`}>
+                <label className="ecli-unified-section-header" onClick={() => toggleUnifiedSection('contato')}>
+                  <input type="checkbox" checked={unifiedSections.contato.enabled} onChange={() => {}} />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="8.5" cy="7" r="4" />
+                    <line x1="20" y1="8" x2="20" y2="14" />
+                    <line x1="23" y1="11" x2="17" y2="11" />
+                  </svg>
+                  <span>Novo Contato</span>
+                </label>
+                {unifiedSections.contato.enabled && (
+                  <div className="ecli-unified-section-body">
+                    <div className="ecli-form-group">
+                      <label>Disciplina <span className="ecli-required">*</span></label>
+                      <select
+                        value={unifiedSections.contato.discipline_id}
+                        onChange={e => updateUnifiedSection('contato', 'discipline_id', e.target.value)}
+                      >
+                        <option value="">Selecione a disciplina...</option>
+                        {disciplinas.map(d => (
+                          <option key={d.id} value={d.id}>{d.discipline_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="ecli-form-group">
+                      <label>Empresa</label>
+                      <select
+                        value={unifiedSections.contato.company_id}
+                        onChange={e => updateUnifiedSection('contato', 'company_id', e.target.value)}
+                      >
+                        <option value="">Selecione a empresa...</option>
+                        {empresas.map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="ecli-form-group">
+                      <label>Nome do Contato <span className="ecli-required">*</span></label>
+                      <input
+                        type="text"
+                        value={unifiedSections.contato.name}
+                        onChange={e => updateUnifiedSection('contato', 'name', e.target.value)}
+                        placeholder="Nome completo"
+                      />
+                    </div>
+                    <div className="ecli-form-row">
+                      <div className="ecli-form-group">
+                        <label>Email</label>
+                        <input
+                          type="email"
+                          value={unifiedSections.contato.email}
+                          onChange={e => updateUnifiedSection('contato', 'email', e.target.value)}
+                          placeholder="email@exemplo.com"
+                        />
+                      </div>
+                      <div className="ecli-form-group">
+                        <label>Telefone</label>
+                        <input
+                          type="tel"
+                          value={unifiedSections.contato.phone}
+                          onChange={e => updateUnifiedSection('contato', 'phone', e.target.value)}
+                          placeholder="00 00000-0000"
+                        />
+                      </div>
+                    </div>
+                    <div className="ecli-form-group">
+                      <label>Cargo</label>
+                      <input
+                        type="text"
+                        value={unifiedSections.contato.position}
+                        onChange={e => updateUnifiedSection('contato', 'position', e.target.value)}
+                        placeholder="Cargo ou função"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="ecli-modal-footer">
-              <button className="ecli-btn-cancel" onClick={() => setRequestModalType(null)}>Cancelar</button>
-              <button className="ecli-btn-request" onClick={handleSubmitRequest} disabled={savingRequest}>
+              <button className="ecli-btn-cancel" onClick={() => setShowUnifiedModal(false)}>Cancelar</button>
+              <button
+                className="ecli-btn-request"
+                onClick={handleUnifiedSubmit}
+                disabled={savingRequest || ![unifiedSections.disciplina.enabled, unifiedSections.empresa.enabled, unifiedSections.contato.enabled].some(Boolean)}
+              >
                 {savingRequest ? 'Enviando...' : 'Solicitar'}
               </button>
             </div>
