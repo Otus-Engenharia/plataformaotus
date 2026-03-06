@@ -203,8 +203,12 @@ function PortfolioView() {
     if (!data || !Array.isArray(data)) return 0;
     return data.filter(row => {
       if (!row) return false;
-      const diff = row.diferenca_cronograma_contrato;
-      return typeof diff === 'number' && diff > 3;
+      if (!isAtivoStatus(row.status)) return false;
+      const terminoCronograma = row.data_termino_cronograma;
+      const terminoContrato = row.data_termino_contrato_com_pausas || row.data_termino_contrato;
+      if (!terminoCronograma || !terminoContrato) return false;
+      const diff = calculateMonthDifference(terminoCronograma, terminoContrato);
+      return diff !== null && diff >= 3;
     }).length;
   }, [data]);
 
@@ -983,6 +987,11 @@ function PortfolioView() {
             title="Diferenca > 3 meses entre cronograma e contrato"
           >
             <span className="indicator-card__value">{contratoRevisarCount}</span>
+            {ativosCount > 0 && (
+              <span className="indicator-card__percentage">
+                {((contratoRevisarCount / ativosCount) * 100).toFixed(0)}% dos ativos
+              </span>
+            )}
             <span className="indicator-card__label">Contrato a Revisar</span>
           </button>
         </div>
