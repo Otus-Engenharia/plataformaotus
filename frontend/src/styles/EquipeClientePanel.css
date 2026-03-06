@@ -685,53 +685,6 @@
   border-top: 1px solid #FEE2E2;
 }
 
-/* Leader actions bar (solicitações) */
-.ecli-leader-actions {
-  background: #FFFBEB;
-  border: 1px solid #FDE68A;
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
-}
-
-.ecli-leader-actions-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #92400E;
-  margin-bottom: 8px;
-}
-
-.ecli-leader-actions-btns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ecli-leader-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #fff;
-  border: 1px solid #F59E0B;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #92400E;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.ecli-leader-btn:hover {
-  background: #FEF3C7;
-  border-color: #D97706;
-}
-
-.ecli-leader-btn svg {
-  flex-shrink: 0;
-  color: #D97706;
-}
 
 /* Badge styles for new types */
 .ecli-request-badge--nova_disciplina {
@@ -783,8 +736,82 @@
   font-size: 13px;
 }
 
+/* Modal unificado de solicitação */
+.ecli-modal--wide {
+  width: 560px;
+}
+
+.ecli-unified-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6B7280;
+  line-height: 1.4;
+}
+
+.ecli-unified-section {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.ecli-unified-section--enabled {
+  border-color: #fbbf24;
+}
+
+.ecli-unified-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  background: #F9FAFB;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.ecli-unified-section-header:hover {
+  background: #F3F4F6;
+}
+
+.ecli-unified-section--enabled .ecli-unified-section-header {
+  background: #FFFBEB;
+}
+
+.ecli-unified-section-header input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #F59E0B;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ecli-unified-section-header svg {
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+.ecli-unified-section--enabled .ecli-unified-section-header svg {
+  color: #D97706;
+}
+
+.ecli-unified-section-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.ecli-unified-section--enabled .ecli-unified-section-body {
+  border-top-color: #FDE68A;
+}
+
 @media (max-width: 768px) {
-  .ecli-leader-actions-btns {
-    flex-direction: column;
+  .ecli-modal--wide {
+    width: 95vw;
   }
 }
