@@ -359,7 +359,17 @@ export function processData(rawData, options = {}) {
     const statusNorm = normalizeText(task.Status || '');
     const temInfoAtraso = hasDelayInfo(task);
 
-    if (statusNorm === 'nao feito' || temInfoAtraso) {
+    // Overdue: task not completed but end date already passed
+    let isOverdue = false;
+    if (statusNorm !== 'feito' && statusNorm !== 'nao feito' && !temInfoAtraso) {
+      const endDateStr = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
+      const endDt = parseDate(endDateStr);
+      if (endDt && startOfDay(endDt) < refDate) {
+        isOverdue = true;
+      }
+    }
+
+    if (statusNorm === 'nao feito' || temInfoAtraso || isOverdue) {
       delayedTasks.push(task);
     }
   }
@@ -420,38 +430,43 @@ export function processData(rawData, options = {}) {
 
     if (!taskStartStr && !taskEndStr) continue;
 
-    let inPeriod = false;
     const startDt = parseDate(taskStartStr);
     const endDt = parseDate(taskEndStr);
+    const startNorm = startDt ? startOfDay(startDt) : null;
+    const endNorm = endDt ? startOfDay(endDt) : null;
 
-    if (startDt) {
-      const sn = startOfDay(startDt);
-      if (sn >= refDate && sn <= futureCutoff) inPeriod = true;
+    // Tarefa tem data dentro da janela [refDate, futureCutoff]?
+    let inPeriod = false;
+    if (startNorm && startNorm >= refDate && startNorm <= futureCutoff) inPeriod = true;
+    if (endNorm && endNorm >= refDate && endNorm <= futureCutoff) inPeriod = true;
+
+    // Tarefa em andamento: já começou e prazo ainda não venceu
+    const isInProgress = startNorm && endNorm &&
+      startNorm <= refDate && endNorm >= refDate;
+
+    // Tarefa overdue: prazo venceu (últimos 7 dias) mas não está feita
+    const isOverdue = endNorm && endNorm < refDate && endNorm >= since;
+
+    if (!inPeriod && !isInProgress && !isOverdue) continue;
+
+    // Classificar por datas (não por status textual)
+    let category;
+    if (isOverdue || isInProgress) {
+      category = 'em_andamento';
+    } else if (startNorm && startNorm > refDate) {
+      category = 'a_iniciar';
+    } else {
+      category = 'programadas';
     }
-    if (endDt) {
-      const en = startOfDay(endDt);
-      if (en >= refDate && en <= futureCutoff) inPeriod = true;
-    }
 
-    // Tarefa em andamento: começou antes de hoje e ainda não terminou (entrega além da janela)
-    const isInProgress = !inPeriod && startDt && endDt &&
-      startOfDay(startDt) < refDate &&
-      startOfDay(endDt) > refDate;
-
-    if (!inPeriod && !isInProgress) continue;
+    task._overdue = !!isOverdue;
 
     if (isClientDiscipline(discipline)) {
-      if (isInProgress) task._emAndamento = true;
+      task._category = category;
       scheduleClient.push(task);
     } else {
       if (!scheduleTeam[discipline]) scheduleTeam[discipline] = { a_iniciar: [], programadas: [], em_andamento: [] };
-      if (isInProgress) {
-        scheduleTeam[discipline].em_andamento.push(task);
-      } else if (statusLower === 'a fazer') {
-        scheduleTeam[discipline].a_iniciar.push(task);
-      } else {
-        scheduleTeam[discipline].programadas.push(task);
-      }
+      scheduleTeam[discipline][category].push(task);
     }
   }
 
@@ -789,10 +804,8 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
     if (!task || typeof task !== 'object') continue;
     const discipline = task.Disciplina || task.Discipline || 'Sem Disciplina';
     if (!byDiscipline[discipline]) byDiscipline[discipline] = { a_iniciar: [], programadas: [], em_andamento: [] };
-    const status = String(task.Status || '').toLowerCase().trim();
-    if (task._emAndamento) byDiscipline[discipline].em_andamento.push(task);
-    else if (status === 'a fazer') byDiscipline[discipline].a_iniciar.push(task);
-    else byDiscipline[discipline].programadas.push(task);
+    const cat = task._category || 'programadas';
+    byDiscipline[discipline][cat].push(task);
   }
 
   let html = '';
@@ -843,9 +856,10 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
         const dateStr = formatStartEndRange(startDate, endDate);
         const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
+        const overdueBadge = task._overdue ? '<span style="font-family:\'Montserrat\',sans-serif;font-size:9px;font-weight:700;color:#fff;background:#DC2626;padding:2px 6px;border-radius:3px;margin-right:6px;">ATRASADA</span>' : '';
 
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
-        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#2563EB;font-weight:500;background:#eff6ff;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
+        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;">${overdueBadge}<span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#2563EB;font-weight:500;background:#eff6ff;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
           html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
         }
@@ -913,9 +927,10 @@ function _generateCronogramaTeamSection(schedule) {
         const dateStr = formatStartEndRange(startDate, endDate);
         const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
+        const overdueBadge = task._overdue ? '<span style="font-family:\'Montserrat\',sans-serif;font-size:9px;font-weight:700;color:#fff;background:#DC2626;padding:2px 6px;border-radius:3px;margin-right:6px;">ATRASADA</span>' : '';
 
         html += `<div style="margin-bottom:6px;padding-left:16px;">`;
-        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;"><span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#2563EB;font-weight:500;background:#eff6ff;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
+        html += `<p style="margin:0 0 4px;font-family:'Source Sans Pro',sans-serif;font-size:13px;color:#444;line-height:1.6;">${overdueBadge}<span style="font-family:'Montserrat',sans-serif;font-size:11px;color:#2563EB;font-weight:500;background:#eff6ff;padding:2px 6px;border-radius:3px;margin-right:8px;">${esc(dateStr)}</span>${esc(name)}</p>`;
         if (!isEmptyValue(observacaoOtus)) {
           html += `<div style="margin:6px 0 0;padding:8px 12px;background:${OTUS.orangeLight};border-left:2px solid ${OTUS.orange};border-radius:0 4px 4px 0;margin-left:12px;"><p style="margin:0;font-family:'Source Sans Pro',sans-serif;font-size:12px;color:${OTUS.text};line-height:1.5;"><span style="font-weight:600;color:${OTUS.orange};">Obs Otus:</span> ${esc(observacaoOtus)}</p></div>`;
         }

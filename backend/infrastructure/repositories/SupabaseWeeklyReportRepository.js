@@ -237,6 +237,33 @@ class SupabaseWeeklyReportRepository extends WeeklyReportRepository {
     return data || [];
   }
 
+  async getWeeklyLog(options = {}) {
+    const { weeks = 8, projectCodes = null } = options;
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - weeks * 7);
+
+    let query = this.#supabase
+      .from(TABLE)
+      .select('week_year, week_number, week_text, project_code')
+      .eq('status', 'completed')
+      .gte('generated_at', cutoff.toISOString())
+      .order('week_year', { ascending: true })
+      .order('week_number', { ascending: true });
+
+    if (projectCodes && projectCodes.length > 0) {
+      query = query.in('project_code', projectCodes);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Erro ao buscar log semanal: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
   async snapshotExists(weekYear, weekNumber, leaderName = null) {
     let query = this.#supabase
       .from('weekly_kpi_snapshots')
