@@ -87,49 +87,46 @@ function EquipeClientePanel({
     }
     setSavingContact(true);
     try {
-      if (hasFullAccess) {
-        if (editingContact) {
-          await axios.put(`${API_URL}/api/projetos/equipe/contatos/${editingContact.id}`, contactForm, { withCredentials: true });
-        } else {
-          await axios.post(`${API_URL}/api/projetos/equipe/contatos`, {
-            ...contactForm,
-            companyId: clientData?.companyId
-          }, { withCredentials: true });
-        }
+      if (editingContact) {
+        // TODOS editam direto (admin e líder) — backend registra log automaticamente
+        await axios.put(`${API_URL}/api/projetos/equipe/contatos/${editingContact.id}`, {
+          ...contactForm,
+          _old_values: {
+            name: editingContact.name || '',
+            email: editingContact.email || '',
+            phone: editingContact.phone || '',
+            position: editingContact.position || '',
+          },
+          _changed_fields: Object.keys(contactForm).filter(
+            k => contactForm[k] !== (editingContact[k] || '')
+          ),
+          _project_code: projectCode || null,
+        }, { withCredentials: true });
+        setShowContactModal(false);
+        fetchClientContacts();
+      } else if (hasFullAccess) {
+        // Novo contato: admin cria direto
+        await axios.post(`${API_URL}/api/projetos/equipe/contatos`, {
+          ...contactForm,
+          companyId: clientData?.companyId
+        }, { withCredentials: true });
         setShowContactModal(false);
         fetchClientContacts();
       } else {
-        const requestPayload = editingContact
-          ? {
-              request_type: 'editar_contato',
-              target_contact_id: editingContact.id,
-              project_code: projectCode,
-              payload: {
-                old_values: {
-                  name: editingContact.name || '',
-                  email: editingContact.email || '',
-                  phone: editingContact.phone || '',
-                  position: editingContact.position || '',
-                },
-                new_values: contactForm,
-                changed_fields: Object.keys(contactForm).filter(
-                  k => contactForm[k] !== (editingContact[k] || '')
-                ),
-              },
-            }
-          : {
-              request_type: 'novo_contato',
-              project_code: projectCode,
-              payload: {
-                ...contactForm,
-                company_id: clientData?.companyId,
-                company_name: clientData?.companyName,
-              },
-            };
+        // Novo contato: líder cria solicitação
+        const requestPayload = {
+          request_type: 'novo_contato',
+          project_code: projectCode,
+          payload: {
+            ...contactForm,
+            company_id: clientData?.companyId,
+            company_name: clientData?.companyName,
+          },
+        };
 
         await axios.post(`${API_URL}/api/contact-requests`, requestPayload, { withCredentials: true });
         setShowContactModal(false);
-        setRequestSuccess(editingContact ? 'Solicitação de edição enviada!' : 'Solicitação de novo contato enviada!');
+        setRequestSuccess('Solicitação de novo contato enviada!');
         setTimeout(() => setRequestSuccess(null), 4000);
       }
     } catch (err) {
@@ -331,7 +328,7 @@ function EquipeClientePanel({
             </div>
             <div className="ecli-modal-footer">
               <button className="ecli-btn-cancel" onClick={() => setShowContactModal(false)}>Cancelar</button>
-              {hasFullAccess ? (
+              {(editingContact || hasFullAccess) ? (
                 <button className="ecli-btn-save" onClick={handleSaveContact} disabled={savingContact}>
                   {savingContact ? 'Salvando...' : editingContact ? 'Salvar' : 'Criar'}
                 </button>

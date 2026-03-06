@@ -198,54 +198,62 @@ function ContatosView() {
     }
     setSavingRequest(true);
     try {
-      const selectedDiscipline = disciplinas.find(d => String(d.id) === String(requestForm.discipline_id));
-      const selectedCompany = empresas.find(e => String(e.id) === String(requestForm.company_id));
+      if (editingContactForRequest) {
+        // Edição direta via PUT (todos os usuários) — backend registra log
+        await axios.put(`${API_URL}/api/projetos/equipe/contatos/${editingContactForRequest.id}`, {
+          name: requestForm.name,
+          email: requestForm.email,
+          phone: requestForm.phone,
+          position: requestForm.position,
+          _old_values: {
+            name: editingContactForRequest.name || '',
+            email: editingContactForRequest.email || '',
+            phone: editingContactForRequest.phone || '',
+            position: editingContactForRequest.position || '',
+          },
+          _changed_fields: ['name', 'email', 'phone', 'position'].filter(
+            k => requestForm[k] !== (editingContactForRequest[k] || '')
+          ),
+          _project_code: null,
+        }, { withCredentials: true });
+        setShowRequestModal(false);
+        setEditingContactForRequest(null);
+        setRequestToast('Contato atualizado com sucesso!');
+        setTimeout(() => setRequestToast(null), 4000);
+        // Refresh detalhes se estiver aberto
+        if (selectedRow && detalhes) {
+          fetchDetalhes(detalhes.discipline?.id, detalhes.company?.id);
+        }
+        fetchMyRequests();
+      } else {
+        // Novo contato: solicitação
+        const selectedDiscipline = disciplinas.find(d => String(d.id) === String(requestForm.discipline_id));
+        const selectedCompany = empresas.find(e => String(e.id) === String(requestForm.company_id));
 
-      const requestPayload = editingContactForRequest
-        ? {
-            request_type: 'editar_contato',
-            target_contact_id: editingContactForRequest.id,
-            payload: {
-              old_values: {
-                name: editingContactForRequest.name || '',
-                email: editingContactForRequest.email || '',
-                phone: editingContactForRequest.phone || '',
-                position: editingContactForRequest.position || '',
-              },
-              new_values: {
-                name: requestForm.name,
-                email: requestForm.email,
-                phone: requestForm.phone,
-                position: requestForm.position,
-              },
-              changed_fields: ['name', 'email', 'phone', 'position'].filter(
-                k => requestForm[k] !== (editingContactForRequest[k] || '')
-              ),
-            },
-          }
-        : {
-            request_type: 'novo_contato',
-            payload: {
-              discipline_id: requestForm.discipline_id,
-              discipline_name: selectedDiscipline?.discipline_name || '',
-              company_id: requestForm.company_id || null,
-              company_name: selectedCompany?.name || '',
-              name: requestForm.name,
-              email: requestForm.email,
-              phone: requestForm.phone,
-              position: requestForm.position,
-            },
-          };
+        const requestPayload = {
+          request_type: 'novo_contato',
+          payload: {
+            discipline_id: requestForm.discipline_id,
+            discipline_name: selectedDiscipline?.discipline_name || '',
+            company_id: requestForm.company_id || null,
+            company_name: selectedCompany?.name || '',
+            name: requestForm.name,
+            email: requestForm.email,
+            phone: requestForm.phone,
+            position: requestForm.position,
+          },
+        };
 
-      await axios.post(`${API_URL}/api/contact-requests`, requestPayload, { withCredentials: true });
-      setShowRequestModal(false);
-      setEditingContactForRequest(null);
-      setRequestToast('Solicitação enviada com sucesso!');
-      setTimeout(() => setRequestToast(null), 4000);
-      fetchMyRequests();
+        await axios.post(`${API_URL}/api/contact-requests`, requestPayload, { withCredentials: true });
+        setShowRequestModal(false);
+        setEditingContactForRequest(null);
+        setRequestToast('Solicitação enviada com sucesso!');
+        setTimeout(() => setRequestToast(null), 4000);
+        fetchMyRequests();
+      }
     } catch (err) {
-      console.error('Erro ao enviar solicitação:', err);
-      alert('Erro ao enviar solicitação. Tente novamente.');
+      console.error('Erro ao salvar:', err);
+      alert('Erro ao salvar. Tente novamente.');
     } finally {
       setSavingRequest(false);
     }
@@ -687,18 +695,16 @@ function ContatosView() {
                                 {contato.position && (
                                   <span className="contatos-contact-position">{contato.position}</span>
                                 )}
-                                {!hasFullAccess && (
-                                  <button
-                                    className="contatos-edit-request-btn"
-                                    onClick={(e) => { e.stopPropagation(); handleRequestEditContact(contato); }}
-                                    title="Solicitar alteração"
-                                  >
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                    </svg>
-                                  </button>
-                                )}
+                                <button
+                                  className="contatos-edit-request-btn"
+                                  onClick={(e) => { e.stopPropagation(); handleRequestEditContact(contato); }}
+                                  title="Editar contato"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                </button>
                               </div>
                               {contato.email && (
                                 <a href={`mailto:${contato.email}`} className="contatos-contact-email">
@@ -807,7 +813,7 @@ function ContatosView() {
             className="contatos-my-requests-toggle"
             onClick={() => setShowMyRequests(!showMyRequests)}
           >
-            <span>Minhas Solicitações</span>
+            <span>Minhas Solicitações e Edições</span>
             {myRequests.filter(r => r.status === 'pendente').length > 0 && (
               <span className="contatos-pending-badge">
                 {myRequests.filter(r => r.status === 'pendente').length}
@@ -861,7 +867,7 @@ function ContatosView() {
         <div className="ecli-modal-overlay">
           <div className="ecli-modal">
             <div className="ecli-modal-header">
-              <h3>{editingContactForRequest ? 'Solicitar Edição de Contato' : 'Solicitar Novo Contato'}</h3>
+              <h3>{editingContactForRequest ? 'Editar Contato' : 'Solicitar Novo Contato'}</h3>
               <button className="ecli-modal-close" onClick={() => setShowRequestModal(false)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -944,8 +950,8 @@ function ContatosView() {
             </div>
             <div className="ecli-modal-footer">
               <button className="ecli-btn-cancel" onClick={() => setShowRequestModal(false)}>Cancelar</button>
-              <button className="ecli-btn-request" onClick={handleSubmitRequest} disabled={savingRequest}>
-                {savingRequest ? 'Enviando...' : 'Solicitar'}
+              <button className={editingContactForRequest ? "ecli-btn-save" : "ecli-btn-request"} onClick={handleSubmitRequest} disabled={savingRequest}>
+                {savingRequest ? (editingContactForRequest ? 'Salvando...' : 'Enviando...') : (editingContactForRequest ? 'Salvar' : 'Solicitar')}
               </button>
             </div>
           </div>
