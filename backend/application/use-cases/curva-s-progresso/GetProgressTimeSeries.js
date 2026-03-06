@@ -39,7 +39,7 @@ class GetProgressTimeSeries {
       this.#queryTasks(smartsheetId, projectName),
     ];
     if (this.#querySnapshotTasks) {
-      bqQueries.push(this.#querySnapshotTasks(smartsheetId, projectName));
+      bqQueries.push(this.#querySnapshotTasks(smartsheetId, projectName, projectCode));
     }
     const bqResults = await Promise.all(bqQueries);
     const tasks = bqResults[0];

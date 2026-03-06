@@ -23,10 +23,12 @@ function DesviosPortfolioView() {
   const [selectedType, setSelectedType] = useState('all');
   const [expandedProject, setExpandedProject] = useState(null);
 
-  // Mapear ID_Projeto → metadata do portfolio
+  // Mapear ID_Projeto / project_code → metadata do portfolio
   const projectMeta = useMemo(() => {
     const map = new Map();
     for (const p of (portfolioData || [])) {
+      const code = p.project_code_norm || p.project_code;
+      if (code) map.set(String(code), p);
       const id = p.smartsheet_id ? String(p.smartsheet_id) : null;
       if (id) map.set(id, p);
     }
@@ -41,6 +43,7 @@ function DesviosPortfolioView() {
   }, [portfolioData]);
 
   // IDs filtrados pelos filtros de Time/Lider do PortfolioContext
+  // Inclui tanto project_code quanto smartsheet_id para match com snapshots
   const filteredProjectIds = useMemo(() => {
     const ids = [];
     for (const p of (portfolioData || [])) {
@@ -48,6 +51,8 @@ function DesviosPortfolioView() {
       if (timeFilter.length > 0 && !timeFilter.includes(p.nome_time)) continue;
       if (liderFilter.length > 0 && !liderFilter.includes(p.lider)) continue;
       ids.push(String(p.smartsheet_id));
+      const code = p.project_code_norm || p.project_code;
+      if (code) ids.push(String(code));
     }
     return ids;
   }, [portfolioData, timeFilter, liderFilter]);

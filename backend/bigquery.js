@@ -2377,7 +2377,7 @@ export async function queryCurvaSProgressoTasks(smartsheetId, projectName = null
  * Usado quando a tabela principal (smartsheet_data_projetos) está vazia para o projeto.
  * Retorna dados no mesmo formato que queryCurvaSProgressoTasks.
  */
-async function querySnapshotFallbackForProgress(smartsheetId, projectName = null) {
+async function querySnapshotFallbackForProgress(smartsheetId, projectName = null, projectCode = null) {
   const snapshotProject = 'dadosindicadores';
   const snapshotDataset = 'smartsheet_atrasos';
   const snapshotTable = 'smartsheet_snapshot';
@@ -2449,7 +2449,18 @@ async function querySnapshotFallbackForProgress(smartsheetId, projectName = null
   try {
     let rows = [];
 
-    if (smartsheetId) {
+    // Estratégia 1: project_code (identificador estável)
+    if (projectCode) {
+      const escapedCode = String(projectCode).replace(/'/g, "''");
+      const codeClause = `project_code = '${escapedCode}'`;
+      const query = baseQuery
+        .replace('{{WHERE_CLAUSE}}', codeClause)
+        .replace('{{WHERE_CLAUSE_SNAP}}', `snap.${codeClause}`);
+      rows = await executeQuery(query);
+    }
+
+    // Estratégia 2: ID_Projeto
+    if (rows.length === 0 && smartsheetId) {
       const escapedId = String(smartsheetId).replace(/'/g, "''");
       const idClause = `ID_Projeto = '${escapedId}'`;
       const query = baseQuery
@@ -2458,6 +2469,7 @@ async function querySnapshotFallbackForProgress(smartsheetId, projectName = null
       rows = await executeQuery(query);
     }
 
+    // Estratégia 3: nome normalizado
     if (rows.length === 0 && projectName) {
       const escapedName = String(projectName).replace(/'/g, "''");
       const namePattern = `LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', ''))`;
@@ -2488,7 +2500,7 @@ async function querySnapshotFallbackForProgress(smartsheetId, projectName = null
  * Retorna TODAS as levels (não apenas Level 5) no formato de queryCronograma.
  * Campos ausentes no snapshot (baseline, pagamento, KPI) retornam NULL.
  */
-async function querySnapshotFallbackForCronograma(smartsheetId, projectName = null) {
+async function querySnapshotFallbackForCronograma(smartsheetId, projectName = null, projectCode = null) {
   const snapshotProject = 'dadosindicadores';
   const snapshotDataset = 'smartsheet_atrasos';
   const snapshotTable = 'smartsheet_snapshot';
@@ -2537,7 +2549,18 @@ async function querySnapshotFallbackForCronograma(smartsheetId, projectName = nu
   try {
     let rows = [];
 
-    if (smartsheetId) {
+    // Estratégia 1: project_code (identificador estável)
+    if (projectCode) {
+      const escapedCode = String(projectCode).replace(/'/g, "''");
+      const codeClause = `project_code = '${escapedCode}'`;
+      const query = baseQuery
+        .replace('{{WHERE_CLAUSE}}', codeClause)
+        .replace('{{WHERE_CLAUSE_SNAP}}', `snap.${codeClause}`);
+      rows = await executeQuery(query);
+    }
+
+    // Estratégia 2: ID_Projeto
+    if (rows.length === 0 && smartsheetId) {
       const escapedId = String(smartsheetId).replace(/'/g, "''");
       const idClause = `ID_Projeto = '${escapedId}'`;
       const query = baseQuery
@@ -2546,6 +2569,7 @@ async function querySnapshotFallbackForCronograma(smartsheetId, projectName = nu
       rows = await executeQuery(query);
     }
 
+    // Estratégia 3: nome normalizado
     if (rows.length === 0 && projectName) {
       const escapedName = String(projectName).replace(/'/g, "''");
       const namePattern = `LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', ''))`;
@@ -2553,7 +2577,6 @@ async function querySnapshotFallbackForCronograma(smartsheetId, projectName = nu
         REGEXP_REPLACE(snap.NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
         r'[^a-zA-Z0-9]', ''
       )) LIKE CONCAT('%', ${namePattern}, '%')`;
-      // For latest_snapshot CTE, use same clause but without snap. prefix
       const whereClause = `LOWER(REGEXP_REPLACE(
         REGEXP_REPLACE(NomeDaPlanilha, r'^\\(.*?\\)\\s*', ''),
         r'[^a-zA-Z0-9]', ''
@@ -2572,7 +2595,7 @@ async function querySnapshotFallbackForCronograma(smartsheetId, projectName = nu
   }
 }
 
-export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null) {
+export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null, projectCode = null) {
   const snapshotProject = 'dadosindicadores';
   const snapshotDataset = 'smartsheet_atrasos';
   const snapshotTable = 'smartsheet_snapshot';
@@ -2626,8 +2649,7 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
       snap.snapshot_date${includeOptionalCols ? optionalCols : ''}
     FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
     LEFT JOIN unique_fases cf
-      ON snap.ID_Projeto = cf.ID_Projeto
-      AND snap.NomeDaTarefa = cf.NomeDaTarefa
+      ON snap.NomeDaTarefa = cf.NomeDaTarefa
     WHERE {{WHERE_CLAUSE_SNAP}}
       AND snap.Level = 5
       AND snap.Disciplina IS NOT NULL
@@ -2643,7 +2665,26 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
     const baseQuery = buildBaseQuery(includeOptionalCols);
     let rows = [];
 
-    if (smartsheetId) {
+    // Estratégia 1: project_code (identificador estável - agrupa snapshots de IDs antigos)
+    if (projectCode && smartsheetId) {
+      try {
+        const escapedCode = String(projectCode).replace(/'/g, "''");
+        const escapedId = String(smartsheetId).replace(/'/g, "''");
+        const query = baseQuery
+          .replace('{{WHERE_CLAUSE_CURR}}', `ID_Projeto = '${escapedId}'`)
+          .replace('{{WHERE_CLAUSE_SNAP}}', `snap.project_code = '${escapedCode}'`);
+        rows = await executeQuery(query);
+      } catch (pcError) {
+        if (pcError.message?.includes('not found')) {
+          console.warn('⚠️ [queryCurvaSSnapshotTasks] Coluna project_code não existe ainda, usando ID_Projeto...');
+        } else {
+          throw pcError;
+        }
+      }
+    }
+
+    // Estratégia 2: ID_Projeto (fallback para snapshots sem project_code)
+    if (rows.length === 0 && smartsheetId) {
       const escapedId = String(smartsheetId).replace(/'/g, "''");
       const idClause = `ID_Projeto = '${escapedId}'`;
       const query = baseQuery
@@ -2652,6 +2693,7 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null)
       rows = await executeQuery(query);
     }
 
+    // Estratégia 3: nome normalizado
     if (rows.length === 0 && projectName) {
       const escapedName = String(projectName).replace(/'/g, "''");
       const namePattern = `LOWER(REGEXP_REPLACE('${escapedName}', r'[^a-zA-Z0-9]', ''))`;
@@ -2719,6 +2761,8 @@ export async function queryCurvaSAllSnapshotTasks() {
       snap.Categoria_de_atraso,
       snap.Motivo_de_atraso,
       snap.ObservacaoOtus` : '';
+    const projectCodeCol = includeOptionalCols ? `,
+      snap.project_code` : '';
     return `
     SELECT
       snap.ID_Projeto,
@@ -2729,7 +2773,7 @@ export async function queryCurvaSAllSnapshotTasks() {
       snap.DataDeInicio,
       snap.DataDeTermino,
       snap.Duracao,
-      snap.snapshot_date${optionalCols}
+      snap.snapshot_date${projectCodeCol}${optionalCols}
     FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
     WHERE snap.Level = 5
       AND snap.Disciplina IS NOT NULL
@@ -2755,10 +2799,10 @@ export async function queryCurvaSAllSnapshotTasks() {
       }
     }
 
-    // Agrupar: ID_Projeto → snapshot_date → tasks[]
+    // Agrupar: project_code (ou ID_Projeto) → snapshot_date → tasks[]
     const projectSnapshots = new Map();
     for (const row of rows) {
-      const projectId = row.ID_Projeto ? String(row.ID_Projeto) : null;
+      const projectId = row.project_code || (row.ID_Projeto ? String(row.ID_Projeto) : null);
       if (!projectId) continue;
 
       const rawDate = row.snapshot_date;
