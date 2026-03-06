@@ -397,10 +397,12 @@ function Sidebar({ collapsed, onToggle, area }) {
 
     // Recalcular badges quando admin marca feedbacks como vistos
     window.addEventListener('feedbacks-seen-updated', fetchBadgeCounts);
+    window.addEventListener('contact-requests-updated', fetchBadgeCounts);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('feedbacks-seen-updated', fetchBadgeCounts);
+      window.removeEventListener('contact-requests-updated', fetchBadgeCounts);
     };
   }, [isPrivileged, user?.id]);
 

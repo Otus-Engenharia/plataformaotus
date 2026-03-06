@@ -38,6 +38,22 @@ class ApproveContactChangeRequest {
         companyId: payload.company_id,
       });
       resultContactId = safeUuid(contact.id);
+
+      // Vincular contato ao projeto na tabela project_disciplines
+      if (request.projectCode && payload.discipline_id && resultContactId) {
+        const projectId = await this.#contactService.getProjectIdByCode(request.projectCode);
+        if (projectId) {
+          await this.#contactService.createProjectDiscipline({
+            project_id: projectId,
+            discipline_id: payload.discipline_id,
+            company_id: payload.company_id || null,
+            contact_id: resultContactId,
+            email: payload.email || null,
+            phone: payload.phone || null,
+            position: payload.position || null,
+          });
+        }
+      }
     } else if (type === 'editar_contato') {
       const newValues = payload.new_values || payload;
       await this.#contactService.updateContact(request.targetContactId, newValues);
