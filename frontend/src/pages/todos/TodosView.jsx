@@ -29,6 +29,17 @@ const INITIAL_SORT = {
 export default function TodosView() {
   const { effectiveUser: user } = useAuth();
 
+  // --- Persistência de preferências no localStorage ---
+  const PREFS_KEY = `todos_prefs_${user?.userId}`;
+
+  const savedPrefs = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(PREFS_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState(
@@ -56,13 +67,34 @@ export default function TodosView() {
   }, [user?.userId]);
   const [filters, setFilters] = useState(() => ({
     ...INITIAL_FILTERS,
+    ...(savedPrefs?.filters || {}),
     assignee: user?.userId || '',
   }));
-  const [sort, setSort] = useState(INITIAL_SORT);
-  const [groupBy, setGroupBy] = useState('status');
+  const [sort, setSort] = useState(() => savedPrefs?.sort || INITIAL_SORT);
+  const [groupBy, setGroupBy] = useState(() => savedPrefs?.groupBy || 'status');
   const [weekRef, setWeekRef] = useState(new Date());
-  const [showFinalizados, setShowFinalizados] = useState(false);
-  const [showCancelados, setShowCancelados] = useState(false);
+  const [showFinalizados, setShowFinalizados] = useState(() => savedPrefs?.showFinalizados ?? false);
+  const [showCancelados, setShowCancelados] = useState(() => savedPrefs?.showCancelados ?? false);
+  const [hideWeekends, setHideWeekends] = useState(() => savedPrefs?.hideWeekends ?? true);
+
+  // Salvar preferências no localStorage quando mudam
+  useEffect(() => {
+    if (!user?.userId) return;
+    const prefs = {
+      filters: {
+        status: filters.status,
+        priority: filters.priority,
+        projectId: filters.projectId,
+        teamId: filters.teamId,
+      },
+      sort,
+      groupBy,
+      showFinalizados,
+      showCancelados,
+      hideWeekends,
+    };
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  }, [filters, sort, groupBy, showFinalizados, showCancelados, hideWeekends, user?.userId, PREFS_KEY]);
 
   const goToPreviousWeek = useCallback(() => setWeekRef(prev => subWeeks(prev, 1)), []);
   const goToNextWeek = useCallback(() => setWeekRef(prev => addWeeks(prev, 1)), []);
@@ -358,6 +390,8 @@ export default function TodosView() {
         onShowFinalizadosChange={setShowFinalizados}
         showCancelados={showCancelados}
         onShowCanceladosChange={setShowCancelados}
+        hideWeekends={hideWeekends}
+        onHideWeekendsChange={setHideWeekends}
         sort={sort}
         onSortChange={setSort}
       />
@@ -404,6 +438,7 @@ export default function TodosView() {
             onPriorityChange={handlePriorityChange}
             loading={loading}
             colorMode={colorMode}
+            hideWeekends={hideWeekends}
           />
         )}
       </div>
