@@ -111,6 +111,8 @@ export default function TodoToolbar({
   onShowFinalizadosChange,
   showCancelados = false,
   onShowCanceladosChange,
+  hideWeekends = true,
+  onHideWeekendsChange,
   sort = { field: 'created_at', direction: 'desc' },
   onSortChange,
 }) {
@@ -316,6 +318,14 @@ export default function TodoToolbar({
           <span className="todo-toolbar__week-label">{weekLabel}</span>
           <button type="button" className="todo-toolbar__week-btn" onClick={onWeekNext} title="Próxima semana">&#8250;</button>
           <button type="button" className="todo-toolbar__week-today" onClick={onWeekToday}>Hoje</button>
+          <button
+            type="button"
+            className={`todo-toolbar__week-toggle${hideWeekends ? ' todo-toolbar__week-toggle--active' : ''}`}
+            onClick={() => onHideWeekendsChange && onHideWeekendsChange(!hideWeekends)}
+            title={hideWeekends ? 'Mostrar finais de semana' : 'Ocultar finais de semana'}
+          >
+            {hideWeekends ? 'Seg–Sex' : 'Seg–Dom'}
+          </button>
         </div>
       )}
 

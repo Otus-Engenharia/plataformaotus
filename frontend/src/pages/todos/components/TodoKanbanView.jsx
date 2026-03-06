@@ -24,7 +24,7 @@ const STATUS_COLUMNS = [
   { status: 'cancelado', label: 'Cancelado', color: STATUS_COLORS['cancelado'] },
 ];
 
-function buildColumns(todos, groupBy, weekRef) {
+function buildColumns(todos, groupBy, weekRef, hideWeekends) {
   if (groupBy === 'project') {
     const projectMap = {};
     todos.forEach((todo) => {
@@ -50,7 +50,10 @@ function buildColumns(todos, groupBy, weekRef) {
 
   if (groupBy === 'due_date') {
     const start = startOfWeek(weekRef, { weekStartsOn: 1 });
-    const weekDays = eachDayOfInterval({ start, end: addDays(start, 6) });
+    const allDays = eachDayOfInterval({ start, end: addDays(start, 6) });
+    const weekDays = hideWeekends
+      ? allDays.filter(d => d.getDay() !== 0 && d.getDay() !== 6)
+      : allDays;
     const today = startOfDay(new Date());
 
     const columns = [
@@ -112,10 +115,11 @@ export default function TodoKanbanView({
   onPriorityChange,
   loading,
   colorMode = 'priority',
+  hideWeekends = true,
 }) {
   const columns = useMemo(
-    () => buildColumns(todos, groupBy, weekRef || new Date()),
-    [todos, groupBy, weekRef],
+    () => buildColumns(todos, groupBy, weekRef || new Date(), hideWeekends),
+    [todos, groupBy, weekRef, hideWeekends],
   );
 
   const isDraggable = groupBy !== 'project';
