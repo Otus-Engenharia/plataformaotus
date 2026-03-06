@@ -1,0 +1,458 @@
+/**
+ * Estilos da vista de Portfolio simplificada para CS e Admin-Financeiro
+ * Light theme compacto, prefixo .area-pf-
+ */
+
+/* ── Container ── */
+.area-pf-container {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* ── Header ── */
+.area-pf-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.area-pf-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Inter', Verdana, sans-serif;
+  letter-spacing: -0.5px;
+}
+
+.area-pf-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.area-pf-refresh-btn:hover {
+  border-color: #ffcc00;
+  color: #ffcc00;
+  background: #fffef5;
+}
+
+.area-pf-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── KPI Grid ── */
+.area-pf-kpi-grid {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.area-pf-kpi-card {
+  flex: 1;
+  min-width: 100px;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.area-pf-kpi-card--accent {
+  border-left: 3px solid #ffcc00;
+}
+
+.area-pf-kpi-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.area-pf-kpi-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* ── Search Bar ── */
+.area-pf-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  color: #9ca3af;
+  transition: border-color 0.2s;
+}
+
+.area-pf-search-bar:focus-within {
+  border-color: #ffcc00;
+  box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.1);
+}
+
+.area-pf-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  padding: 0;
+  min-width: 0;
+}
+
+.area-pf-search-input::placeholder {
+  color: #c0c0c0;
+}
+
+/* ── Toggle Section ── */
+.area-pf-toggle-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.area-pf-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.area-pf-toggle-row-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  min-width: 48px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.area-pf-toggle-btn {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e5e7eb;
+  background: white;
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', Verdana, sans-serif;
+  transition: all 0.15s ease;
+}
+
+.area-pf-toggle-btn:hover {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+}
+
+.area-pf-toggle-btn.active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.area-pf-toggle-btn.active:hover {
+  background: #fde68a;
+}
+
+/* ── Filters bar ── */
+.area-pf-filters {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.area-pf-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.area-pf-filter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  font-family: 'Inter', Verdana, sans-serif;
+  white-space: nowrap;
+}
+
+.area-pf-select {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #1a1a1a;
+  font-size: 0.8rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+}
+
+.area-pf-select:focus {
+  outline: none;
+  border-color: #ffcc00;
+  box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.15);
+}
+
+.area-pf-count {
+  margin-left: auto;
+  padding: 4px 14px;
+  background: #f3f4f6;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: #6b7280;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.area-pf-count strong {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* ── Copy button ── */
+.area-pf-copy-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', Verdana, sans-serif;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.area-pf-copy-btn:hover {
+  border-color: #ffcc00;
+  color: #ffcc00;
+  background: #fffef5;
+}
+
+.area-pf-copy-btn--success {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+/* ── Table ── */
+.area-pf-table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.area-pf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.area-pf-table thead {
+  background: #1a1a1a;
+  border-bottom: 3px solid #ffcc00;
+}
+
+.area-pf-table th {
+  color: #ffffff;
+  background: #1a1a1a;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.area-pf-table th:hover {
+  color: #ffcc00;
+}
+
+.area-pf-table th.area-pf-sorted {
+  color: #ffcc00;
+}
+
+.area-pf-sort-arrow {
+  margin-left: 4px;
+  font-size: 0.6rem;
+}
+
+.area-pf-table td {
+  padding: 8px 12px;
+  color: #1a1a1a;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+}
+
+.area-pf-table tbody tr {
+  background: #ffffff;
+  border-left: 3px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.area-pf-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.area-pf-table tbody tr:hover {
+  border-left-color: #ffcc00;
+  background: #fffef5;
+}
+
+/* Linha de projeto novo (nunca visto) */
+.area-pf-table tbody tr.area-pf-row-new {
+  background: rgba(255, 204, 0, 0.06);
+  border-left: 3px solid #ffcc00;
+}
+
+.area-pf-table tbody tr.area-pf-row-new:hover {
+  background: rgba(255, 204, 0, 0.12);
+}
+
+/* Celulas especificas */
+.area-pf-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.area-pf-name {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Status badge */
+.area-pf-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.area-pf-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Loading / Error / Empty ── */
+.area-pf-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 4rem 2rem;
+  color: #6b7280;
+}
+
+.area-pf-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #ffcc00;
+  border-radius: 50%;
+  animation: area-pf-spin 0.7s linear infinite;
+}
+
+@keyframes area-pf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.area-pf-error {
+  text-align: center;
+  padding: 3rem;
+  color: #ef4444;
+}
+
+.area-pf-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.area-pf-empty-message {
+  color: #6b7280;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.area-pf-empty-hint {
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .area-pf-kpi-grid {
+    flex-direction: column;
+  }
+
+  .area-pf-kpi-card {
+    min-width: unset;
+  }
+
+  .area-pf-filters {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .area-pf-count {
+    margin-left: 0;
+  }
+}

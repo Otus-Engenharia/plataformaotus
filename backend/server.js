@@ -848,6 +848,7 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
     const supabaseMap = new Map();
     for (const p of supabaseProjects) {
       supabaseMap.set(p.project_code, {
+        project_order: p.project_order || null,
         comercial_name: p.comercial_name,
         status: p.status,
         service_type: p.service_type || null,
@@ -879,6 +880,7 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
         ...(supabase._team_id != null && { _team_id: supabase._team_id }),
         ...(supabase._company_id != null && { _company_id: supabase._company_id }),
         ...(supabase._project_manager_id != null && { _project_manager_id: supabase._project_manager_id }),
+        ...(supabase.project_order != null && { project_order: supabase.project_order }),
         // Features
         ...features,
         construflow_disciplinasclientes: features.construflow_disciplinasclientes || row.disciplina_cliente || null,
@@ -889,12 +891,15 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
     const bqCodes = new Set(bqData.map(row => row.project_code_norm));
     for (const p of supabaseProjects) {
       if (p.project_code && !bqCodes.has(p.project_code)) {
+        // Filtrar empresas nao-client (revenda, coordenacao, etc.)
+        if (p.companies?.company_type && p.companies.company_type !== 'client') continue;
         // Se filtro de líder ativo, só incluir projetos Supabase-only deste líder
         if (leaderName && p.users_otus?.name?.toLowerCase() !== leaderName.toLowerCase()) {
           continue;
         }
         const features = featuresMap[p.project_code] || {};
         enrichedData.push({
+          project_order: p.project_order || null,
           project_code_norm: p.project_code,
           project_name: p.name || p.comercial_name || p.project_code,
           comercial_name: p.comercial_name || null,
@@ -946,6 +951,47 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
       error: error.message,
       details: 'Verifique Supabase/BigQuery e a view de portfolio'
     });
+  }
+});
+
+/**
+ * Rota: GET /api/portfolio/a-iniciar-count
+ * Retorna contagem de projetos "A Iniciar" (leve, so Supabase)
+ */
+app.get('/api/portfolio/a-iniciar-count', requireAuth, withBqCache(1800), async (req, res) => {
+  try {
+    const supabaseProjects = await fetchProjectsFromSupabase();
+    let count = 0;
+    for (const p of supabaseProjects) {
+      if (!p.project_code) continue;
+      if (p.companies?.company_type && p.companies.company_type !== 'client') continue;
+      const status = (p.status || 'a iniciar').toLowerCase().trim();
+      if (status.includes('a iniciar')) count++;
+    }
+    res.json({ success: true, data: { count } });
+  } catch (error) {
+    console.error('Erro ao contar projetos a iniciar:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/portfolio/project-codes
+ * Retorna apenas os project_codes de projetos client-only (leve, para badge de novos)
+ */
+app.get('/api/portfolio/project-codes', requireAuth, withBqCache(1800), async (req, res) => {
+  try {
+    const supabaseProjects = await fetchProjectsFromSupabase();
+    const codes = [];
+    for (const p of supabaseProjects) {
+      if (!p.project_code) continue;
+      if (p.companies?.company_type && p.companies.company_type !== 'client') continue;
+      codes.push(p.project_code);
+    }
+    res.json({ success: true, data: { codes } });
+  } catch (error) {
+    console.error('Erro ao listar project codes:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -1101,6 +1147,14 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
     return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   }
 
+  // Disciplinas que são automaticamente consideradas como Otus
+  const OTUS_AUTO_KEYWORDS = ['coordenacao', 'compatibilizacao', 'modelagem otus'];
+  const isAutoOtus = (normKey) => OTUS_AUTO_KEYWORDS.includes(normKey);
+
+  // Disciplinas que são automaticamente consideradas como do cliente
+  const CLIENT_AUTO_KEYWORD = 'cliente';
+  const isAutoClient = (normKey) => normKey.includes(CLIENT_AUTO_KEYWORD);
+
   // Mapas de mapeamento customizado (padrão + livre)
   const customMap = new Map();
   customMappings.forEach(m => {
@@ -1109,7 +1163,8 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       standardName: m.standard_discipline?.discipline_name || null,
       targetName: m.target_name || null,
       mappingId: m.id,
-      standardDisciplineId: m.standard_discipline_id
+      standardDisciplineId: m.standard_discipline_id,
+      isClientOwned: m.is_client_owned || false
     });
   });
 
@@ -1120,6 +1175,8 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
   const checkOtusMatch = (normKey, source) => {
     const custom = customMap.get(`${source}:${normKey}`);
     if (custom) {
+      // Cliente é dono da disciplina — considerar regularizada
+      if (custom.isClientOwned) return true;
       // Mapeamento para disciplina padrão Otus
       if (custom.standardName) {
         return normalizedOtus.has(normalize(custom.standardName));
@@ -1167,22 +1224,38 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
 
     let inOtus = false;
     let mapping = null;
+    let isClientOwned = false;
     if (inSmartsheet) {
       if (checkOtusMatch(normKey, 'smartsheet')) inOtus = true;
-      mapping = mapping || getCustomMapping(normKey, 'smartsheet');
+      const sm = getCustomMapping(normKey, 'smartsheet');
+      mapping = mapping || sm;
+      if (sm?.isClientOwned) isClientOwned = true;
     }
     if (inConstruflow) {
       if (checkOtusMatch(normKey, 'construflow')) inOtus = true;
-      mapping = mapping || getCustomMapping(normKey, 'construflow');
+      const cm = getCustomMapping(normKey, 'construflow');
+      mapping = mapping || cm;
+      if (cm?.isClientOwned) isClientOwned = true;
     }
     if (!inOtus && normalizedOtus.has(normKey)) inOtus = true;
+    // Auto-detectar disciplinas Otus internas
+    const autoOtus = !inOtus && isAutoOtus(normKey);
+    if (autoOtus) inOtus = true;
+
+    // Auto-detectar disciplinas do cliente pelo nome
+    const autoClient = !isClientOwned && isAutoClient(normKey);
+    if (autoClient) isClientOwned = true;
+    if (isClientOwned && !inOtus) inOtus = true;
 
     const entry = {
       name: originalName, normKey, inSmartsheet, inConstruflow, inOtus,
       hasCustomMapping: !!mapping,
       mappingId: mapping?.mappingId || null,
       mappedToName: mapping?.standardName || mapping?.targetName || null,
-      isFreeMapping: !!(mapping?.targetName && !mapping?.standardName)
+      isFreeMapping: !!(mapping?.targetName && !mapping?.standardName),
+      isAutoOtus: autoOtus,
+      isAutoClient: autoClient,
+      isClientOwned
     };
 
     if (inSmartsheet && inConstruflow && inOtus) groups.completeInAll3.push(entry);
@@ -7620,15 +7693,15 @@ app.get('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req,
  */
 app.post('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req, res) => {
   try {
-    const { construflowId, externalSource, externalDisciplineName, standardDisciplineId, targetName } = req.body;
+    const { construflowId, externalSource, externalDisciplineName, standardDisciplineId, targetName, isClientOwned, sources } = req.body;
     if (!construflowId || !externalSource || !externalDisciplineName) {
       return res.status(400).json({
         success: false,
         error: 'Campos obrigatórios: construflowId, externalSource, externalDisciplineName'
       });
     }
-    // Deve ter standardDisciplineId OU targetName
-    if (!standardDisciplineId && !targetName) {
+    // Se isClientOwned, não exige standardDisciplineId nem targetName
+    if (!isClientOwned && !standardDisciplineId && !targetName) {
       return res.status(400).json({
         success: false,
         error: 'Informe standardDisciplineId ou targetName para o mapeamento'
@@ -7638,15 +7711,22 @@ app.post('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req
     if (!projectId) {
       return res.status(404).json({ success: false, error: 'Projeto não encontrado' });
     }
-    const data = await createOrUpdateDisciplineMapping({
-      projectId,
-      externalSource,
-      externalDisciplineName,
-      standardDisciplineId: standardDisciplineId || null,
-      targetName: targetName || null,
-      createdBy: req.user?.email || 'unknown'
-    });
-    res.json({ success: true, data });
+
+    // Se a disciplina aparece em múltiplas fontes, criar mapping para cada
+    const sourcesToSave = (sources && Array.isArray(sources) && sources.length > 0) ? sources : [externalSource];
+    let lastData = null;
+    for (const src of sourcesToSave) {
+      lastData = await createOrUpdateDisciplineMapping({
+        projectId,
+        externalSource: src,
+        externalDisciplineName,
+        standardDisciplineId: standardDisciplineId || null,
+        targetName: targetName || null,
+        isClientOwned: isClientOwned || false,
+        createdBy: req.user?.email || 'unknown'
+      });
+    }
+    res.json({ success: true, data: lastData });
   } catch (error) {
     console.error('Erro ao salvar mapeamento:', error);
     res.status(500).json({ success: false, error: error.message });
