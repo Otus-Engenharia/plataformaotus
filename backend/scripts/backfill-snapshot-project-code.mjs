@@ -28,11 +28,11 @@ const bigquery = new BigQuery({
 });
 
 const SNAPSHOT_TABLE = '`dadosindicadores.smartsheet_atrasos.smartsheet_snapshot`';
-const PORTFOLIO_TABLE = '`dadosindicadores.portfolio_geral.portfolio`';
+const PORTFOLIO_TABLE = '`dadosindicadores.portifolio.portifolio_plataforma_enriched`';
 const DRY_RUN = process.argv.includes('--dry-run');
 
 async function runQuery(sql) {
-  const [rows] = await bigquery.query({ query: sql });
+  const [rows] = await bigquery.query({ query: sql, location: 'southamerica-east1' });
   return rows;
 }
 
@@ -77,7 +77,7 @@ async function pass1() {
     WHERE snap.project_code IS NULL
       AND CAST(snap.ID_Projeto AS STRING) = CAST(port.smartsheet_id AS STRING)
   `;
-  const [job] = await bigquery.createQueryJob({ query: updateSql });
+  const [job] = await bigquery.createQueryJob({ query: updateSql, location: 'southamerica-east1' });
   const [metadata] = await job.getMetadata();
   const affected = metadata.statistics?.query?.numDmlAffectedRows || '?';
   console.log(`  ✅ Pass 1: ${affected} linhas atualizadas`);
@@ -130,7 +130,7 @@ async function pass2() {
          ))
          LIKE CONCAT('%', LOWER(REGEXP_REPLACE(port.project_name, r'[^a-zA-Z0-9]', '')), '%')
   `;
-  const [job] = await bigquery.createQueryJob({ query: updateSql });
+  const [job] = await bigquery.createQueryJob({ query: updateSql, location: 'southamerica-east1' });
   const [metadata] = await job.getMetadata();
   const affected = metadata.statistics?.query?.numDmlAffectedRows || '?';
   console.log(`  ✅ Pass 2: ${affected} linhas atualizadas`);
@@ -170,7 +170,7 @@ async function passManualMappings() {
       WHERE project_code IS NULL
         AND CAST(ID_Projeto AS STRING) = '${escapedId}'
     `;
-    const [job] = await bigquery.createQueryJob({ query: updateSql });
+    const [job] = await bigquery.createQueryJob({ query: updateSql, location: 'southamerica-east1' });
     const [metadata] = await job.getMetadata();
     const affected = metadata.statistics?.query?.numDmlAffectedRows || '0';
     console.log(`    ${oldId} → ${projectCode}: ${affected} linhas`);
