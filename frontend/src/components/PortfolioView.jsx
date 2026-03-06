@@ -20,7 +20,8 @@ import {
   getDifferenceStatus,
   isFinalizedStatus,
   isPausedStatus,
-  isAIniciarStatus
+  isAIniciarStatus,
+  isAtivoStatus
 } from '../utils/portfolio-utils';
 import '../styles/PortfolioView.css';
 import StatusDropdown, { getStatusColor } from './StatusDropdown';
@@ -68,6 +69,7 @@ function PortfolioView() {
   const [showFinalizedProjects, setShowFinalizedProjects] = useState(false);
   const [showPausedProjects, setShowPausedProjects] = useState(true);
   const [showAIniciar, setShowAIniciar] = useState(false);
+  const [showAtivos, setShowAtivos] = useState(true);
   const [showNoTeam, setShowNoTeam] = useState(false);
   const [showNoLeader, setShowNoLeader] = useState(false);
   const [showCompatibilizacao, setShowCompatibilizacao] = useState(true);
@@ -191,6 +193,20 @@ function PortfolioView() {
     return data.filter(row => row && isAIniciarStatus(row.status)).length;
   }, [data]);
 
+  const ativosCount = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.filter(row => row && isAtivoStatus(row.status)).length;
+  }, [data]);
+
+  const contratoRevisarCount = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.filter(row => {
+      if (!row) return false;
+      const diff = row.diferenca_cronograma_contrato;
+      return typeof diff === 'number' && diff > 3;
+    }).length;
+  }, [data]);
+
   // Contagens para toggles "Sem Time" e "Sem Lider"
   const noTeamCount = useMemo(() => {
     if (!data || !Array.isArray(data)) return 0;
@@ -198,11 +214,11 @@ function PortfolioView() {
       if (!row || typeof row !== 'object') return false;
       if (!showFinalizedProjects && isFinalizedStatus(row.status)) return false;
       if (!showPausedProjects && isPausedStatus(row.status)) return false;
-      if (showAIniciar && !isAIniciarStatus(row.status)) return false;
       if (!showAIniciar && isAIniciarStatus(row.status)) return false;
+      if (!showAtivos && isAtivoStatus(row.status)) return false;
       return !row.nome_time || row.nome_time === '-';
     }).length;
-  }, [data, showFinalizedProjects, showPausedProjects, showAIniciar]);
+  }, [data, showFinalizedProjects, showPausedProjects, showAIniciar, showAtivos]);
 
   const noLeaderCount = useMemo(() => {
     if (!data || !Array.isArray(data)) return 0;
@@ -210,11 +226,11 @@ function PortfolioView() {
       if (!row || typeof row !== 'object') return false;
       if (!showFinalizedProjects && isFinalizedStatus(row.status)) return false;
       if (!showPausedProjects && isPausedStatus(row.status)) return false;
-      if (showAIniciar && !isAIniciarStatus(row.status)) return false;
       if (!showAIniciar && isAIniciarStatus(row.status)) return false;
+      if (!showAtivos && isAtivoStatus(row.status)) return false;
       return !row.lider || row.lider === '-';
     }).length;
-  }, [data, showFinalizedProjects, showPausedProjects, showAIniciar]);
+  }, [data, showFinalizedProjects, showPausedProjects, showAIniciar, showAtivos]);
 
   const compatibilizacaoCount = useMemo(() => {
     if (!data || !Array.isArray(data)) return 0;
@@ -482,16 +498,19 @@ function PortfolioView() {
       });
     }
 
-    // Filtro por projetos a iniciar (exclusivo: quando ON mostra SOMENTE a iniciar)
-    if (showAIniciar) {
-      filtered = filtered.filter(row => {
-        if (!row || typeof row !== 'object') return false;
-        return isAIniciarStatus(row.status);
-      });
-    } else {
+    // Filtro por projetos a iniciar (inclusivo: ON = inclui, OFF = exclui)
+    if (!showAIniciar) {
       filtered = filtered.filter(row => {
         if (!row || typeof row !== 'object') return false;
         return !isAIniciarStatus(row.status);
+      });
+    }
+
+    // Filtro por projetos ativos
+    if (!showAtivos) {
+      filtered = filtered.filter(row => {
+        if (!row || typeof row !== 'object') return false;
+        return !isAtivoStatus(row.status);
       });
     }
 
@@ -607,7 +626,7 @@ function PortfolioView() {
     });
 
     return filtered;
-  }, [data, searchTerm, statusFilter, timeFilter, liderFilter, clientFilter, differenceFilter, sortConfig, showFinalizedProjects, showPausedProjects, showAIniciar, showNoTeam, showNoLeader, showCompatibilizacao]);
+  }, [data, searchTerm, statusFilter, timeFilter, liderFilter, clientFilter, differenceFilter, sortConfig, showFinalizedProjects, showPausedProjects, showAIniciar, showAtivos, showNoTeam, showNoLeader, showCompatibilizacao]);
 
   // Handlers
   const handleSort = (columnKey) => {
@@ -626,6 +645,11 @@ function PortfolioView() {
     setDifferenceFilter([]);
     setShowFinalizedProjects(false);
     setShowPausedProjects(true);
+    setShowAIniciar(false);
+    setShowAtivos(true);
+    setShowNoTeam(false);
+    setShowNoLeader(false);
+    setShowCompatibilizacao(true);
     setSortConfig({ key: 'project_order', direction: 'asc' });
   };
 
@@ -910,6 +934,41 @@ function PortfolioView() {
           <p className="detail-subtitle">Filtre e navegue pelos projetos</p>
         </div>
 
+        {/* Cards de Indicadores */}
+        <div className="indicator-cards">
+          <button
+            className={`indicator-card indicator-card--ativos ${showAtivos ? 'active' : ''}`}
+            onClick={() => setShowAtivos(!showAtivos)}
+            title={`Total: ${ativosCount} projetos`}
+          >
+            <span className="indicator-card__value">{ativosCount}</span>
+            <span className="indicator-card__label">Ativos</span>
+          </button>
+          <button
+            className={`indicator-card indicator-card--pausados ${showPausedProjects ? 'active' : ''}`}
+            onClick={() => setShowPausedProjects(!showPausedProjects)}
+            title={`Total: ${pausedCount} projetos`}
+          >
+            <span className="indicator-card__value">{pausedCount}</span>
+            <span className="indicator-card__label">Pausados</span>
+          </button>
+          <button
+            className={`indicator-card indicator-card--ainiciar ${showAIniciar ? 'active' : ''}`}
+            onClick={() => setShowAIniciar(!showAIniciar)}
+            title={`Total: ${aIniciarCount} projetos`}
+          >
+            <span className="indicator-card__value">{aIniciarCount}</span>
+            <span className="indicator-card__label">A Iniciar</span>
+          </button>
+          <button
+            className="indicator-card indicator-card--contrato"
+            title="Diferenca > 3 meses entre cronograma e contrato"
+          >
+            <span className="indicator-card__value">{contratoRevisarCount}</span>
+            <span className="indicator-card__label">Contrato a Revisar</span>
+          </button>
+        </div>
+
         {/* Botoes de Vista */}
         <div className="view-selector">
           {Object.values(VIEWS).map(view => (
@@ -939,104 +998,117 @@ function PortfolioView() {
 
         {/* Filtros da Tabela */}
         <div className="filters-section">
-          <div className="filters-row">
-            {/* Toggle para projetos finalizados */}
-            <div className="finalized-toggle-wrapper">
-              <label className="finalized-toggle">
-                <input
-                  type="checkbox"
-                  checked={showFinalizedProjects}
-                  onChange={(e) => {
-                    setShowFinalizedProjects(e.target.checked);
-                                  }}
-                />
-                <span className="toggle-slider"></span>
-                <span className="toggle-label">Mostrar Finalizados <span className="toggle-count">{finalizedCount}</span></span>
-              </label>
+          {/* LINHA 1: Status + Search */}
+          <div className="filters-row filters-row--primary">
+            <div className="filter-group">
+              <span className="filter-group__label">Status</span>
+              <div className="filter-group__toggles">
+                <div className="finalized-toggle-wrapper">
+                  <label className="finalized-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showFinalizedProjects}
+                      onChange={(e) => setShowFinalizedProjects(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                    <span className="toggle-label">Finalizados <span className="toggle-count">{finalizedCount}</span></span>
+                  </label>
+                </div>
+                <div className="finalized-toggle-wrapper">
+                  <label className="finalized-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showPausedProjects}
+                      onChange={(e) => setShowPausedProjects(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                    <span className="toggle-label">Pausados <span className="toggle-count">{pausedCount}</span></span>
+                  </label>
+                </div>
+                <div className="finalized-toggle-wrapper">
+                  <label className="finalized-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showAIniciar}
+                      onChange={(e) => setShowAIniciar(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                    <span className="toggle-label">A Iniciar <span className="toggle-count">{aIniciarCount}</span></span>
+                  </label>
+                </div>
+                <div className="finalized-toggle-wrapper">
+                  <label className="finalized-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showAtivos}
+                      onChange={(e) => setShowAtivos(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                    <span className="toggle-label">Ativos <span className="toggle-count">{ativosCount}</span></span>
+                  </label>
+                </div>
+              </div>
             </div>
 
-            {/* Toggle para projetos pausados */}
-            <div className="finalized-toggle-wrapper">
-              <label className="finalized-toggle">
-                <input
-                  type="checkbox"
-                  checked={showPausedProjects}
-                  onChange={(e) => {
-                    setShowPausedProjects(e.target.checked);
-                                  }}
-                />
-                <span className="toggle-slider"></span>
-                <span className="toggle-label">Mostrar Pausados <span className="toggle-count">{pausedCount}</span></span>
-              </label>
-            </div>
-
-            {/* Toggle para projetos a iniciar */}
-            <div className="finalized-toggle-wrapper">
-              <label className="finalized-toggle">
-                <input
-                  type="checkbox"
-                  checked={showAIniciar}
-                  onChange={(e) => setShowAIniciar(e.target.checked)}
-                />
-                <span className="toggle-slider"></span>
-                <span className="toggle-label">Somente A Iniciar <span className="toggle-count">{aIniciarCount}</span></span>
-              </label>
-            </div>
-
-            {/* Toggle para projetos sem time */}
-            <div className="finalized-toggle-wrapper">
-              <label className="finalized-toggle">
-                <input
-                  type="checkbox"
-                  checked={showNoTeam}
-                  onChange={(e) => setShowNoTeam(e.target.checked)}
-                />
-                <span className="toggle-slider"></span>
-                <span className="toggle-label">Sem Time <span className="toggle-count">{noTeamCount}</span></span>
-              </label>
-            </div>
-
-            {/* Toggle para projetos sem lider */}
-            <div className="finalized-toggle-wrapper">
-              <label className="finalized-toggle">
-                <input
-                  type="checkbox"
-                  checked={showNoLeader}
-                  onChange={(e) => setShowNoLeader(e.target.checked)}
-                />
-                <span className="toggle-slider"></span>
-                <span className="toggle-label">Sem Lider <span className="toggle-count">{noLeaderCount}</span></span>
-              </label>
-            </div>
-
-            {/* Toggle para compatibilização */}
-            <div className="finalized-toggle-wrapper">
-              <label className="finalized-toggle">
-                <input
-                  type="checkbox"
-                  checked={showCompatibilizacao}
-                  onChange={(e) => setShowCompatibilizacao(e.target.checked)}
-                />
-                <span className="toggle-slider"></span>
-                <span className="toggle-label">Compatibilização <span className="toggle-count">{compatibilizacaoCount}</span></span>
-              </label>
-            </div>
-
-            {/* Busca */}
             <div className="search-bar">
               <input
                 type="text"
                 placeholder="Buscar em todas as colunas..."
                 value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                              }}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
               />
             </div>
           </div>
 
-          <div className="filter-dropdowns">
+          {/* LINHA 2: Equipe + Tipo + Dropdowns */}
+          <div className="filters-row filters-row--secondary">
+            <div className="filter-group">
+              <span className="filter-group__label">Equipe</span>
+              <div className="filter-group__toggles">
+                <div className="finalized-toggle-wrapper">
+                  <label className="finalized-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showNoTeam}
+                      onChange={(e) => setShowNoTeam(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                    <span className="toggle-label">Sem Time <span className="toggle-count">{noTeamCount}</span></span>
+                  </label>
+                </div>
+                <div className="finalized-toggle-wrapper">
+                  <label className="finalized-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showNoLeader}
+                      onChange={(e) => setShowNoLeader(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                    <span className="toggle-label">Sem Lider <span className="toggle-count">{noLeaderCount}</span></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <span className="filter-group__label">Tipo</span>
+              <div className="filter-group__toggles">
+                <div className="finalized-toggle-wrapper">
+                  <label className="finalized-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showCompatibilizacao}
+                      onChange={(e) => setShowCompatibilizacao(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                    <span className="toggle-label">Compatibilizacao <span className="toggle-count">{compatibilizacaoCount}</span></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="filter-dropdowns">
             {/* Filtro de Status */}
             <div className="multi-select-wrapper">
               <button
@@ -1187,6 +1259,7 @@ function PortfolioView() {
                 )}
               </div>
             )}
+            </div>
           </div>
 
           {/* Chips de filtros ativos */}

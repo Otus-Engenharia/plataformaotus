@@ -86,6 +86,7 @@ const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
 // Lazy load da página de Admin & Financeiro
 const ControlePassivoView = lazy(() => import('./components/ControlePassivoView'));
 const IndicadoresVendasView = lazy(() => import('./components/IndicadoresVendasView'));
+const ClientesView = lazy(() => import('./components/ClientesView'));
 
 // Lazy load das páginas de OKRs
 const DashboardOKRs = lazy(() => import('./pages/okrs/DashboardOKRs'));
@@ -103,6 +104,8 @@ const WhiteboardView = lazy(() => import('./pages/whiteboard/WhiteboardView'));
 const VistaClienteInicioView = lazy(() => import('./pages/vista-cliente/VistaClienteInicioView'));
 const VistaClienteApontamentosView = lazy(() => import('./pages/vista-cliente/VistaClienteApontamentosView'));
 const VistaClienteMarcosView = lazy(() => import('./pages/vista-cliente/VistaClienteMarcosView'));
+const VistaClienteRelatosView = lazy(() => import('./pages/vista-cliente/VistaClienteRelatosView'));
+const VistaClienteAlteracoesView = lazy(() => import('./pages/vista-cliente/VistaClienteAlteracoesView'));
 
 // Lideres - Marcos
 const MarcosLiderView = lazy(() => import('./pages/lideres-projeto/MarcosLiderView'));
@@ -803,6 +806,14 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.financeiro}</span>
         <span className="nav-text">Indicadores Vendas</span>
       </Link>
+      <Link
+        to="/vendas/clientes"
+        className={`nav-link nav-link-modern ${location.pathname === '/vendas/clientes' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Clientes')}
+      >
+        <span className="nav-icon">{icons.contatos}</span>
+        <span className="nav-text">Clientes</span>
+      </Link>
     </>
   );
 
@@ -832,6 +843,22 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.indicadores}</span>
         <span className="nav-text">Marcos</span>
+      </Link>
+      <Link
+        to="/vista-cliente/relatos"
+        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/relatos' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Relatos')}
+      >
+        <span className="nav-icon">{icons.feedbacks}</span>
+        <span className="nav-text">Relatos</span>
+      </Link>
+      <Link
+        to="/vista-cliente/alteracoes"
+        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/alteracoes' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Alterações')}
+      >
+        <span className="nav-icon">{icons.history}</span>
+        <span className="nav-text">Alterações</span>
       </Link>
     </>
   );
@@ -1575,6 +1602,11 @@ function AppContent() {
                   <IndicadoresVendasView />
                 </Suspense>
               } />
+              <Route path="clientes" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <ClientesView />
+                </Suspense>
+              } />
             </Route>
             {/* Área Vista do Cliente */}
             <Route
@@ -1595,6 +1627,8 @@ function AppContent() {
               <Route path="inicio" element={<VistaClienteInicioView />} />
               <Route path="apontamentos" element={<VistaClienteApontamentosView />} />
               <Route path="marcos" element={<VistaClienteMarcosView />} />
+              <Route path="relatos" element={<VistaClienteRelatosView />} />
+              <Route path="alteracoes" element={<VistaClienteAlteracoesView />} />
             </Route>
             <Route
               path="/horas"
