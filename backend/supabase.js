@@ -4878,6 +4878,7 @@ export async function fetchDisciplineMappings(projectId) {
       external_discipline_name,
       standard_discipline_id,
       target_name,
+      is_client_owned,
       created_at,
       updated_at,
       created_by,
@@ -4896,7 +4897,7 @@ export async function fetchDisciplineMappings(projectId) {
 /**
  * Cria ou atualiza um mapeamento de disciplina (upsert)
  */
-export async function createOrUpdateDisciplineMapping({ projectId, externalSource, externalDisciplineName, standardDisciplineId, targetName, createdBy }) {
+export async function createOrUpdateDisciplineMapping({ projectId, externalSource, externalDisciplineName, standardDisciplineId, targetName, isClientOwned, createdBy }) {
   const supabase = getSupabaseServiceClient();
 
   const upsertData = {
@@ -4905,6 +4906,7 @@ export async function createOrUpdateDisciplineMapping({ projectId, externalSourc
     external_discipline_name: externalDisciplineName,
     standard_discipline_id: standardDisciplineId || null,
     target_name: targetName || null,
+    is_client_owned: isClientOwned || false,
     created_by: createdBy,
     updated_at: new Date().toISOString()
   };
@@ -5253,7 +5255,7 @@ export async function fetchDisciplineMappingsBatch(projectIds) {
     .from('discipline_mappings')
     .select(`
       id, project_id, external_source, external_discipline_name,
-      standard_discipline_id,
+      standard_discipline_id, target_name, is_client_owned,
       standard_discipline:standard_discipline_id(id, discipline_name, short_name)
     `)
     .in('project_id', projectIds);
@@ -5886,7 +5888,8 @@ export async function fetchProjectsFromSupabase() {
       company_id,
       project_manager_id,
       teams:team_id (id, team_name, team_number),
-      companies:company_id (id, name),
+      project_order,
+      companies:company_id (id, name, company_type),
       users_otus:project_manager_id (id, name)
     `);
 
