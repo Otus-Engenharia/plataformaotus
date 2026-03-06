@@ -356,6 +356,7 @@ export function processData(rawData, options = {}) {
   // 3a. Delayed tasks
   const delayedTasks = [];
   for (const task of allTasks) {
+    if (!task || typeof task !== 'object') continue;
     const statusNorm = normalizeText(task.Status || '');
     const temInfoAtraso = hasDelayInfo(task);
 
@@ -378,6 +379,7 @@ export function processData(rawData, options = {}) {
   const completedTeam = {};
   const completedClient = {};
   for (const task of allTasks) {
+    if (!task || typeof task !== 'object') continue;
     const statusLower = String(task.Status || '').toLowerCase().trim();
     if (statusLower !== 'feito') continue;
 
@@ -1414,7 +1416,7 @@ export function generateHtml(processedData, options = {}) {
   const countConcluidasTeam = Object.values(completedTeam).reduce((s, a) => s + a.length, 0);
   const countAtrasosTeam = delaysTeam.length;
   const countCronogramaTeam = Object.values(scheduleTeam).reduce(
-    (s, d) => s + (d.a_iniciar?.length || 0) + (d.programadas?.length || 0),
+    (s, d) => s + (d.a_iniciar?.length || 0) + (d.programadas?.length || 0) + (d.em_andamento?.length || 0),
     0,
   );
 
