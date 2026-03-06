@@ -23,23 +23,26 @@ const SNAPSHOT_SQL = `
 INSERT INTO \`dadosindicadores.smartsheet_atrasos.smartsheet_snapshot\`
   (snapshot_date, ID_Projeto, NomeDaPlanilha, NomeDaTarefa,
    DataDeInicio, DataDeTermino, Disciplina, Level, Duracao, Status, rowNumber,
-   Categoria_de_atraso, Motivo_de_atraso, ObservacaoOtus)
+   Categoria_de_atraso, Motivo_de_atraso, ObservacaoOtus, project_code)
 SELECT
   CURRENT_DATE() AS snapshot_date,
-  ID_Projeto,
-  NomeDaPlanilha,
-  NomeDaTarefa,
-  DataDeInicio,
-  DataDeTermino,
-  Disciplina,
-  Level,
-  SAFE_CAST(Duracao AS INT64) AS Duracao,
-  Status,
-  rowNumber,
-  Categoria_de_atraso,
-  Motivo_de_atraso,
-  ObservacaoOtus
-FROM \`dadosindicadores.smartsheet.smartsheet_data_projetos\`
+  s.ID_Projeto,
+  s.NomeDaPlanilha,
+  s.NomeDaTarefa,
+  s.DataDeInicio,
+  s.DataDeTermino,
+  s.Disciplina,
+  s.Level,
+  SAFE_CAST(s.Duracao AS INT64) AS Duracao,
+  s.Status,
+  s.rowNumber,
+  s.Categoria_de_atraso,
+  s.Motivo_de_atraso,
+  s.ObservacaoOtus,
+  CAST(p.project_code_norm AS STRING) AS project_code
+FROM \`dadosindicadores.smartsheet.smartsheet_data_projetos\` s
+LEFT JOIN \`dadosindicadores.portfolio_geral.portfolio\` p
+  ON CAST(s.ID_Projeto AS STRING) = CAST(p.smartsheet_id AS STRING)
 `.trim();
 
 async function main() {

@@ -27,7 +27,7 @@ class GetChangeLog {
     if (!smartsheetId && !projectName) throw new Error('smartsheetId ou projectName é obrigatório');
 
     // 1. Buscar snapshots mensais do BigQuery
-    const { snapshots } = await this.#querySnapshotTasks(smartsheetId, projectName);
+    const { snapshots } = await this.#querySnapshotTasks(smartsheetId, projectName, projectCode);
 
     if (!snapshots || snapshots.size === 0) {
       return {
