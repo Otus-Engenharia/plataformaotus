@@ -7482,13 +7482,15 @@ app.delete('/api/admin/module-overrides/:id', requireAuth, async (req, res) => {
  */
 app.get('/api/projetos/equipe', requireAuth, async (req, res) => {
   try {
-    const projectId = req.query.projectId;
-    if (!projectId) {
-      return res.status(400).json({ success: false, error: 'projectId é obrigatório' });
+    const { projectId, projectCode, includeDismissed: incDismissed } = req.query;
+    if (!projectId && !projectCode) {
+      return res.status(400).json({ success: false, error: 'projectId ou projectCode é obrigatório' });
     }
 
-    const includeDismissed = req.query.includeDismissed === 'true';
-    const data = await fetchProjectDisciplines(projectId, { includeDismissed });
+    const includeDismissed = incDismissed === 'true';
+    const idOrCode = projectCode || projectId;
+    const useProjectCode = !!projectCode;
+    const data = await fetchProjectDisciplines(idOrCode, { includeDismissed, useProjectCode });
     res.json({ success: true, count: data.length, data });
   } catch (error) {
     console.error('❌ Erro ao buscar equipe do projeto:', error);
