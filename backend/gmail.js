@@ -60,6 +60,13 @@ export async function getAuthenticatedClient(userId) {
  * @param {string} [params.htmlBody] - Corpo HTML (se fornecido, envia como multipart)
  * @returns {Promise<{draftId: string, messageId: string}>}
  */
+function encodeSubject(subject) {
+  if (/[^\x00-\x7F]/.test(subject)) {
+    return `=?UTF-8?B?${Buffer.from(subject, 'utf-8').toString('base64')}?=`;
+  }
+  return subject;
+}
+
 export async function createGmailDraft(userId, { to, subject, body, htmlBody }) {
   const auth = await getAuthenticatedClient(userId);
   const gmail = google.gmail({ version: 'v1', auth });
@@ -73,7 +80,7 @@ export async function createGmailDraft(userId, { to, subject, body, htmlBody }) 
     const textBody = body || 'Este email requer um cliente que suporte HTML.';
     const emailLines = [
       `To: ${toHeader}`,
-      `Subject: ${subject}`,
+      `Subject: ${encodeSubject(subject)}`,
       `Content-Type: multipart/alternative; boundary="${boundary}"`,
       'MIME-Version: 1.0',
       '',
@@ -96,7 +103,7 @@ export async function createGmailDraft(userId, { to, subject, body, htmlBody }) 
     // Email simples em texto
     const emailLines = [
       `To: ${toHeader}`,
-      `Subject: ${subject}`,
+      `Subject: ${encodeSubject(subject)}`,
       'Content-Type: text/plain; charset=utf-8',
       'MIME-Version: 1.0',
       '',
