@@ -87,6 +87,7 @@ function CurvaSView() {
   const [data, setData] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [custosPorCargo, setCustosPorCargo] = useState([]);
+  const [ultimoMesComCusto, setUltimoMesComCusto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -178,6 +179,9 @@ function CurvaSView() {
       });
       if (response.data.success) {
         setCustosPorCargo(response.data.data);
+        if (response.data.ultimoMesComCusto) {
+          setUltimoMesComCusto(response.data.ultimoMesComCusto);
+        }
       }
     } catch (err) {
       console.error('Erro ao buscar custos por cargo:', err);
@@ -526,10 +530,7 @@ function CurvaSView() {
     });
   };
 
-  const chartScrollWidthPercent = useMemo(() => {
-    const months = dataByMonth.length > 0 ? dataByMonth.length : 12;
-    return Math.max(100, Math.round((months / 12) * 100));
-  }, [dataByMonth.length]);
+  const chartScrollWidthPercent = 100;
 
   useEffect(() => {
     if (!dataByMonth.length) return;
@@ -860,6 +861,21 @@ function CurvaSView() {
       .sort((a, b) => b.totalCusto - a.totalCusto);
   }, [filteredCustosCargo, drillDownMonth]);
 
+  // Verifica se dados de custo estão desatualizados (> 2 meses atrás)
+  const custosDesatualizados = useMemo(() => {
+    if (!ultimoMesComCusto) return null;
+    const parsed = parseDate(ultimoMesComCusto);
+    if (!parsed) return null;
+    const [year, month] = parsed.split('-').map(Number);
+    const lastCostDate = new Date(year, month - 1);
+    const now = new Date();
+    const diffMonths = (now.getFullYear() - lastCostDate.getFullYear()) * 12 + (now.getMonth() - lastCostDate.getMonth());
+    if (diffMonths > 2) {
+      return parsed;
+    }
+    return null;
+  }, [ultimoMesComCusto]);
+
   // Formata valor monetário
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -1126,17 +1142,19 @@ function CurvaSView() {
         </div>
       </div>
 
-      {/* Barra de rolagem horizontal sincronizada */}
-      <div
-        className="charts-scrollbar"
-        ref={scrollTrackRef}
-        onScroll={(e) => syncScroll(e.currentTarget)}
-      >
+      {/* Barra de rolagem horizontal sincronizada — só exibe se houver expansão */}
+      {chartScrollWidthPercent > 100 && (
         <div
-          className="charts-scrollbar-inner"
-          style={{ width: `${chartScrollWidthPercent}%` }}
-        />
-      </div>
+          className="charts-scrollbar"
+          ref={scrollTrackRef}
+          onScroll={(e) => syncScroll(e.currentTarget)}
+        >
+          <div
+            className="charts-scrollbar-inner"
+            style={{ width: `${chartScrollWidthPercent}%` }}
+          />
+        </div>
+      )}
 
       {/* Gráfico principal - Curva S */}
       {curvaSChartData && (
@@ -1461,6 +1479,11 @@ function CurvaSView() {
               </div>
             )}
           </div>
+          {custosDesatualizados && (
+            <div className="custo-alert-banner">
+              Dados de custo atualizados até {formatMonthLabel(custosDesatualizados)}. Horas após esta data não possuem custo associado.
+            </div>
+          )}
           <div className="colaboradores-table-wrapper">
             <table className="colaboradores-table">
               <thead>
@@ -1498,16 +1521,24 @@ function CurvaSView() {
                           <strong>{cargoPct}</strong>
                         </td>
                       </tr>
-                      {cargoGroup.persons.map((person, pIdx) => (
-                        <tr key={pIdx} className="cargo-person-row">
-                          <td style={{ paddingLeft: '2rem' }}>{person.usuario}</td>
+                      {cargoGroup.persons.map((person, pIdx) => {
+                        const semCusto = person.horas > 0 && person.custoTotal === 0;
+                        return (
+                        <tr key={pIdx} className={`cargo-person-row${semCusto ? ' custo-zerado' : ''}`}>
+                          <td style={{ paddingLeft: '2rem' }}>
+                            {person.usuario}
+                            {semCusto && (
+                              <span className="custo-zerado-icon" title="Este usuário tem horas registradas mas sem custo associado">&#9888;</span>
+                            )}
+                          </td>
                           <td className="text-right">{formatCurrency(person.custoDireto)}</td>
                           <td className="text-right">{formatCurrency(person.custoIndireto)}</td>
                           <td className="text-right">{formatCurrency(person.custoTotal)}</td>
                           <td className="text-right">{Math.round(person.horas)}h</td>
                           <td className="text-right">{person.pctHoras > 0 ? person.pctHoras.toFixed(1) + '%' : '—'}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </React.Fragment>
                   );
                 })}

@@ -443,3 +443,17 @@ export const isAIniciarStatus = (status) => {
   if (!status || typeof status !== 'string') return false;
   return status.toLowerCase().trim().includes('a iniciar');
 };
+
+// Status que representam projetos ativos
+export const ACTIVE_STATUSES = [
+  'planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'
+];
+
+/**
+ * Verifica se um status e ativo (em execucao)
+ */
+export const isAtivoStatus = (status) => {
+  if (!status || typeof status !== 'string') return false;
+  const s = status.toLowerCase().trim();
+  return ACTIVE_STATUSES.some(a => s === a || s.includes(a));
+};

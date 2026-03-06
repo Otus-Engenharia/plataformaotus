@@ -9,6 +9,7 @@
   background: linear-gradient(180deg, #ffffff 0%, #ededed 100%);
   min-height: 100vh;
   font-family: Verdana, sans-serif;
+  overflow-x: hidden;
 }
 
 .header {
@@ -254,15 +255,13 @@
   overflow-x: auto;
   overflow-y: hidden;
   position: relative;
-  height: 400px !important;
-  min-height: 400px !important;
-  max-height: 400px !important;
+  height: min(400px, 50vw);
+  min-height: 280px;
 }
 
 .chart-primary .chart-wrapper-scroll {
-  height: 500px !important;
-  min-height: 500px !important;
-  max-height: 500px !important;
+  height: min(500px, 55vw);
+  min-height: 320px;
 }
 
 /* Container interno dos gráficos para rolagem sincronizada */
@@ -452,6 +451,30 @@
   padding-left: 2rem;
 }
 
+/* Alerta de custos desatualizados */
+.custo-alert-banner {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Linha com horas mas sem custo */
+.colaboradores-table .cargo-person-row.custo-zerado {
+  background-color: #fff8e1;
+}
+
+.custo-zerado-icon {
+  margin-left: 6px;
+  color: #e65100;
+  font-size: 14px;
+  cursor: help;
+}
+
 /* Estados de loading e erro */
 .loading,
 .error {
@@ -515,6 +538,26 @@
 }
 
 /* Responsividade */
+@media (max-width: 1024px) {
+  .curva-s-container {
+    padding: 1rem;
+  }
+
+  .chart-wrapper-scroll {
+    height: 300px;
+    min-height: 250px;
+  }
+
+  .chart-primary .chart-wrapper-scroll {
+    height: 350px;
+    min-height: 280px;
+  }
+
+  .kpis-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .filters-section {
     flex-direction: column;

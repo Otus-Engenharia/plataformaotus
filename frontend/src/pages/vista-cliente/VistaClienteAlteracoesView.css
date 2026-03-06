@@ -1,0 +1,661 @@
+/* ============================================================
+   Vista do Cliente - Alterações (Log de Mudanças)
+   Prefix: vcalt-
+   ============================================================ */
+
+/* ---- KPI Strip override (force 4 cols) ---- */
+.vcalt-kpi-strip {
+  grid-template-columns: repeat(4, 1fr);
+  animation: vcFadeInUp 0.35s ease-out both;
+}
+
+/* ---- Loading ---- */
+.vcalt-loading {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--vc-text-muted);
+  font-size: 14px;
+  font-family: var(--vc-font-body);
+}
+
+/* ---- Filter Bar ---- */
+.vcalt-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: vcFadeInUp 0.35s ease-out 0.05s both;
+}
+
+.vcalt-filter-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vcalt-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border: 1px solid var(--vc-border);
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: var(--vc-font-body);
+  font-weight: 500;
+  color: var(--vc-text-secondary);
+  background: var(--vc-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vcalt-filter-btn:hover {
+  border-color: var(--vc-border-hover);
+  color: var(--vc-text-primary);
+}
+
+.vcalt-filter-btn.active {
+  background: var(--vc-accent);
+  border-color: var(--vc-accent);
+  color: var(--vc-text-primary);
+  font-weight: 600;
+}
+
+.vcalt-filter-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ---- Month Tabs ---- */
+.vcalt-month-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.vcalt-month-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border: 1px solid var(--vc-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: var(--vc-font-body);
+  font-weight: 500;
+  color: var(--vc-text-secondary);
+  background: var(--vc-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vcalt-month-tab:hover {
+  border-color: var(--vc-border-hover);
+  color: var(--vc-text-primary);
+}
+
+.vcalt-month-tab.active {
+  background: var(--vc-text-primary);
+  border-color: var(--vc-text-primary);
+  color: var(--vc-surface);
+  font-weight: 600;
+}
+
+.vcalt-month-tab-count {
+  font-size: 10px;
+  background: rgba(0,0,0,0.08);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.vcalt-month-tab.active .vcalt-month-tab-count {
+  background: rgba(255,255,255,0.2);
+}
+
+/* ---- Content Grid (2 columns) ---- */
+.vcalt-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 16px;
+  align-items: start;
+  animation: vcFadeInUp 0.4s ease-out 0.1s both;
+}
+
+/* ---- Months Column (scrollable) ---- */
+.vcalt-months-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 620px;
+  overflow-y: scroll;
+  scrollbar-width: auto;
+  scrollbar-color: #c4c0bb #f5f4f2;
+  padding-right: 4px;
+}
+
+.vcalt-months-column::-webkit-scrollbar {
+  width: 8px;
+}
+
+.vcalt-months-column::-webkit-scrollbar-track {
+  background: #f5f4f2;
+  border-radius: 4px;
+}
+
+.vcalt-months-column::-webkit-scrollbar-thumb {
+  background: #c4c0bb;
+  border-radius: 4px;
+}
+
+.vcalt-months-column::-webkit-scrollbar-thumb:hover {
+  background: #a8a4a0;
+}
+
+/* ---- Month Card ---- */
+.vcalt-month-card {
+  background: var(--vc-surface);
+  border: 1px solid var(--vc-border);
+  border-radius: var(--vc-radius);
+  box-shadow: var(--vc-shadow-card);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.vcalt-month-card:hover {
+  box-shadow: var(--vc-shadow-elevated);
+}
+
+.vcalt-month-card.expanded {
+  border-left: 3px solid var(--vc-accent, #C8B89A);
+}
+
+.vcalt-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--vc-font-body);
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.vcalt-month-header:hover {
+  background: #fafaf8;
+}
+
+.vcalt-month-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.vcalt-chevron {
+  font-size: 10px;
+  color: var(--vc-text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.vcalt-chevron.open {
+  transform: rotate(90deg);
+}
+
+.vcalt-month-label {
+  font-family: var(--vc-font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--vc-text-primary);
+  white-space: nowrap;
+}
+
+.vcalt-month-total {
+  font-size: 12px;
+  color: var(--vc-text-muted);
+  white-space: nowrap;
+}
+
+.vcalt-month-badges {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.vcalt-month-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--vc-font-body);
+  white-space: nowrap;
+}
+
+/* ---- Month Minibar (collapsed) ---- */
+.vcalt-month-minibar {
+  display: flex;
+  height: 3px;
+  gap: 1px;
+  margin: 0 16px 8px;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+/* ---- Discipline Groups (inside month) ---- */
+.vcalt-disc-group {
+  margin-bottom: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #eeedeb;
+}
+
+.vcalt-disc-group:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.vcalt-disc-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 6px;
+  margin-bottom: 4px;
+}
+
+.vcalt-disc-group-name {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--vc-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.vcalt-disc-group-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: #f0efed;
+  color: var(--vc-text-secondary);
+  padding: 1px 7px;
+  border-radius: 8px;
+}
+
+/* ---- Disc Type Breakdown Bar ---- */
+.vcalt-disc-type-bar {
+  display: flex;
+  height: 4px;
+  border-radius: 2px;
+  max-width: 80px;
+  gap: 1px;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.vcalt-disc-type-bar > span {
+  min-width: 3px;
+  border-radius: 1px;
+}
+
+/* ---- Type Sub-Group ---- */
+.vcalt-type-subgroup {
+  margin-bottom: 2px;
+}
+
+.vcalt-type-subheader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--vc-font-body);
+}
+
+.vcalt-type-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vcalt-type-subheader-count {
+  font-size: 10px;
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+/* ---- Change Rows ---- */
+.vcalt-month-changes {
+  border-top: 1px solid var(--vc-border);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 450px;
+  overflow-y: auto;
+  scrollbar-width: auto;
+  scrollbar-color: #c4c0bb #f5f4f2;
+}
+.vcalt-month-changes::-webkit-scrollbar { width: 6px; }
+.vcalt-month-changes::-webkit-scrollbar-track { background: #f5f4f2; border-radius: 3px; }
+.vcalt-month-changes::-webkit-scrollbar-thumb { background: #c4c0bb; border-radius: 3px; }
+.vcalt-month-changes::-webkit-scrollbar-thumb:hover { background: #a8a4a0; }
+
+.vcalt-change-row {
+  border-left: 3px solid #ccc;
+  padding: 5px 10px;
+  border-radius: 0 var(--vc-radius-sm) var(--vc-radius-sm) 0;
+  background: #fafaf8;
+  transition: background 0.15s;
+}
+
+.vcalt-change-row:hover {
+  background: #f5f5f0;
+}
+
+.vcalt-change-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vcalt-task-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vc-text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.vcalt-delta-badge {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'DM Mono', 'SF Mono', 'Consolas', monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.vcalt-discipline-tag,
+.vcalt-phase-tag {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #f0efed;
+  color: var(--vc-text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---- Annotation (callout style) ---- */
+.vcalt-annotation {
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: #fefdfb;
+  border-left: 2px solid var(--vc-border);
+  border-radius: 0 var(--vc-radius-sm) var(--vc-radius-sm) 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--vc-text-secondary);
+}
+
+.vcalt-annotation p {
+  margin: 0;
+}
+
+.vcalt-annotation-just {
+  margin-top: 4px !important;
+}
+
+.vcalt-annotation-just strong {
+  color: var(--vc-text-primary);
+}
+
+/* ---- Discipline Card (sticky sidebar) ---- */
+.vcalt-discipline-card {
+  background: var(--vc-surface);
+  border: 1px solid var(--vc-border);
+  border-radius: var(--vc-radius);
+  box-shadow: var(--vc-shadow-card);
+  padding: 16px;
+  position: sticky;
+  top: 16px;
+  max-height: 480px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d6d3d1 transparent;
+}
+
+.vcalt-discipline-card::-webkit-scrollbar {
+  width: 5px;
+}
+
+.vcalt-discipline-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vcalt-discipline-card::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 3px;
+}
+
+.vcalt-discipline-title {
+  font-family: var(--vc-font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--vc-text-primary);
+  margin: 0 0 12px 0;
+}
+
+.vcalt-discipline-empty {
+  text-align: center;
+  padding: 24px 8px;
+  color: var(--vc-text-muted);
+  font-size: 13px;
+}
+
+/* ---- Sidebar Tabs ---- */
+.vcalt-sidebar-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border: 1px solid var(--vc-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.vcalt-sidebar-tab {
+  flex: 1;
+  padding: 5px 0;
+  border: none;
+  background: var(--vc-surface);
+  font-size: 12px;
+  font-family: var(--vc-font-body);
+  font-weight: 500;
+  color: var(--vc-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.vcalt-sidebar-tab:not(:last-child) {
+  border-right: 1px solid var(--vc-border);
+}
+
+.vcalt-sidebar-tab.active {
+  background: var(--vc-text-primary);
+  color: var(--vc-surface);
+  font-weight: 600;
+}
+
+.vcalt-sidebar-tab:hover:not(.active) {
+  background: #f5f4f2;
+}
+
+/* ---- Chart Legend ---- */
+.vcalt-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.vcalt-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-family: var(--vc-font-body);
+  color: var(--vc-text-secondary);
+  font-weight: 500;
+}
+
+.vcalt-chart-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ---- Chart Divider ---- */
+.vcalt-chart-divider {
+  height: 1px;
+  background: var(--vc-border);
+  margin: 12px 0;
+}
+
+/* ---- Tooltip cursor on table headers ---- */
+.vcalt-discipline-table th[title] {
+  cursor: help;
+}
+
+/* ---- Discipline Table Wrapper ---- */
+.vcalt-discipline-table-wrap {
+  overflow: hidden;
+}
+
+/* ---- Discipline Table ---- */
+.vcalt-discipline-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--vc-font-body);
+}
+
+.vcalt-discipline-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--vc-text-secondary);
+  padding: 6px 8px;
+  border-bottom: 2px solid var(--vc-border);
+  white-space: nowrap;
+}
+
+.vcalt-discipline-table td {
+  font-size: 13px;
+  color: var(--vc-text-primary);
+  padding: 8px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.vcalt-discipline-table tbody tr {
+  transition: background 0.15s;
+}
+
+.vcalt-discipline-table tbody tr:hover {
+  background: #fafaf8;
+}
+
+.vcalt-discipline-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vcalt-disc-name {
+  font-weight: 500;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vcalt-disc-num {
+  text-align: center;
+  font-weight: 600;
+  font-family: 'DM Mono', 'SF Mono', 'Consolas', monospace;
+  font-size: 12px;
+}
+
+.vcalt-disc-desvios {
+  color: #EF4444;
+}
+
+.vcalt-discipline-legend {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  color: #999;
+}
+
+/* ---- Show More Button ---- */
+.vcalt-show-more-btn {
+  display: block;
+  width: 100%;
+  padding: 6px 0;
+  margin-top: 4px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: var(--vc-font-body);
+  font-weight: 500;
+  color: var(--vc-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.vcalt-show-more-btn:hover {
+  color: var(--vc-text-primary);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1100px) {
+  .vcalt-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vcalt-discipline-card {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .vcalt-kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .vcalt-month-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .vcalt-month-badges {
+    justify-content: flex-start;
+  }
+
+  .vcalt-months-column {
+    max-height: 480px;
+  }
+}

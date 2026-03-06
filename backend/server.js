@@ -1671,10 +1671,19 @@ app.get('/api/curva-s/custos-por-cargo', requireAuth, withBqCache(900), async (r
       horas_totais_mes: parseFloat(row.horas_totais_mes) || 0,
     }));
 
+    // Calcular último mês com custos > 0
+    const mesesComCusto = enrichedData
+      .filter(row => row.custo_direto > 0 || row.custo_indireto > 0)
+      .map(row => row.mes?.value ? String(row.mes.value) : String(row.mes || ''));
+    const ultimoMesComCusto = mesesComCusto.length > 0
+      ? mesesComCusto.sort().pop()
+      : null;
+
     res.json({
       success: true,
       count: enrichedData.length,
-      data: enrichedData
+      data: enrichedData,
+      ultimoMesComCusto
     });
   } catch (error) {
     console.error('❌ Erro ao buscar custos por cargo:', error);
