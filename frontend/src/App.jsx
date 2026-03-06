@@ -86,6 +86,7 @@ const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
 // Lazy load da página de Admin & Financeiro
 const ControlePassivoView = lazy(() => import('./components/ControlePassivoView'));
 const IndicadoresVendasView = lazy(() => import('./components/IndicadoresVendasView'));
+const ClientesView = lazy(() => import('./components/ClientesView'));
 
 // Lazy load das páginas de OKRs
 const DashboardOKRs = lazy(() => import('./pages/okrs/DashboardOKRs'));
@@ -802,6 +803,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.financeiro}</span>
         <span className="nav-text">Indicadores Vendas</span>
+      </Link>
+      <Link
+        to="/vendas/clientes"
+        className={`nav-link nav-link-modern ${location.pathname === '/vendas/clientes' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Clientes')}
+      >
+        <span className="nav-icon">{icons.contatos}</span>
+        <span className="nav-text">Clientes</span>
       </Link>
     </>
   );
@@ -1573,6 +1582,11 @@ function AppContent() {
               <Route path="indicadores-vendas" element={
                 <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                   <IndicadoresVendasView />
+                </Suspense>
+              } />
+              <Route path="clientes" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <ClientesView />
                 </Suspense>
               } />
             </Route>

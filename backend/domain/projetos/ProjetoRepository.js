@@ -63,6 +63,42 @@ class ProjetoRepository {
   async saveContact(contactData) {
     throw new Error('Método saveContact deve ser implementado');
   }
+
+  /**
+   * Busca ou atribui client_code para uma empresa
+   * @param {string} companyId - ID da empresa
+   * @returns {Promise<number>} client_code (YYY)
+   */
+  async getOrAssignClientCode(companyId) {
+    throw new Error('Método getOrAssignClientCode deve ser implementado');
+  }
+
+  /**
+   * Conta projetos de uma empresa específica
+   * @param {string} companyId - ID da empresa
+   * @returns {Promise<number>} Quantidade de projetos
+   */
+  async countProjectsByCompany(companyId) {
+    throw new Error('Método countProjectsByCompany deve ser implementado');
+  }
+
+  /**
+   * Retorna o maior project_order existente
+   * @returns {Promise<number>} Maior project_order (0 se nenhum)
+   */
+  async getMaxProjectOrder() {
+    throw new Error('Método getMaxProjectOrder deve ser implementado');
+  }
+
+  /**
+   * Verifica se já existe projeto com mesmo nome e empresa
+   * @param {string} name - Nome do projeto
+   * @param {string} companyId - ID da empresa
+   * @returns {Promise<Object|null>} Projeto encontrado ou null
+   */
+  async findProjectByNameAndCompany(name, companyId) {
+    throw new Error('Método findProjectByNameAndCompany deve ser implementado');
+  }
 }
 
 export { ProjetoRepository };
