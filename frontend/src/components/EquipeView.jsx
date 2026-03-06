@@ -60,11 +60,11 @@ function EquipeView({ selectedProjectId, portfolio = [] }) {
 
   // Busca equipe (disciplinas do projeto)
   const fetchEquipe = useCallback(async () => {
-    if (!construflowId) { setEquipe([]); return; }
+    if (!projectCode) { setEquipe([]); return; }
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/api/projetos/equipe`, {
-        params: { projectId: construflowId, includeDismissed: true },
+        params: { projectCode, includeDismissed: true },
         withCredentials: true
       });
       const data = response.data.data || [];
@@ -79,7 +79,7 @@ function EquipeView({ selectedProjectId, portfolio = [] }) {
     } finally {
       setLoading(false);
     }
-  }, [construflowId]);
+  }, [projectCode]);
 
   // Busca análise cruzada
   const fetchCrossRef = useCallback(async () => {
