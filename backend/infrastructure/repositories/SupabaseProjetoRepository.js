@@ -196,6 +196,90 @@ class SupabaseProjetoRepository extends ProjetoRepository {
 
     return data;
   }
+
+  async getOrAssignClientCode(companyId) {
+    // Check if company already has a client_code
+    const { data: company, error: fetchError } = await this.#supabase
+      .from(COMPANIES_TABLE)
+      .select('client_code')
+      .eq('id', companyId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Erro ao buscar empresa: ${fetchError.message}`);
+    }
+
+    if (company.client_code != null) {
+      return company.client_code;
+    }
+
+    // Assign next client_code
+    const { data: maxRow, error: maxError } = await this.#supabase
+      .from(COMPANIES_TABLE)
+      .select('client_code')
+      .not('client_code', 'is', null)
+      .order('client_code', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextCode = (maxError || !maxRow) ? 1 : maxRow.client_code + 1;
+
+    const { error: updateError } = await this.#supabase
+      .from(COMPANIES_TABLE)
+      .update({ client_code: nextCode })
+      .eq('id', companyId);
+
+    if (updateError) {
+      throw new Error(`Erro ao atribuir client_code: ${updateError.message}`);
+    }
+
+    return nextCode;
+  }
+
+  async countProjectsByCompany(companyId) {
+    const { count, error } = await this.#supabase
+      .from(PROJECTS_TABLE)
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId);
+
+    if (error) {
+      throw new Error(`Erro ao contar projetos: ${error.message}`);
+    }
+
+    return count || 0;
+  }
+
+  async getMaxProjectOrder() {
+    const { data, error } = await this.#supabase
+      .from(PROJECTS_TABLE)
+      .select('project_order')
+      .not('project_order', 'is', null)
+      .order('project_order', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return 0;
+    }
+
+    return data.project_order;
+  }
+
+  async findProjectByNameAndCompany(name, companyId) {
+    const { data, error } = await this.#supabase
+      .from(PROJECTS_TABLE)
+      .select('id, name, project_code, company_id')
+      .eq('name', name.trim().toUpperCase())
+      .eq('company_id', companyId)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Erro ao verificar duplicidade: ${error.message}`);
+    }
+
+    return data;
+  }
 }
 
 export { SupabaseProjetoRepository };

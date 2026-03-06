@@ -18,6 +18,7 @@ class Project {
   // --- projects table ---
   #id;
   #projectCode;
+  #projectOrder;
   #name;
   #companyId;
   #description;
@@ -66,6 +67,7 @@ class Project {
   constructor({
     id = null,
     projectCode = null,
+    projectOrder = null,
     name,
     companyId,
     description = null,
@@ -116,6 +118,7 @@ class Project {
     // --- projects ---
     this.#id = id;
     this.#projectCode = projectCode || null;
+    this.#projectOrder = projectOrder != null ? parseInt(projectOrder, 10) : null;
     this.#name = name.trim().toUpperCase();
     this.#companyId = companyId;
     this.#description = description?.trim() || null;
@@ -196,6 +199,8 @@ class Project {
   // ---- Getters ----
 
   get id() { return this.#id; }
+  get projectCode() { return this.#projectCode; }
+  get projectOrder() { return this.#projectOrder; }
   get name() { return this.#name; }
   get companyId() { return this.#companyId; }
   get description() { return this.#description; }
@@ -240,6 +245,7 @@ class Project {
     return {
       project: {
         ...(this.#projectCode && { project_code: this.#projectCode }),
+        ...(this.#projectOrder != null && { project_order: this.#projectOrder }),
         name: this.#name,
         company_id: this.#companyId,
         description: this.#description,
@@ -292,6 +298,7 @@ class Project {
     return {
       id: this.#id,
       project_code: this.#projectCode,
+      project_order: this.#projectOrder,
       code: this.code,
       name: this.#name,
       company_id: this.#companyId,
@@ -343,6 +350,7 @@ class Project {
   static fromPersistence(data) {
     return new Project({
       id: data.id,
+      projectOrder: data.project_order,
       name: data.name,
       companyId: data.company_id,
       description: data.description,

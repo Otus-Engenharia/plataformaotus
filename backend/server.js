@@ -920,6 +920,17 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
       return true;
     });
 
+    // Derivar tipo_venda dos últimos 3 dígitos do código (ZZZ)
+    for (const row of deduplicatedData) {
+      const code = String(row.project_code_norm || '');
+      if (/^\d{9}$/.test(code)) {
+        const zzz = parseInt(code.substring(6, 9), 10);
+        row.tipo_venda = zzz > 1 ? 'Revenda' : 'Venda Nova';
+      } else {
+        row.tipo_venda = null;
+      }
+    }
+
     // Registra o acesso
     await logAction(req, 'view', 'portfolio', null, 'Portfólio', { count: deduplicatedData.length });
 
@@ -1660,10 +1671,19 @@ app.get('/api/curva-s/custos-por-cargo', requireAuth, withBqCache(900), async (r
       horas_totais_mes: parseFloat(row.horas_totais_mes) || 0,
     }));
 
+    // Calcular último mês com custos > 0
+    const mesesComCusto = enrichedData
+      .filter(row => row.custo_direto > 0 || row.custo_indireto > 0)
+      .map(row => row.mes?.value ? String(row.mes.value) : String(row.mes || ''));
+    const ultimoMesComCusto = mesesComCusto.length > 0
+      ? mesesComCusto.sort().pop()
+      : null;
+
     res.json({
       success: true,
       count: enrichedData.length,
-      data: enrichedData
+      data: enrichedData,
+      ultimoMesComCusto
     });
   } catch (error) {
     console.error('❌ Erro ao buscar custos por cargo:', error);
@@ -7940,6 +7960,59 @@ app.put('/api/projetos/equipe/contatos/:id', requireAuth, async (req, res) => {
     res.json({ success: true, data });
   } catch (error) {
     console.error('❌ Erro ao atualizar contato:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// ROTAS: VISTA DE CLIENTES
+// ==========================================
+
+/**
+ * Rota: GET /api/clientes
+ * Retorna empresas com contagem de projetos
+ */
+app.get('/api/clientes', requireAuth, async (req, res) => {
+  try {
+    const supabase = getSupabaseServiceClient();
+
+    // Buscar empresas com dados completos
+    const { data: companies, error: compError } = await supabase
+      .from('companies')
+      .select('id, name, client_code, status, company_address, maturidade_cliente, nivel_cliente, company_type, created_at')
+      .order('client_code', { ascending: true, nullsFirst: false });
+
+    if (compError) throw compError;
+
+    // Buscar contagem de projetos por empresa
+    const { data: projectCounts, error: pcError } = await supabase
+      .from('projects')
+      .select('company_id, status');
+
+    if (pcError) throw pcError;
+
+    // Agrupar contagem por empresa
+    const countMap = {};
+    const activeStatuses = ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'];
+    for (const p of (projectCounts || [])) {
+      if (!countMap[p.company_id]) {
+        countMap[p.company_id] = { total: 0, active: 0 };
+      }
+      countMap[p.company_id].total++;
+      if (activeStatuses.includes((p.status || '').toLowerCase().trim())) {
+        countMap[p.company_id].active++;
+      }
+    }
+
+    const result = (companies || []).map(c => ({
+      ...c,
+      project_count: countMap[c.id]?.total || 0,
+      active_count: countMap[c.id]?.active || 0,
+    }));
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao buscar clientes:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -18,7 +18,8 @@ export const VIEWS = {
       'client',
       'nome_time',
       'lider',
-      'service_type'
+      'service_type',
+      'tipo_venda'
     ]
   },
   valores: {
@@ -82,6 +83,7 @@ export const COLUMN_NAMES_PT = {
   'nome_time': 'Time',
   'lider': 'Lider',
   'service_type': 'Tipo de<br/>Serviço',
+  'tipo_venda': 'Tipo de<br/>Venda',
   'valor_contrato_total': 'Contrato<br/>(R$)',
   'valor_aditivo_total': 'Aditivos<br/>(R$)',
   'valor_total_contrato_mais_aditivos': 'Total<br/>(R$)',
@@ -157,7 +159,8 @@ export const COLUMN_WIDTHS = {
   'valor_contrato_total': 100,
   'valor_aditivo_total': 100,
   'valor_total_contrato_mais_aditivos': 100,
-  'qtd_aditivos_distintos': 85
+  'qtd_aditivos_distintos': 85,
+  'tipo_venda': 100
 };
 
 /**
@@ -439,4 +442,18 @@ export const isPausedStatus = (status) => {
 export const isAIniciarStatus = (status) => {
   if (!status || typeof status !== 'string') return false;
   return status.toLowerCase().trim().includes('a iniciar');
+};
+
+// Status que representam projetos ativos
+export const ACTIVE_STATUSES = [
+  'planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'
+];
+
+/**
+ * Verifica se um status e ativo (em execucao)
+ */
+export const isAtivoStatus = (status) => {
+  if (!status || typeof status !== 'string') return false;
+  const s = status.toLowerCase().trim();
+  return ACTIVE_STATUSES.some(a => s === a || s.includes(a));
 };
