@@ -15,6 +15,7 @@ import { PortfolioProvider } from './contexts/PortfolioContext';
 import { VistaClienteProvider } from './contexts/VistaClienteContext';
 import axios from 'axios';
 import { getSeenFeedbackIds } from './utils/feedbackSeenTracker';
+import { getSeenProjectCodes, initSeenProjects } from './utils/projectSeenTracker';
 import DevImpersonationPanel from './components/DevImpersonationPanel';
 import IndicadoresLiderancaView from './components/IndicadoresLiderancaView';
 import ProjetosView from './components/ProjetosView';
@@ -41,6 +42,7 @@ const ApoioCronogramaView = lazy(() => import('./pages/apoio/ApoioCronogramaView
 const ApoioGanttView = lazy(() => import('./pages/apoio/ApoioGanttView'));
 const DemandasKanbanView = lazy(() => import('./pages/apoio/DemandasKanbanView'));
 const ApoioPortfolioView = lazy(() => import('./pages/apoio/ApoioPortfolioView'));
+const AreaPortfolioView = lazy(() => import('./pages/area/AreaPortfolioView'));
 const IfcChangeLogView = lazy(() => import('./pages/apoio/IfcChangeLogView'));
 const EstudoCustoKanbanView = lazy(() => import('./pages/cs/EstudoCustoKanbanView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
@@ -304,6 +306,9 @@ function Sidebar({ collapsed, onToggle, area }) {
   // State para badge de marcos pendentes (edições não vistas + baselines pendentes)
   const [pendingMarcosCount, setPendingMarcosCount] = useState(0);
 
+  // State para badge de projetos novos (nunca vistos)
+  const [newProjectCount, setNewProjectCount] = useState(0);
+
   // Carregar setores quando estiver na área de OKRs ou Workspace
   useEffect(() => {
     if (area === 'okrs') {
@@ -390,6 +395,16 @@ function Sidebar({ collapsed, onToggle, area }) {
           }
         })
         .catch(() => {});
+
+      axios.get('/api/portfolio/project-codes', { withCredentials: true })
+        .then(res => {
+          if (res.data.success) {
+            const codes = res.data.data.codes || [];
+            const newCodes = initSeenProjects(user?.id, codes);
+            setNewProjectCount(newCodes.size);
+          }
+        })
+        .catch(() => {});
     };
 
     fetchBadgeCounts();
@@ -398,11 +413,13 @@ function Sidebar({ collapsed, onToggle, area }) {
     // Recalcular badges quando admin marca feedbacks como vistos
     window.addEventListener('feedbacks-seen-updated', fetchBadgeCounts);
     window.addEventListener('contact-requests-updated', fetchBadgeCounts);
+    window.addEventListener('portfolio-project-seen', fetchBadgeCounts);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('feedbacks-seen-updated', fetchBadgeCounts);
       window.removeEventListener('contact-requests-updated', fetchBadgeCounts);
+      window.removeEventListener('portfolio-project-seen', fetchBadgeCounts);
     };
   }, [isPrivileged, user?.id]);
 
@@ -703,6 +720,17 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">Estudos de Custos</span>
       </Link>
       <Link
+        to="/cs-area/portfolio"
+        className={`nav-link nav-link-modern ${location.pathname === '/cs-area/portfolio' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Portfolio')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Portfolio</span>
+        {newProjectCount > 0 && (
+          <span className="nav-notification-badge">{newProjectCount}</span>
+        )}
+      </Link>
+      <Link
         to="/cs-area/quadro"
         className={`nav-link nav-link-modern ${location.pathname === '/cs-area/quadro' ? 'nav-link-active' : ''}`}
         title={linkTitle('Quadro')}
@@ -777,6 +805,17 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.financeiro}</span>
         <span className="nav-text">Controle Passivo</span>
+      </Link>
+      <Link
+        to="/admin-financeiro/portfolio"
+        className={`nav-link nav-link-modern ${location.pathname === '/admin-financeiro/portfolio' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Portfolio')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Portfolio</span>
+        {newProjectCount > 0 && (
+          <span className="nav-notification-badge">{newProjectCount}</span>
+        )}
       </Link>
     </>
   );
@@ -1546,6 +1585,7 @@ function AppContent() {
             >
               <Route index element={<Navigate to="estudos-custos" replace />} />
               <Route path="estudos-custos" element={<EstudoCustoKanbanView />} />
+              <Route path="portfolio" element={<AreaPortfolioView />} />
               <Route path="quadro" element={<WhiteboardView boardId="cs" />} />
             </Route>
             {/* Área Apoio de Projetos - rotas aninhadas */}
@@ -1584,6 +1624,7 @@ function AppContent() {
             >
               <Route index element={<Navigate to="controle-passivo" replace />} />
               <Route path="controle-passivo" element={<ControlePassivoView />} />
+              <Route path="portfolio" element={<AreaPortfolioView />} />
             </Route>
             {/* Área Vendas - rotas aninhadas */}
             <Route
