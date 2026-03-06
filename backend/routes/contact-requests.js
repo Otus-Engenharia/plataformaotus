@@ -7,7 +7,7 @@
 import express from 'express';
 import { hasFullAccess } from '../auth-config.js';
 import { SupabaseContactChangeRequestRepository } from '../infrastructure/repositories/SupabaseContactChangeRequestRepository.js';
-import { createContact, updateContact, createCompany, createStandardDiscipline } from '../supabase.js';
+import { createContact, updateContact, createCompany, createStandardDiscipline, createProjectDiscipline, getProjectIdByCode } from '../supabase.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function safeUuid(value) {
@@ -38,6 +38,8 @@ const contactService = {
   updateContact,
   createCompany,
   createStandardDiscipline,
+  createProjectDiscipline,
+  getProjectIdByCode,
 };
 
 function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
@@ -105,7 +107,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
    * GET /api/contact-requests/pending
    * Lista solicitações pendentes (equipe de dados)
    */
-  router.get('/pending', requireAuth, badgeCacheMiddleware, async (req, res) => {
+  router.get('/pending', requireAuth, async (req, res) => {
     try {
       if (!hasFullAccess(req.user)) {
         return res.status(403).json({ success: false, error: 'Acesso negado' });
@@ -125,7 +127,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache) {
    * GET /api/contact-requests/pending-count
    * Contagem de pendentes (para badge)
    */
-  router.get('/pending-count', requireAuth, badgeCacheMiddleware, async (req, res) => {
+  router.get('/pending-count', requireAuth, async (req, res) => {
     try {
       if (!hasFullAccess(req.user)) {
         return res.json({ success: true, data: { count: 0 } });

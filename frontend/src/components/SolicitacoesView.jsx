@@ -264,7 +264,7 @@ function SolicitacoesView() {
       {/* Minhas Solicitações */}
       <div className="solicitacoes-list-section">
         <h3 className="solicitacoes-list-title">
-          Minhas Solicitações
+          Minhas Solicitações e Edições
           {myRequests.filter(r => r.status === 'pendente').length > 0 && (
             <span className="solicitacoes-pending-badge">
               {myRequests.filter(r => r.status === 'pendente').length} pendente{myRequests.filter(r => r.status === 'pendente').length > 1 ? 's' : ''}
@@ -293,7 +293,7 @@ function SolicitacoesView() {
                 <div className="solicitacoes-item-body">
                   <span className="solicitacoes-item-summary">
                     {req.request_type === 'editar_contato'
-                      ? `Edição: ${req.payload?.new_values?.name || ''}`
+                      ? `${req.payload?.new_values?.name || ''}${req.payload?.changed_fields?.length ? ` (${req.payload.changed_fields.join(', ')})` : ''}`
                       : req.payload?.name || ''}
                   </span>
                   <span className="solicitacoes-item-date">

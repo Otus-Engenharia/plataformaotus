@@ -31,17 +31,21 @@ function ContactRequestReviewPanel() {
     setLoading(true);
     setError(null);
     try {
-      const params = activeTab === 'pendentes'
-        ? { status: 'pendente' }
-        : {};
-      if (filterType) params.request_type = filterType;
-
-      const url = activeTab === 'pendentes'
-        ? `${API_URL}/api/contact-requests/pending`
-        : `${API_URL}/api/contact-requests`;
+      let url, params;
+      if (activeTab === 'pendentes') {
+        url = `${API_URL}/api/contact-requests/pending`;
+        params = undefined;
+      } else if (activeTab === 'edicoes') {
+        url = `${API_URL}/api/contact-requests`;
+        params = { request_type: 'editar_contato', status: 'aprovada' };
+      } else {
+        url = `${API_URL}/api/contact-requests`;
+        params = {};
+        if (filterType) params.request_type = filterType;
+      }
 
       const response = await axios.get(url, {
-        params: activeTab !== 'pendentes' ? params : undefined,
+        params,
         withCredentials: true,
       });
       setRequests(response.data.data || []);
@@ -58,11 +62,11 @@ function ContactRequestReviewPanel() {
   }, [fetchRequests]);
 
   const handleApprove = async (id) => {
-    if (!window.confirm('Confirma a aprovação desta solicitação? A alteração será aplicada imediatamente.')) return;
     setProcessing(id);
     try {
       await axios.post(`${API_URL}/api/contact-requests/${id}/approve`, {}, { withCredentials: true });
       fetchRequests();
+      window.dispatchEvent(new Event('contact-requests-updated'));
     } catch (err) {
       console.error('Erro ao aprovar:', err);
       alert(err.response?.data?.error || 'Erro ao aprovar solicitação.');
@@ -84,6 +88,7 @@ function ContactRequestReviewPanel() {
       setRejectingId(null);
       setRejectReason('');
       fetchRequests();
+      window.dispatchEvent(new Event('contact-requests-updated'));
     } catch (err) {
       console.error('Erro ao rejeitar:', err);
       alert(err.response?.data?.error || 'Erro ao rejeitar solicitação.');
@@ -171,7 +176,7 @@ function ContactRequestReviewPanel() {
   };
 
   const filteredRequests = activeTab === 'resolvidas'
-    ? requests.filter(r => r.status !== 'pendente')
+    ? requests.filter(r => r.status !== 'pendente' && !(r.request_type === 'editar_contato' && r.reviewed_by_email === r.requested_by_email))
     : requests;
 
   return (
@@ -193,18 +198,26 @@ function ContactRequestReviewPanel() {
         >
           Resolvidas
         </button>
+        <button
+          className={`cr-tab ${activeTab === 'edicoes' ? 'cr-tab--active' : ''}`}
+          onClick={() => setActiveTab('edicoes')}
+        >
+          Edições
+        </button>
       </div>
 
-      {/* Filtro por tipo */}
-      <div className="cr-filter-row">
-        <select value={filterType} onChange={e => setFilterType(e.target.value)}>
-          <option value="">Todos os tipos</option>
-          <option value="novo_contato">Novo Contato</option>
-          <option value="editar_contato">Editar Contato</option>
-          <option value="nova_empresa">Nova Empresa</option>
-          <option value="nova_disciplina">Nova Disciplina</option>
-        </select>
-      </div>
+      {/* Filtro por tipo (esconder na aba Edições, já é filtrado) */}
+      {activeTab !== 'edicoes' && (
+        <div className="cr-filter-row">
+          <select value={filterType} onChange={e => setFilterType(e.target.value)}>
+            <option value="">Todos os tipos</option>
+            <option value="novo_contato">Novo Contato</option>
+            <option value="editar_contato">Editar Contato</option>
+            <option value="nova_empresa">Nova Empresa</option>
+            <option value="nova_disciplina">Nova Disciplina</option>
+          </select>
+        </div>
+      )}
 
       {/* Lista de solicitações */}
       {loading ? (
@@ -227,7 +240,7 @@ function ContactRequestReviewPanel() {
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
-          <span>{activeTab === 'pendentes' ? 'Nenhuma solicitação pendente.' : 'Nenhuma solicitação resolvida.'}</span>
+          <span>{activeTab === 'pendentes' ? 'Nenhuma solicitação pendente.' : activeTab === 'edicoes' ? 'Nenhuma edição registrada.' : 'Nenhuma solicitação resolvida.'}</span>
         </div>
       ) : (
         <div className="cr-list">
@@ -249,7 +262,7 @@ function ContactRequestReviewPanel() {
 
               <div className="cr-card-meta">
                 <span className="cr-requester">
-                  Solicitante: <strong>{req.requested_by_name || req.requested_by_email}</strong>
+                  {activeTab === 'edicoes' ? 'Editado por' : 'Solicitante'}: <strong>{req.requested_by_name || req.requested_by_email}</strong>
                 </span>
                 {req.project_code && (
                   <span className="cr-project">Projeto: {req.project_code}</span>
@@ -258,8 +271,8 @@ function ContactRequestReviewPanel() {
 
               {renderPayload(req)}
 
-              {/* Status de revisão (para resolvidas) */}
-              {req.status !== 'pendente' && (
+              {/* Status de revisão (para resolvidas/edições) */}
+              {req.status !== 'pendente' && activeTab !== 'edicoes' && (
                 <div className="cr-review-info">
                   <span>Revisado por: {req.reviewed_by_name || req.reviewed_by_email}</span>
                   {req.reviewed_at && (
