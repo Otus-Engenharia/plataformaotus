@@ -394,7 +394,7 @@ function EquipeProjetistasPanel({
               )}
             </span>
           </div>
-          {hasFullAccess ? (
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button className="ecli-add-btn" onClick={handleAdd}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -402,15 +402,16 @@ function EquipeProjetistasPanel({
               </svg>
               Adicionar
             </button>
-          ) : (
-            <button className="ecli-add-btn" onClick={openUnifiedRequestModal}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Solicitar Cadastro
-            </button>
-          )}
+            {!hasFullAccess && (
+              <button className="ecli-add-btn" onClick={openUnifiedRequestModal}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Solicitar Cadastro
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="ecli-table-wrapper">
@@ -424,13 +425,13 @@ function EquipeProjetistasPanel({
                 <th>Email</th>
                 <th>Telefone</th>
                 <th>Detalhes</th>
-                {hasFullAccess && <th className="ecli-th-actions"></th>}
+                <th className="ecli-th-actions"></th>
               </tr>
             </thead>
             <tbody>
               {equipe.length === 0 ? (
                 <tr>
-                  <td colSpan={hasFullAccess ? 8 : 7} className="ecli-empty-row">
+                  <td colSpan={8} className="ecli-empty-row">
                     Nenhuma disciplina cadastrada
                   </td>
                 </tr>
@@ -480,40 +481,38 @@ function EquipeProjetistasPanel({
                           {item.discipline_detail || '-'}
                         </span>
                       </td>
-                      {hasFullAccess && (
-                        <td className="ecli-td-actions">
-                          {isDismissed ? (
-                            <button className="ecli-action-btn ecli-action-btn--success" onClick={() => handleReactivate(item.id)} title="Reativar" aria-label="Reativar projetista">
+                      <td className="ecli-td-actions">
+                        {isDismissed ? (
+                          <button className="ecli-action-btn ecli-action-btn--success" onClick={() => handleReactivate(item.id)} title="Reativar" aria-label="Reativar projetista">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="23 4 23 10 17 10" />
+                              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <>
+                            <button className="ecli-action-btn" onClick={() => handleEdit(item)} title="Editar" aria-label="Editar membro">
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="23 4 23 10 17 10" />
-                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
                             </button>
-                          ) : (
-                            <>
-                              <button className="ecli-action-btn" onClick={() => handleEdit(item)} title="Editar" aria-label="Editar membro">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
-                              </button>
-                              <button className="ecli-action-btn ecli-action-btn--warning" onClick={() => openDismissModal(item)} title="Demitir do projeto" aria-label="Demitir do projeto">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                  <circle cx="8.5" cy="7" r="4" />
-                                  <line x1="18" y1="11" x2="23" y2="11" />
-                                </svg>
-                              </button>
-                              <button className="ecli-action-btn ecli-action-btn--danger" onClick={() => handleDelete(item.id)} title="Desativar" aria-label="Desativar membro">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M3 6h18" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                </svg>
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      )}
+                            <button className="ecli-action-btn ecli-action-btn--warning" onClick={() => openDismissModal(item)} title="Demitir do projeto" aria-label="Demitir do projeto">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="8.5" cy="7" r="4" />
+                                <line x1="18" y1="11" x2="23" y2="11" />
+                              </svg>
+                            </button>
+                            <button className="ecli-action-btn ecli-action-btn--danger" onClick={() => handleDelete(item.id)} title="Desativar" aria-label="Desativar membro">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                      </td>
                     </tr>
                   );
                 })
