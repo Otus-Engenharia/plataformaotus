@@ -4689,22 +4689,30 @@ export async function deleteModuleOverride(overrideId) {
 
 /**
  * Busca a equipe/disciplinas de um projeto com joins nas tabelas relacionadas
- * @param {string} construflowId - ID do projeto no Construflow (de project_features)
- * @param {{ includeDismissed?: boolean }} options - Opções de filtro
+ * @param {string} idOrCode - construflow_id OU project_code (conforme useProjectCode)
+ * @param {{ includeDismissed?: boolean, useProjectCode?: boolean }} options
  * @returns {Promise<Array>}
  */
-export async function fetchProjectDisciplines(construflowId, { includeDismissed = false } = {}) {
-  if (!construflowId) return [];
+export async function fetchProjectDisciplines(idOrCode, { includeDismissed = false, useProjectCode = false } = {}) {
+  if (!idOrCode) return [];
 
   const supabase = getSupabaseClient();
 
-  const { data: projectFeature, error: projectError } = await supabase
-    .from('project_features')
-    .select('project_id')
-    .eq('construflow_id', construflowId)
-    .single();
+  let projectId;
 
-  if (projectError || !projectFeature) {
+  if (useProjectCode) {
+    projectId = await getProjectIdByCode(idOrCode);
+  } else {
+    const { data: projectFeature, error: projectError } = await supabase
+      .from('project_features')
+      .select('project_id')
+      .eq('construflow_id', idOrCode)
+      .single();
+
+    projectId = projectFeature?.project_id || null;
+  }
+
+  if (!projectId) {
     return [];
   }
 
@@ -4732,7 +4740,7 @@ export async function fetchProjectDisciplines(construflowId, { includeDismissed 
       company:company_id(id, name, status),
       contact:contact_id(id, name, email, phone, position)
     `)
-    .eq('project_id', projectFeature.project_id);
+    .eq('project_id', projectId);
 
   if (includeDismissed) {
     query = query.or('status.eq.ativo,status.eq.demitido,status.is.null');
@@ -4768,6 +4776,26 @@ export async function getProjectIdByConstruflow(construflowId) {
   }
 
   return data.project_id;
+}
+
+/**
+ * Busca project_id pelo project_code (coluna projects.project_code)
+ * @param {string} projectCode - project_code_norm do BigQuery
+ * @returns {Promise<number|null>}
+ */
+export async function getProjectIdByCode(projectCode) {
+  if (!projectCode) return null;
+
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('project_code', projectCode)
+    .single();
+
+  if (error || !data) return null;
+  return data.id;
 }
 
 /**
