@@ -75,6 +75,7 @@ function PortfolioView() {
   const [showCompatibilizacao, setShowCompatibilizacao] = useState(true);
   const [showContractInfoColumns, setShowContractInfoColumns] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'project_order', direction: 'asc' });
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   // Refetch dados ao navegar para esta página (se stale > 30s)
   useEffect(() => {
@@ -634,6 +635,23 @@ function PortfolioView() {
       key: columnKey,
       direction: prev.key === columnKey && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
+  };
+
+  const handleCopyFilteredData = () => {
+    if (!filteredData.length || !columns.length) return;
+    const header = columns.map(col => col.label.replace(/<[^>]*>/g, '')).join('\t');
+    const rows = filteredData.map(row =>
+      columns.map(col => {
+        const val = row[col.key];
+        if (val === null || val === undefined) return '';
+        return String(val).replace(/\t/g, ' ').replace(/\n/g, ' ');
+      }).join('\t')
+    );
+    const text = [header, ...rows].join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+    });
   };
 
   const clearFilters = () => {
@@ -1314,6 +1332,14 @@ function PortfolioView() {
         {/* Info dos resultados */}
         <div className="results-info">
           <span>Mostrando {filteredData.length} registros ({data.length} total)</span>
+          <button
+            className="copy-table-btn"
+            onClick={handleCopyFilteredData}
+            title="Copiar dados filtrados (para colar no Excel/Sheets)"
+            disabled={!filteredData.length}
+          >
+            {copyFeedback ? '✓ Copiado!' : '📋 Copiar tabela'}
+          </button>
         </div>
 
         {/* Tabela */}

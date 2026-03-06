@@ -725,6 +725,32 @@
   padding-top: 0;
   margin-top: 4px;
   font-family: Verdana, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.portfolio-container .copy-table-btn {
+  font-size: 10px;
+  padding: 3px 10px;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  background: #1f2937;
+  color: #d1d5db;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: Verdana, sans-serif;
+}
+
+.portfolio-container .copy-table-btn:hover:not(:disabled) {
+  background: #374151;
+  color: #f3f4f6;
+  border-color: #4b5563;
+}
+
+.portfolio-container .copy-table-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ===== SEÇÃO DE DETALHAMENTO ===== */

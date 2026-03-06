@@ -276,6 +276,7 @@ function getProjectCreatedWebhookUrls() {
  * @returns {Promise<PromiseSettledResult[]>} Resultados das requisições
  */
 async function sendProjectCreatedNotification({
+  projectCode,
   projectName,
   companyName,
   userName,
@@ -291,9 +292,14 @@ async function sendProjectCreatedNotification({
       inline: false
     },
     {
+      name: '🔢  CÓDIGO',
+      value: `\`\`\`${projectCode || 'N/A'}\`\`\``,
+      inline: true
+    },
+    {
       name: '📁  PROJETO',
       value: `\`\`\`${projectName || 'N/A'}\`\`\``,
-      inline: false
+      inline: true
     },
     {
       name: '🏢  CLIENTE',
