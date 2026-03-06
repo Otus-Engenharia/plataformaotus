@@ -7,3 +7,4 @@ export { GenerateWeeklyReport } from './GenerateWeeklyReport.js';
 export { ListWeeklyReports } from './ListWeeklyReports.js';
 export { GetWeeklyReportStats } from './GetWeeklyReportStats.js';
 export { GetReportStatus } from './GetReportStatus.js';
+export { GetWeeklyLog } from './GetWeeklyLog.js';
