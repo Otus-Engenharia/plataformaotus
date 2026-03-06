@@ -308,6 +308,7 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction, inval
           if (company) companyName = company.name;
 
           await sendProjectCreatedNotification({
+            projectCode: result.project_code || null,
             projectName: result.name,
             companyName,
             userName: req.user?.displayName || req.user?.name || 'Usuário',
