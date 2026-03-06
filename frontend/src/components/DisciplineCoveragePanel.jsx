@@ -1,10 +1,12 @@
 /**
- * Componente: Painel de Controle de Disciplinas (Redesign v2)
+ * Componente: Painel de Controle de Disciplinas (Redesign v3)
  *
- * Layout orientado a AÇÕES com 3 categorias:
+ * Layout orientado a AÇÕES com 5 categorias:
  * 1. Cadastrar na Otus (alta prioridade) - disciplinas em SS+CF mas não na Otus
- * 2. Verificar Cadastro (média prioridade) - disciplinas com cobertura parcial
- * 3. Regularizado - disciplinas presentes em todos os 3 sistemas
+ * 2. Falta Vincular ou Cadastrar (média prioridade) - disciplinas só num sistema externo, sem Otus
+ * 3. Falta Alocar (informacional) - disciplinas já na Otus, falta sistema externo
+ * 4. Cadastradas mas não alocadas - disciplinas somente na Otus
+ * 5. Regularizado - disciplinas presentes em todos os 3 sistemas
  */
 
 import React, { useState, useRef } from 'react';
@@ -62,6 +64,13 @@ const SearchIcon = () => (
   </svg>
 );
 
+const UserIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
 // ===== Progress Ring =====
 
 function ProgressRing({ percentage, complete, total }) {
@@ -110,7 +119,7 @@ function ProgressRing({ percentage, complete, total }) {
 
 // ===== Action Summary Strip =====
 
-function ActionSummaryStrip({ cadastrarCount, verificarCount, regularizadoCount, sectionRefs }) {
+function ActionSummaryStrip({ cadastrarCount, faltaCadastrarCount, faltaAlocarCount, regularizadoCount, sectionRefs }) {
   const scrollTo = (ref) => {
     if (ref?.current) {
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -134,14 +143,27 @@ function ActionSummaryStrip({ cadastrarCount, verificarCount, regularizadoCount,
 
       <button
         type="button"
-        className={`dcov-pill dcov-pill--amber${verificarCount === 0 ? ' dcov-pill--muted' : ''}`}
-        onClick={() => scrollTo(sectionRefs.verificar)}
-        disabled={verificarCount === 0}
+        className={`dcov-pill dcov-pill--amber${faltaCadastrarCount === 0 ? ' dcov-pill--muted' : ''}`}
+        onClick={() => scrollTo(sectionRefs.faltaCadastrar)}
+        disabled={faltaCadastrarCount === 0}
+      >
+        <span className="dcov-pill-icon"><PlusIcon /></span>
+        <span className="dcov-pill-text">
+          <span className="dcov-pill-count">{faltaCadastrarCount}</span>
+          <span className="dcov-pill-label">Vincular/Cadastrar</span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        className={`dcov-pill dcov-pill--amber${faltaAlocarCount === 0 ? ' dcov-pill--muted' : ''}`}
+        onClick={() => scrollTo(sectionRefs.faltaAlocar)}
+        disabled={faltaAlocarCount === 0}
       >
         <span className="dcov-pill-icon"><SearchIcon /></span>
         <span className="dcov-pill-text">
-          <span className="dcov-pill-count">{verificarCount}</span>
-          <span className="dcov-pill-label">Verificar</span>
+          <span className="dcov-pill-count">{faltaAlocarCount}</span>
+          <span className="dcov-pill-label">Falta Alocar</span>
         </span>
       </button>
 
@@ -195,46 +217,68 @@ function CollapsibleSection({ title, count, variant, defaultOpen, children, sect
 function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDisciplines = [], projectId, onMappingChange }) {
   const [expandedMapping, setExpandedMapping] = useState(null);
   const [selectedDisciplineId, setSelectedDisciplineId] = useState('');
-  const [freeTextTarget, setFreeTextTarget] = useState('');
-  const [mappingMode, setMappingMode] = useState('standard');
   const [savingMapping, setSavingMapping] = useState(false);
+  const [savingClient, setSavingClient] = useState(null);
 
   // Refs for scroll-to
   const cadastrarRef = useRef(null);
-  const verificarRef = useRef(null);
+  const faltaCadastrarRef = useRef(null);
+  const faltaAlocarRef = useRef(null);
+  const naoAlocadasRef = useRef(null);
   const regularizadoRef = useRef(null);
 
-  // Save mapping
+  // Save mapping (always standard - no free text)
   const handleSaveMapping = async (discipline) => {
-    if (mappingMode === 'standard' && !selectedDisciplineId) return;
-    if (mappingMode === 'free' && !freeTextTarget.trim()) return;
-    if (!projectId) return;
+    if (!selectedDisciplineId || !projectId) return;
 
     setSavingMapping(true);
     try {
       const source = discipline.inConstruflow ? 'construflow' : 'smartsheet';
+      const sources = [];
+      if (discipline.inSmartsheet) sources.push('smartsheet');
+      if (discipline.inConstruflow) sources.push('construflow');
+
       const payload = {
         construflowId: projectId,
         externalSource: source,
         externalDisciplineName: discipline.name,
+        standardDisciplineId: selectedDisciplineId,
+        sources: sources.length > 1 ? sources : undefined,
       };
-
-      if (mappingMode === 'standard') {
-        payload.standardDisciplineId = selectedDisciplineId;
-      } else {
-        payload.targetName = freeTextTarget.trim();
-      }
 
       await axios.post(`${API_URL}/api/projetos/equipe/mapeamentos-disciplinas`, payload, { withCredentials: true });
       setExpandedMapping(null);
       setSelectedDisciplineId('');
-      setFreeTextTarget('');
-      setMappingMode('standard');
       if (onMappingChange) onMappingChange();
     } catch (error) {
       console.error('Erro ao salvar mapeamento:', error);
     } finally {
       setSavingMapping(false);
+    }
+  };
+
+  // Mark as client-owned
+  const handleMarkAsClient = async (d) => {
+    if (!projectId) return;
+    setSavingClient(d.normKey);
+    try {
+      const source = d.inConstruflow ? 'construflow' : 'smartsheet';
+      const sources = [];
+      if (d.inSmartsheet) sources.push('smartsheet');
+      if (d.inConstruflow) sources.push('construflow');
+
+      await axios.post(`${API_URL}/api/projetos/equipe/mapeamentos-disciplinas`, {
+        construflowId: projectId,
+        externalSource: source,
+        externalDisciplineName: d.name,
+        isClientOwned: true,
+        sources: sources.length > 1 ? sources : undefined,
+      }, { withCredentials: true });
+      if (onMappingChange) onMappingChange();
+    } catch (error) {
+      console.error('Erro ao marcar como cliente:', error);
+    } finally {
+      setSavingClient(null);
     }
   };
 
@@ -283,22 +327,33 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
     );
   }
 
-  // ===== Data transformation: 6 sub-groups → 3 action buckets =====
+  // ===== Data transformation: sub-groups =====
   const g = groups || {};
 
   const cadastrarNaOtus = g.notInOtus || [];
 
-  const verificarCadastro = [
-    ...(g.onlySmartsheet || []).map(d => ({ ...d, _tag: 'Somente no Smartsheet', _tagColor: 'orange' })),
-    ...(g.onlyConstruflow || []).map(d => ({ ...d, _tag: 'Somente no ConstruFlow', _tagColor: 'orange' })),
-    ...(g.onlyOtus || []).map(d => ({ ...d, _tag: 'Somente na Otus', _tagColor: 'orange' })),
-    ...(g.missingConstruflow || []).map(d => ({ ...d, _tag: 'Falta no ConstruFlow', _tagColor: 'yellow' })),
-    ...(g.missingSmartsheet || []).map(d => ({ ...d, _tag: 'Falta no Smartsheet', _tagColor: 'yellow' })),
-  ];
+  // Falta Vincular ou Cadastrar: não tem Otus, precisa registrar
+  const faltaCadastrar = [
+    { key: 'onlySmartsheet', label: 'Somente Smartsheet', items: (g.onlySmartsheet || []).map(d => ({ ...d, _tag: 'Somente no Smartsheet', _tagColor: 'orange' })) },
+    { key: 'onlyConstruflow', label: 'Somente ConstruFlow', items: (g.onlyConstruflow || []).map(d => ({ ...d, _tag: 'Somente no ConstruFlow', _tagColor: 'orange' })) },
+  ].filter(grp => grp.items.length > 0);
+
+  const faltaCadastrarCount = faltaCadastrar.reduce((sum, grp) => sum + grp.items.length, 0);
+
+  // Falta Alocar: já tem Otus, falta sistema externo
+  const faltaAlocar = [
+    { key: 'missingConstruflow', label: 'Falta no ConstruFlow', items: (g.missingConstruflow || []).map(d => ({ ...d, _tag: 'Falta no ConstruFlow', _tagColor: 'yellow' })) },
+    { key: 'missingSmartsheet', label: 'Falta no Smartsheet', items: (g.missingSmartsheet || []).map(d => ({ ...d, _tag: 'Falta no Smartsheet', _tagColor: 'yellow' })) },
+  ].filter(grp => grp.items.length > 0);
+
+  const faltaAlocarCount = faltaAlocar.reduce((sum, grp) => sum + grp.items.length, 0);
+
+  // "Somente Otus" — separate informational section
+  const naoAlocadas = g.onlyOtus || [];
 
   const regularizado = g.completeInAll3 || [];
 
-  // Render inline mapping form
+  // Render inline mapping form (standard only, no free text)
   const renderMappingForm = (discipline) => (
     <div className="dcov-mapping-row">
       <div className="dcov-mapping-content">
@@ -306,54 +361,25 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
           Conectar &ldquo;{discipline.name}&rdquo; a:
         </span>
 
-        <div className="dcov-mapping-mode-toggle">
-          <button
-            type="button"
-            className={`dcov-mode-btn${mappingMode === 'standard' ? ' dcov-mode-btn--active' : ''}`}
-            onClick={() => setMappingMode('standard')}
-          >
-            Disciplina Otus
-          </button>
-          <button
-            type="button"
-            className={`dcov-mode-btn${mappingMode === 'free' ? ' dcov-mode-btn--active' : ''}`}
-            onClick={() => setMappingMode('free')}
-          >
-            Nome livre
-          </button>
-        </div>
-
         <div className="dcov-mapping-controls">
-          {mappingMode === 'standard' ? (
-            <select
-              className="dcov-mapping-select"
-              value={selectedDisciplineId}
-              onChange={(e) => setSelectedDisciplineId(e.target.value)}
-            >
-              <option value="">Selecione...</option>
-              {standardDisciplines.map(sd => (
+          <select
+            className="dcov-mapping-select"
+            value={selectedDisciplineId}
+            onChange={(e) => setSelectedDisciplineId(e.target.value)}
+          >
+            <option value="">Selecione...</option>
+            {standardDisciplines
+              .filter(sd => otus.includes(sd.discipline_name))
+              .map(sd => (
                 <option key={sd.id} value={sd.id}>
                   {sd.discipline_name}{sd.short_name ? ` (${sd.short_name})` : ''}
                 </option>
               ))}
-            </select>
-          ) : (
-            <input
-              type="text"
-              className="dcov-mapping-input"
-              value={freeTextTarget}
-              onChange={(e) => setFreeTextTarget(e.target.value)}
-              placeholder="Ex: Elétrico, dados e SPDA"
-            />
-          )}
+          </select>
           <button
             className="dcov-mapping-btn dcov-mapping-btn--save"
             onClick={() => handleSaveMapping(discipline)}
-            disabled={
-              savingMapping ||
-              (mappingMode === 'standard' && !selectedDisciplineId) ||
-              (mappingMode === 'free' && !freeTextTarget.trim())
-            }
+            disabled={savingMapping || !selectedDisciplineId}
           >
             {savingMapping ? 'Salvando...' : 'Salvar'}
           </button>
@@ -362,8 +388,6 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
             onClick={() => {
               setExpandedMapping(null);
               setSelectedDisciplineId('');
-              setFreeTextTarget('');
-              setMappingMode('standard');
             }}
           >
             Cancelar
@@ -372,6 +396,46 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
       </div>
     </div>
   );
+
+  // Render custom mapping badge (existing mappings, including legacy free-text)
+  const renderMappingBadge = (d) => {
+    if (!d.hasCustomMapping || !d.mappedToName) return null;
+    return (
+      <span
+        className={`dcov-custom-badge${d.isFreeMapping ? ' dcov-custom-badge--free' : ''}`}
+        title={
+          d.isFreeMapping
+            ? `Mapeamento livre: "${d.name}" \u2192 "${d.mappedToName}"`
+            : `Conectado \u00e0 disciplina Otus "${d.mappedToName}"`
+        }
+      >
+        <LinkIcon /> {d.mappedToName}
+        <button
+          className="dcov-custom-badge-remove"
+          onClick={() => handleRemoveMapping(d.mappingId)}
+          title="Remover conex\u00e3o"
+          aria-label={`Remover mapeamento de ${d.name}`}
+        >
+          <CloseIcon />
+        </button>
+      </span>
+    );
+  };
+
+  // Client-owned button
+  const renderClientButton = (d) => {
+    if (d.isClientOwned || d.hasCustomMapping) return null;
+    return (
+      <button
+        className="dcov-btn-client"
+        onClick={() => handleMarkAsClient(d)}
+        disabled={savingClient === d.normKey}
+        aria-label={`Marcar ${d.name} como do cliente`}
+      >
+        <UserIcon /> {savingClient === d.normKey ? '...' : 'Cliente'}
+      </button>
+    );
+  };
 
   // Render a discipline card for "Cadastrar" section
   const renderCadastrarCard = (d) => {
@@ -385,26 +449,7 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
           <div className="dcov-card-info">
             <div className="dcov-card-name">
               {d.name}
-              {d.hasCustomMapping && d.mappedToName && (
-                <span
-                  className={`dcov-custom-badge${d.isFreeMapping ? ' dcov-custom-badge--free' : ''}`}
-                  title={
-                    d.isFreeMapping
-                      ? `Mapeamento livre: "${d.name}" → "${d.mappedToName}"`
-                      : `Conectado à disciplina Otus "${d.mappedToName}"`
-                  }
-                >
-                  <LinkIcon /> {d.mappedToName}
-                  <button
-                    className="dcov-custom-badge-remove"
-                    onClick={() => handleRemoveMapping(d.mappingId)}
-                    title="Remover conexão"
-                    aria-label={`Remover mapeamento de ${d.name}`}
-                  >
-                    <CloseIcon />
-                  </button>
-                </span>
-              )}
+              {renderMappingBadge(d)}
             </div>
             <div className="dcov-card-desc">Presente no Smartsheet e ConstruFlow, falta na Otus</div>
           </div>
@@ -424,14 +469,13 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
                 onClick={() => {
                   setExpandedMapping(isExpanded ? null : d.normKey);
                   setSelectedDisciplineId('');
-                  setFreeTextTarget('');
-                  setMappingMode('standard');
                 }}
                 aria-label={`Vincular ${d.name}`}
               >
                 <LinkIcon /> Vincular
               </button>
             )}
+            {renderClientButton(d)}
           </div>
         </div>
         {isExpanded && renderMappingForm(d)}
@@ -439,8 +483,8 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
     );
   };
 
-  // Render a discipline card for "Verificar" section
-  const renderVerificarCard = (d) => {
+  // Render a discipline card for "Falta Cadastrar" section (with Cadastrar + Vincular + Cliente buttons)
+  const renderFaltaCadastrarCard = (d) => {
     const isExpanded = expandedMapping === d.normKey;
     const canLinkMapping = !d.hasCustomMapping;
 
@@ -455,26 +499,7 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
                   {d._tag}
                 </span>
               )}
-              {d.hasCustomMapping && d.mappedToName && (
-                <span
-                  className={`dcov-custom-badge${d.isFreeMapping ? ' dcov-custom-badge--free' : ''}`}
-                  title={
-                    d.isFreeMapping
-                      ? `Mapeamento livre: "${d.name}" → "${d.mappedToName}"`
-                      : `Conectado à disciplina Otus "${d.mappedToName}"`
-                  }
-                >
-                  <LinkIcon /> {d.mappedToName}
-                  <button
-                    className="dcov-custom-badge-remove"
-                    onClick={() => handleRemoveMapping(d.mappingId)}
-                    title="Remover conexão"
-                    aria-label={`Remover mapeamento de ${d.name}`}
-                  >
-                    <CloseIcon />
-                  </button>
-                </span>
-              )}
+              {renderMappingBadge(d)}
             </div>
           </div>
           <div className="dcov-card-actions">
@@ -493,20 +518,36 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
                 onClick={() => {
                   setExpandedMapping(isExpanded ? null : d.normKey);
                   setSelectedDisciplineId('');
-                  setFreeTextTarget('');
-                  setMappingMode('standard');
                 }}
                 aria-label={`Vincular ${d.name}`}
               >
                 <LinkIcon /> Vincular
               </button>
             )}
+            {renderClientButton(d)}
           </div>
         </div>
         {isExpanded && renderMappingForm(d)}
       </React.Fragment>
     );
   };
+
+  // Render a discipline card for "Falta Alocar" section (informational only, no action buttons)
+  const renderFaltaAlocarCard = (d) => (
+    <div key={d.normKey} className="dcov-card dcov-card--medium">
+      <div className="dcov-card-info">
+        <div className="dcov-card-name">
+          {d.name}
+          {d._tag && (
+            <span className={`dcov-card-tag dcov-card-tag--${d._tagColor}`}>
+              {d._tag}
+            </span>
+          )}
+          {renderMappingBadge(d)}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="dcov-panel">
@@ -531,11 +572,13 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
         {/* B: Action Summary Strip */}
         <ActionSummaryStrip
           cadastrarCount={cadastrarNaOtus.length}
-          verificarCount={verificarCadastro.length}
+          faltaCadastrarCount={faltaCadastrarCount}
+          faltaAlocarCount={faltaAlocarCount}
           regularizadoCount={regularizado.length}
           sectionRefs={{
             cadastrar: cadastrarRef,
-            verificar: verificarRef,
+            faltaCadastrar: faltaCadastrarRef,
+            faltaAlocar: faltaAlocarRef,
             regularizado: regularizadoRef,
           }}
         />
@@ -553,20 +596,61 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
           </CollapsibleSection>
         )}
 
-        {/* D: Verificar Cadastro (collapsed if there are cadastrar items) */}
-        {verificarCadastro.length > 0 && (
+        {/* D1: Falta Vincular ou Cadastrar — não tem Otus, precisa registrar */}
+        {faltaCadastrarCount > 0 && (
           <CollapsibleSection
-            title="Verificar Cadastro"
-            count={verificarCadastro.length}
+            title="Falta Vincular ou Cadastrar"
+            count={faltaCadastrarCount}
             variant="amber"
             defaultOpen={cadastrarNaOtus.length === 0}
-            sectionRef={verificarRef}
+            sectionRef={faltaCadastrarRef}
           >
-            {verificarCadastro.map(d => renderVerificarCard(d))}
+            {faltaCadastrar.map(grp => (
+              <div key={grp.key} className="dcov-subgroup">
+                <div className="dcov-subgroup-header">{grp.label} ({grp.items.length})</div>
+                {grp.items.map(d => renderFaltaCadastrarCard(d))}
+              </div>
+            ))}
           </CollapsibleSection>
         )}
 
-        {/* E: Regularizado (always collapsed) */}
+        {/* D2: Falta Alocar — já tem Otus, falta sistema externo */}
+        {faltaAlocarCount > 0 && (
+          <CollapsibleSection
+            title="Falta Alocar"
+            count={faltaAlocarCount}
+            variant="amber"
+            defaultOpen={cadastrarNaOtus.length === 0 && faltaCadastrarCount === 0}
+            sectionRef={faltaAlocarRef}
+          >
+            {faltaAlocar.map(grp => (
+              <div key={grp.key} className="dcov-subgroup">
+                <div className="dcov-subgroup-header">{grp.label} ({grp.items.length})</div>
+                {grp.items.map(d => renderFaltaAlocarCard(d))}
+              </div>
+            ))}
+          </CollapsibleSection>
+        )}
+
+        {/* E: Cadastradas mas não alocadas (onlyOtus) */}
+        {naoAlocadas.length > 0 && (
+          <CollapsibleSection
+            title="CADASTRADAS MAS NÃO ALOCADAS"
+            count={naoAlocadas.length}
+            variant="blue"
+            defaultOpen={false}
+            sectionRef={naoAlocadasRef}
+          >
+            {naoAlocadas.map(d => (
+              <div key={d.normKey} className="dcov-completed-row">
+                {d.name}
+                <span className="dcov-card-tag dcov-card-tag--blue">Somente na Otus</span>
+              </div>
+            ))}
+          </CollapsibleSection>
+        )}
+
+        {/* F: Regularizado (always collapsed) */}
         {regularizado.length > 0 && (
           <CollapsibleSection
             title="Regularizado"
@@ -579,6 +663,14 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
               <div key={d.normKey} className="dcov-completed-row">
                 {d.name}
                 <div className="dcov-completed-checks">
+                  {d.isAutoOtus && (
+                    <span className="dcov-auto-badge" title="Detectado automaticamente como Otus">Auto (Otus)</span>
+                  )}
+                  {d.isClientOwned && (
+                    <span className="dcov-client-badge" title={d.isAutoClient ? 'Detectado automaticamente pelo nome' : 'Responsabilidade do cliente'}>
+                      {d.isAutoClient ? 'Auto (Cliente)' : 'Cliente'}
+                    </span>
+                  )}
                   <span className="dcov-mini-check" title="Smartsheet"><CheckIcon size={12} /></span>
                   <span className="dcov-mini-check" title="ConstruFlow"><CheckIcon size={12} /></span>
                   <span className="dcov-mini-check" title="Otus"><CheckIcon size={12} /></span>
@@ -588,7 +680,7 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
           </CollapsibleSection>
         )}
 
-        {/* F: System Details (collapsible disclosure) */}
+        {/* G: System Details (collapsible disclosure) */}
         <details className="dcov-disclosure">
           <summary>Detalhes dos Sistemas</summary>
           <div className="dcov-disclosure-body">
