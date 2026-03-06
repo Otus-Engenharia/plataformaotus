@@ -75,6 +75,17 @@ class WeeklyReportRepository {
   async existsForProjectWeek(projectCode, weekYear, weekNumber) {
     throw new Error('Método existsForProjectWeek deve ser implementado');
   }
+
+  /**
+   * Retorna project_codes com relatório completado por semana (para log/matriz)
+   * @param {Object} options
+   * @param {number} options.weeks - número de semanas
+   * @param {Array<string>} options.projectCodes - filtrar por projetos
+   * @returns {Promise<Array<{week_year, week_number, week_text, project_code}>>}
+   */
+  async getWeeklyLog(options = {}) {
+    throw new Error('Método getWeeklyLog deve ser implementado');
+  }
 }
 
 export { WeeklyReportRepository };

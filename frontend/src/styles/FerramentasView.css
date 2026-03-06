@@ -861,3 +861,55 @@
   font-family: 'Inter', Verdana, sans-serif;
   margin-bottom: 0.5rem;
 }
+
+/* ============================= */
+/* Status dos Bots (colapsável)  */
+/* ============================= */
+
+.ftv-bot-status-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  user-select: none;
+}
+
+.ftv-bot-status-header:hover {
+  opacity: 0.8;
+}
+
+.ftv-bot-status-chevron {
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+  color: #666;
+}
+
+.ftv-bot-status-chevron-open {
+  transform: rotate(90deg);
+}
+
+.ftv-bot-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 99px;
+  background: #e8eaed;
+  color: #555;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.ftv-bot-status-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.ftv-bot-status-body-open {
+  max-height: 2000px;
+}

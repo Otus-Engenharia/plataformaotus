@@ -11,6 +11,7 @@ import axios from 'axios';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import ReportTeamKPIs from './weekly-reports/ReportTeamKPIs';
+import ReportWeeklyLog from './weekly-reports/ReportWeeklyLog';
 import ReportPipeline from './weekly-reports/ReportPipeline';
 import ReportHistory from './weekly-reports/ReportHistory';
 import '../styles/FerramentasView.css';
@@ -67,6 +68,7 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
   const [localOverrides, setLocalOverrides] = useState({});
   const [error, setError] = useState(null);
   const [tagsModal, setTagsModal] = useState(null);
+  const [botStatusOpen, setBotStatusOpen] = useState(false);
 
   // Weekly Report state
   const [wrReady, setWrReady] = useState(false);
@@ -508,6 +510,69 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                 </div>
               </section>
 
+              {/* Seção: Status dos Bots da Equipe */}
+              {activeProjects.length > 0 && (
+                <section className="ftv-section ftv-bot-status-section">
+                  <div
+                    className="ftv-bot-status-header"
+                    onClick={() => setBotStatusOpen(prev => !prev)}
+                  >
+                    <svg
+                      className={`ftv-bot-status-chevron ${botStatusOpen ? 'ftv-bot-status-chevron-open' : ''}`}
+                      width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    >
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                    <h4 className="ftv-section-title" style={{ margin: 0 }}>Status dos Bots da Equipe</h4>
+                    <span className="ftv-bot-status-badge">{activeProjects.length}</span>
+                  </div>
+                  <div className={`ftv-bot-status-body ${botStatusOpen ? 'ftv-bot-status-body-open' : ''}`}>
+                    <div className="wr-status-table-wrapper">
+                      <table className="wr-status-table">
+                        <thead>
+                          <tr>
+                            <th>Projeto</th>
+                            <th className="wr-status-table-center">WhatsApp</th>
+                            <th className="wr-status-table-center">Relatório Semanal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activeProjects.map((project) => {
+                            const isSelected = project.project_code_norm === selectedProjectId;
+                            const whatsappAtivo = project.bot_whatsapp_status === 'ativo';
+                            const relatorioAtivo = project.relatorio_semanal_status === 'ativo';
+                            return (
+                              <tr
+                                key={project.project_code_norm}
+                                className={isSelected ? 'wr-status-row-current' : ''}
+                              >
+                                <td>
+                                  <div className="wr-status-project-name">
+                                    {project.nome_comercial || project.project_name || project.project_code_norm}
+                                  </div>
+                                  <div className="wr-status-project-code">{project.project_code_norm}</div>
+                                </td>
+                                <td className="wr-status-table-center">
+                                  <span className={`wr-kpi-pill ${whatsappAtivo ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                    {whatsappAtivo ? 'Ativo' : 'Desativado'}
+                                  </span>
+                                </td>
+                                <td className="wr-status-table-center">
+                                  <span className={`wr-kpi-pill ${relatorioAtivo ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                    {relatorioAtivo ? 'Ativo' : 'Desativado'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </section>
+              )}
+
               {/* Seção: Ferramentas Internas */}
               <section className="ftv-section">
                 <h4 className="ftv-section-title">Ferramentas Internas</h4>
@@ -804,6 +869,9 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
 
               {/* 2. KPIs do time */}
               <ReportTeamKPIs />
+
+              {/* 2.5 Log Semanal - Matriz projeto x semana */}
+              <ReportWeeklyLog />
 
               {/* 3. Tabela de status dos relatórios do time (por último) */}
               {activeProjects.length > 0 && (

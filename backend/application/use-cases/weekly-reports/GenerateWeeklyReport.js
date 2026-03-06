@@ -206,6 +206,12 @@ class GenerateWeeklyReport {
     // Step 5: Criar rascunhos Gmail
     let clientDraftUrl = null;
     let teamDraftUrl = null;
+    if (clientEmails.length === 0) {
+      await this.#addLog(reportId, 'Sem emails de cliente cadastrados — rascunho do cliente nao sera criado. Cadastre contatos na aba Equipe do projeto.');
+    }
+    if (teamEmails.length === 0) {
+      await this.#addLog(reportId, 'Sem emails de projetistas cadastrados — rascunho da equipe nao sera criado.');
+    }
     if (clientEmails.length > 0 || teamEmails.length > 0) {
       await this.#updateStep(reportId, PipelineStepEnum.CREATING_DRAFTS);
       await this.#addLog(reportId, 'Criando rascunhos no Gmail...');

@@ -13,6 +13,7 @@ import {
   ListWeeklyReports,
   GetWeeklyReportStats,
   GetReportStatus,
+  GetWeeklyLog,
 } from '../application/use-cases/weekly-reports/index.js';
 import { fetchProjectClientContacts, fetchProjectDisciplines, fetchUserTeamName, fetchUserTeamId, fetchActiveProjectsByTeam, fetchReportEnabledByTeam, fetchProjectFeaturesForPortfolio, getSupabaseClient } from '../supabase.js';
 import { hasFullAccess } from '../auth-config.js';
@@ -500,6 +501,79 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
       res.status(500).json({
         success: false,
         error: error.message || 'Erro ao buscar estatísticas por time',
+      });
+    }
+  });
+
+  /**
+   * GET /api/weekly-reports/log
+   * Retorna matriz projeto x semana para auditoria de envio
+   */
+  router.get('/log', requireAuth, async (req, res) => {
+    try {
+      const weeks = parseInt(req.query.weeks) || 8;
+
+      const effectiveUser = req.session?.impersonating || req.user;
+      let teamId = null;
+
+      if (!hasFullAccess(effectiveUser)) {
+        teamId = await fetchUserTeamId(effectiveUser?.email);
+        if (!teamId) {
+          return res.json({ success: true, data: { weeks: [], projects: [] } });
+        }
+      }
+
+      const allActiveProjects = await fetchActiveProjectsByTeam(teamId);
+
+      if (allActiveProjects.length === 0) {
+        return res.json({ success: true, data: { weeks: [], projects: [] } });
+      }
+
+      // Enriquecer com nomes dos projetos (todos os ativos)
+      const allCodes = allActiveProjects.map(p => p.project_code);
+      const activeIds = allActiveProjects.map(p => p.id);
+      const supabase = getSupabaseClient();
+
+      const [{ data: projectRows }, { data: featuresRows }] = await Promise.all([
+        supabase
+          .from('projects')
+          .select('project_code, comercial_name, name')
+          .in('project_code', allCodes),
+        supabase
+          .from('project_features')
+          .select('project_id, relatorio_semanal_status')
+          .in('project_id', activeIds),
+      ]);
+
+      const nameMap = new Map();
+      for (const row of (projectRows || [])) {
+        nameMap.set(row.project_code, row);
+      }
+
+      const featuresMap = new Map();
+      for (const row of (featuresRows || [])) {
+        featuresMap.set(row.project_id, row.relatorio_semanal_status);
+      }
+
+      const enrichedAll = allActiveProjects.map(p => ({
+        ...p,
+        comercial_name: nameMap.get(p.project_code)?.comercial_name || null,
+        name: nameMap.get(p.project_code)?.name || null,
+        relatorio_semanal_status: featuresMap.get(p.id) || null,
+      }));
+
+      const getWeeklyLog = new GetWeeklyLog(repository);
+      const result = await getWeeklyLog.execute({
+        weeks,
+        allActiveProjects: enrichedAll,
+      });
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('[WeeklyReports] Erro ao buscar log semanal:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Erro ao buscar log semanal',
       });
     }
   });
