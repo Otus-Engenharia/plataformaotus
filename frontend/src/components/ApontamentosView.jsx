@@ -9,19 +9,22 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Chart, Bar, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
   ArcElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { API_URL } from '../api';
+import { aggregateByMonth } from '../utils/apontamentosHelpers';
 import '../styles/ApontamentosView.css';
 
 // Plugin customizado para mostrar totais à direita das barras horizontais (estilo PowerBI)
@@ -87,6 +90,8 @@ ChartJS.register(
   LinearScale,
   BarElement,
   ArcElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend,
@@ -1638,10 +1643,89 @@ function ApontamentosSection({ title, issues, projectId }) {
     },
   };
 
+  // Evolução mensal (barras + linhas acumuladas)
+  const monthlyData = useMemo(() => aggregateByMonth(issues), [issues]);
+
+  const monthlyChartData = useMemo(() => {
+    if (!monthlyData) return null;
+    return {
+      labels: monthlyData.labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Abertos no mês',
+          data: monthlyData.opened,
+          backgroundColor: 'rgba(239,68,68,0.7)',
+          borderRadius: 4,
+          yAxisID: 'y',
+          order: 2,
+        },
+        {
+          type: 'bar',
+          label: 'Resolvidos no mês',
+          data: monthlyData.resolved,
+          backgroundColor: 'rgba(34,197,94,0.7)',
+          borderRadius: 4,
+          yAxisID: 'y',
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Acumulado abertos',
+          data: monthlyData.cumulativeOpened,
+          borderColor: '#dc2626',
+          backgroundColor: '#dc2626',
+          tension: 0.3,
+          pointRadius: 2,
+          borderWidth: 2,
+          yAxisID: 'y1',
+          order: 1,
+        },
+        {
+          type: 'line',
+          label: 'Acumulado resolvidos',
+          data: monthlyData.cumulativeResolved,
+          borderColor: '#15803d',
+          backgroundColor: '#15803d',
+          tension: 0.3,
+          pointRadius: 2,
+          borderWidth: 2,
+          yAxisID: 'y1',
+          order: 1,
+        },
+      ],
+    };
+  }, [monthlyData]);
+
+  const monthlyChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'bottom' },
+      datalabels: { display: false },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        position: 'left',
+        title: { display: true, text: 'Mensal' },
+        ticks: { precision: 0 },
+      },
+      y1: {
+        beginAtZero: true,
+        position: 'right',
+        title: { display: true, text: 'Acumulado' },
+        ticks: { precision: 0 },
+        grid: { drawOnChartArea: false },
+      },
+    },
+  }), []);
+
   return (
     <div className="apontamentos-section">
       {title && (
-        <h1 
+        <h1
           className="apontamentos-section-title apontamentos-section-title-collapsible"
           onClick={() => setIsCollapsed(!isCollapsed)}
           style={{ cursor: 'pointer', userSelect: 'none' }}
@@ -1709,6 +1793,16 @@ function ApontamentosSection({ title, issues, projectId }) {
           Apontamentos Ativos
         </span>
       </div>
+
+      {/* Evolução Mensal */}
+      {monthlyChartData && (
+        <div className="apontamentos-chart-container apontamentos-chart-full" style={{ marginBottom: '1.5rem' }}>
+          <h3>Evolução Mensal de Apontamentos</h3>
+          <div className="apontamentos-chart" style={{ height: '320px' }}>
+            <Chart type="bar" data={monthlyChartData} options={monthlyChartOptions} />
+          </div>
+        </div>
+      )}
 
       {/* Gráficos */}
       <div className="apontamentos-charts">
