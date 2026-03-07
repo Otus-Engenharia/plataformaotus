@@ -824,7 +824,7 @@ export default function IndicatorDetailView() {
               <EditableKpiValue
                 value={realizadoValue}
                 onSave={(v) => handleUpdateIndicatorField({ realizado_acumulado: v ?? 0 })}
-                canEdit={isPrivileged}
+                canEdit={true}
                 formatFn={(v) => formatValue(v, indicador.metric_type)}
               />
             )}
@@ -914,7 +914,7 @@ export default function IndicatorDetailView() {
             <h3 className="monthly-title">Metas Mensais</h3>
             <span className="monthly-subtitle">Planejado vs Realizado</span>
           </div>
-          {(isPrivileged || indicador?.person_email === user?.email) && (
+          {isPrivileged && (
             <div className="monthly-header__right">
               <button
                 type="button"
