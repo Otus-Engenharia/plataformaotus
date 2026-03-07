@@ -224,6 +224,35 @@ async function fetchAllLookups(config) {
 }
 
 /**
+ * Busca mapeamento issueId -> category via REST API
+ * O GraphQL retorna category: null, mas o REST retorna o ID correto
+ */
+async function fetchIssueCategoryMap(config) {
+  console.log('🏷️ Buscando categorias das issues via REST API...');
+
+  try {
+    const rawData = await fetchEndpoint('issues', config, { pageSize: 500 });
+    const issues = convertToObjects(rawData);
+
+    const categoryMap = {};
+    let count = 0;
+
+    for (const issue of issues) {
+      if (issue.id != null && issue.category != null) {
+        categoryMap[String(issue.id)] = issue.category;
+        count++;
+      }
+    }
+
+    console.log(`   ✅ ${count} issues com categoria mapeadas (de ${issues.length} total)`);
+    return categoryMap;
+  } catch (error) {
+    console.error(`❌ Falha ao buscar categorias via REST: ${error.message}`);
+    return {};
+  }
+}
+
+/**
  * Busca endpoints de relacionamento (mais pesados)
  */
 async function fetchRelationships(config) {
@@ -264,5 +293,6 @@ export {
   fetchEndpoint,
   fetchAllLookups,
   fetchRelationships,
+  fetchIssueCategoryMap,
   convertToObjects,
 };
