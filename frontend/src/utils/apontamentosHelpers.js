@@ -3,6 +3,9 @@
  * Extraídos de ApontamentosView.jsx para reuso na Vista do Cliente
  */
 
+import { format, startOfMonth, eachMonthOfInterval } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
 // ---- Constantes ----
 
 export const STATUS_TRANSLATION = {
@@ -366,4 +369,50 @@ export function sortPhaseLabels(labels, phaseData) {
 export function sortPriorityLabels(labels) {
   const order = { 'Alta': 0, 'Média': 1, 'Baixa': 2, 'Não definida': 3 };
   return [...labels].sort((a, b) => (order[a] ?? 999) - (order[b] ?? 999));
+}
+
+// ---- Evolução Mensal ----
+
+export function aggregateByMonth(issues) {
+  if (!issues || issues.length === 0) return null;
+
+  const validIssues = issues.filter(i => i.createdAt && !isNaN(new Date(i.createdAt)));
+  if (validIssues.length === 0) return null;
+
+  const dates = validIssues.map(i => new Date(i.createdAt));
+  const minDate = startOfMonth(new Date(Math.min(...dates)));
+  const maxDate = startOfMonth(new Date());
+
+  const months = eachMonthOfInterval({ start: minDate, end: maxDate });
+  const labels = months.map(m => format(m, 'MMM/yy', { locale: ptBR }));
+
+  const opened = new Array(months.length).fill(0);
+  const resolved = new Array(months.length).fill(0);
+
+  validIssues.forEach(issue => {
+    const createdMonth = startOfMonth(new Date(issue.createdAt)).getTime();
+    const idx = months.findIndex(m => m.getTime() === createdMonth);
+    if (idx !== -1) opened[idx]++;
+
+    if (isResolved(issue.status)) {
+      const resolvedDate = issue.statusUpdatedAt || issue.updatedAt || issue.createdAt;
+      if (resolvedDate && !isNaN(new Date(resolvedDate))) {
+        const resolvedMonth = startOfMonth(new Date(resolvedDate)).getTime();
+        const rIdx = months.findIndex(m => m.getTime() === resolvedMonth);
+        if (rIdx !== -1) resolved[rIdx]++;
+      }
+    }
+  });
+
+  const cumulativeOpened = [];
+  const cumulativeResolved = [];
+  let sumO = 0, sumR = 0;
+  for (let i = 0; i < months.length; i++) {
+    sumO += opened[i];
+    sumR += resolved[i];
+    cumulativeOpened.push(sumO);
+    cumulativeResolved.push(sumR);
+  }
+
+  return { labels, opened, resolved, cumulativeOpened, cumulativeResolved };
 }

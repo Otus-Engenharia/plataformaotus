@@ -8,13 +8,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Doughnut, Bar } from 'react-chartjs-2';
+import { Chart, Doughnut, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
   ArcElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend,
@@ -30,12 +32,14 @@ import {
   extractClientDisciplines, filterClientOpenIssues,
   extractUniqueLocals, getTimeSinceUpdate,
   sortPhaseLabels, sortPriorityLabels, PHASE_ORDER,
+  aggregateByMonth,
 } from '../../utils/apontamentosHelpers';
 import '../../styles/VistaClienteView.css';
 import './VistaClienteApontamentosView.css';
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, ArcElement,
+  LineElement, PointElement,
   Title, Tooltip, Legend, ChartDataLabels
 );
 
@@ -197,6 +201,7 @@ function VistaClienteApontamentosView() {
   const disciplineData = useMemo(() => aggregateByDiscipline(filteredIssues), [filteredIssues]);
   const categoryData = useMemo(() => aggregateByCategory(filteredIssues), [filteredIssues]);
   const localData = useMemo(() => aggregateByLocal(filteredIssues), [filteredIssues]);
+  const monthlyData = useMemo(() => aggregateByMonth(filteredIssues), [filteredIssues]);
 
   // ---- Chart data ----
   const donutData = useMemo(() => ({
@@ -286,6 +291,82 @@ function VistaClienteApontamentosView() {
       ],
     };
   }, [localData]);
+
+  const monthlyChartData = useMemo(() => {
+    if (!monthlyData) return null;
+    return {
+      labels: monthlyData.labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Abertos no mês',
+          data: monthlyData.opened,
+          backgroundColor: 'rgba(239,68,68,0.7)',
+          borderRadius: 4,
+          yAxisID: 'y',
+          order: 2,
+        },
+        {
+          type: 'bar',
+          label: 'Resolvidos no mês',
+          data: monthlyData.resolved,
+          backgroundColor: 'rgba(34,197,94,0.7)',
+          borderRadius: 4,
+          yAxisID: 'y',
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Acumulado abertos',
+          data: monthlyData.cumulativeOpened,
+          borderColor: '#dc2626',
+          backgroundColor: '#dc2626',
+          tension: 0.3,
+          pointRadius: 2,
+          borderWidth: 2,
+          yAxisID: 'y1',
+          order: 1,
+        },
+        {
+          type: 'line',
+          label: 'Acumulado resolvidos',
+          data: monthlyData.cumulativeResolved,
+          borderColor: '#15803d',
+          backgroundColor: '#15803d',
+          tension: 0.3,
+          pointRadius: 2,
+          borderWidth: 2,
+          yAxisID: 'y1',
+          order: 1,
+        },
+      ],
+    };
+  }, [monthlyData]);
+
+  const monthlyChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'bottom' },
+      datalabels: { display: false },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        position: 'left',
+        title: { display: true, text: 'Mensal' },
+        ticks: { precision: 0 },
+      },
+      y1: {
+        beginAtZero: true,
+        position: 'right',
+        title: { display: true, text: 'Acumulado' },
+        ticks: { precision: 0 },
+        grid: { drawOnChartArea: false },
+      },
+    },
+  }), []);
 
   // ---- Client open issues sorted ----
   const sortedClientIssues = useMemo(() => {
@@ -481,6 +562,16 @@ function VistaClienteApontamentosView() {
 
           {/* Charts Grid */}
           <div className="vca-charts-grid">
+            {/* Evolução Mensal (full width) */}
+            {monthlyChartData && (
+              <div className="vca-chart-card" style={{ gridColumn: '1 / -1' }}>
+                <h4>Evolução Mensal</h4>
+                <div style={{ height: '280px' }}>
+                  <Chart type="bar" data={monthlyChartData} options={monthlyChartOptions} />
+                </div>
+              </div>
+            )}
+
             {/* Left: Donut + Priority */}
             <div className="vca-chart-card">
               <h4>Panorama Geral</h4>
