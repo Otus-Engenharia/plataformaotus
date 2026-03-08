@@ -1,20 +1,48 @@
 /**
  * Vista Horas (timetracker)
- * Duas abas: (1) Análise – gráficos nas últimas semanas; (2) Por projeto – horas agrupadas com filtro.
+ * Duas abas: (1) Colaboradores – horas mês a mês por pessoa (padrão); (2) Por projeto – horas agrupadas com filtro.
  * Dados: dadosindicadores.timetracker.timetracker_merged, portfólio por projeto.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { API_URL } from '../api';
 import '../styles/HorasView.css';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const ULTIMAS_SEMANAS_OPTS = [1, 2, 4];
-const TOP_ATIVIDADES_LIMIT = 20;
+const MESES_OPTS = [1, 2, 3, 6, 9, 12];
+const COLLABORATOR_COLORS = [
+  { bg: 'rgba(14, 165, 233, 0.75)', border: '#0ea5e9' },
+  { bg: 'rgba(249, 115, 22, 0.75)', border: '#f97316' },
+  { bg: 'rgba(139, 92, 246, 0.75)', border: '#8b5cf6' },
+  { bg: 'rgba(34, 197, 94, 0.75)', border: '#22c55e' },
+  { bg: 'rgba(236, 72, 153, 0.75)', border: '#ec4899' },
+  { bg: 'rgba(234, 179, 8, 0.75)', border: '#eab308' },
+  { bg: 'rgba(20, 184, 166, 0.75)', border: '#14b8a6' },
+  { bg: 'rgba(99, 102, 241, 0.75)', border: '#6366f1' },
+];
+const PROJECT_COLORS = [
+  { bg: 'rgba(59, 130, 246, 0.75)', border: '#3b82f6' },
+  { bg: 'rgba(239, 68, 68, 0.75)', border: '#ef4444' },
+  { bg: 'rgba(16, 185, 129, 0.75)', border: '#10b981' },
+  { bg: 'rgba(245, 158, 11, 0.75)', border: '#f59e0b' },
+  { bg: 'rgba(139, 92, 246, 0.75)', border: '#8b5cf6' },
+  { bg: 'rgba(236, 72, 153, 0.75)', border: '#ec4899' },
+  { bg: 'rgba(6, 182, 212, 0.75)', border: '#06b6d4' },
+  { bg: 'rgba(251, 146, 60, 0.75)', border: '#fb923c' },
+  { bg: 'rgba(34, 197, 94, 0.75)', border: '#22c55e' },
+  { bg: 'rgba(168, 85, 247, 0.75)', border: '#a855f7' },
+  { bg: 'rgba(244, 63, 94, 0.75)', border: '#f43f5e' },
+  { bg: 'rgba(20, 184, 166, 0.75)', border: '#14b8a6' },
+  { bg: 'rgba(234, 179, 8, 0.75)', border: '#eab308' },
+  { bg: 'rgba(99, 102, 241, 0.75)', border: '#6366f1' },
+  { bg: 'rgba(217, 70, 239, 0.75)', border: '#d946ef' },
+];
+const MAX_COLLABORATORS_WARN = 8;
+const TOP_VISIBLE_DEFAULT = 10;
 
 function formatDateBR(val) {
   if (val == null || val === '') return '—';
@@ -30,18 +58,61 @@ function formatDateBR(val) {
   }
 }
 
+function getCurrentYM() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function calcPresetInicio(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return d.toISOString().slice(0, 7);
+}
+
+function calcLastMonth() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d.toISOString().slice(0, 7);
+}
+
+function getWeekKey(dateStr) {
+  const d = new Date(dateStr);
+  const target = new Date(d.valueOf());
+  target.setDate(target.getDate() - ((d.getDay() + 6) % 7) + 3);
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  firstThursday.setDate(firstThursday.getDate() - ((firstThursday.getDay() + 6) % 7) + 3);
+  const weekNum = 1 + Math.round((target - firstThursday) / (7 * 86400000));
+  return `${target.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+function getWeekDateRange(dateStr) {
+  const d = new Date(dateStr);
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (dt) => `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
+  return `${fmt(monday)} - ${fmt(sunday)}`;
+}
+
 function HorasView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [periodo, setPeriodo] = useState({ dataInicio: null, dataFim: null });
-  const [tab, setTab] = useState('analise');
-  const [ultimasSemanas, setUltimasSemanas] = useState(2);
+  const [tab, setTab] = useState('colaboradores');
   const [timeFilter, setTimeFilter] = useState('');
-  const [projetoDetalhe, setProjetoDetalhe] = useState('');
   const [projetoFilter, setProjetoFilter] = useState('');
   const [timesList, setTimesList] = useState([]);
+  const [selectedUsuarios, setSelectedUsuarios] = useState([]);
+  const [presetAtivo, setPresetAtivo] = useState(6);
+  const [periodoColab, setPeriodoColab] = useState({ inicio: calcPresetInicio(6), fim: getCurrentYM() });
+  const [showUsuarioDropdown, setShowUsuarioDropdown] = useState(false);
+  const [showAllProjetos, setShowAllProjetos] = useState(false);
+  const [showAllAtividades, setShowAllAtividades] = useState(false);
+  const [granularidade, setGranularidade] = useState('mensal');
+  const usuarioDropdownRef = useRef(null);
+  const usuarioTriggerRef = useRef(null);
 
   const fetchData = async () => {
     try {
@@ -103,203 +174,22 @@ function HorasView() {
     return [...new Set(list)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [porProjeto]);
 
-  const cutoff = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - ultimasSemanas * 7);
-    return d.toISOString().slice(0, 10);
-  }, [ultimasSemanas]);
-
-  const analiseRows = useMemo(() => {
-    return apontamentosFlat.filter((a) => (a.data_de_apontamento || '') >= cutoff);
-  }, [apontamentosFlat, cutoff]);
-
-  const porData = useMemo(() => {
-    const m = new Map();
-    for (const a of analiseRows) {
-      const raw = a.data_de_apontamento;
-      const d =
-        typeof raw === 'string'
-          ? raw
-          : raw != null && typeof raw === 'object' && raw.value != null
-            ? String(raw.value)
-            : '—';
-      const h = a.horas ?? 0;
-      m.set(d, (m.get(d) || 0) + h);
-    }
-    return Array.from(m.entries())
-      .sort((x, y) => String(x[0]).localeCompare(String(y[0]), 'pt-BR'))
-      .map(([date, horas]) => ({ date, horas }));
-  }, [analiseRows]);
-
-  const porUsuario = useMemo(() => {
-    const m = new Map();
-    for (const a of analiseRows) {
-      const u = typeof a.usuario === 'string' ? a.usuario : (a.usuario != null ? String(a.usuario) : '—');
-      const h = a.horas ?? 0;
-      m.set(u, (m.get(u) || 0) + h);
-    }
-    return Array.from(m.entries())
-      .sort((x, y) => (y[1] || 0) - (x[1] || 0))
-      .map(([usuario, horas]) => ({ usuario, horas }));
-  }, [analiseRows]);
-
-  const porProjetoAnalise = useMemo(() => {
-    const m = new Map();
-    for (const a of analiseRows) {
-      const p = typeof a.projeto === 'string' ? a.projeto : (a.projeto != null ? String(a.projeto) : '—');
-      const h = a.horas ?? 0;
-      m.set(p, (m.get(p) || 0) + h);
-    }
-    return Array.from(m.entries())
-      .sort((x, y) => (y[1] || 0) - (x[1] || 0))
-      .map(([projeto, horas]) => ({ projeto, horas }));
-  }, [analiseRows]);
-
-  const topAtividades = useMemo(() => {
-    const m = new Map();
-    for (const a of analiseRows) {
-      const t = typeof a.task_name === 'string' ? a.task_name : (a.task_name != null ? String(a.task_name) : '—');
-      const h = a.horas ?? 0;
-      m.set(t, (m.get(t) || 0) + h);
-    }
-    return Array.from(m.entries())
-      .map(([atividade, horas]) => ({ atividade, horas: horas || 0 }))
-      .sort((x, y) => y.horas - x.horas)
-      .slice(0, TOP_ATIVIDADES_LIMIT);
-  }, [analiseRows]);
-
-  const projectOptionsAnalise = useMemo(() => {
-    const list = porProjetoAnalise.map((x) => x.projeto).filter((s) => s && s !== '—');
-    return [...new Set(list)].sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
-  }, [porProjetoAnalise]);
-
-  const detalheProjetoRows = useMemo(() => {
-    if (!projetoDetalhe) return [];
-    return analiseRows.filter((a) => {
-      const p = typeof a.projeto === 'string' ? a.projeto : (a.projeto != null ? String(a.projeto) : '');
-      return p === projetoDetalhe;
-    });
-  }, [analiseRows, projetoDetalhe]);
-
-  const detalheProjetoAtividades = useMemo(() => {
-    const m = new Map();
-    for (const a of detalheProjetoRows) {
-      const t = typeof a.task_name === 'string' ? a.task_name : (a.task_name != null ? String(a.task_name) : '—');
-      const h = a.horas ?? 0;
-      m.set(t, (m.get(t) || 0) + h);
-    }
-    return Array.from(m.entries())
-      .map(([atividade, horas]) => ({ atividade, horas }))
-      .sort((x, y) => (y.horas || 0) - (x.horas || 0));
-  }, [detalheProjetoRows]);
-
-  const chartPorData = useMemo(() => {
-    if (!porData.length) return null;
-    return {
-      labels: porData.map((x) => formatDateBR(x.date)),
-      datasets: [
-        {
-          label: 'Horas',
-          data: porData.map((x) => Math.round(x.horas * 100) / 100),
-          backgroundColor: 'rgba(14, 165, 233, 0.7)',
-          borderColor: 'rgba(14, 165, 233, 1)',
-          borderWidth: 1,
-        },
-      ],
-    };
-  }, [porData]);
-
-  const chartPorUsuario = useMemo(() => {
-    if (!porUsuario.length) return null;
-    return {
-      labels: porUsuario.map((x) => x.usuario),
-      datasets: [
-        {
-          label: 'Horas',
-          data: porUsuario.map((x) => Math.round(x.horas * 100) / 100),
-          backgroundColor: 'rgba(255, 204, 0, 0.7)',
-          borderColor: 'rgba(255, 204, 0, 1)',
-          borderWidth: 1,
-        },
-      ],
-    };
-  }, [porUsuario]);
-
-  const chartPorProjeto = useMemo(() => {
-    if (!porProjetoAnalise.length) return null;
-    return {
-      labels: porProjetoAnalise.map((x) => x.projeto),
-      datasets: [
-        {
-          label: 'Horas',
-          data: porProjetoAnalise.map((x) => Math.round(x.horas * 100) / 100),
-          backgroundColor: 'rgba(34, 197, 94, 0.7)',
-          borderColor: 'rgba(34, 197, 94, 1)',
-          borderWidth: 1,
-        },
-      ],
-    };
-  }, [porProjetoAnalise]);
-
-  const chartTopAtividades = useMemo(() => {
-    if (!topAtividades.length) return null;
-    return {
-      labels: topAtividades.map((x) => x.atividade),
-      datasets: [
-        {
-          label: 'Horas',
-          data: topAtividades.map((x) => Math.round(x.horas * 100) / 100),
-          backgroundColor: 'rgba(139, 92, 246, 0.7)',
-          borderColor: 'rgba(139, 92, 246, 1)',
-          borderWidth: 1,
-        },
-      ],
-    };
-  }, [topAtividades]);
-
-  const chartDetalheAtividades = useMemo(() => {
-    if (!detalheProjetoAtividades.length || !projetoDetalhe) return null;
-    return {
-      labels: detalheProjetoAtividades.map((x) => x.atividade),
-      datasets: [
-        {
-          label: 'Horas',
-          data: detalheProjetoAtividades.map((x) => Math.round(x.horas * 100) / 100),
-          backgroundColor: 'rgba(14, 165, 233, 0.7)',
-          borderColor: 'rgba(14, 165, 233, 1)',
-          borderWidth: 1,
-        },
-      ],
-    };
-  }, [detalheProjetoAtividades, projetoDetalhe]);
-
-  const chartOptions = useMemo(
+  const chartOptionsHorizontal = useMemo(
     () => ({
       responsive: true,
       maintainAspectRatio: false,
+      indexAxis: 'y',
       plugins: {
         title: { display: false },
+        legend: { display: false },
         tooltip: { callbacks: { label: (ctx) => `${ctx.raw} h` } },
       },
       scales: {
-        x: { title: { display: true, text: 'Data' } },
-        y: { beginAtZero: true, title: { display: true, text: 'Horas' } },
+        x: { beginAtZero: true, title: { display: true, text: 'Horas' } },
+        y: { title: { display: false } },
       },
     }),
     []
-  );
-
-  const chartOptionsHorizontal = useMemo(
-    () => ({
-      ...chartOptions,
-      indexAxis: 'y',
-      scales: {
-        ...chartOptions.scales,
-        x: { beginAtZero: true, title: { display: true, text: 'Horas' } },
-        y: { ...chartOptions.scales.y, title: { display: false } },
-      },
-    }),
-    [chartOptions]
   );
 
   const filteredPorProjeto = useMemo(() => {
@@ -307,7 +197,293 @@ function HorasView() {
     return porProjeto.filter((p) => (p.projeto || '') === projetoFilter);
   }, [porProjeto, projetoFilter]);
 
-  const totalAnalise = analiseRows.reduce((s, a) => s + (a.horas ?? 0), 0);
+  // --- Colaboradores tab ---
+  const colaboradoresDisponiveis = useMemo(() => {
+    const seen = new Map();
+    for (const a of apontamentosFlat) {
+      const u = typeof a.usuario === 'string' ? a.usuario : (a.usuario != null ? String(a.usuario) : null);
+      if (u && !seen.has(u)) seen.set(u, u);
+    }
+    return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [apontamentosFlat]);
+
+  const colaboradorRows = useMemo(() => {
+    if (!selectedUsuarios.length) return [];
+    const set = new Set(selectedUsuarios);
+    return apontamentosFlat.filter((a) => {
+      const u = typeof a.usuario === 'string' ? a.usuario : (a.usuario != null ? String(a.usuario) : '');
+      if (!set.has(u)) return false;
+      const raw = a.data_de_apontamento;
+      const d = typeof raw === 'string' ? raw : (raw != null && typeof raw === 'object' && raw.value != null ? String(raw.value) : '');
+      const ym = d.slice(0, 7);
+      return ym >= periodoColab.inicio && ym <= periodoColab.fim;
+    });
+  }, [apontamentosFlat, selectedUsuarios, periodoColab]);
+
+  const mesesLabels = useMemo(() => {
+    const set = new Set();
+    for (const a of colaboradorRows) {
+      const raw = a.data_de_apontamento;
+      const d = typeof raw === 'string' ? raw : (raw != null && typeof raw === 'object' && raw.value != null ? String(raw.value) : '');
+      const ym = d.slice(0, 7);
+      if (ym) set.add(ym);
+    }
+    return Array.from(set).sort();
+  }, [colaboradorRows]);
+
+  const formatYM = (ym) => {
+    try {
+      const d = new Date(ym + '-01');
+      return d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+    } catch { return ym; }
+  };
+
+  const chartColabMensal = useMemo(() => {
+    if (!mesesLabels.length || !selectedUsuarios.length) return null;
+    const projetos = [...new Set(colaboradorRows.map((a) => typeof a.projeto === 'string' ? a.projeto : (a.projeto != null ? String(a.projeto) : '—')))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const datasets = [];
+    projetos.forEach((p, pIdx) => {
+      const color = PROJECT_COLORS[pIdx % PROJECT_COLORS.length];
+      selectedUsuarios.forEach((u, uIdx) => {
+        const horasPorMes = mesesLabels.map((ym) => {
+          let total = 0;
+          for (const a of colaboradorRows) {
+            const au = typeof a.usuario === 'string' ? a.usuario : (a.usuario != null ? String(a.usuario) : '');
+            const ap = typeof a.projeto === 'string' ? a.projeto : (a.projeto != null ? String(a.projeto) : '—');
+            if (au !== u || ap !== p) continue;
+            const raw = a.data_de_apontamento;
+            const d = typeof raw === 'string' ? raw : (raw != null && typeof raw === 'object' && raw.value != null ? String(raw.value) : '');
+            if (d.slice(0, 7) === ym) total += (a.horas ?? 0);
+          }
+          return Math.round(total * 100) / 100;
+        });
+        datasets.push({
+          label: uIdx === 0 ? p : '',
+          _projectName: p,
+          data: horasPorMes,
+          backgroundColor: color.bg,
+          borderColor: color.border,
+          borderWidth: 1,
+          stack: u,
+        });
+      });
+    });
+    return { labels: mesesLabels.map(formatYM), datasets };
+  }, [mesesLabels, selectedUsuarios, colaboradorRows]);
+
+  const semanasLabels = useMemo(() => {
+    const map = new Map();
+    for (const a of colaboradorRows) {
+      const raw = a.data_de_apontamento;
+      const d = typeof raw === 'string' ? raw : (raw != null && typeof raw === 'object' && raw.value != null ? String(raw.value) : '');
+      if (d.length >= 10) {
+        const key = getWeekKey(d);
+        if (!map.has(key)) map.set(key, getWeekDateRange(d));
+      }
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, label]) => ({ key, label }));
+  }, [colaboradorRows]);
+
+  const chartColabSemanal = useMemo(() => {
+    if (!semanasLabels.length || !selectedUsuarios.length) return null;
+    const projetos = [...new Set(colaboradorRows.map((a) => typeof a.projeto === 'string' ? a.projeto : (a.projeto != null ? String(a.projeto) : '—')))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const datasets = [];
+    projetos.forEach((p, pIdx) => {
+      const color = PROJECT_COLORS[pIdx % PROJECT_COLORS.length];
+      selectedUsuarios.forEach((u, uIdx) => {
+        const horasPorSemana = semanasLabels.map(({ key }) => {
+          let total = 0;
+          for (const a of colaboradorRows) {
+            const au = typeof a.usuario === 'string' ? a.usuario : (a.usuario != null ? String(a.usuario) : '');
+            const ap = typeof a.projeto === 'string' ? a.projeto : (a.projeto != null ? String(a.projeto) : '—');
+            if (au !== u || ap !== p) continue;
+            const raw = a.data_de_apontamento;
+            const d = typeof raw === 'string' ? raw : (raw != null && typeof raw === 'object' && raw.value != null ? String(raw.value) : '');
+            if (d.length >= 10 && getWeekKey(d) === key) total += (a.horas ?? 0);
+          }
+          return Math.round(total * 100) / 100;
+        });
+        datasets.push({
+          label: uIdx === 0 ? p : '',
+          _projectName: p,
+          data: horasPorSemana,
+          backgroundColor: color.bg,
+          borderColor: color.border,
+          borderWidth: 1,
+          stack: u,
+        });
+      });
+    });
+    return { labels: semanasLabels.map((s) => s.label), datasets };
+  }, [semanasLabels, selectedUsuarios, colaboradorRows]);
+
+  const chartColabPorProjeto = useMemo(() => {
+    if (!selectedUsuarios.length || !colaboradorRows.length) return null;
+    const projMap = new Map();
+    for (const a of colaboradorRows) {
+      const p = typeof a.projeto === 'string' ? a.projeto : (a.projeto != null ? String(a.projeto) : '—');
+      const u = typeof a.usuario === 'string' ? a.usuario : (a.usuario != null ? String(a.usuario) : '');
+      if (!projMap.has(p)) projMap.set(p, new Map());
+      const um = projMap.get(p);
+      um.set(u, (um.get(u) || 0) + (a.horas ?? 0));
+    }
+    const projetos = Array.from(projMap.entries())
+      .map(([p, um]) => ({ p, total: Array.from(um.values()).reduce((s, v) => s + v, 0) }))
+      .sort((a, b) => b.total - a.total)
+      .map((x) => x.p);
+    const datasets = selectedUsuarios.map((u, idx) => {
+      const c = COLLABORATOR_COLORS[idx % COLLABORATOR_COLORS.length];
+      return {
+        label: u,
+        data: projetos.map((p) => Math.round((projMap.get(p)?.get(u) || 0) * 100) / 100),
+        backgroundColor: c.bg, borderColor: c.border, borderWidth: 1,
+      };
+    });
+    return { labels: projetos, datasets };
+  }, [selectedUsuarios, colaboradorRows]);
+
+  const chartColabPorAtividade = useMemo(() => {
+    if (!selectedUsuarios.length || !colaboradorRows.length) return null;
+    const taskMap = new Map();
+    for (const a of colaboradorRows) {
+      const t = typeof a.task_name === 'string' ? a.task_name : (a.task_name != null ? String(a.task_name) : '—');
+      const u = typeof a.usuario === 'string' ? a.usuario : (a.usuario != null ? String(a.usuario) : '');
+      if (!taskMap.has(t)) taskMap.set(t, new Map());
+      const um = taskMap.get(t);
+      um.set(u, (um.get(u) || 0) + (a.horas ?? 0));
+    }
+    const atividades = Array.from(taskMap.entries())
+      .map(([t, um]) => ({ t, total: Array.from(um.values()).reduce((s, v) => s + v, 0) }))
+      .sort((a, b) => b.total - a.total)
+      .map((x) => x.t);
+    const datasets = selectedUsuarios.map((u, idx) => {
+      const c = COLLABORATOR_COLORS[idx % COLLABORATOR_COLORS.length];
+      return {
+        label: u,
+        data: atividades.map((t) => Math.round((taskMap.get(t)?.get(u) || 0) * 100) / 100),
+        backgroundColor: c.bg, borderColor: c.border, borderWidth: 1,
+      };
+    });
+    return { labels: atividades, datasets };
+  }, [selectedUsuarios, colaboradorRows]);
+
+  // Truncated chart data for top N
+  const chartColabPorProjetoVisible = useMemo(() => {
+    if (!chartColabPorProjeto) return null;
+    if (showAllProjetos) return chartColabPorProjeto;
+    const limit = TOP_VISIBLE_DEFAULT;
+    if (chartColabPorProjeto.labels.length <= limit) return chartColabPorProjeto;
+    return {
+      labels: chartColabPorProjeto.labels.slice(0, limit),
+      datasets: chartColabPorProjeto.datasets.map((ds) => ({ ...ds, data: ds.data.slice(0, limit) })),
+    };
+  }, [chartColabPorProjeto, showAllProjetos]);
+
+  const chartColabPorAtividadeVisible = useMemo(() => {
+    if (!chartColabPorAtividade) return null;
+    if (showAllAtividades) return chartColabPorAtividade;
+    const limit = TOP_VISIBLE_DEFAULT;
+    if (chartColabPorAtividade.labels.length <= limit) return chartColabPorAtividade;
+    return {
+      labels: chartColabPorAtividade.labels.slice(0, limit),
+      datasets: chartColabPorAtividade.datasets.map((ds) => ({ ...ds, data: ds.data.slice(0, limit) })),
+    };
+  }, [chartColabPorAtividade, showAllAtividades]);
+
+  const totalColaboradores = colaboradorRows.reduce((s, a) => s + (a.horas ?? 0), 0);
+
+  // Reset selected users when time filter changes
+  useEffect(() => {
+    setSelectedUsuarios((prev) => {
+      const valid = new Set(colaboradoresDisponiveis);
+      const filtered = prev.filter((u) => valid.has(u));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [colaboradoresDisponiveis]);
+
+  // Click outside to close usuario dropdown
+  useEffect(() => {
+    if (!showUsuarioDropdown) return;
+    const handler = (e) => {
+      if (
+        usuarioDropdownRef.current && !usuarioDropdownRef.current.contains(e.target) &&
+        usuarioTriggerRef.current && !usuarioTriggerRef.current.contains(e.target)
+      ) {
+        setShowUsuarioDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showUsuarioDropdown]);
+
+  const colabChartOptionsGrouped = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true, position: 'top',
+        labels: {
+          boxWidth: 12, padding: 12, font: { size: 12 },
+          filter: (item) => item.text !== '',
+        },
+      },
+      tooltip: {
+        callbacks: {
+          title: (items) => {
+            const stack = items[0]?.dataset?.stack;
+            return stack ? `${items[0].label} — ${stack}` : items[0].label;
+          },
+          label: (ctx) => {
+            const proj = ctx.dataset._projectName || ctx.dataset.label;
+            return `${proj}: ${ctx.raw} h`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: { stacked: true, title: { display: true, text: granularidade === 'semanal' ? 'Semanas' : 'Meses' } },
+      y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Horas' } },
+    },
+  }), [granularidade]);
+
+  const colabChartOptionsHorizontal = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: {
+      legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 12, font: { size: 12 } } },
+      tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} h` } },
+    },
+    scales: {
+      x: { beginAtZero: true, title: { display: true, text: 'Horas' } },
+      y: { title: { display: false } },
+    },
+  }), []);
+
+  const toggleUsuario = (u) => {
+    setSelectedUsuarios((prev) =>
+      prev.includes(u) ? prev.filter((x) => x !== u) : [...prev, u]
+    );
+  };
+
+  const handlePresetClick = (months) => {
+    setPresetAtivo(months);
+    setPeriodoColab({ inicio: calcPresetInicio(months), fim: getCurrentYM() });
+  };
+
+  const handleLastMonthClick = () => {
+    const ym = calcLastMonth();
+    setPresetAtivo('lastMonth');
+    setPeriodoColab({ inicio: ym, fim: ym });
+  };
+
+  const handlePeriodoChange = (field, value) => {
+    setPresetAtivo(null);
+    setPeriodoColab((prev) => ({ ...prev, [field]: value }));
+  };
+
   const totalGeral = porProjeto.reduce((s, g) => s + (g.totalHoras ?? 0), 0);
 
   if (loading && !data) {
@@ -364,13 +540,13 @@ function HorasView() {
         <button
           type="button"
           role="tab"
-          aria-selected={tab === 'analise'}
-          aria-controls="hv-panel-analise"
-          id="hv-tab-analise"
-          className={`hv-tab ${tab === 'analise' ? 'hv-tab-active' : ''}`}
-          onClick={() => setTab('analise')}
+          aria-selected={tab === 'colaboradores'}
+          aria-controls="hv-panel-colaboradores"
+          id="hv-tab-colaboradores"
+          className={`hv-tab ${tab === 'colaboradores' ? 'hv-tab-active' : ''}`}
+          onClick={() => setTab('colaboradores')}
         >
-          Análise (últimas semanas)
+          Colaboradores
         </button>
         <button
           type="button"
@@ -385,8 +561,8 @@ function HorasView() {
         </button>
       </nav>
 
-      {tab === 'analise' && (
-        <section id="hv-panel-analise" role="tabpanel" aria-labelledby="hv-tab-analise" className="hv-panel">
+      {tab === 'colaboradores' && (
+        <section id="hv-panel-colaboradores" role="tabpanel" aria-labelledby="hv-tab-colaboradores" className="hv-panel">
           <div className="hv-filters">
             <label className="hv-filter">
               <span className="hv-filter-label">Time</span>
@@ -402,162 +578,190 @@ function HorasView() {
                 ))}
               </select>
             </label>
-            <label className="hv-filter">
-              <span className="hv-filter-label">Últimas</span>
-              <select
-                value={ultimasSemanas}
-                onChange={(e) => setUltimasSemanas(Number(e.target.value))}
-                className="hv-select"
-                aria-label="Últimas N semanas"
-              >
-                {ULTIMAS_SEMANAS_OPTS.map((n) => (
-                  <option key={n} value={n}>{n} semana{n > 1 ? 's' : ''}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {totalAnalise > 0 && (
-            <div className="hv-total-card hv-total-analise">
-              <span className="hv-total-value">{totalAnalise.toFixed(1)}</span>
-              <span className="hv-total-label">
-                Total de horas nas últimas {ultimasSemanas} semana{ultimasSemanas > 1 ? 's' : ''}
-                {timeFilter ? ` • Time: ${timeFilter}` : ''}
-              </span>
-            </div>
-          )}
-          <div className="hv-charts">
-            {chartPorData && (
-              <div className="hv-chart-card">
-                <h3 className="hv-chart-title">Horas por dia</h3>
-                <div className="hv-chart-wrap">
-                  <Bar data={chartPorData} options={chartOptions} />
+            <div className="hv-filter">
+              <span className="hv-filter-label">Período</span>
+              <div className="hv-period-row">
+                <div className="hv-period-chips">
+                  <button
+                    type="button"
+                    className={`hv-period-chip ${presetAtivo === 'lastMonth' ? 'hv-period-chip-active' : ''}`}
+                    onClick={handleLastMonthClick}
+                  >
+                    Mês passado
+                  </button>
+                  {MESES_OPTS.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className={`hv-period-chip ${presetAtivo === n ? 'hv-period-chip-active' : ''}`}
+                      onClick={() => handlePresetClick(n)}
+                    >
+                      {n}m
+                    </button>
+                  ))}
                 </div>
-              </div>
-            )}
-            {chartPorUsuario && (
-              <div className="hv-chart-card">
-                <h3 className="hv-chart-title">Horas por usuário</h3>
-                <div className="hv-chart-wrap hv-chart-horizontal" style={{ minHeight: `${Math.max(200, porUsuario.length * 28)}px` }}>
-                  <Bar data={chartPorUsuario} options={chartOptionsHorizontal} />
-                </div>
-              </div>
-            )}
-            {chartPorProjeto && (
-              <div className="hv-chart-card hv-chart-full">
-                <h3 className="hv-chart-title">Horas por projeto</h3>
-                <div className="hv-chart-wrap hv-chart-horizontal" style={{ minHeight: `${Math.max(200, porProjetoAnalise.length * 28)}px` }}>
-                  <Bar data={chartPorProjeto} options={chartOptionsHorizontal} />
-                </div>
-              </div>
-            )}
-          </div>
-          {chartTopAtividades && (
-            <div className="hv-section hv-section-atividades">
-              <h3 className="hv-section-title">Atividades que mais consumiram tempo (últimas {ultimasSemanas} semana{ultimasSemanas > 1 ? 's' : ''})</h3>
-              <div className="hv-top-atividades">
-                <div className="hv-chart-card hv-chart-half">
-                  <div className="hv-chart-wrap hv-chart-horizontal" style={{ minHeight: `${Math.max(220, topAtividades.length * 24)}px` }}>
-                    <Bar data={chartTopAtividades} options={chartOptionsHorizontal} />
-                  </div>
-                </div>
-                <div className="hv-chart-card hv-chart-half hv-table-atividades">
-                  <div className="hv-time-table-scroll">
-                    <table className="hv-table" aria-label="Top atividades por horas">
-                      <thead>
-                        <tr>
-                          <th scope="col">Atividade</th>
-                          <th scope="col">Horas</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {topAtividades.map((x, i) => (
-                          <tr key={x.atividade} className={i % 2 === 1 ? 'hv-table-zebra' : ''}>
-                            <td>{x.atividade}</td>
-                            <td className="hv-table-num">{Math.round(x.horas * 100) / 100} h</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="hv-period-inputs">
+                  <input
+                    type="month"
+                    className="hv-input-month"
+                    value={periodoColab.inicio}
+                    onChange={(e) => handlePeriodoChange('inicio', e.target.value)}
+                    aria-label="Data início"
+                  />
+                  <span className="hv-period-sep">a</span>
+                  <input
+                    type="month"
+                    className="hv-input-month"
+                    value={periodoColab.fim}
+                    onChange={(e) => handlePeriodoChange('fim', e.target.value)}
+                    aria-label="Data fim"
+                  />
                 </div>
               </div>
             </div>
-          )}
-          <div className="hv-section hv-section-detalhe">
-            <h3 className="hv-section-title">Detalhe por projeto</h3>
-            <p className="hv-section-desc">Selecione um projeto para ver apontamentos e distribuição por atividade.</p>
-            <label className="hv-filter">
-              <span className="hv-filter-label">Projeto</span>
-              <select
-                value={projetoDetalhe}
-                onChange={(e) => setProjetoDetalhe(e.target.value)}
-                className="hv-select"
-                aria-label="Selecionar projeto para detalhar"
-              >
-                <option value="">Selecione um projeto</option>
-                {projectOptionsAnalise.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </label>
-            {projetoDetalhe && (
-              <div className="hv-detalhe-projeto">
-                {chartDetalheAtividades && (
-                  <div className="hv-chart-card">
-                    <h4 className="hv-chart-subtitle">Atividades no projeto {projetoDetalhe}</h4>
-                    <div className="hv-chart-wrap hv-chart-horizontal" style={{ minHeight: `${Math.max(180, detalheProjetoAtividades.length * 24)}px` }}>
-                      <Bar data={chartDetalheAtividades} options={chartOptionsHorizontal} />
+            <div className="hv-filter">
+              <span className="hv-filter-label">Colaboradores</span>
+              <div className="hv-filter-multiselect" ref={usuarioDropdownRef}>
+                <button
+                  type="button"
+                  ref={usuarioTriggerRef}
+                  className="hv-multiselect-trigger"
+                  onClick={() => setShowUsuarioDropdown((v) => !v)}
+                  aria-haspopup="listbox"
+                  aria-expanded={showUsuarioDropdown}
+                >
+                  {selectedUsuarios.length === 0
+                    ? 'Selecionar...'
+                    : selectedUsuarios.length === 1
+                      ? selectedUsuarios[0]
+                      : `${selectedUsuarios.length} selecionados`}
+                  <svg className="hv-multiselect-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {showUsuarioDropdown && (
+                  <div className="hv-multiselect-dropdown" role="listbox" aria-label="Selecionar colaboradores">
+                    <div className="hv-multiselect-actions">
+                      <button type="button" onClick={() => {
+                        const max = colaboradoresDisponiveis.slice(0, MAX_COLLABORATORS_WARN);
+                        setSelectedUsuarios(max);
+                      }}>Todos</button>
+                      <button type="button" onClick={() => setSelectedUsuarios([])}>Limpar</button>
+                    </div>
+                    <div className="hv-multiselect-list">
+                      {colaboradoresDisponiveis.map((u) => (
+                        <label key={u} className="hv-multiselect-item">
+                          <input
+                            type="checkbox"
+                            checked={selectedUsuarios.includes(u)}
+                            onChange={() => toggleUsuario(u)}
+                          />
+                          <span className="hv-multiselect-name">{u}</span>
+                        </label>
+                      ))}
+                      {colaboradoresDisponiveis.length === 0 && (
+                        <p className="hv-multiselect-empty">Nenhum colaborador disponível</p>
+                      )}
                     </div>
                   </div>
                 )}
-                <div className="hv-time-card">
-                  <div className="hv-time-header">
-                    <h4 className="hv-time-title">Apontamentos</h4>
-                    <span className="hv-time-total">
-                      {detalheProjetoRows.reduce((s, a) => s + (a.horas ?? 0), 0).toFixed(1)} h
-                    </span>
-                  </div>
-                  <div className="hv-time-table-scroll">
-                    <table className="hv-table" aria-label={`Apontamentos do projeto ${projetoDetalhe}`}>
-                      <thead>
-                        <tr>
-                          <th scope="col">Data</th>
-                          <th scope="col">Usuário</th>
-                          <th scope="col">Atividade</th>
-                          <th scope="col">Fase</th>
-                          <th scope="col">Duração</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {detalheProjetoRows.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="hv-table-empty">
-                              Nenhum apontamento no período para este projeto.
-                            </td>
-                          </tr>
-                        ) : (
-                          detalheProjetoRows.map((a, i) => (
-                            <tr key={`${a.usuario}-${a.data_de_apontamento}-${i}`} className={i % 2 === 1 ? 'hv-table-zebra' : ''}>
-                              <td>{formatDateBR(a.data_de_apontamento)}</td>
-                              <td>{a.usuario ?? '—'}</td>
-                              <td>{a.task_name ?? '—'}</td>
-                              <td>{a.fase ?? '—'}</td>
-                              <td className="hv-table-num">{a.duracao ?? '—'}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+              </div>
+            </div>
+          </div>
+
+          {selectedUsuarios.length > MAX_COLLABORATORS_WARN && (
+            <div className="hv-colab-warn">
+              Muitas pessoas selecionadas ({selectedUsuarios.length}). Os gráficos ficam mais legíveis com até {MAX_COLLABORATORS_WARN}.
+            </div>
+          )}
+
+          {selectedUsuarios.length > 0 && totalColaboradores > 0 && (
+            <div className="hv-total-card hv-total-card-compact hv-total-colab">
+              <span className="hv-total-value">{totalColaboradores.toFixed(1)}</span>
+              <span className="hv-total-label">
+                horas no período
+                {timeFilter ? ` • Time: ${timeFilter}` : ''}
+                {` • ${selectedUsuarios.length} colaborador${selectedUsuarios.length > 1 ? 'es' : ''}`}
+              </span>
+            </div>
+          )}
+
+          {selectedUsuarios.length === 0 && (
+            <div className="hv-empty">
+              <p>Selecione um ou mais colaboradores para visualizar a distribuição de horas.</p>
+              <p className="hv-empty-hint">Use o filtro de time para ver apenas pessoas de um time específico.</p>
+            </div>
+          )}
+
+          {(chartColabMensal || chartColabSemanal) && (
+            <div className="hv-chart-card hv-colab-chart-card">
+              <div className="hv-chart-header-row">
+                <h3 className="hv-chart-title">
+                  {granularidade === 'semanal' ? 'Tendência semanal' : 'Tendência mensal'}
+                </h3>
+                <div className="hv-granularidade-toggle">
+                  <button
+                    type="button"
+                    className={`hv-gran-btn ${granularidade === 'mensal' ? 'hv-gran-btn-active' : ''}`}
+                    onClick={() => setGranularidade('mensal')}
+                  >
+                    Mensal
+                  </button>
+                  <button
+                    type="button"
+                    className={`hv-gran-btn ${granularidade === 'semanal' ? 'hv-gran-btn-active' : ''}`}
+                    onClick={() => setGranularidade('semanal')}
+                  >
+                    Semanal
+                  </button>
                 </div>
+              </div>
+              <div className="hv-chart-wrap" style={{ height: 220 }}>
+                {granularidade === 'semanal' && chartColabSemanal
+                  ? <Bar data={chartColabSemanal} options={colabChartOptionsGrouped} />
+                  : chartColabMensal && <Bar data={chartColabMensal} options={colabChartOptionsGrouped} />
+                }
+              </div>
+            </div>
+          )}
+
+          <div className="hv-colab-grid">
+            {chartColabPorProjetoVisible && (
+              <div className="hv-chart-card hv-colab-chart-card">
+                <h3 className="hv-chart-title">Horas por projeto</h3>
+                <div className="hv-chart-wrap hv-chart-horizontal" style={{ minHeight: Math.max(180, (chartColabPorProjetoVisible.labels?.length || 0) * 28 * Math.max(1, selectedUsuarios.length * 0.6)) }}>
+                  <Bar data={chartColabPorProjetoVisible} options={colabChartOptionsHorizontal} />
+                </div>
+                {chartColabPorProjeto && chartColabPorProjeto.labels.length > TOP_VISIBLE_DEFAULT && (
+                  <button
+                    type="button"
+                    className="hv-show-all-btn"
+                    onClick={() => setShowAllProjetos((v) => !v)}
+                  >
+                    {showAllProjetos ? 'Mostrar top 10' : `Ver todos (${chartColabPorProjeto.labels.length})`}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {chartColabPorAtividadeVisible && (
+              <div className="hv-chart-card hv-colab-chart-card">
+                <h3 className="hv-chart-title">Horas por tipo de atividade</h3>
+                <div className="hv-chart-wrap hv-chart-horizontal" style={{ minHeight: Math.max(180, (chartColabPorAtividadeVisible.labels?.length || 0) * 28 * Math.max(1, selectedUsuarios.length * 0.6)) }}>
+                  <Bar data={chartColabPorAtividadeVisible} options={colabChartOptionsHorizontal} />
+                </div>
+                {chartColabPorAtividade && chartColabPorAtividade.labels.length > TOP_VISIBLE_DEFAULT && (
+                  <button
+                    type="button"
+                    className="hv-show-all-btn"
+                    onClick={() => setShowAllAtividades((v) => !v)}
+                  >
+                    {showAllAtividades ? 'Mostrar top 10' : `Ver todos (${chartColabPorAtividade.labels.length})`}
+                  </button>
+                )}
               </div>
             )}
           </div>
-          {analiseRows.length === 0 && (
-            <div className="hv-empty">
-              <p>Nenhum apontamento nas últimas {ultimasSemanas} semana{ultimasSemanas > 1 ? 's' : ''}{timeFilter ? ` para o time ${timeFilter}` : ''}.</p>
-            </div>
-          )}
         </section>
       )}
 
@@ -580,7 +784,7 @@ function HorasView() {
             </label>
           </div>
           {totalGeral > 0 && (
-            <div className="hv-total-card">
+            <div className="hv-total-card hv-total-card-compact">
               <span className="hv-total-value">{totalGeral.toFixed(1)}</span>
               <span className="hv-total-label">Total de horas (todos os projetos)</span>
             </div>
