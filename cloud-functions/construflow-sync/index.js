@@ -22,6 +22,7 @@ import {
 import {
   fetchAllLookups,
   fetchRelationships,
+  fetchIssueCategoryMap,
 } from './rest-client.js';
 
 // Configuração
@@ -158,7 +159,7 @@ async function insertToBigQuery(tableName, rows, schema = null) {
 /**
  * Processa issues de todos os projetos
  */
-async function syncIssues(graphqlConfig) {
+async function syncIssues(graphqlConfig, restConfig) {
   console.log('\n📊 FASE 1: Sincronizando Issues via GraphQL...');
 
   // Buscar lista de projetos
@@ -221,6 +222,18 @@ async function syncIssues(graphqlConfig) {
       console.error(`❌ Erro ao buscar issues do projeto ${project.id}: ${err.message}`);
     }
   }
+
+  // Enriquecer issues com categorias do REST (GraphQL retorna ID numérico ou null, REST retorna ID correto)
+  const categoryMap = await fetchIssueCategoryMap(restConfig);
+  let enrichedCount = 0;
+  for (const issue of allIssues) {
+    const restCategory = categoryMap[String(issue.id)];
+    if (restCategory != null) {
+      issue.category = String(restCategory);
+      enrichedCount++;
+    }
+  }
+  console.log(`🏷️ ${enrichedCount} issues enriquecidas com categoria do REST (de ${allIssues.length} total)`);
 
   // Inserir no BigQuery
   const issuesInserted = await insertToBigQuery('issues', allIssues);
@@ -415,8 +428,8 @@ export async function syncConstruflowToBigQuery(req, res) {
       apiSecret: CONFIG.construflow.restApiSecret,
     };
 
-    // FASE 1: Issues via GraphQL
-    const issuesStats = await syncIssues(graphqlConfig);
+    // FASE 1: Issues via GraphQL (enriquecidas com categorias do REST)
+    const issuesStats = await syncIssues(graphqlConfig, restConfig);
     stats.issues = issuesStats.issues;
     stats.issuesDisciplines = issuesStats.issuesDisciplines;
 
