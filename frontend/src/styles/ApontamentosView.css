@@ -861,6 +861,14 @@
   word-wrap: break-word;
 }
 
+.client-issues-description p {
+  margin: 0 0 4px 0;
+}
+
+.client-issues-description p:last-child {
+  margin-bottom: 0;
+}
+
 .client-issues-time-value {
   font-weight: 600;
   color: #1a1a1a;

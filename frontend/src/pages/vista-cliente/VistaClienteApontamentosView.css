@@ -303,6 +303,14 @@
   white-space: pre-wrap;
 }
 
+.vca-issue-description p {
+  margin: 0 0 4px 0;
+}
+
+.vca-issue-description p:last-child {
+  margin-bottom: 0;
+}
+
 /* Priority Badge */
 .vca-priority-badge {
   display: inline-block;
