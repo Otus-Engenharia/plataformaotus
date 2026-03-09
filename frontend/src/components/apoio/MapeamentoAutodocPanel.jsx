@@ -5,7 +5,7 @@
  * Inclui descoberta automatica, sugestoes por similaridade e vinculacao manual.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { autodocEntregasApi } from '../../api/autodocEntregas';
 import { useAuth } from '../../contexts/AuthContext';
 import './MapeamentoAutodocPanel.css';
@@ -28,6 +28,12 @@ export default function MapeamentoAutodocPanel() {
     customerId: '', customerName: '', projectFolderId: '', projectName: '', portfolioCode: ''
   });
   const [manualSaving, setManualSaving] = useState(false);
+
+  // Cobertura Portfolio
+  const [portfolioProjects, setPortfolioProjects] = useState([]);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
+  const [plataformaFilter, setPlataformaFilter] = useState('autodoc');
+  const [statusMappingFilter, setStatusMappingFilter] = useState('all');
 
   // Carregar project_codes do portfolio (todos, sem filtragem por role)
   const fetchPortfolioCodes = useCallback(async () => {
@@ -56,10 +62,26 @@ export default function MapeamentoAutodocPanel() {
     }
   }, []);
 
+  const fetchPortfolioSummary = useCallback(async () => {
+    setPortfolioLoading(true);
+    try {
+      const res = await fetch('/api/portfolio/summary', { credentials: 'include' });
+      const data = await res.json();
+      if (data.success) {
+        setPortfolioProjects(data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar portfolio summary:', err);
+    } finally {
+      setPortfolioLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPortfolioCodes();
     fetchMappings();
-  }, [fetchPortfolioCodes, fetchMappings]);
+    fetchPortfolioSummary();
+  }, [fetchPortfolioCodes, fetchMappings, fetchPortfolioSummary]);
 
   const handleDiscover = async () => {
     if (discovering) return;
@@ -237,7 +259,49 @@ export default function MapeamentoAutodocPanel() {
     }
   };
 
-  // Filtros
+  // Cobertura Portfolio - join com mapeamentos
+  const portfolioCoverage = useMemo(() => {
+    // Map de portfolio_project_code → nomes de projetos Autodoc
+    const mappingsByCode = new Map();
+    for (const m of existingMappings) {
+      const code = m.portfolio_project_code;
+      if (!mappingsByCode.has(code)) mappingsByCode.set(code, []);
+      mappingsByCode.get(code).push(m.autodoc_project_name);
+    }
+
+    // Plataformas unicas para dropdown
+    const plataformas = [...new Set(
+      portfolioProjects.map(p => p.plataforma_acd).filter(Boolean)
+    )].sort();
+
+    // Filtrar projetos
+    const filtered = portfolioProjects.filter(p => {
+      if (plataformaFilter === '__null__') {
+        if (p.plataforma_acd) return false;
+      } else if (plataformaFilter && plataformaFilter !== 'all') {
+        if ((p.plataforma_acd || '').toLowerCase() !== plataformaFilter.toLowerCase()) return false;
+      }
+      const isMapped = mappingsByCode.has(p.project_code);
+      if (statusMappingFilter === 'mapped' && !isMapped) return false;
+      if (statusMappingFilter === 'unmapped' && isMapped) return false;
+      return true;
+    });
+
+    // Enriquecer
+    const enriched = filtered.map(p => ({
+      ...p,
+      isMapped: mappingsByCode.has(p.project_code),
+      autodocProjectNames: mappingsByCode.get(p.project_code) || [],
+    }));
+
+    const totalFiltered = enriched.length;
+    const mappedCount = enriched.filter(p => p.isMapped).length;
+    const unmappedCount = totalFiltered - mappedCount;
+
+    return { enriched, plataformas, totalFiltered, mappedCount, unmappedCount };
+  }, [portfolioProjects, existingMappings, plataformaFilter, statusMappingFilter]);
+
+  // Filtros Discovery
   const customers = [...new Set(projects.map(p => p.customerName))].sort();
 
   const filteredProjects = projects.filter(p => {
@@ -304,6 +368,112 @@ export default function MapeamentoAutodocPanel() {
           <button className="adoc-map-toast-close" onClick={() => setToast(null)}>&times;</button>
         </div>
       )}
+
+      {/* Cobertura Portfolio */}
+      <div className="adoc-map-section">
+        <h3 className="adoc-map-section-title">Cobertura Portfolio</h3>
+
+        {portfolioLoading ? (
+          <div className="adoc-map-loading" style={{ padding: '1.5rem' }}>
+            <div className="adoc-map-spinner" />
+            <p>Carregando projetos do portfolio...</p>
+          </div>
+        ) : (
+          <>
+            {/* Filtros */}
+            <div className="adoc-map-filters">
+              <div className="adoc-map-filter-group">
+                <label>Plataforma ACD:</label>
+                <select
+                  value={plataformaFilter}
+                  onChange={(e) => setPlataformaFilter(e.target.value)}
+                  className="adoc-map-select"
+                >
+                  <option value="all">Todos</option>
+                  <option value="__null__">Nao definido</option>
+                  {portfolioCoverage.plataformas.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="adoc-map-filter-group">
+                <label>Mapeamento:</label>
+                <select
+                  value={statusMappingFilter}
+                  onChange={(e) => setStatusMappingFilter(e.target.value)}
+                  className="adoc-map-select"
+                >
+                  <option value="all">Todos</option>
+                  <option value="mapped">Vinculados</option>
+                  <option value="unmapped">Nao vinculados</option>
+                </select>
+              </div>
+              <div className="adoc-map-coverage-stats">
+                <span className="adoc-map-coverage-stat">
+                  Total: <strong>{portfolioCoverage.totalFiltered}</strong>
+                </span>
+                <span className="adoc-map-coverage-stat adoc-map-coverage-stat--success">
+                  Vinculados: <strong>{portfolioCoverage.mappedCount}</strong>
+                </span>
+                <span className="adoc-map-coverage-stat adoc-map-coverage-stat--danger">
+                  Sem vinculo: <strong>{portfolioCoverage.unmappedCount}</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Tabela */}
+            <div className="adoc-map-table-wrapper">
+              <table className="adoc-map-table">
+                <thead>
+                  <tr>
+                    <th>Codigo</th>
+                    <th>Nome Comercial</th>
+                    <th>Status</th>
+                    <th>Plataforma ACD</th>
+                    <th>Mapeamento Autodoc</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {portfolioCoverage.enriched.map((p) => (
+                    <tr key={p.project_code}>
+                      <td><strong>{p.project_code}</strong></td>
+                      <td>{p.comercial_name || p.name}</td>
+                      <td>
+                        <span className={`adoc-map-status-badge ${
+                          ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'].includes((p.status || '').toLowerCase())
+                            ? 'adoc-map-status-badge--active'
+                            : 'adoc-map-status-badge--inactive'
+                        }`}>
+                          {p.status || '-'}
+                        </span>
+                      </td>
+                      <td>{p.plataforma_acd || (<span style={{ color: '#9ca3af' }}>-</span>)}</td>
+                      <td>
+                        {p.isMapped ? (
+                          p.autodocProjectNames.map((name, i) => (
+                            <span key={i} className="adoc-map-mapped-badge" style={{ marginRight: 4, marginBottom: 2 }}>
+                              {name}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="adoc-map-coverage-unmapped">Nao vinculado</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {portfolioCoverage.enriched.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', color: '#9ca3af', padding: '1.5rem' }}>
+                        Nenhum projeto encontrado com os filtros selecionados
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Mapeamentos Existentes */}
       <div className="adoc-map-section">

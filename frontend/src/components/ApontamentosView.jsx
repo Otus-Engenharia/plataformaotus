@@ -7,7 +7,7 @@
  * Design baseado em Storytelling with Data
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { Chart, Bar, Pie } from 'react-chartjs-2';
 import {
@@ -223,6 +223,18 @@ function ApontamentosView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Sync sob demanda
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState(null);
+  const [syncError, setSyncError] = useState(null);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  // Projeto atual com construflow_id
+  const currentProject = useMemo(() => {
+    if (!selectedProjectId) return null;
+    return portfolio.find(p => p.project_code_norm === selectedProjectId) || null;
+  }, [selectedProjectId, portfolio]);
+
   // Carrega apontamentos quando o projeto é selecionado
   useEffect(() => {
     if (!selectedProjectId) {
@@ -230,8 +242,7 @@ function ApontamentosView({
       return;
     }
 
-    const project = portfolio.find(p => p.project_code_norm === selectedProjectId);
-    if (!project?.construflow_id) {
+    if (!currentProject?.construflow_id) {
       setIssues([]);
       setLoading(false);
       return;
@@ -245,7 +256,7 @@ function ApontamentosView({
       setError(null);
       try {
         const response = await axios.get(`${API_URL}/api/projetos/apontamentos`, {
-          params: { construflowId: project.construflow_id },
+          params: { construflowId: currentProject.construflow_id },
           withCredentials: true,
         });
         // Processa os dados e garante que arrays sejam arrays
@@ -389,7 +400,63 @@ function ApontamentosView({
     }
 
     loadIssues();
-  }, [selectedProjectId]);
+  }, [selectedProjectId, reloadTrigger]);
+
+  // Busca último sync ao mudar de projeto
+  useEffect(() => {
+    if (!currentProject?.construflow_id) {
+      setLastSync(null);
+      return;
+    }
+    axios.get(`${API_URL}/api/projetos/apontamentos/last-sync`, {
+      params: { construflowId: currentProject.construflow_id },
+      withCredentials: true,
+    }).then(res => {
+      if (res.data?.lastSyncAt) {
+        setLastSync(res.data.lastSyncAt);
+      } else {
+        setLastSync(null);
+      }
+    }).catch(() => setLastSync(null));
+  }, [selectedProjectId, currentProject]);
+
+  // Formata tempo relativo
+  const formatRelativeTime = useCallback((dateStr) => {
+    if (!dateStr) return null;
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'agora mesmo';
+    if (minutes < 60) return `há ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `há ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `há ${days}d`;
+  }, []);
+
+  // Sync sob demanda
+  const handleSync = useCallback(async () => {
+    if (!currentProject?.construflow_id || syncing) return;
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const response = await axios.post(`${API_URL}/api/projetos/apontamentos/sync`, {
+        construflowId: currentProject.construflow_id,
+      }, { withCredentials: true });
+
+      if (response.data?.success) {
+        setLastSync(new Date().toISOString());
+        // Recarregar apontamentos
+        setReloadTrigger(prev => prev + 1);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Erro ao sincronizar';
+      setSyncError(msg);
+      // Limpa erro após 8 segundos
+      setTimeout(() => setSyncError(null), 8000);
+    } finally {
+      setSyncing(false);
+    }
+  }, [currentProject, syncing]);
 
 
   // Filtra issues por local(s) se necessário
@@ -1089,6 +1156,31 @@ function ApontamentosView({
 
   return (
     <div className="apontamentos-container">
+
+      {/* Toolbar de sync */}
+      {currentProject?.construflow_id && (
+        <div className="apontamentos-sync-toolbar">
+          <button
+            type="button"
+            className={`apontamentos-sync-btn ${syncing ? 'syncing' : ''}`}
+            onClick={handleSync}
+            disabled={syncing || loading}
+          >
+            <span className={`apontamentos-sync-icon ${syncing ? 'spinning' : ''}`}>&#x21bb;</span>
+            {syncing ? 'Sincronizando...' : 'Atualizar Dados'}
+          </button>
+          <span className="apontamentos-sync-info">
+            {syncError && (
+              <span className="apontamentos-sync-error">{syncError}</span>
+            )}
+            {!syncError && lastSync && (
+              <span className="apontamentos-sync-timestamp">
+                Última atualização: {formatRelativeTime(lastSync)}
+              </span>
+            )}
+          </span>
+        </div>
+      )}
 
       {loading && (
         <div className="apontamentos-loading">Carregando apontamentos...</div>
