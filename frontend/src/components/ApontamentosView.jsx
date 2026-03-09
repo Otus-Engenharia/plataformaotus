@@ -2855,9 +2855,10 @@ function ClientOpenIssuesTable({ issues, clientDisciplines, projectId }) {
                           </span>
                         </div>
                         {isExpanded && issue.description && (
-                          <div className="client-issues-description">
-                            {issue.description}
-                          </div>
+                          <div
+                            className="client-issues-description"
+                            dangerouslySetInnerHTML={{ __html: issue.description }}
+                          />
                         )}
                       </td>
                       <td className="client-issues-td-priority">
