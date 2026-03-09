@@ -29,33 +29,23 @@ class AutodocHttpClient {
     const response = await fetch('https://sso.autodoc.com.br/v1/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: this.#email, password: this.#password }),
+      body: JSON.stringify({ username: this.#email, password: this.#password }),
     });
 
     if (!response.ok) {
       throw new Error(`Autodoc auth falhou: ${response.status} ${response.statusText}`);
     }
 
-    // Extrair tokens dos cookies da resposta
-    const cookies = response.headers.getSetCookie?.() || [];
-    for (const cookie of cookies) {
-      if (cookie.startsWith('idToken=')) {
-        this.#idToken = cookie.split('=')[1].split(';')[0];
-      } else if (cookie.startsWith('accessToken=')) {
-        this.#accessToken = cookie.split('=')[1].split(';')[0];
-      } else if (cookie.startsWith('refreshToken=')) {
-        this.#refreshToken = cookie.split('=')[1].split(';')[0];
-      }
-    }
-
-    // Se cookies nao vieram no header, tentar body
-    if (!this.#idToken) {
-      const body = await response.json().catch(() => null);
-      if (body) {
-        this.#idToken = body.idToken || body.IdToken;
-        this.#accessToken = body.accessToken || body.AccessToken;
-        this.#refreshToken = body.refreshToken || body.RefreshToken;
-      }
+    // Extrair tokens do body da resposta (formato: { data: { accessToken, idToken, refreshToken } })
+    const body = await response.json().catch(() => null);
+    if (body?.data) {
+      this.#idToken = body.data.idToken;
+      this.#accessToken = body.data.accessToken;
+      this.#refreshToken = body.data.refreshToken;
+    } else if (body) {
+      this.#idToken = body.idToken || body.IdToken;
+      this.#accessToken = body.accessToken || body.AccessToken;
+      this.#refreshToken = body.refreshToken || body.RefreshToken;
     }
 
     if (!this.#idToken) {
@@ -93,16 +83,29 @@ class AutodocHttpClient {
     // Rate limit: 200ms entre requests
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    return response.json();
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return { subFolders: [], documents: [] };
+    }
+
+    const text = await response.text();
+    if (!text) return { subFolders: [], documents: [] };
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { subFolders: [], documents: [] };
+    }
   }
 
   /**
-   * Lista contas (customers) do usuario autenticado
+   * Lista contas (customers) do usuario autenticado.
+   * Sem filtro de produto para obter todas as 26 contas.
    */
   async getCustomers() {
     await this.#ensureAuth();
 
-    const url = `https://suite.autodoc.com.br/v2/users/email/${encodeURIComponent(this.#email)}/customers?filter[product]=projetos`;
+    const url = `https://suite.autodoc.com.br/v2/users/email/${encodeURIComponent(this.#email)}/customers`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${this.#idToken}`,
@@ -120,7 +123,9 @@ class AutodocHttpClient {
    * Lista status disponiveis de uma conta
    */
   async getStatuses(customerId) {
-    return this.#apiGet('status', customerId);
+    const response = await this.#apiGet('status', customerId);
+    // API pode retornar { data: [...] } ou array direto
+    return response?.data || (Array.isArray(response) ? response : []);
   }
 
   /**
@@ -257,37 +262,60 @@ class AutodocHttpClient {
 
   /**
    * Descobre todos os projetos de todas as contas.
-   * Retorna lista de projetos com metadata da conta.
+   * Itera por todos os produtos de cada conta (docs, 4BIM, projetos, etc.)
+   * usando o root_path de cada produto para encontrar pastas de projetos.
    */
   async discoverAllProjects() {
-    const customers = await this.getCustomers();
+    const customersResponse = await this.getCustomers();
+    const customers = customersResponse?.data || customersResponse || [];
     const allProjects = [];
+    const seenKeys = new Set();
 
-    for (const customer of (customers || [])) {
+    for (const customer of (Array.isArray(customers) ? customers : [])) {
       const customerId = String(customer.id || customer.customerId);
       const customerName = customer.name || customer.customerName || customerId;
 
-      try {
-        // Root folder da conta - listar projetos (nivel PROJECT)
-        const rootItems = await this.getFolderSubitems(customerId, 'root');
-        const projectFolders = (rootItems.subFolders || []).filter(
-          f => f.type === 'PROJECT' || !f.type // Se nao tem type, assume que e projeto
-        );
+      // Extrair root_paths de todos os produtos da conta
+      const products = customer.products || [];
+      const rootPaths = products
+        .map(p => ({ product: p.code || p.name || p.product, rootPath: p.root_path || p.rootPath }))
+        .filter(p => p.rootPath);
 
-        for (const project of projectFolders) {
-          allProjects.push({
-            customerId,
-            customerName,
-            projectFolderId: String(project.id),
-            projectName: project.name,
-          });
+      // Se nao tem produtos com root_path, tentar 'root' como fallback
+      if (rootPaths.length === 0) {
+        rootPaths.push({ product: 'default', rootPath: 'root' });
+      }
+
+      for (const { product, rootPath } of rootPaths) {
+        try {
+          const rootItems = await this.getFolderSubitems(customerId, rootPath);
+          const projectFolders = (rootItems.subFolders || []).filter(
+            f => f.type === 'PROJECT' || !f.type
+          );
+
+          for (const project of projectFolders) {
+            const key = `${customerId}::${project.id}`;
+            if (seenKeys.has(key)) continue;
+            seenKeys.add(key);
+
+            allProjects.push({
+              customerId,
+              customerName,
+              projectFolderId: String(project.id),
+              projectName: project.name,
+              autodocProduct: product,
+            });
+          }
+        } catch (err) {
+          console.warn(`[AutodocHttpClient] Erro ao descobrir projetos da conta ${customerName} (${product}):`, err.message);
         }
-      } catch (err) {
-        console.warn(`[AutodocHttpClient] Erro ao descobrir projetos da conta ${customerName}:`, err.message);
+
+        // Rate limit entre requests
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
 
       // Rate limit entre contas
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 700));
     }
 
     return allProjects;

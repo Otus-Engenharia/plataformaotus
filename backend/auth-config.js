@@ -276,3 +276,17 @@ export function canManageApoioProjetos(user) {
   if (user.setor_name && APOIO_PROJETOS_MANAGER_SECTORS.includes(user.setor_name)) return true;
   return false;
 }
+
+const PAGAMENTOS_MANAGER_SECTORS = ['Financeiro'];
+
+/**
+ * Verifica se o usuário pode gerenciar pagamentos (acesso completo)
+ * @param {Object} user - Objeto do usuario com email e setor_name
+ * @returns {boolean}
+ */
+export function canManagePagamentos(user) {
+  if (!user) return false;
+  if (isPrivileged(user)) return true;
+  if (user.setor_name && PAGAMENTOS_MANAGER_SECTORS.includes(user.setor_name)) return true;
+  return false;
+}

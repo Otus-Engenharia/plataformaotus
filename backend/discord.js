@@ -373,6 +373,69 @@ async function sendProjectCreatedNotification({
   return results;
 }
 
+/**
+ * Envia notificação de mudança de cronograma para o Discord (canal Financeiro)
+ * @param {Object} params - Parâmetros da notificação
+ * @param {string} params.projectCode - Código do projeto
+ * @param {number} params.parcelaNumero - Número da parcela
+ * @param {string} params.descricao - Descrição da parcela
+ * @param {string} params.changeType - Tipo de mudança (cronograma_data_alterada, cronograma_tarefa_deletada)
+ * @param {string} [params.oldValue] - Valor anterior
+ * @param {string} [params.newValue] - Novo valor
+ */
+async function sendCronogramaChangeNotification({ projectCode, parcelaNumero, descricao, changeType, oldValue, newValue }) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL_FINANCEIRO;
+  if (!webhookUrl) {
+    console.warn('Discord: DISCORD_WEBHOOK_URL_FINANCEIRO não configurado');
+    return;
+  }
+
+  const isTarefaDeletada = changeType === 'cronograma_tarefa_deletada';
+  const title = isTarefaDeletada ? '⚠️  TAREFA REMOVIDA DO CRONOGRAMA' : '📅  DATA DE PARCELA ALTERADA';
+  const color = isTarefaDeletada ? 0xe74c3c : 0xf39c12;
+
+  const fields = [
+    { name: '📁  PROJETO', value: `\`\`\`${projectCode}\`\`\``, inline: true },
+    { name: '🔢  PARCELA', value: `\`\`\`#${parcelaNumero} - ${descricao || 'N/A'}\`\`\``, inline: false },
+  ];
+
+  if (isTarefaDeletada) {
+    fields.push({ name: '❌  TAREFA', value: `\`\`\`${oldValue || 'N/A'}\`\`\``, inline: false });
+  } else {
+    fields.push(
+      { name: '⬅️  DATA ANTERIOR', value: `\`\`\`${oldValue || 'N/A'}\`\`\``, inline: true },
+      { name: '➡️  NOVA DATA', value: `\`\`\`${newValue || 'N/A'}\`\`\``, inline: true },
+    );
+  }
+
+  const payload = {
+    username: BOT_NAME,
+    avatar_url: BOT_AVATAR,
+    embeds: [{
+      title,
+      color,
+      fields,
+      footer: { text: '🏗️ Plataforma Otus • Pagamentos', icon_url: 'https://app.otusengenharia.com/favicon.ico' },
+      timestamp: new Date().toISOString()
+    }]
+  };
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      console.log('✅ Discord: Notificação de cronograma enviada');
+    } else {
+      console.error('❌ Discord: Falha ao enviar notificação de cronograma:', res.statusText);
+    }
+  } catch (err) {
+    console.error('❌ Discord: Erro ao enviar notificação de cronograma:', err.message);
+  }
+}
+
 export {
   sendStatusChangeNotification,
   getWebhookUrls,
@@ -380,5 +443,6 @@ export {
   getEventType,
   sendProjectCreatedNotification,
   getProjectCreatedWebhookUrls,
+  sendCronogramaChangeNotification,
   EVENT_CONFIG
 };

@@ -1,0 +1,124 @@
+.calendario-view {
+  padding: 24px;
+  font-family: Verdana, sans-serif;
+}
+
+.calendario-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.calendario-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.calendario-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.calendario-filters select,
+.calendario-leader-filter {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #1a1a1a;
+}
+
+.calendario-leader-filter {
+  width: 180px;
+}
+
+.calendario-months {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.calendario-month-card {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.calendario-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e6e6e6;
+  background: #f6f6f6;
+}
+
+.calendario-month-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.calendario-month-total {
+  font-size: 13px;
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.calendario-month-items {
+  padding: 4px 0;
+}
+
+.calendario-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 12px;
+}
+
+.calendario-item:last-child {
+  border-bottom: none;
+}
+
+.calendario-item:hover {
+  background: #f9fafb;
+}
+
+.calendario-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.calendario-item-project {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.calendario-item-desc {
+  font-size: 13px;
+  color: #1a1a1a;
+}
+
+.calendario-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #737373;
+  white-space: nowrap;
+}

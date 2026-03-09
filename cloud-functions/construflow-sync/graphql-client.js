@@ -227,6 +227,7 @@ async function fetchProjectIssues(projectId, config) {
   let hasNextPage = true;
   let afterCursor = null;
   let pageCount = 0;
+  let retryCount = 0;
 
   while (hasNextPage) {
     pageCount++;
@@ -239,9 +240,17 @@ async function fetchProjectIssues(projectId, config) {
     }, config);
 
     if (result.errors) {
-      console.error(`❌ Erro na query: ${JSON.stringify(result.errors)}`);
+      if (retryCount < 3) {
+        retryCount++;
+        console.warn(`⚠️ Erro na página ${pageCount}, tentativa ${retryCount}/3: ${JSON.stringify(result.errors)}`);
+        await sleep(1000 * retryCount);
+        pageCount--; // compensar o incremento no próximo loop
+        continue;
+      }
+      console.error(`❌ Erro persistente após 3 tentativas na página ${pageCount}: ${JSON.stringify(result.errors)}`);
       break;
     }
+    retryCount = 0;
 
     const issues = result.data?.project?.issues?.issues || [];
     allIssues.push(...issues.map(issue => ({

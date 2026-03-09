@@ -1098,10 +1098,6 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
  */
 app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
   try {
-    if (!canEditPortfolio(req.user)) {
-      return res.status(403).json({ success: false, error: 'Acesso negado' });
-    }
-
     const { projectCode } = req.params;
     const { field, value, oldValue } = req.body;
 
@@ -1111,11 +1107,18 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
       'construflow_id', 'whatsapp_group_id', 'pasta_emails_id',
       'dod_id', 'escopo_entregas_id', 'smartsheet_id', 'discord_id',
       'capa_email_url', 'gantt_email_url', 'disciplina_email_url',
-      'construflow_disciplinasclientes'
+      'construflow_disciplinasclientes',
+      'plataforma_comunicacao', 'plataforma_acd'
     ];
 
     if (!allowedToolFields.includes(field)) {
       return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido para ferramentas` });
+    }
+
+    // Campos que qualquer usuario autenticado pode editar
+    const publicToolFields = ['plataforma_comunicacao', 'plataforma_acd'];
+    if (!publicToolFields.includes(field) && !canEditPortfolio(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
     const result = await updateProjectToolField(projectCode, field, value);

@@ -22,24 +22,44 @@ export default function MapeamentoAutodocPanel() {
   const [portfolioCodes, setPortfolioCodes] = useState([]);
   const [selectedCodes, setSelectedCodes] = useState({});
   const [saving, setSaving] = useState({});
+  const [existingMappings, setExistingMappings] = useState([]);
+  const [mappingsLoading, setMappingsLoading] = useState(true);
+  const [manualForm, setManualForm] = useState({
+    customerId: '', customerName: '', projectFolderId: '', projectName: '', portfolioCode: ''
+  });
+  const [manualSaving, setManualSaving] = useState(false);
 
-  // Carregar project_codes do portfolio via API existente
+  // Carregar project_codes do portfolio (todos, sem filtragem por role)
   const fetchPortfolioCodes = useCallback(async () => {
     try {
-      const res = await fetch('/api/portfolio', { credentials: 'include' });
+      const res = await fetch('/api/portfolio/project-codes', { credentials: 'include' });
       const data = await res.json();
-      if (Array.isArray(data)) {
-        const codes = [...new Set(data.map(p => p.project_code).filter(Boolean))].sort();
-        setPortfolioCodes(codes);
+      if (data.success && data.data?.codes) {
+        setPortfolioCodes(data.data.codes.sort());
       }
     } catch (err) {
       console.error('Erro ao buscar project codes:', err);
     }
   }, []);
 
+  const fetchMappings = useCallback(async () => {
+    setMappingsLoading(true);
+    try {
+      const res = await autodocEntregasApi.getMappings();
+      if (res.data?.success) {
+        setExistingMappings(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar mapeamentos:', err);
+    } finally {
+      setMappingsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPortfolioCodes();
-  }, [fetchPortfolioCodes]);
+    fetchMappings();
+  }, [fetchPortfolioCodes, fetchMappings]);
 
   const handleDiscover = async () => {
     if (discovering) return;
@@ -94,6 +114,7 @@ export default function MapeamentoAutodocPanel() {
       }));
 
       setToast({ type: 'success', message: `${project.projectName} vinculado a ${code}` });
+      fetchMappings();
     } catch (err) {
       setToast({ type: 'error', message: err.response?.data?.error || err.message });
     } finally {
@@ -122,6 +143,7 @@ export default function MapeamentoAutodocPanel() {
       }));
 
       setToast({ type: 'success', message: `${project.projectName} desvinculado` });
+      fetchMappings();
     } catch (err) {
       setToast({ type: 'error', message: err.response?.data?.error || err.message });
     } finally {
@@ -166,6 +188,53 @@ export default function MapeamentoAutodocPanel() {
 
     setToast({ type: 'success', message: `${confirmed} projetos vinculados automaticamente` });
     setLoading(false);
+    fetchMappings();
+  };
+
+  const handleUnlinkMapping = async (mapping) => {
+    const key = `mapping-${mapping.id}`;
+    setSaving(prev => ({ ...prev, [key]: true }));
+    try {
+      await autodocEntregasApi.deleteMapping(mapping.id);
+      setToast({ type: 'success', message: `${mapping.autodoc_project_name} desvinculado` });
+      fetchMappings();
+      // Atualizar lista de descoberta se estiver visivel
+      setProjects(prev => prev.map(p => {
+        if (p.customerId === mapping.autodoc_customer_id && p.projectFolderId === mapping.autodoc_project_folder_id) {
+          return { ...p, alreadyMapped: false, mappedProjectCode: null };
+        }
+        return p;
+      }));
+    } catch (err) {
+      setToast({ type: 'error', message: err.response?.data?.error || err.message });
+    } finally {
+      setSaving(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleManualLink = async () => {
+    const { customerId, customerName, projectFolderId, projectName, portfolioCode } = manualForm;
+    if (!customerId || !customerName || !projectFolderId || !projectName || !portfolioCode) {
+      setToast({ type: 'error', message: 'Preencha todos os campos para vincular manualmente' });
+      return;
+    }
+    setManualSaving(true);
+    try {
+      await autodocEntregasApi.createMapping({
+        portfolioProjectCode: portfolioCode,
+        autodocCustomerId: customerId,
+        autodocCustomerName: customerName,
+        autodocProjectFolderId: projectFolderId,
+        autodocProjectName: projectName,
+      });
+      setToast({ type: 'success', message: `${projectName} vinculado a ${portfolioCode}` });
+      setManualForm({ customerId: '', customerName: '', projectFolderId: '', projectName: '', portfolioCode: '' });
+      fetchMappings();
+    } catch (err) {
+      setToast({ type: 'error', message: err.response?.data?.error || err.message });
+    } finally {
+      setManualSaving(false);
+    }
   };
 
   // Filtros
@@ -235,6 +304,127 @@ export default function MapeamentoAutodocPanel() {
           <button className="adoc-map-toast-close" onClick={() => setToast(null)}>&times;</button>
         </div>
       )}
+
+      {/* Mapeamentos Existentes */}
+      <div className="adoc-map-section">
+        <h3 className="adoc-map-section-title">Mapeamentos Atuais</h3>
+        {mappingsLoading ? (
+          <div className="adoc-map-loading" style={{ padding: '1.5rem' }}>
+            <div className="adoc-map-spinner" />
+            <p>Carregando mapeamentos...</p>
+          </div>
+        ) : (
+          <div className="adoc-map-table-wrapper">
+            <table className="adoc-map-table">
+              <thead>
+                <tr>
+                  <th>Conta Autodoc</th>
+                  <th>Projeto Autodoc</th>
+                  <th>Codigo Portfolio</th>
+                  <th style={{ width: 100 }}>Status</th>
+                  <th style={{ width: 120 }}>Acao</th>
+                </tr>
+              </thead>
+              <tbody>
+                {existingMappings.map((mapping) => {
+                  const key = `mapping-${mapping.id}`;
+                  return (
+                    <tr key={mapping.id}>
+                      <td className="adoc-map-customer">{mapping.autodoc_customer_name}</td>
+                      <td className="adoc-map-project">{mapping.autodoc_project_name}</td>
+                      <td>
+                        <span className="adoc-map-mapped-badge">{mapping.portfolio_project_code}</span>
+                      </td>
+                      <td>
+                        <span className={`adoc-map-status-badge ${mapping.is_active !== false ? 'adoc-map-status-badge--active' : 'adoc-map-status-badge--inactive'}`}>
+                          {mapping.is_active !== false ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="adoc-map-action-btn adoc-map-action-btn--danger"
+                          onClick={() => handleUnlinkMapping(mapping)}
+                          disabled={saving[key]}
+                        >
+                          {saving[key] ? '...' : 'Desvincular'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {/* Linha de vinculacao manual */}
+                <tr className="adoc-map-row--manual">
+                  <td>
+                    <div className="adoc-map-manual-inputs">
+                      <input
+                        type="text"
+                        className="adoc-map-manual-input"
+                        placeholder="Customer ID"
+                        value={manualForm.customerId}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, customerId: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        className="adoc-map-manual-input"
+                        placeholder="Customer Name"
+                        value={manualForm.customerName}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, customerName: e.target.value }))}
+                      />
+                    </div>
+                  </td>
+                  <td>
+                    <div className="adoc-map-manual-inputs">
+                      <input
+                        type="text"
+                        className="adoc-map-manual-input"
+                        placeholder="Folder ID"
+                        value={manualForm.projectFolderId}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, projectFolderId: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        className="adoc-map-manual-input"
+                        placeholder="Project Name"
+                        value={manualForm.projectName}
+                        onChange={(e) => setManualForm(prev => ({ ...prev, projectName: e.target.value }))}
+                      />
+                    </div>
+                  </td>
+                  <td>
+                    <select
+                      className="adoc-map-portfolio-select"
+                      value={manualForm.portfolioCode}
+                      onChange={(e) => setManualForm(prev => ({ ...prev, portfolioCode: e.target.value }))}
+                    >
+                      <option value="">Selecionar portfolio...</option>
+                      {portfolioCodes.map(code => (
+                        <option key={code} value={code}>{code}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>Manual</span>
+                  </td>
+                  <td>
+                    <button
+                      className="adoc-map-action-btn adoc-map-action-btn--primary"
+                      onClick={handleManualLink}
+                      disabled={manualSaving}
+                    >
+                      {manualSaving ? '...' : 'Vincular'}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Descoberta de Projetos */}
+      <div className="adoc-map-section">
+        <h3 className="adoc-map-section-title">Descoberta de Projetos</h3>
+      </div>
 
       {/* Filters */}
       {projects.length > 0 && (

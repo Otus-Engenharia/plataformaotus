@@ -867,7 +867,6 @@ export async function queryIssues(construflowId) {
           FROM \`${projectId}.${issuesDataset}.${issuesTable}\`
           WHERE CAST(projectId AS STRING) = '${escapedProjectId}'
           ORDER BY createdAt DESC
-          LIMIT 100
         `;
         results = await executeQuery(simpleQuery);
         console.log(`✅ Query simples retornou ${results.length} apontamentos`);

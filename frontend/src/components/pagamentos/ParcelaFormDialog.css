@@ -1,0 +1,149 @@
+.parcela-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.parcela-dialog {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 16px;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+  font-family: Verdana, sans-serif;
+}
+
+.parcela-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.parcela-dialog-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.parcela-dialog-close {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.parcela-dialog-form {
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.parcela-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.parcela-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.parcela-form-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.parcela-form-field input,
+.parcela-form-field select,
+.parcela-form-field textarea {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #1a1a1a;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.parcela-form-field input:focus,
+.parcela-form-field select:focus,
+.parcela-form-field textarea:focus {
+  border-color: #3b82f6;
+}
+
+.parcela-form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #737373;
+  cursor: pointer;
+}
+
+.parcela-form-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.parcela-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.parcela-btn-primary,
+.parcela-btn-secondary {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.parcela-btn-primary {
+  background: #ffdd00;
+  color: #1a1a1a;
+}
+
+.parcela-btn-primary:hover {
+  background: #d3af00;
+}
+
+.parcela-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.parcela-btn-secondary {
+  background: transparent;
+  color: #737373;
+  border: 1px solid #e6e6e6;
+}
+
+.parcela-btn-secondary:hover {
+  background: #f9fafb;
+}

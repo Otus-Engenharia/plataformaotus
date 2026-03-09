@@ -1,0 +1,14 @@
+export { CreateParcela } from './CreateParcela.js';
+export { UpdateParcela } from './UpdateParcela.js';
+export { VincularParcela } from './VincularParcela.js';
+export { ListParcelasByProject } from './ListParcelasByProject.js';
+export { EnrichParcelasWithSmartsheet } from './EnrichParcelasWithSmartsheet.js';
+export { GetUpcomingParcelas } from './GetUpcomingParcelas.js';
+export { CreateRegraCliente } from './CreateRegraCliente.js';
+export { UpdateRegraCliente } from './UpdateRegraCliente.js';
+export { ListRegrasCliente } from './ListRegrasCliente.js';
+export { GetParcelaChangeLog } from './GetParcelaChangeLog.js';
+export { GetDashboardKpis } from './GetDashboardKpis.js';
+export { ListAllProjectsSummary } from './ListAllProjectsSummary.js';
+export { ListParcelasByGerente } from './ListParcelasByGerente.js';
+export { UpdateParcelaStatus } from './UpdateParcelaStatus.js';
