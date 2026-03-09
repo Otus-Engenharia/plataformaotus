@@ -2639,7 +2639,7 @@ export async function queryCurvaSSnapshotTasks(smartsheetId, projectName = null,
       snap.Status,
       snap.DataDeInicio,
       snap.DataDeTermino,
-      snap.Duracao,
+      CAST(snap.Duracao AS STRING) AS Duracao,
       COALESCE(cf.rowNumber, ROW_NUMBER() OVER (
         PARTITION BY snap.snapshot_date, snap.ID_Projeto
         ORDER BY snap.DataDeInicio, snap.NomeDaTarefa
@@ -2771,7 +2771,7 @@ export async function queryCurvaSAllSnapshotTasks() {
       snap.Status,
       snap.DataDeInicio,
       snap.DataDeTermino,
-      snap.Duracao,
+      CAST(snap.Duracao AS STRING) AS Duracao,
       snap.snapshot_date${projectCodeCol}${optionalCols}
     FROM \`${snapshotProject}.${snapshotDataset}.${snapshotTable}\` snap
     WHERE snap.Level = 5
@@ -2798,11 +2798,18 @@ export async function queryCurvaSAllSnapshotTasks() {
       }
     }
 
-    // Agrupar: project_code (ou ID_Projeto) → snapshot_date → tasks[]
+    // Agrupar: ID_Projeto → snapshot_date → tasks[]
+    // ID_Projeto é a chave consistente entre snapshots antigos (sem project_code) e novos
     const projectSnapshots = new Map();
+    const projectCodeMap = new Map(); // ID_Projeto → project_code (para filtro frontend)
     for (const row of rows) {
-      const projectId = row.project_code || (row.ID_Projeto ? String(row.ID_Projeto) : null);
-      if (!projectId) continue;
+      const idProjeto = row.ID_Projeto ? String(row.ID_Projeto) : null;
+      if (!idProjeto) continue;
+
+      // Guardar mapeamento ID_Projeto → project_code para filtro
+      if (row.project_code && !projectCodeMap.has(idProjeto)) {
+        projectCodeMap.set(idProjeto, String(row.project_code));
+      }
 
       const rawDate = row.snapshot_date;
       const dateVal = typeof rawDate === 'object' && rawDate !== null && rawDate.value != null
@@ -2810,14 +2817,14 @@ export async function queryCurvaSAllSnapshotTasks() {
       const date = dateVal ? dateVal.split('T')[0] : null;
       if (!date) continue;
 
-      if (!projectSnapshots.has(projectId)) projectSnapshots.set(projectId, new Map());
-      const snapMap = projectSnapshots.get(projectId);
+      if (!projectSnapshots.has(idProjeto)) projectSnapshots.set(idProjeto, new Map());
+      const snapMap = projectSnapshots.get(idProjeto);
       if (!snapMap.has(date)) snapMap.set(date, []);
       snapMap.get(date).push(row);
     }
 
     console.log(`✅ [queryCurvaSAllSnapshotTasks] ${rows.length} tarefas em ${projectSnapshots.size} projetos`);
-    return { rows, projectSnapshots };
+    return { rows, projectSnapshots, projectCodeMap };
   } catch (error) {
     console.error('❌ Erro ao buscar todos os snapshots:', error.message);
     return { rows: [], projectSnapshots: new Map() };
@@ -3097,6 +3104,32 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
       ORDER BY rowNumber
     `;
     tasks = await executeQuery(taskQuery);
+
+    // Fallback: se tabela principal vazia, buscar snapshot mais recente
+    if (tasks.length === 0) {
+      console.warn(`[queryWeeklyReportData] Tabela principal vazia para smartsheet ${smartsheetId}, tentando snapshot...`);
+      const fallback = await querySnapshotFallbackForCronograma(smartsheetId, null, projectCode);
+      if (fallback.rows.length > 0) {
+        console.log(`[queryWeeklyReportData] Fallback: ${fallback.rows.length} tarefas do snapshot ${fallback.snapshotDate}`);
+        // Mapear colunas do snapshot para o formato esperado pelo relatório (Level 5 apenas)
+        tasks = fallback.rows
+          .filter(r => r.Level === 5)
+          .map(r => ({
+            'Nome da Tarefa': r.NomeDaTarefa,
+            Status: r.Status,
+            Disciplina: r.Disciplina,
+            'Data de Inicio': r.DataDeInicio?.value || r.DataDeInicio,
+            'Data Termino': r.DataDeTermino?.value || r.DataDeTermino,
+            Level: r.Level,
+            rowNumber: r.rowNumber,
+            CaminhoCriticoMarco: r.CaminhoCriticoMarco,
+            'Observacao Otus': r.ObservacaoOtus,
+            'Motivo de atraso': r.Motivo_de_atraso,
+            'Categoria de atraso': r.Categoria_de_atraso,
+          }));
+        console.log(`[queryWeeklyReportData] ${tasks.length} tarefas Level 5 do snapshot`);
+      }
+    }
   }
 
   // 3. Busca snapshots de baseline da plataforma (para exibição nos cards de atraso)
@@ -3336,19 +3369,15 @@ export async function queryHorasComplianceOperacao(semanas = 8) {
  * Retorna contagem de linhas e última atualização por projeto.
  */
 export async function queryIssuesLastModified(construflowId) {
-  const table = 'issues';
+  const escapedId = String(construflowId).replace(/'/g, "''");
   const query = `
     SELECT MAX(updatedAt) as lastModified
-    FROM \`${projectId}.construflow_data.${table}\`
-    WHERE CAST(projectId AS STRING) = @construflowId
+    FROM \`${projectId}.construflow_data.issues\`
+    WHERE CAST(projectId AS STRING) = '${escapedId}'
   `;
 
   try {
-    const [rows] = await bigquery.query({
-      query,
-      params: { construflowId: String(construflowId) },
-      location,
-    });
+    const rows = await executeQuery(query);
     return rows[0]?.lastModified?.value || rows[0]?.lastModified || null;
   } catch (error) {
     console.warn('⚠️ [queryIssuesLastModified]', error.message);

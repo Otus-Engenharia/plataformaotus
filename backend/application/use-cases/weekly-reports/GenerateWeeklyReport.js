@@ -122,7 +122,7 @@ class GenerateWeeklyReport {
       scheduleDays,
       projectCode,
     });
-    await this.#addLog(reportId, `Dados recebidos do BigQuery`);
+    await this.#addLog(reportId, `Dados recebidos: ${rawData?.tasks?.length ?? 0} tarefas, ${rawData?.issues?.length ?? 0} issues`);
 
     // Step 2: Processar dados
     await this.#updateStep(reportId, PipelineStepEnum.PROCESSING);
@@ -133,7 +133,8 @@ class GenerateWeeklyReport {
     });
     const issueCount = processedData.summary?.totalActiveIssues || processedData.construflow?.totalActive || 0;
     const taskCount = processedData.summary?.totalTasks || 0;
-    await this.#addLog(reportId, `${issueCount} issues e ${taskCount} tarefas processadas`);
+    const s = processedData.summary || {};
+    await this.#addLog(reportId, `Processado: ${taskCount} tarefas (${s.totalCompleted || 0} concluídas, ${s.totalDelayed || 0} atrasadas, ${(s.scheduleClient || 0) + (s.scheduleTeam || 0)} cronograma), ${issueCount} issues ativas`);
 
     // Step 2b: Buscar relatos da semana (não bloqueante)
     let weekRelatos = [];
