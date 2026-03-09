@@ -24,16 +24,18 @@ export default function MapeamentoAutodocPanel() {
   const [saving, setSaving] = useState({});
   const [existingMappings, setExistingMappings] = useState([]);
   const [mappingsLoading, setMappingsLoading] = useState(true);
-  const [manualForm, setManualForm] = useState({
-    customerId: '', customerName: '', projectFolderId: '', projectName: '', portfolioCode: ''
-  });
-  const [manualSaving, setManualSaving] = useState(false);
-
   // Cobertura Portfolio
   const [portfolioProjects, setPortfolioProjects] = useState([]);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
-  const [plataformaFilter, setPlataformaFilter] = useState('autodoc');
+  const [plataformaFilters, setPlataformaFilters] = useState(new Set(['autodoc']));
   const [statusMappingFilter, setStatusMappingFilter] = useState('all');
+  const [coverageLinkSelection, setCoverageLinkSelection] = useState({});
+  const [coverageLinkSaving, setCoverageLinkSaving] = useState({});
+  const [portfolioSearch, setPortfolioSearch] = useState('');
+  const [coverageAutodocSearch, setCoverageAutodocSearch] = useState('');
+  const [discoveryPortfolioSearch, setDiscoveryPortfolioSearch] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
+  const [statusProjectFilter, setStatusProjectFilter] = useState('active');
 
   // Carregar project_codes do portfolio (todos, sem filtragem por role)
   const fetchPortfolioCodes = useCallback(async () => {
@@ -144,6 +146,34 @@ export default function MapeamentoAutodocPanel() {
     }
   };
 
+  const handleDismiss = async (project) => {
+    const key = `${project.customerId}::${project.projectFolderId}`;
+    setSaving(prev => ({ ...prev, [key]: true }));
+    try {
+      await autodocEntregasApi.createMapping({
+        portfolioProjectCode: '__DISMISSED__',
+        autodocCustomerId: project.customerId,
+        autodocCustomerName: project.customerName,
+        autodocProjectFolderId: project.projectFolderId,
+        autodocProjectName: project.projectName,
+      });
+
+      setProjects(prev => prev.map(p => {
+        if (p.customerId === project.customerId && p.projectFolderId === project.projectFolderId) {
+          return { ...p, alreadyMapped: true, mappedProjectCode: '__DISMISSED__' };
+        }
+        return p;
+      }));
+
+      setToast({ type: 'success', message: `${project.projectName} marcado como "Nao e Otus"` });
+      fetchMappings();
+    } catch (err) {
+      setToast({ type: 'error', message: err.response?.data?.error || err.message });
+    } finally {
+      setSaving(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
   const handleUnlink = async (project) => {
     const key = `${project.customerId}::${project.projectFolderId}`;
     setSaving(prev => ({ ...prev, [key]: true }));
@@ -213,51 +243,75 @@ export default function MapeamentoAutodocPanel() {
     fetchMappings();
   };
 
-  const handleUnlinkMapping = async (mapping) => {
-    const key = `mapping-${mapping.id}`;
-    setSaving(prev => ({ ...prev, [key]: true }));
+  // Desvincular direto da tabela de cobertura
+  const handleCoverageUnlink = async (projectCode) => {
+    const mappingsToDelete = existingMappings.filter(m => m.portfolio_project_code === projectCode);
+    if (mappingsToDelete.length === 0) return;
+
+    setCoverageLinkSaving(prev => ({ ...prev, [projectCode]: true }));
     try {
-      await autodocEntregasApi.deleteMapping(mapping.id);
-      setToast({ type: 'success', message: `${mapping.autodoc_project_name} desvinculado` });
+      for (const mapping of mappingsToDelete) {
+        await autodocEntregasApi.deleteMapping(mapping.id);
+      }
+      setToast({ type: 'success', message: `Mapeamento de ${projectCode} removido` });
       fetchMappings();
       // Atualizar lista de descoberta se estiver visivel
       setProjects(prev => prev.map(p => {
-        if (p.customerId === mapping.autodoc_customer_id && p.projectFolderId === mapping.autodoc_project_folder_id) {
-          return { ...p, alreadyMapped: false, mappedProjectCode: null };
-        }
+        const isMatch = mappingsToDelete.some(
+          m => m.autodoc_customer_id === p.customerId && m.autodoc_project_folder_id === p.projectFolderId
+        );
+        if (isMatch) return { ...p, alreadyMapped: false, mappedProjectCode: null };
         return p;
       }));
     } catch (err) {
       setToast({ type: 'error', message: err.response?.data?.error || err.message });
     } finally {
-      setSaving(prev => ({ ...prev, [key]: false }));
+      setCoverageLinkSaving(prev => ({ ...prev, [projectCode]: false }));
     }
   };
 
-  const handleManualLink = async () => {
-    const { customerId, customerName, projectFolderId, projectName, portfolioCode } = manualForm;
-    if (!customerId || !customerName || !projectFolderId || !projectName || !portfolioCode) {
-      setToast({ type: 'error', message: 'Preencha todos os campos para vincular manualmente' });
-      return;
-    }
-    setManualSaving(true);
+  // Vincular direto da tabela de cobertura
+  const handleCoverageLink = async (portfolioCode) => {
+    const selValue = coverageLinkSelection[portfolioCode];
+    if (!selValue) return;
+
+    const [customerId, projectFolderId] = selValue.split('::');
+    const autodocProject = projects.find(
+      p => String(p.customerId) === customerId && String(p.projectFolderId) === projectFolderId
+    );
+    if (!autodocProject) return;
+
+    setCoverageLinkSaving(prev => ({ ...prev, [portfolioCode]: true }));
     try {
       await autodocEntregasApi.createMapping({
         portfolioProjectCode: portfolioCode,
-        autodocCustomerId: customerId,
-        autodocCustomerName: customerName,
-        autodocProjectFolderId: projectFolderId,
-        autodocProjectName: projectName,
+        autodocCustomerId: autodocProject.customerId,
+        autodocCustomerName: autodocProject.customerName,
+        autodocProjectFolderId: autodocProject.projectFolderId,
+        autodocProjectName: autodocProject.projectName,
       });
-      setToast({ type: 'success', message: `${projectName} vinculado a ${portfolioCode}` });
-      setManualForm({ customerId: '', customerName: '', projectFolderId: '', projectName: '', portfolioCode: '' });
+
+      setProjects(prev => prev.map(p => {
+        if (p.customerId === autodocProject.customerId && p.projectFolderId === autodocProject.projectFolderId) {
+          return { ...p, alreadyMapped: true, mappedProjectCode: portfolioCode };
+        }
+        return p;
+      }));
+
+      setCoverageLinkSelection(prev => { const n = { ...prev }; delete n[portfolioCode]; return n; });
+      setToast({ type: 'success', message: `${autodocProject.projectName} vinculado a ${portfolioCode}` });
       fetchMappings();
     } catch (err) {
       setToast({ type: 'error', message: err.response?.data?.error || err.message });
     } finally {
-      setManualSaving(false);
+      setCoverageLinkSaving(prev => ({ ...prev, [portfolioCode]: false }));
     }
   };
+
+  // Projetos Autodoc nao mapeados (para dropdown na cobertura)
+  const unmappedAutodocProjects = useMemo(() => {
+    return projects.filter(p => !p.alreadyMapped);
+  }, [projects]);
 
   // Cobertura Portfolio - join com mapeamentos
   const portfolioCoverage = useMemo(() => {
@@ -274,16 +328,36 @@ export default function MapeamentoAutodocPanel() {
       portfolioProjects.map(p => p.plataforma_acd).filter(Boolean)
     )].sort();
 
+    // Clientes unicos para dropdown
+    const clients = [...new Set(
+      portfolioProjects.map(p => p.client_name).filter(Boolean)
+    )].sort();
+
+    // Status do projeto
+    const ACTIVE_STATUSES = ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'];
+    const STARTING_STATUSES = ['a iniciar'];
+
     // Filtrar projetos
     const filtered = portfolioProjects.filter(p => {
-      if (plataformaFilter === '__null__') {
-        if (p.plataforma_acd) return false;
-      } else if (plataformaFilter && plataformaFilter !== 'all') {
-        if ((p.plataforma_acd || '').toLowerCase() !== plataformaFilter.toLowerCase()) return false;
+      // Filtro de status do projeto
+      const st = (p.status || '').toLowerCase();
+      if (statusProjectFilter === 'active' && !ACTIVE_STATUSES.includes(st)) return false;
+      if (statusProjectFilter === 'active+starting' && !ACTIVE_STATUSES.includes(st) && !STARTING_STATUSES.includes(st)) return false;
+      // Multi-select: se o Set esta vazio, mostra todos (equivalente a "Todos")
+      if (plataformaFilters.size > 0) {
+        const val = p.plataforma_acd ? p.plataforma_acd.toLowerCase() : '__null__';
+        if (!plataformaFilters.has(val)) return false;
       }
+      if (clientFilter && (p.client_name || '') !== clientFilter) return false;
       const isMapped = mappingsByCode.has(p.project_code);
       if (statusMappingFilter === 'mapped' && !isMapped) return false;
       if (statusMappingFilter === 'unmapped' && isMapped) return false;
+      if (portfolioSearch) {
+        const q = portfolioSearch.toLowerCase();
+        if (!(p.project_code || '').toLowerCase().includes(q) &&
+            !(p.comercial_name || '').toLowerCase().includes(q) &&
+            !(p.name || '').toLowerCase().includes(q)) return false;
+      }
       return true;
     });
 
@@ -298,15 +372,56 @@ export default function MapeamentoAutodocPanel() {
     const mappedCount = enriched.filter(p => p.isMapped).length;
     const unmappedCount = totalFiltered - mappedCount;
 
-    return { enriched, plataformas, totalFiltered, mappedCount, unmappedCount };
-  }, [portfolioProjects, existingMappings, plataformaFilter, statusMappingFilter]);
+    return { enriched, plataformas, clients, totalFiltered, mappedCount, unmappedCount };
+  }, [portfolioProjects, existingMappings, plataformaFilters, statusMappingFilter, portfolioSearch, clientFilter, statusProjectFilter]);
+
+  // Lookup nome portfolio para dropdown Discovery
+  const portfolioNameMap = useMemo(() => {
+    const map = new Map();
+    for (const p of portfolioProjects) {
+      map.set(p.project_code, p.name || p.comercial_name || p.project_code);
+    }
+    return map;
+  }, [portfolioProjects]);
+
+  // Portfolio codes ordenados por nome (para dropdown Discovery)
+  const sortedPortfolioCodes = useMemo(() => {
+    return [...portfolioCodes].sort((a, b) => {
+      const nameA = (portfolioNameMap.get(a) || a).toLowerCase();
+      const nameB = (portfolioNameMap.get(b) || b).toLowerCase();
+      return nameA.localeCompare(nameB, 'pt-BR');
+    });
+  }, [portfolioCodes, portfolioNameMap]);
+
+  // Filtrar portfolio codes pelo texto de busca (para dropdown Discovery)
+  const filteredPortfolioCodes = useMemo(() => {
+    if (!discoveryPortfolioSearch) return sortedPortfolioCodes;
+    const q = discoveryPortfolioSearch.toLowerCase();
+    return sortedPortfolioCodes.filter(code => {
+      const name = (portfolioNameMap.get(code) || '').toLowerCase();
+      return name.includes(q) || code.toLowerCase().includes(q);
+    });
+  }, [sortedPortfolioCodes, portfolioNameMap, discoveryPortfolioSearch]);
+
+  // Filtrar projetos Autodoc nao mapeados pelo texto de busca (para dropdown na cobertura)
+  const filteredUnmappedAutodoc = useMemo(() => {
+    if (!coverageAutodocSearch) return unmappedAutodocProjects;
+    const q = coverageAutodocSearch.toLowerCase();
+    return unmappedAutodocProjects.filter(ap =>
+      (ap.customerName || '').toLowerCase().includes(q) ||
+      (ap.projectName || '').toLowerCase().includes(q)
+    );
+  }, [unmappedAutodocProjects, coverageAutodocSearch]);
 
   // Filtros Discovery
   const customers = [...new Set(projects.map(p => p.customerName))].sort();
 
   const filteredProjects = projects.filter(p => {
-    if (statusFilter === 'mapped' && !p.alreadyMapped) return false;
+    const isDismissed = p.alreadyMapped && p.mappedProjectCode === '__DISMISSED__';
+    const isTrulyMapped = p.alreadyMapped && p.mappedProjectCode !== '__DISMISSED__';
+    if (statusFilter === 'mapped' && !isTrulyMapped) return false;
     if (statusFilter === 'unmapped' && p.alreadyMapped) return false;
+    if (statusFilter === 'dismissed' && !isDismissed) return false;
     if (customerFilter && p.customerName !== customerFilter) return false;
     return true;
   });
@@ -383,18 +498,51 @@ export default function MapeamentoAutodocPanel() {
             {/* Filtros */}
             <div className="adoc-map-filters">
               <div className="adoc-map-filter-group">
-                <label>Plataforma ACD:</label>
+                <label>Status Projeto:</label>
                 <select
-                  value={plataformaFilter}
-                  onChange={(e) => setPlataformaFilter(e.target.value)}
+                  value={statusProjectFilter}
+                  onChange={(e) => setStatusProjectFilter(e.target.value)}
                   className="adoc-map-select"
                 >
                   <option value="all">Todos</option>
-                  <option value="__null__">Nao definido</option>
-                  {portfolioCoverage.plataformas.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
+                  <option value="active">Ativos</option>
+                  <option value="active+starting">Ativos + A iniciar</option>
                 </select>
+              </div>
+              <div className="adoc-map-filter-group">
+                <label>Plataforma ACD:</label>
+                <div className="adoc-map-chips">
+                  <button
+                    className={`adoc-map-chip ${plataformaFilters.size === 0 ? 'adoc-map-chip--active' : ''}`}
+                    onClick={() => setPlataformaFilters(new Set())}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    className={`adoc-map-chip ${plataformaFilters.has('__null__') ? 'adoc-map-chip--active' : ''}`}
+                    onClick={() => setPlataformaFilters(prev => {
+                      const next = new Set(prev);
+                      if (next.has('__null__')) next.delete('__null__'); else next.add('__null__');
+                      return next;
+                    })}
+                  >
+                    Nao definido
+                  </button>
+                  {portfolioCoverage.plataformas.map(p => (
+                    <button
+                      key={p}
+                      className={`adoc-map-chip ${plataformaFilters.has(p.toLowerCase()) ? 'adoc-map-chip--active' : ''}`}
+                      onClick={() => setPlataformaFilters(prev => {
+                        const next = new Set(prev);
+                        const val = p.toLowerCase();
+                        if (next.has(val)) next.delete(val); else next.add(val);
+                        return next;
+                      })}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="adoc-map-filter-group">
                 <label>Mapeamento:</label>
@@ -407,6 +555,29 @@ export default function MapeamentoAutodocPanel() {
                   <option value="mapped">Vinculados</option>
                   <option value="unmapped">Nao vinculados</option>
                 </select>
+              </div>
+              <div className="adoc-map-filter-group">
+                <label>Cliente:</label>
+                <select
+                  value={clientFilter}
+                  onChange={(e) => setClientFilter(e.target.value)}
+                  className="adoc-map-select"
+                >
+                  <option value="">Todos</option>
+                  {portfolioCoverage.clients.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="adoc-map-filter-group">
+                <label>Buscar:</label>
+                <input
+                  type="text"
+                  className="adoc-map-search-input"
+                  placeholder="Buscar por codigo ou nome..."
+                  value={portfolioSearch}
+                  onChange={(e) => setPortfolioSearch(e.target.value)}
+                />
               </div>
               <div className="adoc-map-coverage-stats">
                 <span className="adoc-map-coverage-stat">
@@ -437,7 +608,7 @@ export default function MapeamentoAutodocPanel() {
                   {portfolioCoverage.enriched.map((p) => (
                     <tr key={p.project_code}>
                       <td><strong>{p.project_code}</strong></td>
-                      <td>{p.comercial_name || p.name}</td>
+                      <td>{p.name || p.comercial_name}</td>
                       <td>
                         <span className={`adoc-map-status-badge ${
                           ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'].includes((p.status || '').toLowerCase())
@@ -450,13 +621,60 @@ export default function MapeamentoAutodocPanel() {
                       <td>{p.plataforma_acd || (<span style={{ color: '#9ca3af' }}>-</span>)}</td>
                       <td>
                         {p.isMapped ? (
-                          p.autodocProjectNames.map((name, i) => (
-                            <span key={i} className="adoc-map-mapped-badge" style={{ marginRight: 4, marginBottom: 2 }}>
-                              {name}
-                            </span>
-                          ))
+                          <div className="adoc-map-coverage-link-row">
+                            <div>
+                              {p.autodocProjectNames.map((name, i) => (
+                                <span key={i} className="adoc-map-mapped-badge" style={{ marginRight: 4, marginBottom: 2 }}>
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                            <button
+                              className="adoc-map-action-btn adoc-map-action-btn--danger"
+                              onClick={() => handleCoverageUnlink(p.project_code)}
+                              disabled={coverageLinkSaving[p.project_code]}
+                            >
+                              {coverageLinkSaving[p.project_code] ? '...' : 'Desvincular'}
+                            </button>
+                          </div>
+                        ) : unmappedAutodocProjects.length > 0 ? (
+                          <div className="adoc-map-coverage-link-row">
+                            <input
+                              type="text"
+                              className="adoc-map-search-input"
+                              placeholder="Filtrar Autodoc..."
+                              value={coverageAutodocSearch}
+                              onChange={(e) => setCoverageAutodocSearch(e.target.value)}
+                              style={{ minWidth: 120, maxWidth: 150 }}
+                            />
+                            <select
+                              className="adoc-map-portfolio-select"
+                              value={coverageLinkSelection[p.project_code] || ''}
+                              onChange={(e) => setCoverageLinkSelection(prev => ({ ...prev, [p.project_code]: e.target.value }))}
+                            >
+                              <option value="">Selecionar Autodoc...</option>
+                              {filteredUnmappedAutodoc.map(ap => (
+                                <option
+                                  key={`${ap.customerId}::${ap.projectFolderId}`}
+                                  value={`${ap.customerId}::${ap.projectFolderId}`}
+                                >
+                                  {ap.customerName} / {ap.projectName}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              className="adoc-map-action-btn adoc-map-action-btn--primary"
+                              onClick={() => handleCoverageLink(p.project_code)}
+                              disabled={coverageLinkSaving[p.project_code] || !coverageLinkSelection[p.project_code]}
+                            >
+                              {coverageLinkSaving[p.project_code] ? '...' : 'Vincular'}
+                            </button>
+                          </div>
                         ) : (
-                          <span className="adoc-map-coverage-unmapped">Nao vinculado</span>
+                          <span className="adoc-map-coverage-unmapped">
+                            Nao vinculado
+                            <span className="adoc-map-coverage-hint"> (execute Descoberta)</span>
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -472,122 +690,6 @@ export default function MapeamentoAutodocPanel() {
               </table>
             </div>
           </>
-        )}
-      </div>
-
-      {/* Mapeamentos Existentes */}
-      <div className="adoc-map-section">
-        <h3 className="adoc-map-section-title">Mapeamentos Atuais</h3>
-        {mappingsLoading ? (
-          <div className="adoc-map-loading" style={{ padding: '1.5rem' }}>
-            <div className="adoc-map-spinner" />
-            <p>Carregando mapeamentos...</p>
-          </div>
-        ) : (
-          <div className="adoc-map-table-wrapper">
-            <table className="adoc-map-table">
-              <thead>
-                <tr>
-                  <th>Conta Autodoc</th>
-                  <th>Projeto Autodoc</th>
-                  <th>Codigo Portfolio</th>
-                  <th style={{ width: 100 }}>Status</th>
-                  <th style={{ width: 120 }}>Acao</th>
-                </tr>
-              </thead>
-              <tbody>
-                {existingMappings.map((mapping) => {
-                  const key = `mapping-${mapping.id}`;
-                  return (
-                    <tr key={mapping.id}>
-                      <td className="adoc-map-customer">{mapping.autodoc_customer_name}</td>
-                      <td className="adoc-map-project">{mapping.autodoc_project_name}</td>
-                      <td>
-                        <span className="adoc-map-mapped-badge">{mapping.portfolio_project_code}</span>
-                      </td>
-                      <td>
-                        <span className={`adoc-map-status-badge ${mapping.is_active !== false ? 'adoc-map-status-badge--active' : 'adoc-map-status-badge--inactive'}`}>
-                          {mapping.is_active !== false ? 'Ativo' : 'Inativo'}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          className="adoc-map-action-btn adoc-map-action-btn--danger"
-                          onClick={() => handleUnlinkMapping(mapping)}
-                          disabled={saving[key]}
-                        >
-                          {saving[key] ? '...' : 'Desvincular'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {/* Linha de vinculacao manual */}
-                <tr className="adoc-map-row--manual">
-                  <td>
-                    <div className="adoc-map-manual-inputs">
-                      <input
-                        type="text"
-                        className="adoc-map-manual-input"
-                        placeholder="Customer ID"
-                        value={manualForm.customerId}
-                        onChange={(e) => setManualForm(prev => ({ ...prev, customerId: e.target.value }))}
-                      />
-                      <input
-                        type="text"
-                        className="adoc-map-manual-input"
-                        placeholder="Customer Name"
-                        value={manualForm.customerName}
-                        onChange={(e) => setManualForm(prev => ({ ...prev, customerName: e.target.value }))}
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <div className="adoc-map-manual-inputs">
-                      <input
-                        type="text"
-                        className="adoc-map-manual-input"
-                        placeholder="Folder ID"
-                        value={manualForm.projectFolderId}
-                        onChange={(e) => setManualForm(prev => ({ ...prev, projectFolderId: e.target.value }))}
-                      />
-                      <input
-                        type="text"
-                        className="adoc-map-manual-input"
-                        placeholder="Project Name"
-                        value={manualForm.projectName}
-                        onChange={(e) => setManualForm(prev => ({ ...prev, projectName: e.target.value }))}
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <select
-                      className="adoc-map-portfolio-select"
-                      value={manualForm.portfolioCode}
-                      onChange={(e) => setManualForm(prev => ({ ...prev, portfolioCode: e.target.value }))}
-                    >
-                      <option value="">Selecionar portfolio...</option>
-                      {portfolioCodes.map(code => (
-                        <option key={code} value={code}>{code}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>Manual</span>
-                  </td>
-                  <td>
-                    <button
-                      className="adoc-map-action-btn adoc-map-action-btn--primary"
-                      onClick={handleManualLink}
-                      disabled={manualSaving}
-                    >
-                      {manualSaving ? '...' : 'Vincular'}
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         )}
       </div>
 
@@ -609,6 +711,7 @@ export default function MapeamentoAutodocPanel() {
               <option value="all">Todos</option>
               <option value="mapped">Mapeados</option>
               <option value="unmapped">Nao mapeados</option>
+              <option value="dismissed">Descartados</option>
             </select>
           </div>
           <div className="adoc-map-filter-group">
@@ -658,13 +761,18 @@ export default function MapeamentoAutodocPanel() {
                 const key = `${project.customerId}::${project.projectFolderId}`;
                 const isSaving = saving[key];
 
+                const isDismissed = project.alreadyMapped && project.mappedProjectCode === '__DISMISSED__';
+                const isTrulyMapped = project.alreadyMapped && !isDismissed;
+
                 return (
-                  <tr key={key} className={project.alreadyMapped ? 'adoc-map-row--mapped' : ''}>
+                  <tr key={key} className={isTrulyMapped ? 'adoc-map-row--mapped' : ''}>
                     <td className="adoc-map-customer">{project.customerName}</td>
                     <td className="adoc-map-project">{project.projectName}</td>
                     <td>
-                      {project.alreadyMapped ? (
+                      {isTrulyMapped ? (
                         <span className="adoc-map-mapped-badge">{project.mappedProjectCode}</span>
+                      ) : isDismissed ? (
+                        <span className="adoc-map-dismissed-badge">Nao e Otus</span>
                       ) : project.suggestedMatch ? (
                         <span className={`adoc-map-confidence ${confidenceClass(project.suggestedMatch.confidence)}`}>
                           {project.suggestedMatch.projectCode} ({project.suggestedMatch.confidence}%)
@@ -675,21 +783,31 @@ export default function MapeamentoAutodocPanel() {
                     </td>
                     <td>
                       {!project.alreadyMapped && (
-                        <select
-                          className="adoc-map-portfolio-select"
-                          value={selectedCodes[key] || ''}
-                          onChange={(e) => setSelectedCodes(prev => ({ ...prev, [key]: e.target.value }))}
-                        >
-                          <option value="">Selecionar...</option>
-                          {portfolioCodes.map(code => (
-                            <option key={code} value={code}>{code}</option>
-                          ))}
-                        </select>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <input
+                            type="text"
+                            className="adoc-map-search-input"
+                            placeholder="Buscar projeto..."
+                            value={discoveryPortfolioSearch}
+                            onChange={(e) => setDiscoveryPortfolioSearch(e.target.value)}
+                            style={{ minWidth: 140, padding: '3px 6px', fontSize: '0.75rem' }}
+                          />
+                          <select
+                            className="adoc-map-portfolio-select"
+                            value={selectedCodes[key] || ''}
+                            onChange={(e) => setSelectedCodes(prev => ({ ...prev, [key]: e.target.value }))}
+                          >
+                            <option value="">Selecionar...</option>
+                            {filteredPortfolioCodes.map(code => (
+                              <option key={code} value={code}>{portfolioNameMap.get(code) || code} ({code})</option>
+                            ))}
+                          </select>
+                        </div>
                       )}
                     </td>
                     <td>
                       <div className="adoc-map-actions">
-                        {project.alreadyMapped ? (
+                        {isTrulyMapped ? (
                           <button
                             className="adoc-map-action-btn adoc-map-action-btn--danger"
                             onClick={() => handleUnlink(project)}
@@ -697,14 +815,31 @@ export default function MapeamentoAutodocPanel() {
                           >
                             {isSaving ? '...' : 'Desvincular'}
                           </button>
-                        ) : (
+                        ) : isDismissed ? (
                           <button
-                            className="adoc-map-action-btn adoc-map-action-btn--primary"
-                            onClick={() => handleLink(project)}
-                            disabled={isSaving || !selectedCodes[key]}
+                            className="adoc-map-action-btn adoc-map-action-btn--muted"
+                            onClick={() => handleUnlink(project)}
+                            disabled={isSaving}
                           >
-                            {isSaving ? '...' : (project.suggestedMatch ? 'Confirmar' : 'Vincular')}
+                            {isSaving ? '...' : 'Desfazer'}
                           </button>
+                        ) : (
+                          <>
+                            <button
+                              className="adoc-map-action-btn adoc-map-action-btn--primary"
+                              onClick={() => handleLink(project)}
+                              disabled={isSaving || !selectedCodes[key]}
+                            >
+                              {isSaving ? '...' : (project.suggestedMatch ? 'Confirmar' : 'Vincular')}
+                            </button>
+                            <button
+                              className="adoc-map-action-btn adoc-map-action-btn--muted"
+                              onClick={() => handleDismiss(project)}
+                              disabled={isSaving}
+                            >
+                              {isSaving ? '...' : 'Nao e Otus'}
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
