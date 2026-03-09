@@ -383,7 +383,7 @@ async function sendProjectCreatedNotification({
  * @param {string} [params.oldValue] - Valor anterior
  * @param {string} [params.newValue] - Novo valor
  */
-async function sendCronogramaChangeNotification({ projectCode, parcelaNumero, descricao, changeType, oldValue, newValue }) {
+async function sendCronogramaChangeNotification({ projectCode, projectName, lider, parcelaNumero, descricao, changeType, oldValue, newValue }) {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL_FINANCEIRO;
   if (!webhookUrl) {
     console.warn('Discord: DISCORD_WEBHOOK_URL_FINANCEIRO não configurado');
@@ -395,9 +395,14 @@ async function sendCronogramaChangeNotification({ projectCode, parcelaNumero, de
   const color = isTarefaDeletada ? 0xe74c3c : 0xf39c12;
 
   const fields = [
-    { name: '📁  PROJETO', value: `\`\`\`${projectCode}\`\`\``, inline: true },
-    { name: '🔢  PARCELA', value: `\`\`\`#${parcelaNumero} - ${descricao || 'N/A'}\`\`\``, inline: false },
+    { name: '📁  PROJETO', value: `\`\`\`${projectName || projectCode}\`\`\``, inline: true },
   ];
+
+  if (lider) {
+    fields.push({ name: '👤  LÍDER', value: `\`\`\`${lider}\`\`\``, inline: true });
+  }
+
+  fields.push({ name: '🔢  PARCELA', value: `\`\`\`#${parcelaNumero} - ${descricao || 'N/A'}\`\`\``, inline: false });
 
   if (isTarefaDeletada) {
     fields.push({ name: '❌  TAREFA', value: `\`\`\`${oldValue || 'N/A'}\`\`\``, inline: false });
