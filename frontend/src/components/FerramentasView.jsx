@@ -48,6 +48,39 @@ const TOOL_ID_FIELDS = [
   { key: 'construflow_disciplinasclientes', name: 'Disciplinas Cliente', type: 'tags' },
 ];
 
+// Campos dropdown (plataformas)
+const PLATFORM_FIELDS = [
+  {
+    key: 'plataforma_comunicacao',
+    name: 'Plataforma Comunicacao',
+    options: [
+      { value: 'construflow', label: 'Construflow' },
+      { value: 'bim360', label: 'BIM360' },
+      { value: 'bimcollab', label: 'BIMCollab' },
+      { value: 'trimble_connect', label: 'Trimble Connect' },
+      { value: 'excel', label: 'Excel' },
+      { value: 'construcode', label: 'Construcode' },
+      { value: 'qicloud', label: 'QICloud' },
+      { value: 'outros', label: 'Outros' },
+    ],
+  },
+  {
+    key: 'plataforma_acd',
+    name: 'Plataforma ACD',
+    options: [
+      { value: 'google_drive', label: 'Google Drive' },
+      { value: 'bim360', label: 'BIM360' },
+      { value: 'autodoc', label: 'Autodoc' },
+      { value: 'construcode', label: 'Construcode' },
+      { value: 'onedrive', label: 'OneDrive' },
+      { value: 'qicloud', label: 'QICloud' },
+      { value: 'construmanager', label: 'Construmanager' },
+      { value: 'dropbox', label: 'DropBox' },
+      { value: 'outros', label: 'Outros' },
+    ],
+  },
+];
+
 /**
  * Extrai o ID de uma URL do Google (Docs, Sheets, Drive) ou retorna o valor original se já for um ID.
  */
@@ -190,6 +223,31 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
         delete next[field];
         return next;
       });
+      setError(`Erro ao atualizar ${field}: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setSaving(prev => ({ ...prev, [field]: false }));
+    }
+  };
+
+  // Dropdown change (plataformas)
+  const handleDropdownChange = async (field, value) => {
+    const projectCode = getProjectCode();
+    if (!projectCode) return;
+
+    const oldValue = projectData?.[field];
+    setLocalOverrides(prev => ({ ...prev, [field]: value || null }));
+    setSaving(prev => ({ ...prev, [field]: true }));
+    setError(null);
+
+    try {
+      await axios.put(
+        `${API_URL}/api/portfolio/${projectCode}/tools`,
+        { field, value: value || null, oldValue },
+        { withCredentials: true }
+      );
+      onToolUpdate?.(projectCode, field, value || null);
+    } catch (err) {
+      setLocalOverrides(prev => { const n = {...prev}; delete n[field]; return n; });
       setError(`Erro ao atualizar ${field}: ${err.response?.data?.error || err.message}`);
     } finally {
       setSaving(prev => ({ ...prev, [field]: false }));
@@ -588,6 +646,32 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
                         </svg>
                         <span className="ftv-dev-status">Em breve</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Seção: Plataformas */}
+              <section className="ftv-section">
+                <h4 className="ftv-section-title">Plataformas</h4>
+                <div className="ftv-id-list">
+                  {PLATFORM_FIELDS.map(field => (
+                    <div key={field.key} className="ftv-id-row">
+                      <span className="ftv-id-label">{field.name}</span>
+                      <div className="ftv-id-value-area">
+                        <select
+                          className="ftv-dropdown-select"
+                          value={projectData[field.key] || ''}
+                          onChange={(e) => handleDropdownChange(field.key, e.target.value)}
+                          disabled={saving[field.key]}
+                        >
+                          <option value="">Nao definido</option>
+                          {field.options.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                        {saving[field.key] && <span className="ftv-saving">Salvando...</span>}
                       </div>
                     </div>
                   ))}

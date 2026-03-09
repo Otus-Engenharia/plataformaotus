@@ -1,0 +1,214 @@
+/**
+ * PagamentosLiderView - Light Theme
+ * Design System Otus Engenharia
+ */
+
+.pagamentos-lider-container {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #ffffff 0%, #ededed 100%);
+  padding: 2rem;
+  gap: 1.5rem;
+  font-family: Verdana, sans-serif;
+}
+
+/* ===== HEADER ===== */
+.pagamentos-lider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0 1rem 0;
+  border-bottom: 3px solid #ffdd00;
+}
+
+.pagamentos-lider-header h2 {
+  color: #1a1a1a;
+  font-size: 32px;
+  font-weight: bold;
+  margin: 0;
+  font-family: Verdana, sans-serif;
+}
+
+.pagamentos-lider-refresh {
+  background: #ffdd00;
+  color: #1a1a1a;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: bold;
+  transition: all 0.2s;
+  font-family: Verdana, sans-serif;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pagamentos-lider-refresh:hover {
+  background: #d3af00;
+  transform: translateY(-1px);
+}
+
+/* ===== FILTERS SECTION ===== */
+.pagamentos-lider-filters {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  padding: 0.75rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.pagamentos-lider-filters-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pagamentos-lider-filters-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: Verdana, sans-serif;
+  margin-right: 4px;
+}
+
+.pagamentos-lider-filter-group__toggles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===== TOGGLE SWITCH (PortfolioView pattern) ===== */
+.pagamentos-lider-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+
+.pagamentos-lider-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.pagamentos-lider-toggle-slider {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  background: #d1d5db;
+  border-radius: 16px;
+  transition: all 0.2s;
+  border: none;
+}
+
+.pagamentos-lider-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.pagamentos-lider-toggle input[type="checkbox"]:checked + .pagamentos-lider-toggle-slider {
+  background: #ffdd00;
+}
+
+.pagamentos-lider-toggle input[type="checkbox"]:checked + .pagamentos-lider-toggle-slider::before {
+  transform: translateX(14px);
+}
+
+.pagamentos-lider-toggle-label {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: Verdana, sans-serif;
+  color: #4b5563;
+  white-space: nowrap;
+}
+
+.pagamentos-lider-toggle-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 10px;
+  margin-left: 2px;
+  min-width: 16px;
+  line-height: 1.2;
+}
+
+/* ===== SEARCH ===== */
+.pagamentos-lider-filter-search {
+  margin-left: auto;
+}
+
+.pagamentos-lider-filter-input {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: Verdana, sans-serif;
+  color: #1a1a1a;
+  background: #f9fafb;
+  width: 200px;
+  transition: border-color 0.2s;
+}
+
+.pagamentos-lider-filter-input:focus {
+  outline: none;
+  border-color: #ffdd00;
+  background: #ffffff;
+}
+
+.pagamentos-lider-filter-input::placeholder {
+  color: #9ca3af;
+}
+
+/* ===== LOADING / EMPTY ===== */
+.pagamentos-lider-loading,
+.pagamentos-lider-empty {
+  padding: 3rem;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .pagamentos-lider-container {
+    padding: 1rem;
+  }
+
+  .pagamentos-lider-header h2 {
+    font-size: 22px;
+  }
+
+  .pagamentos-lider-filters-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .pagamentos-lider-filter-search {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .pagamentos-lider-filter-input {
+    width: 100%;
+  }
+}

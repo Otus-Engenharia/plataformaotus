@@ -89,6 +89,10 @@ const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
 
 // Lazy load da página de Admin & Financeiro
 const ControlePassivoView = lazy(() => import('./components/ControlePassivoView'));
+const PagamentosFinanceiroView = lazy(() => import('./components/pagamentos/PagamentosFinanceiroView'));
+const PagamentosLiderView = lazy(() => import('./components/pagamentos/PagamentosLiderView'));
+const CalendarioPagamentosView = lazy(() => import('./components/pagamentos/CalendarioPagamentosView'));
+const RegrasClientePanel = lazy(() => import('./components/pagamentos/RegrasClientePanel'));
 const IndicadoresVendasView = lazy(() => import('./components/IndicadoresVendasView'));
 const ClientesView = lazy(() => import('./components/ClientesView'));
 
@@ -700,6 +704,14 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">Horas</span>
       </Link>
       <Link
+        to="/lideres-projeto/spots"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/spots' ? 'nav-link-active' : ''}`}
+        title={linkTitle('SPOTs')}
+      >
+        <span className="nav-icon">{icons.financeiro}</span>
+        <span className="nav-text">SPOTs</span>
+      </Link>
+      <Link
         to="/lideres-projeto/indicadores-vendas"
         className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/indicadores-vendas' ? 'nav-link-active' : ''}`}
         title={linkTitle('Indicadores Vendas')}
@@ -834,6 +846,30 @@ function Sidebar({ collapsed, onToggle, area }) {
         {newProjectCount > 0 && (
           <span className="nav-notification-badge">{newProjectCount}</span>
         )}
+      </Link>
+      <Link
+        to="/admin-financeiro/spots-financeiro"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/admin-financeiro/spots') ? 'nav-link-active' : ''}`}
+        title={linkTitle('SPOTs Financeiro')}
+      >
+        <span className="nav-icon">{icons.financeiro}</span>
+        <span className="nav-text">SPOTs Financeiro</span>
+      </Link>
+      <Link
+        to="/admin-financeiro/calendario-pagamentos"
+        className={`nav-link nav-link-modern ${location.pathname === '/admin-financeiro/calendario-pagamentos' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Calendário Pagamentos')}
+      >
+        <span className="nav-icon">{icons.cronograma}</span>
+        <span className="nav-text">Calendário</span>
+      </Link>
+      <Link
+        to="/admin-financeiro/regras-clientes"
+        className={`nav-link nav-link-modern ${location.pathname === '/admin-financeiro/regras-clientes' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Regras de Clientes')}
+      >
+        <span className="nav-icon">{icons.config}</span>
+        <span className="nav-text">Regras Clientes</span>
       </Link>
     </>
   );
@@ -1582,6 +1618,11 @@ function AppContent() {
               } />
               <Route path="alocacao-times" element={isPrivileged ? <AlocacaoTimesView /> : <Navigate to="/ind" replace />} />
               <Route path="horas" element={<HorasView />} />
+              <Route path="spots" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <PagamentosLiderView />
+                </Suspense>
+              } />
               <Route path="indicadores-vendas" element={
                 <Suspense fallback={<div className="loading-page">Carregando...</div>}>
                   <IndicadoresVendasView />
@@ -1645,6 +1686,21 @@ function AppContent() {
               <Route index element={<Navigate to="controle-passivo" replace />} />
               <Route path="controle-passivo" element={<ControlePassivoView />} />
               <Route path="portfolio" element={<AreaPortfolioView />} />
+              <Route path="spots-financeiro" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <PagamentosFinanceiroView />
+                </Suspense>
+              } />
+              <Route path="calendario-pagamentos" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <CalendarioPagamentosView />
+                </Suspense>
+              } />
+              <Route path="regras-clientes" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <RegrasClientePanel />
+                </Suspense>
+              } />
             </Route>
             {/* Área Vendas - rotas aninhadas */}
             <Route
