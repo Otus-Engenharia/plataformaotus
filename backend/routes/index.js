@@ -24,6 +24,7 @@ import { createRoutes as createContactRequestRoutes } from './contact-requests.j
 import { createRoutes as createNomenclaturaRoutes } from './nomenclatura.js';
 import { createRoutes as createMarcosProjetoRoutes } from './marcos-projeto.js';
 import { createRoutes as createPagamentoRoutes } from './pagamentos.js';
+import { createRoutes as createNotificacaoRoutes } from './notificacoes.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -115,6 +116,10 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   // Rotas de Pagamentos (DDD)
   const pagamentoRoutes = createPagamentoRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction, withBqCache, bigqueryClient);
   app.use('/api/pagamentos', pagamentoRoutes);
+
+  // Rotas de Notificacoes
+  const notificacaoRoutes = createNotificacaoRoutes(requireAuth);
+  app.use('/api/notificacoes', notificacaoRoutes);
 
   console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/autodoc-entregas, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto, /api/pagamentos');
 }
