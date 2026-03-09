@@ -25,6 +25,7 @@ import {
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { API_URL } from '../api';
 import { aggregateByMonth } from '../utils/apontamentosHelpers';
+import RobotAnimation from './RobotAnimation';
 import '../styles/ApontamentosView.css';
 
 // Plugin customizado para mostrar totais à direita das barras horizontais (estilo PowerBI)
@@ -227,6 +228,7 @@ function ApontamentosView({
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
   const [syncError, setSyncError] = useState(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   // Projeto atual com construflow_id
@@ -445,6 +447,8 @@ function ApontamentosView({
 
       if (response.data?.success) {
         setLastSync(new Date().toISOString());
+        setSyncSuccess(true);
+        setTimeout(() => setSyncSuccess(false), 2500);
         // Recarregar apontamentos
         setReloadTrigger(prev => prev + 1);
       }
@@ -1160,13 +1164,16 @@ function ApontamentosView({
       {/* Toolbar de sync */}
       {currentProject?.construflow_id && (
         <div className="apontamentos-sync-toolbar">
+          <RobotAnimation
+            state={syncing ? 'working' : syncSuccess ? 'success' : 'idle'}
+            size="sm"
+          />
           <button
             type="button"
             className={`apontamentos-sync-btn ${syncing ? 'syncing' : ''}`}
             onClick={handleSync}
             disabled={syncing || loading}
           >
-            <span className={`apontamentos-sync-icon ${syncing ? 'spinning' : ''}`}>&#x21bb;</span>
             {syncing ? 'Sincronizando...' : 'Atualizar Dados'}
           </button>
           <span className="apontamentos-sync-info">
@@ -1174,8 +1181,11 @@ function ApontamentosView({
               <span className="apontamentos-sync-error">{syncError}</span>
             )}
             {!syncError && lastSync && (
-              <span className="apontamentos-sync-timestamp">
-                Última atualização: {formatRelativeTime(lastSync)}
+              <span
+                className="apontamentos-sync-timestamp"
+                title={`Dados sincronizados do Construflow em ${new Date(lastSync).toLocaleString('pt-BR')}`}
+              >
+                {formatRelativeTime(lastSync)}
               </span>
             )}
           </span>

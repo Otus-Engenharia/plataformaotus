@@ -3335,6 +3335,27 @@ export async function queryHorasComplianceOperacao(semanas = 8) {
  * Diagnóstico: saúde dos dados SmartSheet no BigQuery.
  * Retorna contagem de linhas e última atualização por projeto.
  */
+export async function queryIssuesLastModified(construflowId) {
+  const table = 'issues';
+  const query = `
+    SELECT MAX(updatedAt) as lastModified
+    FROM \`${projectId}.construflow_data.${table}\`
+    WHERE CAST(projectId AS STRING) = @construflowId
+  `;
+
+  try {
+    const [rows] = await bigquery.query({
+      query,
+      params: { construflowId: String(construflowId) },
+      location,
+    });
+    return rows[0]?.lastModified?.value || rows[0]?.lastModified || null;
+  } catch (error) {
+    console.warn('⚠️ [queryIssuesLastModified]', error.message);
+    return null;
+  }
+}
+
 export async function querySmartsheetHealth() {
   const table = 'smartsheet_data_projetos';
   const query = `

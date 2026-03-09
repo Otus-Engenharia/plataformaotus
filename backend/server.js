@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName, queryHorasComplianceOperacao, querySmartsheetHealth } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName, queryHorasComplianceOperacao, querySmartsheetHealth, queryIssuesLastModified } from './bigquery.js';
 import cron from 'node-cron';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos, canEditPortfolio, canManagePagamentos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
@@ -1011,6 +1011,7 @@ app.get('/api/portfolio/summary', requireAuth, async (req, res) => {
         name: p.name,
         comercial_name: p.comercial_name,
         status: p.status,
+        client_name: p.companies?.name || null,
         plataforma_acd: featuresMap[p.project_code]?.plataforma_acd || null,
       }));
 
@@ -3096,6 +3097,7 @@ app.get('/api/projetos/apontamentos/last-sync', requireAuth, async (req, res) =>
   }
 
   try {
+    // 1. Tenta buscar do log de sync (sync via botão)
     const { data } = await supabase
       .from('construflow_sync_log')
       .select('finished_at, issues_synced')
@@ -3106,18 +3108,31 @@ app.get('/api/projetos/apontamentos/last-sync', requireAuth, async (req, res) =>
       .single();
 
     if (data) {
-      res.json({
+      return res.json({
         success: true,
         lastSyncAt: data.finished_at,
         issuesSynced: data.issues_synced,
       });
-    } else {
-      res.json({ success: true, lastSyncAt: null, issuesSynced: null });
     }
-  } catch (error) {
-    // .single() throws when no rows found
-    res.json({ success: true, lastSyncAt: null, issuesSynced: null });
+  } catch {
+    // .single() throws when no rows found — continue to fallback
   }
+
+  // 2. Fallback: busca MAX(updatedAt) das issues no BigQuery (sync horário)
+  try {
+    const lastModified = await queryIssuesLastModified(construflowId);
+    if (lastModified) {
+      return res.json({
+        success: true,
+        lastSyncAt: lastModified,
+        issuesSynced: null,
+      });
+    }
+  } catch {
+    // ignore fallback errors
+  }
+
+  res.json({ success: true, lastSyncAt: null, issuesSynced: null });
 });
 
 // ============================================
