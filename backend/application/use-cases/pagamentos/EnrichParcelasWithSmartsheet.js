@@ -1,4 +1,19 @@
 import { sendCronogramaChangeNotification } from '../../../discord.js';
+import { getLeaderNameFromEmail } from '../../../auth-config.js';
+
+function formatDateForDiscord(val) {
+  if (!val) return null;
+  if (typeof val === 'object' && val.value) return formatDateStr(val.value);
+  if (val instanceof Date) return val.toLocaleDateString('pt-BR');
+  const str = String(val);
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return formatDateStr(str);
+  return str;
+}
+
+function formatDateStr(isoStr) {
+  const [y, m, d] = isoStr.split('T')[0].split('-');
+  return `${d}/${m}/${y}`;
+}
 
 class EnrichParcelasWithSmartsheet {
   #repository;
@@ -46,6 +61,10 @@ class EnrichParcelasWithSmartsheet {
     const parcelaUpdates = [];
     const discordNotifications = [];
 
+    // Resolver líder a partir do email do gerente
+    const gerenteEmail = parcelas.find(p => p.gerenteEmail)?.gerenteEmail;
+    const lider = gerenteEmail ? getLeaderNameFromEmail(gerenteEmail) : null;
+
     for (const parcela of parcelas) {
       const response = parcela.toResponse();
 
@@ -75,11 +94,13 @@ class EnrichParcelasWithSmartsheet {
 
             discordNotifications.push({
               projectCode,
+              projectName,
+              lider,
               parcelaNumero: parcela.parcelaNumero,
               descricao: parcela.descricao,
               changeType: 'cronograma_data_alterada',
-              oldValue: parcela.lastSmartsheetDataTermino ? String(parcela.lastSmartsheetDataTermino) : null,
-              newValue: currentDataTermino ? String(currentDataTermino) : null,
+              oldValue: formatDateForDiscord(parcela.lastSmartsheetDataTermino),
+              newValue: formatDateForDiscord(currentDataTermino),
             });
 
             if (regra) {
@@ -113,6 +134,8 @@ class EnrichParcelasWithSmartsheet {
 
             discordNotifications.push({
               projectCode,
+              projectName,
+              lider,
               parcelaNumero: parcela.parcelaNumero,
               descricao: parcela.descricao,
               changeType: 'cronograma_tarefa_deletada',

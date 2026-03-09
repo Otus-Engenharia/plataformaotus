@@ -3,6 +3,79 @@
  * Design baseado em Storytelling with Data
  */
 
+/* Toolbar de sync sob demanda */
+.apontamentos-sync-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.apontamentos-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 2px solid #fbbf24;
+  border-radius: 8px;
+  background: white;
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.apontamentos-sync-btn:hover:not(:disabled) {
+  background: #fbbf24;
+  color: #1a1a1a;
+}
+
+.apontamentos-sync-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.apontamentos-sync-btn.syncing {
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
+.apontamentos-sync-icon {
+  display: inline-block;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.apontamentos-sync-icon.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.apontamentos-sync-info {
+  font-size: 0.85rem;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.apontamentos-sync-timestamp {
+  color: #737373;
+}
+
+.apontamentos-sync-error {
+  color: #ef4444;
+  font-weight: 500;
+}
+
 /* Seções de apontamentos */
 .apontamentos-section {
   margin-bottom: 3rem;

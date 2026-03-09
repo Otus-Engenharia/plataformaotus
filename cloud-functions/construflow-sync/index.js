@@ -382,11 +382,143 @@ async function syncRelationships(restConfig) {
 }
 
 /**
+ * Deleta rows de um projeto específico no BigQuery (para sync single-project)
+ */
+async function deleteProjectRows(tableName, projectId) {
+  const bq = getBigQueryClient();
+  await bq.query({
+    query: `DELETE FROM \`${CONFIG.bigquery.projectId}.${CONFIG.bigquery.dataset}.${tableName}\` WHERE CAST(projectId AS STRING) = @projectId`,
+    params: { projectId: String(projectId) },
+    location: CONFIG.bigquery.location,
+  });
+  console.log(`   🗑️ Rows do projeto ${projectId} deletadas de ${tableName}`);
+}
+
+/**
+ * Insere rows no BigQuery sem truncar (para sync single-project)
+ */
+async function appendToBigQuery(tableName, rows) {
+  if (!rows || rows.length === 0) {
+    console.log(`⚠️ ${tableName}: nenhum dado para inserir`);
+    return 0;
+  }
+
+  const bq = getBigQueryClient();
+  const dataset = bq.dataset(CONFIG.bigquery.dataset);
+  const table = dataset.table(tableName);
+
+  console.log(`📥 Inserindo ${rows.length} linhas em ${tableName} (append)...`);
+
+  const batchSize = 1000;
+  let totalInserted = 0;
+
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    try {
+      await table.insert(batch, {
+        skipInvalidRows: true,
+        ignoreUnknownValues: true,
+      });
+      totalInserted += batch.length;
+    } catch (error) {
+      if (error.name === 'PartialFailureError') {
+        const failedCount = error.errors?.length || 0;
+        totalInserted += batch.length - failedCount;
+        console.warn(`   ⚠️ ${failedCount} linhas falharam no batch`);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  console.log(`   ✅ ${totalInserted} linhas inseridas em ${tableName}`);
+  return totalInserted;
+}
+
+/**
+ * Sincroniza issues de um único projeto (DELETE + INSERT)
+ */
+async function syncSingleProject(projectId, graphqlConfig, restConfig) {
+  console.log(`\n📊 Sync single-project: ${projectId}`);
+
+  // 1. DELETE rows existentes
+  await deleteProjectRows('issues', projectId);
+  await deleteProjectRows('issues_disciplines', projectId);
+
+  // 2. Fetch issues via GraphQL
+  const issues = await fetchProjectIssues(projectId, graphqlConfig);
+  if (issues.length === 0) {
+    console.log(`⚠️ Nenhuma issue encontrada para projeto ${projectId}`);
+    return { issues: 0, issuesDisciplines: 0 };
+  }
+
+  const allIssues = [];
+  const allIssuesDisciplines = [];
+
+  for (const issue of issues) {
+    allIssues.push({
+      id: issue.id,
+      guid: issue.guid,
+      code: issue.code,
+      title: issue.title,
+      description: issue.description,
+      status: issue.status,
+      priority: issue.priority,
+      projectId: projectId,
+      createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
+      deadline: issue.deadline,
+      createdByUserId: issue.createdByUserId,
+      statusUpdatedByUserId: issue.statusUpdatedByUserId,
+      statusUpdatedAt: issue.statusUpdatedAt,
+      creationPhase: issue.creationPhase,
+      resolutionPhase: issue.resolutionPhase,
+      category: issue.category,
+      visibility: issue.visibility,
+      editedAt: issue.editedAt,
+    });
+
+    if (issue.disciplines) {
+      for (const disc of issue.disciplines) {
+        allIssuesDisciplines.push({
+          issueId: issue.id,
+          disciplineId: disc.discipline?.id,
+          disciplineName: disc.discipline?.name,
+          status: disc.status,
+          projectId: projectId,
+        });
+      }
+    }
+  }
+
+  // 3. Enriquecer com categorias do REST
+  const categoryMap = await fetchIssueCategoryMap(restConfig);
+  let enrichedCount = 0;
+  for (const issue of allIssues) {
+    const restCategory = categoryMap[String(issue.id)];
+    if (restCategory != null) {
+      issue.category = String(restCategory);
+      enrichedCount++;
+    }
+  }
+  console.log(`🏷️ ${enrichedCount} issues enriquecidas com categoria do REST`);
+
+  // 4. INSERT (append, sem truncate)
+  const issuesInserted = await appendToBigQuery('issues', allIssues);
+  const disciplinesInserted = await appendToBigQuery('issues_disciplines', allIssuesDisciplines);
+
+  return { issues: issuesInserted, issuesDisciplines: disciplinesInserted };
+}
+
+/**
  * Função principal - Entry point para Cloud Functions
  */
 export async function syncConstruflowToBigQuery(req, res) {
   const startTime = Date.now();
   const runId = Math.random().toString(36).substring(7);
+
+  // Modo single-project: aceita project_id via query param ou body
+  const singleProjectId = req?.query?.project_id || req?.body?.project_id;
 
   // Permitir override via query param ou body
   const syncCommentsOverride = req?.query?.sync_comments || req?.body?.sync_comments;
@@ -395,17 +527,9 @@ export async function syncConstruflowToBigQuery(req, res) {
 
   console.log('🚀 Iniciando sincronização Construflow → BigQuery');
   console.log(`   Run ID: ${runId}`);
+  console.log(`   Modo: ${singleProjectId ? `Single-project (${singleProjectId})` : 'Completo'}`);
   console.log(`   Sync Comments: ${shouldSyncComments ? 'SIM' : 'NÃO'}`);
   console.log(`   Timestamp: ${new Date().toISOString()}`);
-
-  const stats = {
-    issues: 0,
-    issuesDisciplines: 0,
-    comments: 0,
-    history: 0,
-    lookups: {},
-    relationships: {},
-  };
 
   try {
     // Validar configuração
@@ -426,6 +550,37 @@ export async function syncConstruflowToBigQuery(req, res) {
     const restConfig = {
       apiKey: CONFIG.construflow.restApiKey,
       apiSecret: CONFIG.construflow.restApiSecret,
+    };
+
+    // === MODO SINGLE-PROJECT ===
+    if (singleProjectId) {
+      const singleStats = await syncSingleProject(singleProjectId, graphqlConfig, restConfig);
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      const result = {
+        success: true,
+        runId,
+        projectId: singleProjectId,
+        timestamp: new Date().toISOString(),
+        duration: `${duration}s`,
+        issuesCount: singleStats.issues,
+        stats: singleStats,
+      };
+
+      console.log(`\n✅ Sync single-project concluído! Projeto ${singleProjectId}: ${singleStats.issues} issues em ${duration}s`);
+
+      if (res) res.status(200).json(result);
+      return result;
+    }
+
+    // === MODO COMPLETO (fluxo original) ===
+    const stats = {
+      issues: 0,
+      issuesDisciplines: 0,
+      comments: 0,
+      history: 0,
+      lookups: {},
+      relationships: {},
     };
 
     // FASE 1: Issues via GraphQL (enriquecidas com categorias do REST)
@@ -477,14 +632,16 @@ export async function syncConstruflowToBigQuery(req, res) {
     console.error('\n❌ Erro na sincronização:', error.message);
     console.error(error.stack);
 
-    // Notificar erro
-    await sendDiscordNotification(
-      `**Erro na sincronização**\n\n` +
-      `\`\`\`\n${error.message}\n\`\`\`\n\n` +
-      `Duração: ${duration}s\n` +
-      `Run ID: ${runId}`,
-      true
-    );
+    // Notificar erro (apenas no sync completo, não single-project)
+    if (!singleProjectId) {
+      await sendDiscordNotification(
+        `**Erro na sincronização**\n\n` +
+        `\`\`\`\n${error.message}\n\`\`\`\n\n` +
+        `Duração: ${duration}s\n` +
+        `Run ID: ${runId}`,
+        true
+      );
+    }
 
     const errorResult = {
       success: false,
