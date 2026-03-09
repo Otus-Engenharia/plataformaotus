@@ -1,0 +1,289 @@
+.parcelas-panel {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: Verdana, sans-serif;
+}
+
+.parcelas-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.parcelas-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.parcelas-panel-title h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.parcelas-count {
+  font-size: 12px;
+  color: #9ca3af;
+  background: #f6f6f6;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.parcelas-total {
+  font-size: 13px;
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.parcelas-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.parcelas-btn-icon {
+  background: none;
+  border: none;
+  color: #737373;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.parcelas-btn-icon:hover {
+  background: #f9fafb;
+  color: #1a1a1a;
+}
+
+.parcelas-loading,
+.parcelas-empty,
+.parcelas-error {
+  padding: 32px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.parcelas-error {
+  color: #ef4444;
+}
+
+.parcelas-empty p {
+  margin: 0 0 12px;
+}
+
+.parcelas-table-container {
+  overflow-x: auto;
+}
+
+.parcelas-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.parcelas-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #e6e6e6;
+  background: #f7f8fa;
+  white-space: nowrap;
+}
+
+.parcelas-table td {
+  padding: 10px 14px;
+  color: #1a1a1a;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+.parcelas-table tr:last-child td {
+  border-bottom: none;
+}
+
+.parcelas-table tr:hover td {
+  background: #f9fafb;
+}
+
+.parcelas-task-cell {
+  max-width: 200px;
+}
+
+.parcelas-no-task {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.parcelas-task-vincular-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.parcelas-actions-cell {
+  display: flex;
+  gap: 4px;
+}
+
+.parcelas-action-btn {
+  background: none;
+  border: none;
+  color: #737373;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.parcelas-action-btn:hover {
+  color: #1a1a1a;
+  background: #f9fafb;
+}
+
+.parcelas-action-danger:hover {
+  color: #ef4444;
+}
+
+.parcelas-action-vincular {
+  color: #3b82f6;
+}
+
+/* ===== TOOLTIP CUSTOMIZADO ===== */
+.tooltip-wrapper {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip-wrapper::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 100;
+  max-width: 300px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.tooltip-wrapper:hover::after {
+  opacity: 1;
+}
+
+/* ===== CORES CONDICIONAIS - LINHAS ===== */
+.parcela-row-pago td {
+  background: rgba(76, 175, 80, 0.06) !important;
+}
+
+.parcela-row-nao-vinculada {
+  border-left: 3px solid #ff9800 !important;
+}
+
+/* Celula descricao sem valor */
+.parcela-sem-descricao {
+  background: rgba(255, 193, 7, 0.12);
+  font-style: italic;
+  color: #92400e;
+}
+
+/* Data atrasada */
+.parcela-data-atrasada {
+  color: #ef4444 !important;
+  font-weight: 600;
+}
+
+/* Alerta cronograma */
+.parcela-row-alerta {
+  background: rgba(251, 191, 36, 0.08) !important;
+}
+
+.parcela-alerta-icon {
+  margin-right: 4px;
+  font-size: 14px;
+}
+
+.parcela-alerta-warning {
+  color: #f59e0b;
+}
+
+.parcela-alerta-danger {
+  color: #ef4444;
+}
+
+.parcelas-action-limpar-alerta {
+  color: #16a34a !important;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Aditivo SPOT button */
+.parcela-btn-aditivo {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.parcela-btn-aditivo:hover {
+  background: #bfdbfe;
+}
+
+/* ===== TIPO SERVICO BADGE ===== */
+.parcela-tipo-servico-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+/* Email cobrança NF button */
+.parcelas-action-email {
+  color: #6366f1;
+  text-decoration: none;
+}
+.parcelas-action-email:hover {
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.parcela-tipo-servico-coordenacao {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.parcela-tipo-servico-modelagem {
+  background: #fce7f3;
+  color: #9d174d;
+}

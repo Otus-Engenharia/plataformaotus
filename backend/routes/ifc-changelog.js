@@ -13,7 +13,7 @@ import {
   ListChangeLogs,
   ListRecentChanges,
   GetChangeLogSummary,
-} from '../application/use-cases/ifc-changelog/index.js';
+} from '../application/use-cases/acd/ifc-changelog/index.js';
 import { validateFilesInBatch } from '../shared/nomenclatura-validator.js';
 
 const router = express.Router();

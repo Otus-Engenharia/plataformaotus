@@ -244,7 +244,7 @@ async function fetchProjectIssues(projectId, config) {
         retryCount++;
         console.warn(`⚠️ Erro na página ${pageCount}, tentativa ${retryCount}/3: ${JSON.stringify(result.errors)}`);
         await sleep(1000 * retryCount);
-        pageCount--;
+        pageCount--; // compensar o incremento no próximo loop
         continue;
       }
       console.error(`❌ Erro persistente após 3 tentativas na página ${pageCount}: ${JSON.stringify(result.errors)}`);

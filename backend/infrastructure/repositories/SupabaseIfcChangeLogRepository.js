@@ -4,9 +4,9 @@
  * Implementa a interface IfcChangeLogRepository usando Supabase.
  */
 
-import { IfcChangeLogRepository } from '../../domain/ifc-changelog/IfcChangeLogRepository.js';
-import { IfcFileSnapshot } from '../../domain/ifc-changelog/entities/IfcFileSnapshot.js';
-import { IfcChangeLog } from '../../domain/ifc-changelog/entities/IfcChangeLog.js';
+import { IfcChangeLogRepository } from '../../domain/acd/ifc-changelog/IfcChangeLogRepository.js';
+import { IfcFileSnapshot } from '../../domain/acd/ifc-changelog/entities/IfcFileSnapshot.js';
+import { IfcChangeLog } from '../../domain/acd/ifc-changelog/entities/IfcChangeLog.js';
 import { getSupabaseServiceClient } from '../../supabase.js';
 
 const SNAPSHOTS_TABLE = 'ifc_file_snapshots';
