@@ -996,6 +996,32 @@ app.get('/api/portfolio/project-codes', requireAuth, withBqCache(1800), async (r
 });
 
 /**
+ * Rota: GET /api/portfolio/summary
+ * Retorna projetos do Supabase com plataforma_acd (sem BigQuery)
+ */
+app.get('/api/portfolio/summary', requireAuth, async (req, res) => {
+  try {
+    const projects = await fetchProjectsFromSupabase();
+    const featuresMap = await fetchProjectFeaturesForPortfolio();
+
+    const summary = projects
+      .filter(p => p.companies?.company_type === 'client')
+      .map(p => ({
+        project_code: p.project_code,
+        name: p.name,
+        comercial_name: p.comercial_name,
+        status: p.status,
+        plataforma_acd: featuresMap[p.project_code]?.plataforma_acd || null,
+      }));
+
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    console.error('Erro ao buscar portfolio summary:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * Rota: GET /api/portfolio/edit-options
  * Retorna opcoes para dropdowns de edicao (times, empresas, lideres)
  */
@@ -2933,6 +2959,164 @@ app.get('/api/projetos/apontamentos', requireAuth, withBqCache(900), async (req,
         : 'Verifique o BigQuery e a tabela de issues',
       code: error.code || 'UNKNOWN_ERROR'
     });
+  }
+});
+
+// ============================================
+// Sync sob demanda de apontamentos Construflow
+// ============================================
+
+// Rate limit por projeto (1 sync a cada 5 minutos)
+const syncRateLimit = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+
+/**
+ * Rota: POST /api/projetos/apontamentos/sync
+ * Dispara sync sob demanda de um projeto específico via Cloud Function
+ */
+app.post('/api/projetos/apontamentos/sync', requireAuth, async (req, res) => {
+  const { construflowId } = req.body;
+
+  if (!construflowId) {
+    return res.status(400).json({ success: false, error: 'construflowId é obrigatório' });
+  }
+
+  // Rate limit por projeto
+  const rateLimitKey = `sync:${construflowId}`;
+  if (syncRateLimit.get(rateLimitKey)) {
+    const ttl = syncRateLimit.getTtl(rateLimitKey);
+    const remainingSeconds = ttl ? Math.ceil((ttl - Date.now()) / 1000) : 300;
+    return res.status(429).json({
+      success: false,
+      error: `Aguarde ${Math.ceil(remainingSeconds / 60)} minuto(s) antes de sincronizar novamente.`,
+      retryAfterSeconds: remainingSeconds,
+    });
+  }
+
+  // Marcar rate limit
+  syncRateLimit.set(rateLimitKey, true);
+
+  const userEmail = req.user?.email || 'unknown';
+  console.log(`🔄 [Sync] Usuário ${userEmail} solicitou sync do projeto Construflow ${construflowId}`);
+
+  // Registrar no Supabase
+  let logId = null;
+  try {
+    const { data: logEntry } = await supabase
+      .from('construflow_sync_log')
+      .insert({
+        construflow_project_id: String(construflowId),
+        triggered_by: userEmail,
+        status: 'running',
+      })
+      .select('id')
+      .single();
+    logId = logEntry?.id;
+  } catch (logErr) {
+    console.warn('⚠️ Erro ao registrar log de sync:', logErr.message);
+  }
+
+  try {
+    // Chamar Cloud Function com project_id
+    const cloudFnUrl = process.env.CONSTRUFLOW_SYNC_URL || 'https://construflow-sync-3yeazjxrtq-rj.a.run.app';
+    const response = await fetch(`${cloudFnUrl}?project_id=${encodeURIComponent(construflowId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(120000), // 2 min timeout
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Erro na Cloud Function');
+    }
+
+    // Atualizar log no Supabase
+    if (logId) {
+      await supabase
+        .from('construflow_sync_log')
+        .update({
+          finished_at: new Date().toISOString(),
+          status: 'success',
+          issues_synced: result.issuesCount || result.stats?.issues || 0,
+        })
+        .eq('id', logId);
+    }
+
+    // Invalidar cache BigQuery para apontamentos deste projeto
+    const allKeys = bqCache.keys();
+    const keysToInvalidate = allKeys.filter(k =>
+      k.includes('/api/projetos/apontamentos') && k.includes(String(construflowId))
+    );
+    if (keysToInvalidate.length > 0) {
+      bqCache.del(keysToInvalidate);
+      console.log(`🗑️ Cache invalidado: ${keysToInvalidate.length} chave(s)`);
+    }
+
+    console.log(`✅ [Sync] Projeto ${construflowId} sincronizado: ${result.issuesCount || 0} issues`);
+
+    res.json({
+      success: true,
+      issuesCount: result.issuesCount || result.stats?.issues || 0,
+      duration: result.duration,
+    });
+  } catch (error) {
+    console.error(`❌ [Sync] Erro ao sincronizar projeto ${construflowId}:`, error.message);
+
+    // Atualizar log no Supabase com erro
+    if (logId) {
+      await supabase
+        .from('construflow_sync_log')
+        .update({
+          finished_at: new Date().toISOString(),
+          status: 'error',
+          error_message: error.message,
+        })
+        .eq('id', logId);
+    }
+
+    // Remover rate limit em caso de erro para permitir retry
+    syncRateLimit.del(rateLimitKey);
+
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao sincronizar dados',
+    });
+  }
+});
+
+/**
+ * Rota: GET /api/projetos/apontamentos/last-sync
+ * Retorna timestamp da última sincronização bem-sucedida de um projeto
+ */
+app.get('/api/projetos/apontamentos/last-sync', requireAuth, async (req, res) => {
+  const { construflowId } = req.query;
+
+  if (!construflowId) {
+    return res.status(400).json({ success: false, error: 'construflowId é obrigatório' });
+  }
+
+  try {
+    const { data } = await supabase
+      .from('construflow_sync_log')
+      .select('finished_at, issues_synced')
+      .eq('construflow_project_id', String(construflowId))
+      .eq('status', 'success')
+      .order('finished_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (data) {
+      res.json({
+        success: true,
+        lastSyncAt: data.finished_at,
+        issuesSynced: data.issues_synced,
+      });
+    } else {
+      res.json({ success: true, lastSyncAt: null, issuesSynced: null });
+    }
+  } catch (error) {
+    // .single() throws when no rows found
+    res.json({ success: true, lastSyncAt: null, issuesSynced: null });
   }
 });
 
