@@ -17,7 +17,21 @@ const CLASSIFICATION_CONFIG = {
   mudanca_fase: { label: 'Mudanca de Fase', color: '#a855f7', bg: '#a855f715' },
 };
 
+function getBusinessDayDaysAgo(n) {
+  const now = new Date();
+  let count = 0;
+  let d = new Date(now);
+  while (count < n) {
+    d.setDate(d.getDate() - 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  const diffMs = now.getTime() - d.getTime();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
 const DAYS_OPTIONS = [
+  { value: 'biz1', label: '1 dia util' },
   { value: 7, label: '7 dias' },
   { value: 14, label: '14 dias' },
   { value: 30, label: '30 dias' },
@@ -105,7 +119,8 @@ export default function EntregasAutodocPanel() {
   const [error, setError] = useState(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [days, setDays] = useState(7);
+  const [daysOption, setDaysOption] = useState(7);
+  const days = daysOption === 'biz1' ? getBusinessDayDaysAgo(1) : daysOption;
   const [classificationFilter, setClassificationFilter] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
@@ -228,8 +243,8 @@ export default function EntregasAutodocPanel() {
         <div className="adoc-filter-group">
           <label>Periodo:</label>
           <select
-            value={days}
-            onChange={(e) => { setDays(Number(e.target.value)); setPage(1); }}
+            value={daysOption}
+            onChange={(e) => { const v = e.target.value; setDaysOption(v === 'biz1' ? v : Number(v)); setPage(1); }}
             className="adoc-select"
           >
             {DAYS_OPTIONS.map(opt => (

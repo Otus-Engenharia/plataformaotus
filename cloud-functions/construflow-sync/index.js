@@ -112,48 +112,38 @@ async function insertToBigQuery(tableName, rows, schema = null) {
   const dataset = bq.dataset(CONFIG.bigquery.dataset);
   const table = dataset.table(tableName);
 
-  console.log(`📥 Inserindo ${rows.length} linhas em ${tableName}...`);
+  console.log(`📥 Inserindo ${rows.length} linhas em ${tableName} (load job WRITE_TRUNCATE)...`);
 
-  // Truncar tabela existente
-  try {
-    const [exists] = await table.exists();
-    if (exists) {
-      await bq.query({
-        query: `TRUNCATE TABLE \`${CONFIG.bigquery.projectId}.${CONFIG.bigquery.dataset}.${tableName}\``,
-        location: CONFIG.bigquery.location,
-      });
-      console.log(`   Tabela ${tableName} truncada`);
-    }
-  } catch (err) {
-    console.warn(`⚠️ Erro ao truncar ${tableName}: ${err.message}`);
+  // Load job com WRITE_TRUNCATE substitui streaming insert
+  // Evita erro "UPDATE or DELETE over rows in streaming buffer"
+  const ndjson = rows.map(r => JSON.stringify(r)).join('\n');
+  const buffer = Buffer.from(ndjson, 'utf-8');
+
+  const metadata = {
+    sourceFormat: 'NEWLINE_DELIMITED_JSON',
+    writeDisposition: 'WRITE_TRUNCATE',
+    ignoreUnknownValues: true,
+  };
+
+  const { Readable } = require('stream');
+  const readableStream = new Readable();
+  readableStream.push(buffer);
+  readableStream.push(null);
+
+  const jobMetadata = await new Promise((resolve, reject) => {
+    readableStream
+      .pipe(table.createWriteStream(metadata))
+      .on('complete', (meta) => resolve(meta))
+      .on('error', (err) => reject(err));
+  });
+
+  if (jobMetadata.status?.errors?.length > 0) {
+    console.warn(`   ⚠️ Load job com erros:`, jobMetadata.status.errors);
   }
 
-  // Inserir em batches
-  const batchSize = 1000;
-  let totalInserted = 0;
-
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const batch = rows.slice(i, i + batchSize);
-
-    try {
-      await table.insert(batch, {
-        skipInvalidRows: true,
-        ignoreUnknownValues: true,
-      });
-      totalInserted += batch.length;
-    } catch (error) {
-      if (error.name === 'PartialFailureError') {
-        const failedCount = error.errors?.length || 0;
-        totalInserted += batch.length - failedCount;
-        console.warn(`   ⚠️ ${failedCount} linhas falharam no batch`);
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  console.log(`   ✅ ${totalInserted} linhas inseridas em ${tableName}`);
-  return totalInserted;
+  const outputRows = parseInt(jobMetadata.statistics?.load?.outputRows || rows.length, 10);
+  console.log(`   ✅ ${outputRows} linhas inseridas em ${tableName} (load job)`);
+  return outputRows;
 }
 
 /**
@@ -386,16 +376,34 @@ async function syncRelationships(restConfig) {
  */
 async function deleteProjectRows(tableName, projectId) {
   const bq = getBigQueryClient();
-  await bq.query({
-    query: `DELETE FROM \`${CONFIG.bigquery.projectId}.${CONFIG.bigquery.dataset}.${tableName}\` WHERE CAST(projectId AS STRING) = @projectId`,
-    params: { projectId: String(projectId) },
-    location: CONFIG.bigquery.location,
-  });
-  console.log(`   🗑️ Rows do projeto ${projectId} deletadas de ${tableName}`);
+  const maxRetries = 3;
+  const retryDelayMs = 60_000; // 1 min entre tentativas
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await bq.query({
+        query: `DELETE FROM \`${CONFIG.bigquery.projectId}.${CONFIG.bigquery.dataset}.${tableName}\` WHERE CAST(projectId AS STRING) = @projectId`,
+        params: { projectId: String(projectId) },
+        location: CONFIG.bigquery.location,
+      });
+      console.log(`   🗑️ Rows do projeto ${projectId} deletadas de ${tableName}`);
+      return;
+    } catch (err) {
+      const isStreamingBufferError = err.message?.includes('streaming buffer');
+      if (isStreamingBufferError && attempt < maxRetries) {
+        console.warn(`   ⚠️ Streaming buffer ativo em ${tableName}, tentativa ${attempt}/${maxRetries}. Aguardando ${retryDelayMs / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 /**
- * Insere rows no BigQuery sem truncar (para sync single-project)
+ * Insere rows no BigQuery via load job (para sync single-project).
+ * Usa load job em vez de streaming insert para evitar conflito com DML:
+ * "UPDATE or DELETE over rows in the streaming buffer is not supported"
  */
 async function appendToBigQuery(tableName, rows) {
   if (!rows || rows.length === 0) {
@@ -407,32 +415,37 @@ async function appendToBigQuery(tableName, rows) {
   const dataset = bq.dataset(CONFIG.bigquery.dataset);
   const table = dataset.table(tableName);
 
-  console.log(`📥 Inserindo ${rows.length} linhas em ${tableName} (append)...`);
+  console.log(`📥 Inserindo ${rows.length} linhas em ${tableName} (load job)...`);
 
-  const batchSize = 1000;
-  let totalInserted = 0;
+  // Converte rows para NDJSON (newline-delimited JSON)
+  const ndjson = rows.map(r => JSON.stringify(r)).join('\n');
+  const buffer = Buffer.from(ndjson, 'utf-8');
 
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const batch = rows.slice(i, i + batchSize);
-    try {
-      await table.insert(batch, {
-        skipInvalidRows: true,
-        ignoreUnknownValues: true,
-      });
-      totalInserted += batch.length;
-    } catch (error) {
-      if (error.name === 'PartialFailureError') {
-        const failedCount = error.errors?.length || 0;
-        totalInserted += batch.length - failedCount;
-        console.warn(`   ⚠️ ${failedCount} linhas falharam no batch`);
-      } else {
-        throw error;
-      }
-    }
+  const metadata = {
+    sourceFormat: 'NEWLINE_DELIMITED_JSON',
+    writeDisposition: 'WRITE_APPEND',
+    ignoreUnknownValues: true,
+  };
+
+  const { Readable } = require('stream');
+  const readableStream = new Readable();
+  readableStream.push(buffer);
+  readableStream.push(null);
+
+  const jobMetadata = await new Promise((resolve, reject) => {
+    readableStream
+      .pipe(table.createWriteStream(metadata))
+      .on('complete', (metadata) => resolve(metadata))
+      .on('error', (err) => reject(err));
+  });
+
+  if (jobMetadata.status?.errors?.length > 0) {
+    console.warn(`   ⚠️ Load job com erros:`, jobMetadata.status.errors);
   }
 
-  console.log(`   ✅ ${totalInserted} linhas inseridas em ${tableName}`);
-  return totalInserted;
+  const outputRows = parseInt(jobMetadata.statistics?.load?.outputRows || rows.length, 10);
+  console.log(`   ✅ ${outputRows} linhas inseridas em ${tableName} (load job)`);
+  return outputRows;
 }
 
 /**
