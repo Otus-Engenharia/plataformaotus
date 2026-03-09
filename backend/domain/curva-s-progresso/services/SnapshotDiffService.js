@@ -28,6 +28,18 @@ function isNaoFeitaStatus(status) {
 }
 
 /**
+ * Extrai Duracao como number, tratando NULLs e wrappers BigQuery.
+ * BigQuery INT64 pode vir como { value: "5" } no Node.js client.
+ * SAFE_CAST("5.5" AS INT64) retorna NULL — não converter para 0.
+ */
+function parseDuration(raw) {
+  if (raw == null) return null;
+  if (typeof raw === 'object' && raw.value != null) return Number(raw.value);
+  const n = Number(raw);
+  return isNaN(n) ? null : n;
+}
+
+/**
  * Gera chave de matching para uma tarefa.
  * Usa NomeDaTarefa + Disciplina para disambiguar duplicatas.
  */
@@ -73,11 +85,46 @@ class SnapshotDiffService {
     for (const t of prevTasks) prevMap.set(taskMatchKey(t), t);
     for (const t of currTasks) currMap.set(taskMatchKey(t), t);
 
+    // Fase 2: fallback nome-only para tarefas não-matcheadas por nome||disc
+    // Se uma tarefa mudou de disciplina, o match por nome||disc falha.
+    // Tentar casar pelo nome sozinho (1-to-1, sem duplicatas).
+    const unmatchedPrev = new Map(); // nameKey → taskMatchKey
+    const unmatchedCurr = new Map();
+    for (const [key] of prevMap) {
+      if (!currMap.has(key)) {
+        const nameKey = key.split('||')[0]; // só o nome, sem disciplina
+        if (!unmatchedPrev.has(nameKey)) unmatchedPrev.set(nameKey, key);
+        else unmatchedPrev.set(nameKey, null); // duplicata → não usar fallback
+      }
+    }
+    for (const [key] of currMap) {
+      if (!prevMap.has(key)) {
+        const nameKey = key.split('||')[0];
+        if (!unmatchedCurr.has(nameKey)) unmatchedCurr.set(nameKey, key);
+        else unmatchedCurr.set(nameKey, null);
+      }
+    }
+    // Casar pares únicos pelo nome
+    const nameOnlyMatches = new Set(); // keys que foram casados por fallback
+    for (const [nameKey, prevFullKey] of unmatchedPrev) {
+      if (!prevFullKey) continue; // duplicata no prev
+      const currFullKey = unmatchedCurr.get(nameKey);
+      if (!currFullKey) continue; // não existe ou duplicata no curr
+      // Match encontrado: tratar como par matched (não como criada/deletada)
+      nameOnlyMatches.add(prevFullKey);
+      nameOnlyMatches.add(currFullKey);
+      // Inserir no prevMap/currMap com chave sintética para o loop de comparação
+      const syntheticKey = `__nameonly__${nameKey}`;
+      prevMap.set(syntheticKey, prevMap.get(prevFullKey));
+      currMap.set(syntheticKey, currMap.get(currFullKey));
+    }
+
     const changes = [];
 
     // TAREFA_CRIADA: existe no atual mas não no anterior
     for (const [key, task] of currMap) {
-      if (!prevMap.has(key)) {
+      if (key.startsWith('__nameonly__')) continue; // processado no loop de comparação
+      if (!prevMap.has(key) && !nameOnlyMatches.has(key)) {
         changes.push({
           type: 'TAREFA_CRIADA',
           task_name: task.NomeDaTarefa || task.nome_tarefa,
@@ -92,7 +139,8 @@ class SnapshotDiffService {
 
     // TAREFA_DELETADA: existe no anterior mas não no atual
     for (const [key, task] of prevMap) {
-      if (!currMap.has(key)) {
+      if (key.startsWith('__nameonly__')) continue;
+      if (!currMap.has(key) && !nameOnlyMatches.has(key)) {
         changes.push({
           type: 'TAREFA_DELETADA',
           task_name: task.NomeDaTarefa || task.nome_tarefa,
@@ -105,7 +153,8 @@ class SnapshotDiffService {
       }
     }
 
-    // Tarefas em ambos: verificar DESVIO_PRAZO e TAREFA_NAO_FEITA
+    // Tarefas em ambos (match por nome||disc OU por nome-only fallback):
+    // verificar DESVIO_PRAZO e TAREFA_NAO_FEITA
     for (const [key, prevTask] of prevMap) {
       const currTask = currMap.get(key);
       if (!currTask) continue;
@@ -118,12 +167,13 @@ class SnapshotDiffService {
       const disciplina = currTask.Disciplina || currTask.disciplina || null;
       const faseNome = currTask.fase_nome || null;
 
-      // Duração do SmartSheet (dias úteis)
-      const prevDuration = Number(prevTask.Duracao ?? prevTask.duracao);
-      const currDuration = Number(currTask.Duracao ?? currTask.duracao);
+      // Duração do SmartSheet (dias úteis) — parseDuration trata NULLs e wrappers BQ
+      const prevDuration = parseDuration(prevTask.Duracao ?? prevTask.duracao);
+      const currDuration = parseDuration(currTask.Duracao ?? currTask.duracao);
 
-      // DESVIO_PRAZO: duração da tarefa mudou (não apenas deslocamento no calendário)
-      if (!isNaN(prevDuration) && !isNaN(currDuration) && prevDuration !== currDuration) {
+      // DESVIO_PRAZO: detectar mudança de prazo
+      // Estratégia 1: ambas durações disponíveis → comparar diretamente
+      if (prevDuration != null && currDuration != null && prevDuration !== currDuration) {
         const deltaDays = currDuration - prevDuration;
         changes.push({
           type: 'DESVIO_PRAZO',
@@ -138,6 +188,29 @@ class SnapshotDiffService {
           prev_status: prevStatus,
           curr_status: currStatus,
           ...extractSmartsheetMeta(currTask),
+        });
+      }
+      // Estratégia 2 (fallback): duração indisponível em um ou ambos lados
+      // → comparar DataDeTermino como proxy de desvio
+      else if ((prevDuration == null || currDuration == null) && prevEnd && currEnd && prevEnd !== currEnd) {
+        // Calcular delta em dias calendário a partir das datas
+        const prevMs = new Date(prevEnd + 'T12:00:00').getTime();
+        const currMs = new Date(currEnd + 'T12:00:00').getTime();
+        const deltaDays = Math.round((currMs - prevMs) / (1000 * 60 * 60 * 24));
+        changes.push({
+          type: 'DESVIO_PRAZO',
+          task_name: taskName,
+          disciplina,
+          fase_nome: faseNome,
+          prev_data_termino: prevEnd,
+          curr_data_termino: currEnd,
+          prev_duration: prevDuration,
+          curr_duration: currDuration,
+          delta_days: deltaDays,
+          prev_status: prevStatus,
+          curr_status: currStatus,
+          ...extractSmartsheetMeta(currTask),
+          _fallback: true,
         });
       }
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 import ParcelasProjetoPanel from './ParcelasProjetoPanel';
+import CronogramaFisicoFinanceiroPanel from './CronogramaFisicoFinanceiroPanel';
 import './PagamentosLiderView.css';
 import './PagamentosFinanceiroView.css';
 
@@ -48,13 +50,18 @@ function getVincClass(vinculadas, total) {
 }
 
 export default function PagamentosLiderView() {
+  const { user, hasFullAccess, isAdmin, isDirector } = useAuth();
+  const showLiderFilter = hasFullAccess || isAdmin || isDirector;
+
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedProject, setExpandedProject] = useState(null);
   const [filterBusca, setFilterBusca] = useState('');
   const [filterStatus, setFilterStatus] = useState({ Ativos: true, 'A Iniciar': false, Pausados: false, Finalizados: false });
   const [filterVinculacao, setFilterVinculacao] = useState({ sem: false, todas: false });
-  const [ocultarPagos, setOcultarPagos] = useState(false);
+  const [ocultarFaturados, setOcultarFaturados] = useState(false);
+  const [filterLider, setFilterLider] = useState('');
+  const [activeTab, setActiveTab] = useState('projetos');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -69,6 +76,12 @@ export default function PagamentosLiderView() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Extract unique leaders for dropdown
+  const leaders = useMemo(() => {
+    const set = new Set(projects.map(p => p.gerente_name || p.gerente_email).filter(Boolean));
+    return [...set].sort();
+  }, [projects]);
 
   // Compute vinculadas per project
   const projectsEnriched = useMemo(() => {
@@ -92,17 +105,16 @@ export default function PagamentosLiderView() {
 
   // Count vinculacao
   const vincCounts = useMemo(() => {
-    const counts = { sem: 0, todas: 0, pagos: 0 };
+    const counts = { sem: 0, todas: 0, faturados: 0 };
     projectsEnriched.forEach(p => {
       if (p.total_parcelas > 0 && p.parcelas_sem_vinculacao > 0) counts.sem++;
       if (p.total_parcelas > 0 && p.parcelas_sem_vinculacao === 0) counts.todas++;
-      if (p.total_parcelas > 0 && p.parcelas_recebidas === p.total_parcelas) counts.pagos++;
+      if (p.total_parcelas > 0 && (p.parcelas_faturadas || p.parcelas_recebidas || 0) === p.total_parcelas) counts.faturados++;
     });
     return counts;
   }, [projectsEnriched]);
 
   const filteredProjects = useMemo(() => {
-    // If no status filter is active, show all
     const anyStatusActive = Object.values(filterStatus).some(Boolean);
     const anyVincActive = filterVinculacao.sem || filterVinculacao.todas;
 
@@ -113,9 +125,6 @@ export default function PagamentosLiderView() {
         if (!filterStatus[group]) return false;
       }
 
-      // Ocultar pagos
-      if (ocultarPagos && p.total_parcelas > 0 && p.parcelas_recebidas === p.total_parcelas) return false;
-
       // Vinculacao filter
       if (anyVincActive) {
         const hasSem = p.total_parcelas > 0 && p.parcelas_sem_vinculacao > 0;
@@ -123,6 +132,12 @@ export default function PagamentosLiderView() {
         if (filterVinculacao.sem && !filterVinculacao.todas && !hasSem) return false;
         if (filterVinculacao.todas && !filterVinculacao.sem && !hasTodas) return false;
         if (filterVinculacao.sem && filterVinculacao.todas && !(hasSem || hasTodas)) return false;
+      }
+
+      // Leader filter (Phase 3)
+      if (filterLider) {
+        const liderName = p.gerente_name || p.gerente_email || '';
+        if (liderName !== filterLider) return false;
       }
 
       // Text search
@@ -135,7 +150,7 @@ export default function PagamentosLiderView() {
       }
       return true;
     });
-  }, [projectsEnriched, filterStatus, filterVinculacao, filterBusca, ocultarPagos]);
+  }, [projectsEnriched, filterStatus, filterVinculacao, filterBusca, filterLider]);
 
   const toggleExpand = (code) => {
     setExpandedProject(prev => prev === code ? null : code);
@@ -159,140 +174,180 @@ export default function PagamentosLiderView() {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="pagamentos-lider-filters">
-        {/* Row 1: STATUS + busca */}
-        <div className="pagamentos-lider-filters-row">
-          <span className="pagamentos-lider-filters-label">STATUS</span>
-          <div className="pagamentos-lider-filter-group__toggles">
-            {['Finalizados', 'Pausados', 'A Iniciar', 'Ativos'].map(s => (
-              <label key={s} className="pagamentos-lider-toggle">
-                <input type="checkbox" checked={filterStatus[s] || false}
-                  onChange={e => setFilterStatus(prev => ({ ...prev, [s]: e.target.checked }))} />
-                <span className="pagamentos-lider-toggle-slider"></span>
-                <span className="pagamentos-lider-toggle-label">{s} <span className="pagamentos-lider-toggle-count">{statusCounts[s] || 0}</span></span>
-              </label>
-            ))}
-          </div>
-          <div className="pagamentos-lider-filter-search">
-            <input
-              type="text"
-              className="pagamentos-lider-filter-input"
-              placeholder="Buscar projeto..."
-              value={filterBusca}
-              onChange={e => setFilterBusca(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Row 2: VINCULACAO */}
-        <div className="pagamentos-lider-filters-row" style={{ marginTop: '0.5rem' }}>
-          <span className="pagamentos-lider-filters-label">VINCULACAO</span>
-          <div className="pagamentos-lider-filter-group__toggles">
-            <label className="pagamentos-lider-toggle">
-              <input type="checkbox" checked={filterVinculacao.sem}
-                onChange={e => setFilterVinculacao(prev => ({ ...prev, sem: e.target.checked }))} />
-              <span className="pagamentos-lider-toggle-slider"></span>
-              <span className="pagamentos-lider-toggle-label">Sem Vincular <span className="pagamentos-lider-toggle-count">{vincCounts.sem}</span></span>
-            </label>
-            <label className="pagamentos-lider-toggle">
-              <input type="checkbox" checked={filterVinculacao.todas}
-                onChange={e => setFilterVinculacao(prev => ({ ...prev, todas: e.target.checked }))} />
-              <span className="pagamentos-lider-toggle-slider"></span>
-              <span className="pagamentos-lider-toggle-label">Todas Vinculadas <span className="pagamentos-lider-toggle-count">{vincCounts.todas}</span></span>
-            </label>
-            <label className="pagamentos-lider-toggle">
-              <input type="checkbox" checked={ocultarPagos}
-                onChange={e => setOcultarPagos(e.target.checked)} />
-              <span className="pagamentos-lider-toggle-slider"></span>
-              <span className="pagamentos-lider-toggle-label">Ocultar Pagos <span className="pagamentos-lider-toggle-count">{vincCounts.pagos}</span></span>
-            </label>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="pagamentos-fin-tabs">
+        <button
+          className={`pagamentos-fin-tab ${activeTab === 'projetos' ? 'pagamentos-fin-tab-active' : ''}`}
+          onClick={() => setActiveTab('projetos')}
+        >
+          Projetos
+        </button>
+        <button
+          className={`pagamentos-fin-tab ${activeTab === 'cronograma' ? 'pagamentos-fin-tab-active' : ''}`}
+          onClick={() => setActiveTab('cronograma')}
+        >
+          Cronograma
+        </button>
       </div>
 
-      {/* Projects Table */}
-      <div className="pagamentos-fin-table-section">
-        <div className="pagamentos-fin-table-header">
-          <h3>Projetos</h3>
-          <span className="pagamentos-fin-table-count">
-            {filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-        {filteredProjects.length === 0 ? (
-          <div className="pagamentos-fin-empty">
-            {Object.values(filterStatus).some(Boolean) || filterBusca || filterVinculacao.sem || filterVinculacao.todas || ocultarPagos
-              ? 'Nenhum projeto com os filtros selecionados'
-              : 'Nenhum projeto com parcelas cadastradas'}
-          </div>
-        ) : (
-          <div className="pagamentos-fin-table-container">
-            <table className="pagamentos-fin-table">
-              <thead>
-                <tr>
-                  <th>Projeto</th>
-                  <th>Tipo</th>
-                  <th>Status</th>
-                  <th>Cliente</th>
-                  <th>Parcelas</th>
-                  <th>Vinculacao</th>
-                  <th>Valor Total</th>
-                  <th>Prox. Pagamento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProjects.map(p => (
-                  <React.Fragment key={p.project_code}>
-                    <tr
-                      className={`${expandedProject === p.project_code ? 'row-expanded' : ''} ${p.parcelas_sem_vinculacao > 0 ? 'row-warning' : ''}`}
-                      onClick={() => toggleExpand(p.project_code)}
-                    >
-                      <td>
-                        <strong>{p.project_code}</strong>
-                        {p.project_name && <span className="pagamentos-fin-project-name">{p.project_name}</span>}
-                      </td>
-                      <td>
-                        <span className={`pagamentos-fin-badge ${(p.tipo_pagamento || 'spot') === 'mrr' ? 'pagamentos-fin-badge-mrr' : 'pagamentos-fin-badge-spot'}`}>
-                          {(p.tipo_pagamento || 'spot').toUpperCase()}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`pagamentos-fin-badge ${getStatusBadgeClass(p.status)}`}>
-                          {p.status || '-'}
-                        </span>
-                      </td>
-                      <td>{p.company_name || '-'}</td>
-                      <td>{p.total_parcelas} ({p.parcelas_recebidas} pagos)</td>
-                      <td>
-                        <span className={getVincClass(p.vinculadas, p.total_parcelas)}>
-                          {p.total_parcelas > 0 ? `${p.vinculadas}/${p.total_parcelas}` : '-'}
-                        </span>
-                      </td>
-                      <td className="pagamentos-fin-valor-cell">{formatCurrency(p.valor_total)}</td>
-                      <td>{formatDate(p.proximo_pagamento)}</td>
-                    </tr>
-                    {expandedProject === p.project_code && (
-                      <tr className="pagamentos-fin-expand-row">
-                        <td colSpan="8">
-                          <div className="pagamentos-fin-expand-content">
-                            <ParcelasProjetoPanel
-                              projectCode={p.project_code}
-                              companyId={p.company_name}
-                              projectName={p.project_name}
-                              mode="lider"
-                              tipoPagamento={p.tipo_pagamento}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+      {activeTab === 'projetos' ? (
+        <>
+          {/* Filters */}
+          <div className="pagamentos-lider-filters">
+            {/* Row 1: STATUS + busca */}
+            <div className="pagamentos-lider-filters-row">
+              <span className="pagamentos-lider-filters-label">STATUS</span>
+              <div className="pagamentos-lider-filter-group__toggles">
+                {['Finalizados', 'Pausados', 'A Iniciar', 'Ativos'].map(s => (
+                  <label key={s} className="pagamentos-lider-toggle">
+                    <input type="checkbox" checked={filterStatus[s] || false}
+                      onChange={e => setFilterStatus(prev => ({ ...prev, [s]: e.target.checked }))} />
+                    <span className="pagamentos-lider-toggle-slider"></span>
+                    <span className="pagamentos-lider-toggle-label">{s} <span className="pagamentos-lider-toggle-count">{statusCounts[s] || 0}</span></span>
+                  </label>
                 ))}
-              </tbody>
-            </table>
+              </div>
+              <div className="pagamentos-lider-filter-search">
+                <input
+                  type="text"
+                  className="pagamentos-lider-filter-input"
+                  placeholder="Buscar projeto..."
+                  value={filterBusca}
+                  onChange={e => setFilterBusca(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Row 2: VINCULACAO + Leader filter */}
+            <div className="pagamentos-lider-filters-row" style={{ marginTop: '0.5rem' }}>
+              <span className="pagamentos-lider-filters-label">VINCULACAO</span>
+              <div className="pagamentos-lider-filter-group__toggles">
+                <label className="pagamentos-lider-toggle">
+                  <input type="checkbox" checked={filterVinculacao.sem}
+                    onChange={e => setFilterVinculacao(prev => ({ ...prev, sem: e.target.checked }))} />
+                  <span className="pagamentos-lider-toggle-slider"></span>
+                  <span className="pagamentos-lider-toggle-label">Sem Vincular <span className="pagamentos-lider-toggle-count">{vincCounts.sem}</span></span>
+                </label>
+                <label className="pagamentos-lider-toggle">
+                  <input type="checkbox" checked={filterVinculacao.todas}
+                    onChange={e => setFilterVinculacao(prev => ({ ...prev, todas: e.target.checked }))} />
+                  <span className="pagamentos-lider-toggle-slider"></span>
+                  <span className="pagamentos-lider-toggle-label">Todas Vinculadas <span className="pagamentos-lider-toggle-count">{vincCounts.todas}</span></span>
+                </label>
+                <label className="pagamentos-lider-toggle">
+                  <input type="checkbox" checked={ocultarFaturados}
+                    onChange={e => setOcultarFaturados(e.target.checked)} />
+                  <span className="pagamentos-lider-toggle-slider"></span>
+                  <span className="pagamentos-lider-toggle-label">Ocultar Faturados <span className="pagamentos-lider-toggle-count">{vincCounts.faturados}</span></span>
+                </label>
+              </div>
+              {showLiderFilter && (
+                <select
+                  className="pagamentos-fin-filter-select"
+                  value={filterLider}
+                  onChange={e => setFilterLider(e.target.value)}
+                  style={{ marginLeft: 'auto' }}
+                >
+                  <option value="">Todos os lideres</option>
+                  {leaders.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Projects Table */}
+          <div className="pagamentos-fin-table-section">
+            <div className="pagamentos-fin-table-header">
+              <h3>Projetos</h3>
+              <span className="pagamentos-fin-table-count">
+                {filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {filteredProjects.length === 0 ? (
+              <div className="pagamentos-fin-empty">
+                {Object.values(filterStatus).some(Boolean) || filterBusca || filterVinculacao.sem || filterVinculacao.todas || ocultarFaturados || filterLider
+                  ? 'Nenhum projeto com os filtros selecionados'
+                  : 'Nenhum projeto com parcelas cadastradas'}
+              </div>
+            ) : (
+              <div className="pagamentos-fin-table-container">
+                <table className="pagamentos-fin-table">
+                  <thead>
+                    <tr>
+                      <th>Projeto</th>
+                      <th>Tipo</th>
+                      <th>Status</th>
+                      <th>Cliente</th>
+                      <th>Parcelas</th>
+                      <th>Vinculacao</th>
+                      <th>Valor Total</th>
+                      <th>Prox. Pagamento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProjects.map(p => {
+                      const faturadas = p.parcelas_faturadas ?? p.parcelas_recebidas ?? 0;
+                      return (
+                      <React.Fragment key={p.project_code}>
+                        <tr
+                          className={`${expandedProject === p.project_code ? 'row-expanded' : ''} ${p.parcelas_sem_vinculacao > 0 ? 'row-warning' : ''}`}
+                          onClick={() => toggleExpand(p.project_code)}
+                        >
+                          <td>
+                            <strong>{p.project_code}</strong>
+                            {p.project_name && <span className="pagamentos-fin-project-name">{p.project_name}</span>}
+                          </td>
+                          <td>
+                            <span className={`pagamentos-fin-badge ${(p.tipo_pagamento || 'spot') === 'mrr' ? 'pagamentos-fin-badge-mrr' : 'pagamentos-fin-badge-spot'}`}>
+                              {(p.tipo_pagamento || 'spot').toUpperCase()}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`pagamentos-fin-badge ${getStatusBadgeClass(p.status)}`}>
+                              {p.status || '-'}
+                            </span>
+                          </td>
+                          <td>{p.company_name || '-'}</td>
+                          <td>{p.total_parcelas} ({faturadas} faturados)</td>
+                          <td>
+                            <span className={getVincClass(p.vinculadas, p.total_parcelas)}>
+                              {p.total_parcelas > 0 ? `${p.vinculadas}/${p.total_parcelas}` : '-'}
+                            </span>
+                          </td>
+                          <td className="pagamentos-fin-valor-cell">{formatCurrency(p.valor_total)}</td>
+                          <td>{formatDate(p.proximo_pagamento)}</td>
+                        </tr>
+                        {expandedProject === p.project_code && (
+                          <tr className="pagamentos-fin-expand-row">
+                            <td colSpan="8">
+                              <div className="pagamentos-fin-expand-content">
+                                <ParcelasProjetoPanel
+                                  projectCode={p.project_code}
+                                  companyId={p.company_name}
+                                  projectName={p.project_name}
+                                  mode="lider"
+                                  tipoPagamento={p.tipo_pagamento}
+                                  ocultarFaturados={ocultarFaturados}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <CronogramaFisicoFinanceiroPanel
+          leaders={leaders}
+          showLiderFilter={showLiderFilter}
+        />
+      )}
     </div>
   );
 }

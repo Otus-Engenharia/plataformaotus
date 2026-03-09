@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import ParcelaStatusBadge, { STATUS_PROJETOS_CONFIG, STATUS_FINANCEIRO_CONFIG } from './ParcelaStatusBadge';
 import InlineStatusDropdown from './InlineStatusDropdown';
+import InlineDilatacaoInput from './InlineDilatacaoInput';
 import ParcelaFormDialog from './ParcelaFormDialog';
 import VincularParcelaDialog from './VincularParcelaDialog';
 import ParcelaChangeLog from './ParcelaChangeLog';
@@ -16,23 +17,7 @@ const STATUS_FINANCEIRO_OPTIONS = Object.entries(STATUS_FINANCEIRO_CONFIG).map((
   value, label: cfg.label, color: cfg.color,
 }));
 
-function buildMailtoCobranca({ parcela, projectName }) {
-  const projeto = projectName || parcela.project_code;
-  const descricao = parcela.descricao || `Parcela ${parcela.parcela_numero}`;
-  const dataTermino = parcela.smartsheet_data_termino
-    ? new Date(parcela.smartsheet_data_termino).toLocaleDateString('pt-BR')
-    : '\u2014';
-  const valor = parcela.valor != null
-    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcela.valor)
-    : '\u2014';
-
-  const subject = `${projeto} - Liberação de Pagamento - ${descricao}`;
-  const body = `Prezados,\n\nPor meio deste e-mail, informo que atingimos o marco final vinculado às parcelas de pagamento do projeto ${projeto}, desenvolvido pela Otus Engenharia.\n\nDetalhes da Parcela:\nParcela: ${descricao};\nApresentação: Realizada em ${dataTermino};\nValor da Parcela: ${valor};\n\nConforme estabelecido em contrato, solicito a confirmação para prosseguir com a emissão da nota fiscal e boleto correspondentes.\n\nFico à disposição para quaisquer dúvidas e seguimos juntos rumo à conclusão desse projeto!\n\nVamos juntos!`;
-
-  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
-export default function ParcelasProjetoPanel({ projectCode, companyId, smartsheetId, projectName, mode = 'financeiro', tipoPagamento }) {
+export default function ParcelasProjetoPanel({ projectCode, companyId, smartsheetId, projectName, mode = 'financeiro', tipoPagamento, ocultarFaturados = false }) {
   const { user, hasFullAccess } = useAuth();
   const isFinanceiro = mode === 'financeiro';
   const isLider = mode === 'lider';
@@ -113,6 +98,40 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
     setParcelas(prev => prev.map(p => p.id === updatedParcela.id ? updatedParcela : p));
   };
 
+  const handleDilatacaoChange = (updatedParcela) => {
+    setParcelas(prev => prev.map(p => p.id === updatedParcela.id ? updatedParcela : p));
+  };
+
+  const handleGerarEmail = async (parcela) => {
+    try {
+      await axios.patch(`/api/pagamentos/parcelas/${parcela.id}/status`, {
+        field: 'solicitacao',
+        value: 'solicitado',
+      });
+      // Build mailto as fallback
+      const projeto = projectName || parcela.project_code;
+      const descricao = parcela.descricao || `Parcela ${parcela.parcela_numero}`;
+      const dataTermino = parcela.smartsheet_data_termino
+        ? new Date(parcela.smartsheet_data_termino).toLocaleDateString('pt-BR')
+        : '\u2014';
+      const valor = parcela.valor != null
+        ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parcela.valor)
+        : '\u2014';
+
+      const subject = `${projeto} - Liberacao de Pagamento - ${descricao}`;
+      const body = `Prezados,\n\nPor meio deste e-mail, informo que atingimos o marco final vinculado as parcelas de pagamento do projeto ${projeto}, desenvolvido pela Otus Engenharia.\n\nDetalhes da Parcela:\nParcela: ${descricao};\nApresentacao: Realizada em ${dataTermino};\nValor da Parcela: ${valor};\n\nConforme estabelecido em contrato, solicito a confirmacao para prosseguir com a emissao da nota fiscal e boleto correspondentes.\n\nFico a disposicao para quaisquer duvidas e seguimos juntos rumo a conclusao desse projeto!\n\nVamos juntos!`;
+
+      window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+
+      // Update local state to show solicitado
+      setParcelas(prev => prev.map(p =>
+        p.id === parcela.id ? { ...p, status_solicitacao: 'solicitado' } : p
+      ));
+    } catch (err) {
+      console.error('Erro ao gerar email:', err);
+    }
+  };
+
   const formatCurrency = (v) => {
     if (v == null) return '-';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -123,14 +142,18 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
     return new Date(d).toLocaleDateString('pt-BR');
   };
 
-  const totalValor = parcelas.reduce((sum, p) => sum + (Number(p.valor) || 0), 0);
+  const visibleParcelas = ocultarFaturados
+    ? parcelas.filter(p => p.status_financeiro !== 'faturado')
+    : parcelas;
+
+  const totalValor = visibleParcelas.reduce((sum, p) => sum + (Number(p.valor) || 0), 0);
 
   return (
     <div className="parcelas-panel">
       <div className="parcelas-panel-header">
         <div className="parcelas-panel-title">
           <h3>Parcelas de Pagamento</h3>
-          <span className="parcelas-count">{parcelas.length} parcela{parcelas.length !== 1 ? 's' : ''}</span>
+          <span className="parcelas-count">{visibleParcelas.length} parcela{visibleParcelas.length !== 1 ? 's' : ''}</span>
           {totalValor > 0 && <span className="parcelas-total">Total: {formatCurrency(totalValor)}</span>}
         </div>
         <div className="parcelas-panel-actions">
@@ -162,7 +185,7 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
 
       {loading ? (
         <div className="parcelas-loading">Carregando parcelas...</div>
-      ) : parcelas.length === 0 ? (
+      ) : visibleParcelas.length === 0 ? (
         <div className="parcelas-empty">
           <p>Nenhuma parcela cadastrada para este projeto</p>
           {isFinanceiro && (
@@ -184,29 +207,31 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
                 <th><span className="tooltip-wrapper" data-tooltip="Status do pipeline financeiro">St. Financeiro</span></th>
                 <th><span className="tooltip-wrapper" data-tooltip="Tarefa do cronograma que libera este pagamento">Tarefa Vinculada</span></th>
                 <th><span className="tooltip-wrapper" data-tooltip="Data prevista de conclusao da tarefa vinculada">Data Termino</span></th>
+                <th><span className="tooltip-wrapper" data-tooltip="Dias adicionais ao prazo de pagamento">Dilatacao</span></th>
                 <th><span className="tooltip-wrapper" data-tooltip="Data prevista ou efetiva do pagamento">Data Pagamento</span></th>
+                <th><span className="tooltip-wrapper" data-tooltip="Status da solicitacao de cobranca">Solicitacao</span></th>
                 <th>Acoes</th>
               </tr>
             </thead>
             <tbody>
-              {parcelas.map(p => {
-                const isPago = p.status_financeiro === 'recebido';
-                const isNaoVinculada = !p.smartsheet_row_id && !p.parcela_sem_cronograma && !isPago;
+              {visibleParcelas.map(p => {
+                const isFaturado = p.status_financeiro === 'faturado';
+                const isNaoVinculada = !p.smartsheet_row_id && !p.parcela_sem_cronograma && !isFaturado;
                 const dataPagamento = p.data_pagamento_efetiva || p.data_pagamento_calculada || p.data_pagamento_manual;
-                const isAtrasada = !isPago && dataPagamento && new Date(dataPagamento) < new Date();
+                const isAtrasada = !isFaturado && dataPagamento && new Date(dataPagamento) < new Date();
 
                 const canEditStatusProjetos = isLider || isFinanceiro;
                 const canEditStatusFinanceiro = isFinanceiro;
 
                 return (
-                <tr key={p.id} className={`${isPago ? 'parcela-row-pago' : ''} ${isNaoVinculada ? 'parcela-row-nao-vinculada' : ''} ${p.alerta_cronograma ? 'parcela-row-alerta' : ''}`}>
+                <tr key={p.id} className={`${isFaturado ? 'parcela-row-pago' : ''} ${isNaoVinculada ? 'parcela-row-nao-vinculada' : ''} ${p.alerta_cronograma ? 'parcela-row-alerta' : ''}`}>
                   <td>
                     {p.alerta_cronograma && (
                       <span
                         className={`parcela-alerta-icon ${p.alerta_cronograma === 'tarefa_deletada' ? 'parcela-alerta-danger' : 'parcela-alerta-warning'}`}
                         title={p.alerta_cronograma === 'tarefa_deletada' ? 'Tarefa deletada no cronograma' : 'Data alterada no cronograma'}
                       >
-                        {p.alerta_cronograma === 'tarefa_deletada' ? '⚠' : '📅'}
+                        {p.alerta_cronograma === 'tarefa_deletada' ? '\u26A0' : '\uD83D\uDCC5'}
                       </span>
                     )}
                     {p.parcela_numero}
@@ -272,9 +297,41 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
                       </span>
                     )}
                   </td>
-                  <td>{formatDate(p.smartsheet_data_termino)}</td>
+                  <td>
+                    {formatDate(p.smartsheet_data_termino)}
+                    {p.data_limite_solicitacao && (
+                      <span
+                        className={`parcela-data-limite ${new Date(p.data_limite_solicitacao) < new Date() ? 'parcela-data-limite-vencida' : ''}`}
+                        title={`Limite para solicitar: ${formatDate(p.data_limite_solicitacao)}`}
+                      >
+                        Limite: {formatDate(p.data_limite_solicitacao)}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {(isLider || isFinanceiro) ? (
+                      <InlineDilatacaoInput
+                        parcelaId={p.id}
+                        currentValue={p.dilatacao_dias || 0}
+                        onChanged={handleDilatacaoChange}
+                      />
+                    ) : (
+                      <span>{p.dilatacao_dias || 0}d</span>
+                    )}
+                  </td>
                   <td className={isAtrasada ? 'parcela-data-atrasada' : ''}>
                     {formatDate(dataPagamento)}
+                  </td>
+                  <td>
+                    {p.status_solicitacao === 'solicitado' ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', padding: '3px 10px',
+                        borderRadius: '12px', fontSize: '12px', fontWeight: 600,
+                        color: '#2196f3', background: 'rgba(33,150,243,0.12)', whiteSpace: 'nowrap',
+                      }}>Solicitado</span>
+                    ) : (
+                      <span style={{ color: '#9ca3af', fontSize: '12px' }}>&mdash;</span>
+                    )}
                   </td>
                   <td>
                     <div className="parcelas-actions-cell">
@@ -296,14 +353,13 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
                         </span>
                       )}
                       {(isLider || isFinanceiro) && p.smartsheet_row_id && p.valor && (
-                        <span className="tooltip-wrapper" data-tooltip="Gerar e-mail de cobrança de NF">
-                          <a
+                        <span className="tooltip-wrapper" data-tooltip="Gerar e-mail de cobranca e marcar como solicitado">
+                          <button
                             className="parcelas-action-btn parcelas-action-email"
-                            href={buildMailtoCobranca({ parcela: p, projectName })}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); handleGerarEmail(p); }}
                           >
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-                          </a>
+                          </button>
                         </span>
                       )}
                       {p.alerta_cronograma && (
