@@ -310,6 +310,14 @@ export function processData(rawData, options = {}) {
     }
   }
 
+  // Diagnostic logging
+  const statusCounts = {};
+  for (const t of filteredTasks) {
+    const s = normalizeText(t.Status || '') || '(vazio)';
+    statusCounts[s] = (statusCounts[s] || 0) + 1;
+  }
+  console.log(`[weekly-report] processData: ${tasks.length} raw tasks → ${filteredTasks.length} after filter. Status breakdown:`, statusCounts);
+
   // ------------------------------------------------------------------
   // 2. Process Construflow issues
   // ------------------------------------------------------------------
@@ -425,6 +433,8 @@ export function processData(rawData, options = {}) {
     if (!task || typeof task !== 'object') continue;
     const statusLower = String(task.Status || '').toLowerCase().trim();
     if (statusLower === 'feito') continue;
+    const statusNormSched = normalizeText(task.Status || '');
+    if (statusNormSched === 'nao feito') continue; // já aparece em Atrasos e Desvios
 
     const discipline = task.Disciplina || task.Discipline || 'Sem Disciplina';
     const taskStartStr = getField(task, 'Data Inicio', 'Data de Inicio', 'Data de Início', 'Start Date');
@@ -489,6 +499,8 @@ export function processData(rawData, options = {}) {
     (s, d) => s + d.a_iniciar.length + d.programadas.length + (d.em_andamento?.length || 0),
     0,
   );
+
+  console.log(`[weekly-report] processData result: ${allTasks.length} allTasks, ${delayedTasks.length} delayed, ${totalCompleted} completed, ${scheduleClient.length} scheduleClient, ${totalScheduleTeam} scheduleTeam, ${activeIssues.length} activeIssues`);
 
   return {
     projectId,
