@@ -44,6 +44,8 @@ const DemandasKanbanView = lazy(() => import('./pages/apoio/DemandasKanbanView')
 const ApoioPortfolioView = lazy(() => import('./pages/apoio/ApoioPortfolioView'));
 const AreaPortfolioView = lazy(() => import('./pages/area/AreaPortfolioView'));
 const IfcChangeLogView = lazy(() => import('./pages/apoio/IfcChangeLogView'));
+const EntregasAutodocView = lazy(() => import('./pages/apoio/EntregasAutodocView'));
+const MapeamentoAutodocView = lazy(() => import('./pages/apoio/MapeamentoAutodocView'));
 const EstudoCustoKanbanView = lazy(() => import('./pages/cs/EstudoCustoKanbanView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
@@ -783,6 +785,22 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.projetos}</span>
         <span className="nav-text">IFC Changelog</span>
+      </Link>
+      <Link
+        to="/apoio-projetos/entregas-autodoc"
+        className={`nav-link nav-link-modern ${location.pathname === '/apoio-projetos/entregas-autodoc' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Entregas Autodoc')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Entregas Autodoc</span>
+      </Link>
+      <Link
+        to="/apoio-projetos/mapeamento-autodoc"
+        className={`nav-link nav-link-modern ${location.pathname === '/apoio-projetos/mapeamento-autodoc' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Mapeamento Autodoc')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Mapeamento Autodoc</span>
       </Link>
       <Link
         to="/apoio-projetos/quadro"
@@ -1607,6 +1625,8 @@ function AppContent() {
               <Route path="demandas" element={<DemandasKanbanView />} />
               <Route path="portfolio" element={<ApoioPortfolioView />} />
               <Route path="ifc-changelog" element={<IfcChangeLogView />} />
+              <Route path="entregas-autodoc" element={<EntregasAutodocView />} />
+              <Route path="mapeamento-autodoc" element={<MapeamentoAutodocView />} />
               <Route path="quadro" element={<WhiteboardView boardId="apoio" />} />
             </Route>
             {/* Área Admin & Financeiro - rotas aninhadas */}

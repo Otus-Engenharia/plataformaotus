@@ -3,7 +3,7 @@
  * Retorna estatísticas agregadas de mudanças IFC com validação de nomenclatura.
  */
 
-import { validateFilesInBatch } from '../../../shared/nomenclatura-validator.js';
+import { validateFilesInBatch } from '../../../../shared/nomenclatura-validator.js';
 
 class GetChangeLogSummary {
   #repository;

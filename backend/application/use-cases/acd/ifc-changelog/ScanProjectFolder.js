@@ -3,8 +3,8 @@
  * Escaneia uma pasta IFC do Google Drive e detecta mudanças.
  */
 
-import { GoogleDriveFileScanner } from '../../../infrastructure/services/GoogleDriveFileScanner.js';
-import { FileChangeDetector } from '../../../domain/ifc-changelog/services/FileChangeDetector.js';
+import { GoogleDriveFileScanner } from '../../../../infrastructure/services/GoogleDriveFileScanner.js';
+import { FileChangeDetector } from '../../../../domain/acd/ifc-changelog/services/FileChangeDetector.js';
 
 class ScanProjectFolder {
   #repository;

@@ -19,9 +19,11 @@ import { createRoutes as createOracleRoutes } from './oracle.js';
 import { createRoutes as createWeeklyReportRoutes } from './weekly-reports.js';
 import { createRoutes as createTimeSavingsRoutes } from './time-savings.js';
 import { createRoutes as createIfcChangeLogRoutes } from './ifc-changelog.js';
+import { createRoutes as createAutodocEntregasRoutes } from './autodoc-entregas.js';
 import { createRoutes as createContactRequestRoutes } from './contact-requests.js';
 import { createRoutes as createNomenclaturaRoutes } from './nomenclatura.js';
 import { createRoutes as createMarcosProjetoRoutes } from './marcos-projeto.js';
+import { createRoutes as createPagamentoRoutes } from './pagamentos.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -31,7 +33,7 @@ import { createRoutes as createMarcosProjetoRoutes } from './marcos-projeto.js';
  * @param {Function} middleware.isPrivileged - Função para verificar privilégios
  * @param {Function} middleware.logAction - Função para registrar ações
  */
-export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator, invalidatePortfolioCache }) {
+export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, canManagePagamentos, logAction, withBqCache, bigqueryClient, reportGenerator, invalidatePortfolioCache }) {
   // Rotas de Feedbacks (DDD)
   const feedbackRoutes = createFeedbackRoutes(requireAuth, isPrivileged, logAction, withBqCache);
   app.use('/api/feedbacks', feedbackRoutes);
@@ -94,6 +96,10 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const ifcChangeLogRoutes = createIfcChangeLogRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/ifc-changelog', ifcChangeLogRoutes);
 
+  // Rotas de Autodoc Entregas (DDD)
+  const autodocEntregasRoutes = createAutodocEntregasRoutes(requireAuth, isPrivileged, logAction);
+  app.use('/api/autodoc-entregas', autodocEntregasRoutes);
+
   // Rotas de Solicitações de Alteração de Contato (DDD)
   const contactRequestRoutes = createContactRequestRoutes(requireAuth, isPrivileged, logAction, withBqCache);
   app.use('/api/contact-requests', contactRequestRoutes);
@@ -106,5 +112,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const marcosProjetoRoutes = createMarcosProjetoRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigqueryClient);
   app.use('/api/marcos-projeto', marcosProjetoRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto');
+  // Rotas de Pagamentos (DDD)
+  const pagamentoRoutes = createPagamentoRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction, withBqCache, bigqueryClient);
+  app.use('/api/pagamentos', pagamentoRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/autodoc-entregas, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto, /api/pagamentos');
 }

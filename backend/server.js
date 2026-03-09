@@ -21,7 +21,7 @@ import NodeCache from 'node-cache';
 import passport from './auth.js';
 import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName, queryHorasComplianceOperacao, querySmartsheetHealth } from './bigquery.js';
 import cron from 'node-cron';
-import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos, canEditPortfolio } from './auth-config.js';
+import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos, canEditPortfolio, canManagePagamentos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
 import { trackTimeSaving } from './time-savings-tracker.js';
 import WeeklyReportGenerator from './services/weekly-report-generator.js';
@@ -2961,7 +2961,7 @@ const bigqueryClient = {
   queryNomeTimeByTeamName,
 };
 
-setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, logAction, withBqCache, bigqueryClient, reportGenerator: WeeklyReportGenerator, invalidatePortfolioCache });
+setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemandas, canManageEstudosCustos, canAccessFormularioPassagem, canManagePagamentos, logAction, withBqCache, bigqueryClient, reportGenerator: WeeklyReportGenerator, invalidatePortfolioCache });
 
 /**
  * Rota: GET /api/admin/user-views
@@ -8331,7 +8331,7 @@ app.listen(PORT, HOST, async () => {
     try {
       const { SupabaseIfcChangeLogRepository } = await import('./infrastructure/repositories/SupabaseIfcChangeLogRepository.js');
       const { GoogleDriveFileScanner } = await import('./infrastructure/services/GoogleDriveFileScanner.js');
-      const { ScanAllFolders } = await import('./application/use-cases/ifc-changelog/ScanAllFolders.js');
+      const { ScanAllFolders } = await import('./application/use-cases/acd/ifc-changelog/ScanAllFolders.js');
 
       const repository = new SupabaseIfcChangeLogRepository();
       const scanner = new GoogleDriveFileScanner();
@@ -8344,4 +8344,24 @@ app.listen(PORT, HOST, async () => {
     }
   }, { timezone: 'America/Sao_Paulo' });
   console.log('⏰ Cron job configurado: scan IFC a cada 6h BRT');
+
+  // Cron job: sync Autodoc a cada 6h (02:00, 08:00, 14:00, 20:00 BRT)
+  cron.schedule('0 2,8,14,20 * * *', async () => {
+    console.log('[Cron] Iniciando sync automatico Autodoc...');
+    try {
+      const { SupabaseAutodocEntregasRepository } = await import('./infrastructure/repositories/SupabaseAutodocEntregasRepository.js');
+      const { AutodocHttpClient } = await import('./infrastructure/services/AutodocHttpClient.js');
+      const { SyncAllCustomers } = await import('./application/use-cases/acd/autodoc-entregas/SyncAllCustomers.js');
+
+      const repository = new SupabaseAutodocEntregasRepository();
+      const client = new AutodocHttpClient();
+      const useCase = new SyncAllCustomers(repository, client);
+      const result = await useCase.execute();
+
+      console.log(`[Cron] Sync Autodoc concluido: ${result.totalCustomers} customers, ${result.totalDocuments} docs, ${result.newDocuments} novos`);
+    } catch (err) {
+      console.error('[Cron] Erro no sync Autodoc:', err.message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+  console.log('⏰ Cron job configurado: sync Autodoc a cada 6h BRT');
 });
