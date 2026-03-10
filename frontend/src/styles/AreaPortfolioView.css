@@ -97,6 +97,37 @@
   font-family: 'Inter', Verdana, sans-serif;
 }
 
+/* ── View Selector ── */
+.area-pf-view-selector {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+
+.area-pf-view-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #737373;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.area-pf-view-btn:hover {
+  background: #f9fafb;
+  color: #1a1a1a;
+}
+
+.area-pf-view-btn.active {
+  background: #1a1a1a;
+  color: #ffffff;
+  border-color: #1a1a1a;
+}
+
 /* ── Search Bar ── */
 .area-pf-search-bar {
   display: flex;
