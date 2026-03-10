@@ -168,6 +168,19 @@ function MonthRangeBar({ score, min, target, max, value, metricType, hasValue, s
         <div className="range-bar__zone range-bar__zone--risco" />
         <div className="range-bar__zone range-bar__zone--alvo" />
         <div className="range-bar__zone range-bar__zone--superou" />
+        {size === 'md' && (
+          <>
+            <div className="range-bar__tick" style={{ left: '25%' }}>
+              <span className="range-bar__tick-label">80%</span>
+            </div>
+            <div className="range-bar__tick" style={{ left: '50%' }}>
+              <span className="range-bar__tick-label">100%</span>
+            </div>
+            <div className="range-bar__tick" style={{ left: '75%' }}>
+              <span className="range-bar__tick-label">120%</span>
+            </div>
+          </>
+        )}
         {pos !== null && (
           <div
             className={`range-bar__needle range-bar__needle--${zoneId}`}
@@ -696,7 +709,7 @@ export default function IndicatorDetailView() {
           </div>
           {farolContrib !== null && (
             <div className="farol-contrib-badge">
-              <span className="farol-contrib-badge__value">{Math.round(farolContrib)}</span>
+              <span className="farol-contrib-badge__value">{farolContrib.toFixed(1)}</span>
               <span className="farol-contrib-badge__label">no farol</span>
             </div>
           )}
@@ -833,7 +846,7 @@ export default function IndicatorDetailView() {
             </span>
             {farolContrib !== null && (
               <span className="kpi-farol-contrib">
-                Farol: {Math.round(farolContrib)} pts
+                Farol: {farolContrib.toFixed(1)} pts
               </span>
             )}
             {planejadoValue > 0 && (
