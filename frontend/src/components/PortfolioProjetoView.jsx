@@ -439,6 +439,28 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [], onFieldUpdate
           </div>
         </section>
       )}
+
+      {/* Informações do Contrato */}
+      {projectData.info_contrato && (
+        <section className="ppv-section">
+          <h4 className="ppv-section-title">Informações do Contrato</h4>
+          <p className="ppv-text-block">{projectData.info_contrato}</p>
+        </section>
+      )}
+
+      {/* Entregáveis Otus */}
+      {projectData.entregaveis_otus?.length > 0 && (
+        <section className="ppv-section">
+          <h4 className="ppv-section-title">Entregáveis Otus</h4>
+          <div className="ppv-chars-grid">
+            {projectData.entregaveis_otus.map(name => (
+              <div key={name} className="ppv-char-item">
+                <span className="ppv-char-value">{name}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

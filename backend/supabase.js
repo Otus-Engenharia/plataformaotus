@@ -6070,7 +6070,7 @@ export async function fetchComercialInfosForPortfolio() {
 
   const { data, error } = await supabase
     .from('project_comercial_infos')
-    .select('responsavel_acd, projects!inner(project_code)');
+    .select('responsavel_acd, info_contrato, projects!inner(project_code)');
 
   if (error) {
     console.error('Erro ao buscar project_comercial_infos:', error.message);
@@ -6080,8 +6080,41 @@ export async function fetchComercialInfosForPortfolio() {
   const map = {};
   (data || []).forEach(row => {
     const code = row.projects?.project_code;
-    if (code && row.responsavel_acd) {
-      map[code] = { responsavel_acd: row.responsavel_acd };
+    if (code) {
+      map[code] = {
+        ...(row.responsavel_acd && { responsavel_acd: row.responsavel_acd }),
+        ...(row.info_contrato && { info_contrato: row.info_contrato }),
+      };
+    }
+  });
+
+  return map;
+}
+
+/**
+ * Busca serviços (entregáveis Otus) vinculados a projetos para enriquecer portfolio
+ * Retorna mapa { project_code: ['Serviço A', 'Serviço B'] }
+ */
+export async function fetchProjectServicesForPortfolio() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('project_services')
+    .select('services(name), projects!inner(project_code)')
+    .eq('status', 'ativo');
+
+  if (error) {
+    console.error('Erro ao buscar project_services:', error.message);
+    return {};
+  }
+
+  const map = {};
+  (data || []).forEach(row => {
+    const code = row.projects?.project_code;
+    const serviceName = row.services?.name;
+    if (code && serviceName) {
+      if (!map[code]) map[code] = [];
+      map[code].push(serviceName);
     }
   });
 
