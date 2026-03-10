@@ -8,7 +8,7 @@
  * - Leaders: visualizam a tabela + botões para solicitar novos cadastros
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,6 +71,25 @@ function EquipeProjetistasPanel({
     contato: { enabled: false, discipline_id: '', company_id: '', name: '', email: '', phone: '', position: '' },
   });
   const [savingRequest, setSavingRequest] = useState(false);
+
+  // --- Estado busca ---
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Filtro de busca
+  const filteredEquipe = useMemo(() => {
+    if (!searchTerm.trim()) return equipe;
+    const term = searchTerm.toLowerCase().trim();
+    return equipe.filter(item => {
+      const fields = [
+        item.discipline?.discipline_name,
+        item.company?.name,
+        item.contact?.name,
+        item.email || item.contact?.email,
+        item.discipline_detail,
+      ];
+      return fields.some(f => f && f.toLowerCase().includes(term));
+    });
+  }, [equipe, searchTerm]);
 
   // Contagens pré-calculadas
   const activeCount = equipe.filter(e => e.status === 'ativo').length;
@@ -388,8 +407,11 @@ function EquipeProjetistasPanel({
             </svg>
             <h4>Cadastro de Disciplinas</h4>
             <span className="ecli-count">
-              {activeCount} {activeCount === 1 ? 'disciplina' : 'disciplinas'}
-              {dismissedCount > 0 && (
+              {searchTerm
+                ? `${filteredEquipe.length} de ${equipe.length}`
+                : activeCount
+              } {(searchTerm ? filteredEquipe.length : activeCount) === 1 ? 'disciplina' : 'disciplinas'}
+              {!searchTerm && dismissedCount > 0 && (
                 <span className="ecli-dismissed-count"> ({dismissedCount} demitido{dismissedCount > 1 ? 's' : ''})</span>
               )}
             </span>
@@ -414,6 +436,52 @@ function EquipeProjetistasPanel({
           </div>
         </div>
 
+        {equipe.length > 0 && (
+          <div style={{ position: 'relative', maxWidth: '400px', marginBottom: '12px' }}>
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#737373" strokeWidth="2"
+              style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Buscar disciplina, empresa ou contato..."
+              style={{
+                width: '100%',
+                padding: '8px 36px 8px 36px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                style={{
+                  position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
+                  color: '#737373', fontSize: '16px', lineHeight: 1,
+                }}
+                aria-label="Limpar busca"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
+
+        {searchTerm && filteredEquipe.length === 0 && equipe.length > 0 && (
+          <div style={{ padding: '16px', textAlign: 'center', color: '#737373', fontSize: '13px' }}>
+            Nenhum resultado para "{searchTerm}"
+          </div>
+        )}
+
         <div className="ecli-table-wrapper">
           <table className="ecli-table">
             <thead>
@@ -429,14 +497,14 @@ function EquipeProjetistasPanel({
               </tr>
             </thead>
             <tbody>
-              {equipe.length === 0 ? (
+              {filteredEquipe.length === 0 && !searchTerm ? (
                 <tr>
                   <td colSpan={8} className="ecli-empty-row">
                     Nenhuma disciplina cadastrada
                   </td>
                 </tr>
               ) : (
-                equipe.map(item => {
+                filteredEquipe.map(item => {
                   const isDismissed = item.status === 'demitido';
                   const email = item.email || item.contact?.email;
                   const phone = item.phone || item.contact?.phone;
