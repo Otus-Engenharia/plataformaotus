@@ -285,6 +285,33 @@ function EquipeOtusPanel({ projectCode }) {
             </div>
           )}
 
+          {/* Responsável CS */}
+          {data.csResponsavel && (
+            <div className="eotus-cs-section">
+              <span className="eotus-section-label">Responsável CS</span>
+              <div className="eotus-member-card eotus-member-card--cs">
+                <div className="eotus-avatar eotus-avatar--cs">
+                  {data.csResponsavel.avatar_url ? (
+                    <img src={data.csResponsavel.avatar_url} alt={data.csResponsavel.name} />
+                  ) : (
+                    getInitials(data.csResponsavel.name)
+                  )}
+                </div>
+                <div className="eotus-member-info">
+                  <span className="eotus-member-name">{data.csResponsavel.name}</span>
+                  <span className="eotus-member-cargo">{data.csResponsavel.cargo?.name || 'Customer Success'}</span>
+                  {data.csResponsavel.email ? (
+                    <a href={`mailto:${data.csResponsavel.email}`} className="eotus-member-email">{data.csResponsavel.email}</a>
+                  ) : (
+                    <span className="eotus-member-missing">Sem email</span>
+                  )}
+                  {renderPhoneField(data.csResponsavel.id, data.csResponsavel.phone)}
+                </div>
+                <span className="eotus-cs-badge">CS</span>
+              </div>
+            </div>
+          )}
+
           {/* Membros do time padrão */}
           {data.defaultMembers?.filter(m => m.id !== data.leaderId).length > 0 && (
             <div className="eotus-team-section">

@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import ParcelasProjetoPanel from './ParcelasProjetoPanel';
 import ParcelaFormDialog from './ParcelaFormDialog';
 import CalendarioPagamentosView from './CalendarioPagamentosView';
+import CronogramaFisicoFinanceiroPanel from './CronogramaFisicoFinanceiroPanel';
 import { useNavigate } from 'react-router-dom';
 import './PagamentosFinanceiroView.css';
 
@@ -239,6 +240,12 @@ export default function PagamentosFinanceiroView() {
         >
           Calendario
         </button>
+        <button
+          className={`pagamentos-fin-tab ${activeTab === 'cronograma' ? 'pagamentos-fin-tab-active' : ''}`}
+          onClick={() => setActiveTab('cronograma')}
+        >
+          Cronograma
+        </button>
       </div>
 
       {activeTab === 'projetos' ? (
@@ -415,6 +422,12 @@ export default function PagamentosFinanceiroView() {
             )}
           </div>
         </>
+      ) : activeTab === 'cronograma' ? (
+        <CronogramaFisicoFinanceiroPanel
+          leaders={leaders}
+          showLiderFilter={true}
+          showStatusColumn={true}
+        />
       ) : (
         <CalendarioPagamentosView />
       )}
