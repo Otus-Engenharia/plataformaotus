@@ -1403,6 +1403,81 @@ app.post('/api/portfolio/cobertura-disciplinas', requireAuth, async (req, res) =
 });
 
 /**
+ * Rota: POST /api/projects/team-status
+ * Retorna status de preenchimento de Equipe (cobertura disciplinas 100%) e Nomenclatura para projetos ativos.
+ * Body: { projects: [{ construflowId, smartsheetId, projectCode }, ...] }
+ */
+app.post('/api/projects/team-status', requireAuth, async (req, res) => {
+  try {
+    const { projects } = req.body;
+    if (!Array.isArray(projects) || projects.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+
+    const codeList = projects.map(p => p.projectCode).filter(Boolean);
+    if (codeList.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+
+    // 1. Equipe: reusar lógica de cobertura-disciplinas (completionPercentage === 100)
+    const { smartsheetByProject, construflowByProject } = await queryDisciplinesCrossReferenceBatch(projects);
+    const construflowIds = projects.map(p => p.construflowId).filter(Boolean);
+    const projectIdMap = await fetchProjectIdsByConstruflowBatch(construflowIds);
+    const allProjectIds = [...new Set(Object.values(projectIdMap).filter(Boolean))];
+    const [disciplinesByProject, mappingsByProject] = await Promise.all([
+      fetchProjectDisciplinesBatch(allProjectIds),
+      fetchDisciplineMappingsBatch(allProjectIds)
+    ]);
+
+    const equipePercentageMap = {};
+    for (const p of projects) {
+      const ssId = p.smartsheetId ? String(p.smartsheetId) : null;
+      const cfId = p.construflowId ? String(p.construflowId) : null;
+      const smartsheetNames = (ssId && smartsheetByProject[ssId]) || [];
+      const construflowNames = (cfId && construflowByProject[cfId]) || [];
+
+      const internalId = cfId ? projectIdMap[cfId] : null;
+      const otusTeam = internalId ? (disciplinesByProject[internalId] || []) : [];
+      const otusNames = otusTeam.map(d => d.discipline?.discipline_name).filter(Boolean);
+      const customMappings = internalId ? (mappingsByProject[internalId] || []) : [];
+
+      const { groups, analysis } = classifyDisciplines(smartsheetNames, construflowNames, otusNames, customMappings);
+
+      // Sem ConstruFlow: ajustar como no cobertura-disciplinas
+      if (!cfId && analysis.totalUnique > 0) {
+        const adjustedComplete = groups.completeInAll3.length + groups.missingConstruflow.length;
+        analysis.completionPercentage = Math.round((adjustedComplete / analysis.totalUnique) * 1000) / 10;
+      }
+
+      equipePercentageMap[p.projectCode] = analysis.totalUnique > 0 ? analysis.completionPercentage : null;
+    }
+
+    // 2. Nomenclatura: buscar nomenclatura_lookup_entries
+    const supabase = getSupabaseClient();
+    const { data: nomenclatura } = await supabase
+      .from('nomenclatura_lookup_entries')
+      .select('project_code')
+      .in('project_code', codeList);
+
+    const nomenclaturaCodes = new Set((nomenclatura || []).map(n => n.project_code));
+
+    // 3. Montar resultado
+    const result = {};
+    for (const code of codeList) {
+      result[code] = {
+        equipe_percentage: equipePercentageMap[code] ?? null,
+        has_nomenclatura: nomenclaturaCodes.has(code),
+      };
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Erro ao buscar team-status:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * Rota: GET /api/controle-passivo
  * Retorna dados consolidados de controle passivo (valor contratado vs receita recebida)
  * Combina portfólio com financeiro.entradas
