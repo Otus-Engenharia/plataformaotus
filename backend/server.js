@@ -77,7 +77,7 @@ import {
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
   fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
   // Apoio de Projetos - Portfolio
-  fetchProjectFeaturesForPortfolio, fetchComercialInfosForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
+  fetchProjectFeaturesForPortfolio, fetchComercialInfosForPortfolio, fetchProjectServicesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
   // Portfolio - Edicao inline
   fetchProjectsFromSupabase, fetchPortfolioEditOptions, updateProjectField, updateCsResponsavel,
   // OAuth tokens (Gmail Draft)
@@ -871,10 +871,11 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
       });
     }
 
-    // 3. Supabase: project_features + comercial_infos
-    const [featuresMap, comercialMap] = await Promise.all([
+    // 3. Supabase: project_features + comercial_infos + services
+    const [featuresMap, comercialMap, servicesMap] = await Promise.all([
       fetchProjectFeaturesForPortfolio(),
       fetchComercialInfosForPortfolio(),
+      fetchProjectServicesForPortfolio(),
     ]);
 
     // 4. Merge: BigQuery base + Supabase editáveis + features + comercial
@@ -907,6 +908,9 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
         ...(supabase._cs_responsavel_id != null && { _cs_responsavel_id: supabase._cs_responsavel_id }),
         // Comercial
         ...(comercial.responsavel_acd != null && { responsavel_acd: comercial.responsavel_acd }),
+        ...(comercial.info_contrato != null && { info_contrato: comercial.info_contrato }),
+        // Entregáveis Otus (serviços)
+        ...(servicesMap[row.project_code_norm] && { entregaveis_otus: servicesMap[row.project_code_norm] }),
         // Features
         ...features,
         construflow_disciplinasclientes: features.construflow_disciplinasclientes || row.disciplina_cliente || null,
@@ -946,6 +950,8 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
           tipologia_empreendimento: p.tipologia_empreendimento ?? null,
           endereco: p.address ?? null,
           responsavel_acd: comercial.responsavel_acd ?? null,
+          info_contrato: comercial.info_contrato ?? null,
+          entregaveis_otus: servicesMap[p.project_code] || null,
           // CS Responsável
           cs_responsavel_name: p.cs_responsavel?.name || null,
           cs_responsavel_avatar: p.cs_responsavel?.avatar_url || null,
@@ -2421,9 +2427,10 @@ app.get('/api/apoio-projetos/portfolio', requireAuth, withBqCache(900), async (r
     // Usa BigQuery direto (view Supabase portfolio_realtime não existe atualmente)
     const portfolioData = await queryPortfolio(null);
 
-    const [featuresMap, comercialMap, supabaseProjects] = await Promise.all([
+    const [featuresMap, comercialMap, servicesMap, supabaseProjects] = await Promise.all([
       fetchProjectFeaturesForPortfolio(),
       fetchComercialInfosForPortfolio(),
+      fetchProjectServicesForPortfolio(),
       fetchProjectsFromSupabase(),
     ]);
 
@@ -2454,6 +2461,8 @@ app.get('/api/apoio-projetos/portfolio', requireAuth, withBqCache(900), async (r
         ...(sup.tipologia_empreendimento != null && { tipologia_empreendimento: sup.tipologia_empreendimento }),
         ...(sup.endereco != null && { endereco: sup.endereco }),
         ...(comercial.responsavel_acd != null && { responsavel_acd: comercial.responsavel_acd }),
+        ...(comercial.info_contrato != null && { info_contrato: comercial.info_contrato }),
+        ...(servicesMap[row.project_code_norm] && { entregaveis_otus: servicesMap[row.project_code_norm] }),
       };
     });
 
