@@ -93,6 +93,12 @@
   border: 1px solid #bbf7d0;
 }
 
+.adoc-toast--warning {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
 .adoc-toast--error {
   background: #fef2f2;
   color: #991b1b;
@@ -150,6 +156,11 @@
   background: #faf5ff;
 }
 
+.adoc-stat-card.adoc-stat--amber {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
 .adoc-stat-value {
   font-size: 1.3rem;
   font-weight: 800;
@@ -203,6 +214,58 @@
   margin-left: auto;
   font-size: 0.85rem;
   color: #6b7280;
+}
+
+/* -- Tabs -- */
+.adoc-tabs {
+  display: flex;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 1rem;
+}
+
+.adoc-tab {
+  padding: 8px 20px;
+  border: none;
+  background: none;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 0.85rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  transition: color 0.15s;
+}
+
+.adoc-tab:hover {
+  color: #374151;
+}
+
+.adoc-tab--active {
+  color: #1a1a1a;
+  border-bottom-color: #ffdd00;
+}
+
+/* -- Histogram -- */
+.adoc-histogram-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.adoc-histogram-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px;
+}
+
+.adoc-histogram-wrapper {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  background: #fff;
+  min-height: 300px;
 }
 
 /* -- Table -- */

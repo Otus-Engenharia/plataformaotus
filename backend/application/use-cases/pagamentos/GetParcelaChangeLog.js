@@ -5,9 +5,12 @@ class GetParcelaChangeLog {
     this.#repository = repository;
   }
 
-  async execute({ projectCode }) {
+  async execute({ projectCode, since, excludeEmail }) {
     if (!projectCode) throw new Error('projectCode e obrigatorio');
-    return await this.#repository.findChangeLogByProject(projectCode);
+    return await this.#repository.findChangeLogByProject(projectCode, {
+      since: since || null,
+      excludeEmail: excludeEmail || null,
+    });
   }
 }
 

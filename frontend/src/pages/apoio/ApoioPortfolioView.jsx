@@ -121,6 +121,9 @@ export default function ApoioPortfolioView() {
   const [showPausados, setShowPausados] = useState(false);
   const [showAIniciar, setShowAIniciar] = useState(false);
 
+  // Vista ativa (apoio = tabela atual, empreendimento = dados do empreendimento)
+  const [activeView, setActiveView] = useState('apoio');
+
   // Edicao inline do link IFC
   const [editingIfcCode, setEditingIfcCode] = useState(null);
   const [editingIfcValue, setEditingIfcValue] = useState('');
@@ -408,6 +411,22 @@ export default function ApoioPortfolioView() {
         </div>
       </div>
 
+      {/* View Selector */}
+      <div className="apoio-view-selector">
+        <button
+          className={`apoio-view-btn ${activeView === 'apoio' ? 'active' : ''}`}
+          onClick={() => setActiveView('apoio')}
+        >
+          Apoio
+        </button>
+        <button
+          className={`apoio-view-btn ${activeView === 'empreendimento' ? 'active' : ''}`}
+          onClick={() => setActiveView('empreendimento')}
+        >
+          Empreendimento
+        </button>
+      </div>
+
       {/* Busca */}
       <div className="apoio-search-bar">
         <Icons.Search />
@@ -527,6 +546,7 @@ export default function ApoioPortfolioView() {
         </div>
       ) : (
         <div className="apoio-table-wrapper">
+          {activeView === 'apoio' ? (
           <table className="apoio-table">
             <thead>
               <tr>
@@ -697,6 +717,83 @@ export default function ApoioPortfolioView() {
               ))}
             </tbody>
           </table>
+          ) : (
+          <table className="apoio-table">
+            <thead>
+              <tr>
+                <th style={{ width: 80 }}>Codigo</th>
+                <th style={{ width: 180 }}>Nome do Projeto</th>
+                <th style={{ width: 110 }}>Status</th>
+                <th style={{ width: 120 }}>Tipologia</th>
+                <th style={{ width: 110 }}>Area Constr. (m²)</th>
+                <th style={{ width: 110 }}>Area Efetiva (m²)</th>
+                <th style={{ width: 85 }}>N° Unidades</th>
+                <th style={{ width: 180 }}>Localizacao</th>
+                <th style={{ width: 100 }}>Inicio Obra</th>
+                <th style={{ width: 85 }}>Duracao (meses)</th>
+                <th style={{ width: 80 }}>Ciclos</th>
+                <th style={{ width: 130 }}>Resp. Construflow</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.map((row) => (
+                <tr key={row.project_code_norm || row.project_name}>
+                  <td className="apoio-portfolio-code">{row.project_code_norm || '-'}</td>
+                  <td className="apoio-portfolio-name" title={row.project_name}>
+                    {row.project_name || '-'}
+                  </td>
+                  <td>
+                    {row.status ? (
+                      <span
+                        className="apoio-status-badge"
+                        style={{
+                          backgroundColor: `${getStatusColor(row.status)}15`,
+                          color: getStatusColor(row.status),
+                          borderColor: `${getStatusColor(row.status)}40`,
+                        }}
+                      >
+                        <span
+                          className="apoio-status-dot"
+                          style={{ backgroundColor: getStatusColor(row.status) }}
+                        />
+                        {row.status}
+                      </span>
+                    ) : '-'}
+                  </td>
+                  <td>{row.tipologia_empreendimento || '-'}</td>
+                  <td className="apoio-num-cell">
+                    {row.area_construida != null
+                      ? parseFloat(row.area_construida).toLocaleString('pt-BR')
+                      : '-'}
+                  </td>
+                  <td className="apoio-num-cell">
+                    {row.area_efetiva != null
+                      ? parseFloat(row.area_efetiva).toLocaleString('pt-BR')
+                      : '-'}
+                  </td>
+                  <td className="apoio-num-cell">
+                    {row.numero_unidades != null ? row.numero_unidades : '-'}
+                  </td>
+                  <td title={row.endereco || ''}>{row.endereco || '-'}</td>
+                  <td>
+                    {row.data_inicio_cronograma
+                      ? new Date(row.data_inicio_cronograma).toLocaleDateString('pt-BR')
+                      : '-'}
+                  </td>
+                  <td className="apoio-num-cell">
+                    {row.duracao_total_meses != null
+                      ? parseFloat(row.duracao_total_meses).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+                      : '-'}
+                  </td>
+                  <td className="apoio-num-cell">
+                    {row.quantidade_ciclos != null ? row.quantidade_ciclos : '-'}
+                  </td>
+                  <td>{row.responsavel_acd || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          )}
         </div>
       )}
     </div>

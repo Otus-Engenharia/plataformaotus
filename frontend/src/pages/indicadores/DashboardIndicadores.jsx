@@ -481,7 +481,7 @@ export default function DashboardIndicadores() {
       const acc = calculateAccumulatedProgress(ind, yearCheckIns, currentMonth);
       const isAutoCalc = ind.auto_calculate !== false;
       const realizado = isAutoCalc ? acc.realizado : (ind.realizado_acumulado ?? 0);
-      const planejado = isAutoCalc ? acc.planejado : (ind.planejado_acumulado ?? 0);
+      const planejado = acc.planejado; // Planejado é SEMPRE auto-calculado (igual à detail view)
       const hasCheckIns = isAutoCalc ? acc.hasData : true;
       const { t80: accT80, t120: accT120 } = getScoreThresholds(ind, planejado);
       const score = planejado > 0 && hasCheckIns

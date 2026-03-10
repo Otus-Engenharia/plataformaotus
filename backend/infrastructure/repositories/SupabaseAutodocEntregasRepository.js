@@ -32,6 +32,7 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
       .from(DOCUMENTS_TABLE)
       .select('*', { count: 'exact' })
       .gte('autodoc_created_at', since.toISOString())
+      .neq('project_code', '__DISMISSED__')
       .order('autodoc_created_at', { ascending: false });
 
     if (projectCode) {
@@ -68,6 +69,35 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
     }
 
     return (data || []).map(row => AutodocDocument.fromPersistence(row));
+  }
+
+  async findExistingDatesByDocIds(docIds) {
+    if (!docIds.length) return new Map();
+
+    // Supabase IN filter max ~1000 items, chunk if needed
+    const CHUNK = 500;
+    const result = new Map();
+
+    for (let i = 0; i < docIds.length; i += CHUNK) {
+      const chunk = docIds.slice(i, i + CHUNK);
+      const { data, error } = await this.#supabase
+        .from(DOCUMENTS_TABLE)
+        .select('autodoc_doc_id, autodoc_created_at')
+        .in('autodoc_doc_id', chunk);
+
+      if (error) {
+        console.warn(`[SupabaseAutodocEntregasRepository] Erro ao buscar datas existentes: ${error.message}`);
+        continue;
+      }
+
+      for (const row of (data || [])) {
+        if (row.autodoc_created_at) {
+          result.set(String(row.autodoc_doc_id), row.autodoc_created_at);
+        }
+      }
+    }
+
+    return result;
   }
 
   async upsertDocuments(documents) {
@@ -159,7 +189,8 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
     const { data, error } = await this.#supabase
       .from(DOCUMENTS_TABLE)
       .select('project_code, classification, document_name, raw_size, discipline_name')
-      .gte('autodoc_created_at', since.toISOString());
+      .gte('autodoc_created_at', since.toISOString())
+      .neq('project_code', '__DISMISSED__');
 
     if (error) {
       throw new Error(`Erro ao buscar resumo: ${error.message}`);
@@ -187,6 +218,57 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
       disciplinas: [...disciplineSet],
       tamanhoTotal,
     };
+  }
+
+  // --- Estatísticas Diárias ---
+
+  async getDailyStats(options = {}) {
+    const { days = 7 } = options;
+
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const { data, error } = await this.#supabase
+      .from(DOCUMENTS_TABLE)
+      .select('project_code, autodoc_created_at')
+      .gte('autodoc_created_at', since.toISOString())
+      .neq('project_code', '__DISMISSED__');
+
+    if (error) {
+      throw new Error(`Erro ao buscar stats diárias: ${error.message}`);
+    }
+
+    const rows = data || [];
+    const dayMap = {};
+
+    for (const row of rows) {
+      const date = row.autodoc_created_at.substring(0, 10);
+      if (!dayMap[date]) dayMap[date] = {};
+      dayMap[date][row.project_code] = (dayMap[date][row.project_code] || 0) + 1;
+    }
+
+    const dates = Object.keys(dayMap).sort();
+    return dates.map(date => {
+      const byProject = dayMap[date];
+      const total = Object.values(byProject).reduce((s, v) => s + v, 0);
+      return { date, total, byProject };
+    });
+  }
+
+  // --- Nomes de Projetos ---
+
+  async getProjectNameMap() {
+    const { data, error } = await this.#supabase
+      .from('projects')
+      .select('project_code, name');
+
+    if (error) throw new Error(`Erro ao buscar nomes de projetos: ${error.message}`);
+
+    const map = new Map();
+    for (const row of (data || [])) {
+      map.set(String(row.project_code), row.name || String(row.project_code));
+    }
+    return map;
   }
 
   // --- Sync Runs ---
@@ -252,6 +334,22 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
     }
 
     return data || [];
+  }
+
+  async updateSyncRunProgress(id, { currentProject, projectsCompleted, totalProjects }) {
+    const update = {};
+    if (currentProject !== undefined) update.current_project = currentProject;
+    if (projectsCompleted !== undefined) update.projects_completed = projectsCompleted;
+    if (totalProjects !== undefined) update.total_projects = totalProjects;
+
+    const { error } = await this.#supabase
+      .from(SYNC_RUNS_TABLE)
+      .update(update)
+      .eq('id', id);
+
+    if (error) {
+      console.warn(`Erro ao atualizar progresso sync run ${id}: ${error.message}`);
+    }
   }
 
   async completeSyncRun(id, { projectsScanned = 0, documentsFound = 0, newDocuments = 0, error: runError = null, status = 'completed' }) {

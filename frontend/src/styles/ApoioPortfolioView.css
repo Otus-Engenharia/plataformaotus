@@ -77,6 +77,43 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* ── View Selector ── */
+.apoio-view-selector {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+
+.apoio-view-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #737373;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.apoio-view-btn:hover {
+  background: #f9fafb;
+  color: #1a1a1a;
+}
+
+.apoio-view-btn.active {
+  background: #1a1a1a;
+  color: #ffffff;
+  border-color: #1a1a1a;
+}
+
+/* ── Numeric cells ── */
+.apoio-num-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Search Bar ── */
 .apoio-search-bar {
   display: flex;

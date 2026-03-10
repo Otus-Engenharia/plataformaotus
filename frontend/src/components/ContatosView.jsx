@@ -119,6 +119,7 @@ function ContatosView() {
   const [simpleRequestModal, setSimpleRequestModal] = useState(null); // 'nova_disciplina' | null
   const [simpleRequestForm, setSimpleRequestForm] = useState({ name: '' });
   const [savingSimpleRequest, setSavingSimpleRequest] = useState(false);
+  const [searchEmpresa, setSearchEmpresa] = useState('');
 
   // Buscar minhas solicitações (para não-admin)
   const fetchMyRequests = useCallback(async () => {
@@ -377,6 +378,7 @@ function ContatosView() {
       company_id: '',
       project_id: ''
     });
+    setSearchEmpresa('');
     setDetalhes(null);
     setSelectedRow(null);
   };
@@ -396,7 +398,12 @@ function ContatosView() {
   };
 
   // Verifica se tem filtros ativos
-  const temFiltrosAtivos = filtros.discipline_id || filtros.company_id || filtros.project_id;
+  const temFiltrosAtivos = filtros.discipline_id || filtros.company_id || filtros.project_id || searchEmpresa;
+
+  // Filtro client-side por nome de empresa
+  const dadosFiltrados = dados.filter(item =>
+    !searchEmpresa || (item.company_name || '').toLowerCase().includes(searchEmpresa.toLowerCase())
+  );
 
   return (
     <div className="contatos-container">
@@ -490,6 +497,23 @@ function ContatosView() {
             </select>
           </div>
 
+          <div className="contatos-filter-group contatos-search-group">
+            <label>Buscar Empresa</label>
+            <div className="contatos-search-wrapper">
+              <svg className="contatos-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="contatos-search-input"
+                placeholder="Buscar empresa..."
+                value={searchEmpresa}
+                onChange={(e) => setSearchEmpresa(e.target.value)}
+              />
+            </div>
+          </div>
+
           {/* Toggle para mostrar apenas projetos ativos */}
           <label className="contatos-active-toggle">
             <input
@@ -548,7 +572,7 @@ function ContatosView() {
             <>
               <div className="contatos-table-header">
                 <span className="contatos-count">
-                  {dados.length} {dados.length === 1 ? 'resultado' : 'resultados'}
+                  {dadosFiltrados.length} {dadosFiltrados.length === 1 ? 'resultado' : 'resultados'}
                 </span>
                 <span className="contatos-hint">
                   Clique em uma linha para ver os contatos e projetos
@@ -565,7 +589,7 @@ function ContatosView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dados.length === 0 ? (
+                    {dadosFiltrados.length === 0 ? (
                       <tr>
                         <td colSpan="3" className="contatos-empty-row">
                           <div className="contatos-empty-content">
@@ -585,7 +609,7 @@ function ContatosView() {
                         </td>
                       </tr>
                     ) : (
-                      dados.map((item) => {
+                      dadosFiltrados.map((item) => {
                         const key = `${item.discipline_id}-${item.company_id}`;
                         const isSelected = selectedRow === key;
 

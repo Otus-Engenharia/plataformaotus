@@ -14,6 +14,7 @@ import {
   GetEntregasSummary,
   ManageProjectMappings,
   DiscoverAutodocProjects,
+  GetDailyStats,
 } from '../application/use-cases/acd/autodoc-entregas/index.js';
 
 const router = express.Router();
@@ -72,6 +73,23 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   });
 
   /**
+   * GET /api/autodoc-entregas/daily-stats
+   * Estatísticas diárias de entregas por projeto.
+   * Query: ?days=7
+   */
+  router.get('/daily-stats', requireAuth, async (req, res) => {
+    try {
+      const { days = 7 } = req.query;
+      const useCase = new GetDailyStats(getRepository());
+      const result = await useCase.execute({ days: Number(days) });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao buscar daily stats:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * POST /api/autodoc-entregas/sync-all
    * Inicia sync de todos os customers (fire-and-forget). Privileged only.
    */
@@ -121,9 +139,15 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
       const failed = runs.filter(r => r.status === 'error' || r.status === 'timeout').length;
       const total = runs.length;
 
+      const totalProjectsAll = runs.reduce((sum, r) => sum + (r.total_projects || 0), 0);
+      const projectsCompletedAll = runs.reduce((sum, r) => {
+        if (r.status !== 'running') return sum + (r.total_projects || 0);
+        return sum + (r.projects_completed || 0);
+      }, 0);
+
       res.json({
         success: true,
-        data: { running, completed, failed, total, runs },
+        data: { running, completed, failed, total, totalProjectsAll, projectsCompletedAll, runs },
       });
     } catch (error) {
       console.error('Erro ao buscar sync status:', error);
