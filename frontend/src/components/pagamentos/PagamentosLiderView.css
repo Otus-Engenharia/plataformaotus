@@ -12,7 +12,7 @@
   background: linear-gradient(180deg, #ffffff 0%, #ededed 100%);
   padding: 2rem;
   gap: 1.5rem;
-  font-family: Verdana, sans-serif;
+  font-family: 'Inter', Verdana, Geneva, Tahoma, sans-serif;
 }
 
 /* ===== HEADER ===== */
@@ -29,20 +29,23 @@
   font-size: 32px;
   font-weight: bold;
   margin: 0;
-  font-family: Verdana, sans-serif;
+  font-family: 'Inter', Verdana, Geneva, Tahoma, sans-serif;
 }
 
 .pagamentos-lider-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #ffdd00;
   color: #1a1a1a;
   border: none;
   padding: 0.5rem 1.25rem;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   transition: all 0.2s;
-  font-family: Verdana, sans-serif;
+  font-family: 'Inter', Verdana, Geneva, Tahoma, sans-serif;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -51,43 +54,72 @@
   transform: translateY(-1px);
 }
 
+.pagamentos-lider-refresh:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pagamentos-lider-refresh-icon {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.pagamentos-lider-refresh-icon.spinning {
+  animation: spin-refresh 0.8s linear infinite;
+}
+
+@keyframes spin-refresh {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ===== FILTERS SECTION ===== */
 .pagamentos-lider-filters {
   background: #ffffff;
   border: 1px solid #e6e6e6;
+  border-left: 4px solid #ffdd00;
   border-radius: 4px;
-  padding: 0.75rem 1.25rem;
+  padding: 1rem 1.5rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .pagamentos-lider-filters-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
+.pagamentos-lider-filters-row + .pagamentos-lider-filters-row {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f0f0f0;
+}
+
 .pagamentos-lider-filters-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: #9ca3af;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-family: Verdana, sans-serif;
+  font-family: 'Inter', Verdana, Geneva, Tahoma, sans-serif;
   margin-right: 4px;
 }
 
 .pagamentos-lider-filter-group__toggles {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-/* ===== TOGGLE SWITCH (PortfolioView pattern) ===== */
+/* ===== TOGGLE SWITCH ===== */
 .pagamentos-lider-toggle {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
   user-select: none;
   padding: 2px 0;
@@ -99,19 +131,20 @@
 
 .pagamentos-lider-toggle-slider {
   position: relative;
-  width: 30px;
-  height: 16px;
+  width: 36px;
+  height: 20px;
   background: #d1d5db;
-  border-radius: 16px;
+  border-radius: 20px;
   transition: all 0.2s;
   border: none;
+  flex-shrink: 0;
 }
 
 .pagamentos-lider-toggle-slider::before {
   content: '';
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: white;
   top: 3px;
@@ -125,13 +158,13 @@
 }
 
 .pagamentos-lider-toggle input[type="checkbox"]:checked + .pagamentos-lider-toggle-slider::before {
-  transform: translateX(14px);
+  transform: translateX(16px);
 }
 
 .pagamentos-lider-toggle-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  font-family: Verdana, sans-serif;
+  font-family: 'Inter', Verdana, Geneva, Tahoma, sans-serif;
   color: #4b5563;
   white-space: nowrap;
 }
@@ -142,12 +175,12 @@
   justify-content: center;
   background: #f3f4f6;
   color: #6b7280;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 1px 5px;
+  padding: 1px 6px;
   border-radius: 10px;
   margin-left: 2px;
-  min-width: 16px;
+  min-width: 18px;
   line-height: 1.2;
 }
 
@@ -161,7 +194,7 @@
   border: 1px solid #d1d5db;
   border-radius: 4px;
   font-size: 12px;
-  font-family: Verdana, sans-serif;
+  font-family: 'Inter', Verdana, Geneva, Tahoma, sans-serif;
   color: #1a1a1a;
   background: #f9fafb;
   width: 200px;
@@ -176,6 +209,101 @@
 
 .pagamentos-lider-filter-input::placeholder {
   color: #9ca3af;
+}
+
+/* ===== VINCULACAO PROGRESS BAR ===== */
+.pagamentos-lider-vinc-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagamentos-lider-vinc-bar {
+  width: 48px;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.pagamentos-lider-vinc-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.pagamentos-lider-vinc-fill.vinc-full {
+  background: #15803d;
+}
+
+.pagamentos-lider-vinc-fill.vinc-partial {
+  background: #d97706;
+}
+
+.pagamentos-lider-vinc-fill.vinc-none {
+  background: #dc2626;
+}
+
+/* ===== SORTABLE HEADERS ===== */
+.pagamentos-lider-container .pagamentos-lider-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.pagamentos-lider-container .pagamentos-lider-th-sortable:hover {
+  color: #1a1a1a;
+  background: #f9fafb;
+}
+
+.pagamentos-lider-sort-icon {
+  margin-left: 4px;
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.pagamentos-lider-sort-icon.active {
+  color: #1a1a1a;
+}
+
+/* ===== EXPAND CHEVRON ===== */
+.pagamentos-lider-chevron {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+  transition: color 0.15s;
+}
+
+.pagamentos-lider-container tr:hover .pagamentos-lider-chevron {
+  color: #4b5563;
+}
+
+/* ===== EMPTY STATE ===== */
+.pagamentos-lider-empty-state {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #737373;
+}
+
+.pagamentos-lider-empty-icon {
+  font-size: 40px;
+  margin-bottom: 0.75rem;
+  opacity: 0.5;
+}
+
+.pagamentos-lider-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #444444;
+  margin: 0 0 0.25rem 0;
+}
+
+.pagamentos-lider-empty-subtitle {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0;
 }
 
 /* ===== LOADING / EMPTY ===== */
@@ -210,5 +338,22 @@
 
   .pagamentos-lider-filter-input {
     width: 100%;
+  }
+
+  /* Hide Tipo and Cliente columns on mobile */
+  .pagamentos-lider-container .pagamentos-fin-table th:nth-child(2),
+  .pagamentos-lider-container .pagamentos-fin-table td:nth-child(2),
+  .pagamentos-lider-container .pagamentos-fin-table th:nth-child(4),
+  .pagamentos-lider-container .pagamentos-fin-table td:nth-child(4) {
+    display: none;
+  }
+
+  /* KPIs: 2 columns on mobile */
+  .pagamentos-lider-container .pagamentos-fin-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pagamentos-lider-filter-group__toggles {
+    flex-wrap: wrap;
   }
 }

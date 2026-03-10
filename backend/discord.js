@@ -229,6 +229,21 @@ function shouldNotifyFinanceiro(oldStatus, newStatus) {
 }
 
 /**
+ * Verifica se deve notificar o canal RH
+ * Eventos RH: início de projeto e entrada em termo de encerramento
+ * @param {string} oldStatus - Status anterior
+ * @param {string} newStatus - Novo status
+ * @returns {boolean} True se deve notificar o RH
+ */
+function shouldNotifyRH(oldStatus, newStatus) {
+  const old = (oldStatus || '').toLowerCase().trim();
+  const newS = (newStatus || '').toLowerCase().trim();
+  if (old === 'a iniciar' && newS === 'planejamento') return true;
+  if (old === 'fase 04' && newS === 'termo de encerramento') return true;
+  return false;
+}
+
+/**
  * Retorna as URLs de webhook configuradas para notificações de projetos
  * - Projetos, CS e Digital: recebem TODAS as mudanças
  * - Financeiro: recebe apenas eventos financeiros específicos
@@ -248,6 +263,11 @@ function getWebhookUrls(oldStatus, newStatus) {
     urls.push(process.env.DISCORD_WEBHOOK_URL_FINANCEIRO);
   }
 
+  // Adiciona RH para início e finalização de projetos
+  if (shouldNotifyRH(oldStatus, newStatus)) {
+    urls.push(process.env.DISCORD_WEBHOOK_URL_RH);
+  }
+
   return urls.filter(Boolean);
 }
 
@@ -261,7 +281,8 @@ function getProjectCreatedWebhookUrls() {
     process.env.DISCORD_WEBHOOK_URL_PROJETOS,
     process.env.DISCORD_WEBHOOK_URL_CS,
     process.env.DISCORD_WEBHOOK_URL_DIGITAL,
-    process.env.DISCORD_WEBHOOK_URL_FINANCEIRO
+    process.env.DISCORD_WEBHOOK_URL_FINANCEIRO,
+    process.env.DISCORD_WEBHOOK_URL_BIM
   ].filter(Boolean);
 }
 

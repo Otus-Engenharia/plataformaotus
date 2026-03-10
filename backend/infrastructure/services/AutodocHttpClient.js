@@ -22,6 +22,8 @@ class AutodocHttpClient {
   #password;
   /** Cache de pastas vazias: folderId → timestamp. Persiste entre syncs, TTL 24h. */
   #emptyFolderCache = new Map();
+  /** Cache de sessoes Classic: classicInstanceId → { session, projects, expiry } */
+  #classicSessionCache = new Map();
 
   constructor() {
     this.#email = process.env.AUTODOC_EMAIL;
@@ -191,7 +193,7 @@ class AutodocHttpClient {
 
   /**
    * Crawl recursivo de documentos via NG API.
-   * Hierarquia: Project → Phase → Discipline → Format → Documents
+   * Hierarquia: Project → Discipline → Phase → Format → Documents
    *
    * Otimizacoes:
    * - Busca subfolders/size 1x por pai (nao 1x por filho)
@@ -211,23 +213,23 @@ class AutodocHttpClient {
       return aborted;
     };
 
-    // Nivel 1: Fases do projeto
-    const phases = await this.#crawlLevel(customerId, projectFolderId);
-    const phaseNonEmpty = await this.#filterNonEmptyFolders(customerId, projectFolderId, phases.subFolders || []);
+    // Nivel 1: Disciplinas do projeto
+    const disciplines = await this.#crawlLevel(customerId, projectFolderId);
+    const discNonEmpty = await this.#filterNonEmptyFolders(customerId, projectFolderId, disciplines.subFolders || []);
 
-    for (const phase of phaseNonEmpty) {
+    for (const discipline of discNonEmpty) {
       if (checkTimeout()) break;
 
-      // Nivel 2: Disciplinas da fase
-      const disciplines = await this.#crawlLevel(customerId, phase.id);
-      const discNonEmpty = await this.#filterNonEmptyFolders(customerId, phase.id, disciplines.subFolders || []);
+      // Nivel 2: Fases da disciplina
+      const phases = await this.#crawlLevel(customerId, discipline.id);
+      const phaseNonEmpty = await this.#filterNonEmptyFolders(customerId, discipline.id, phases.subFolders || []);
 
-      for (const discipline of discNonEmpty) {
+      for (const phase of phaseNonEmpty) {
         if (checkTimeout()) break;
 
-        // Nivel 3: Formatos da disciplina
-        const formats = await this.#crawlLevel(customerId, discipline.id);
-        const fmtNonEmpty = await this.#filterNonEmptyFolders(customerId, discipline.id, formats.subFolders || []);
+        // Nivel 3: Formatos da fase
+        const formats = await this.#crawlLevel(customerId, phase.id);
+        const fmtNonEmpty = await this.#filterNonEmptyFolders(customerId, phase.id, formats.subFolders || []);
 
         for (const format of fmtNonEmpty) {
           if (checkTimeout()) break;
@@ -239,7 +241,7 @@ class AutodocHttpClient {
             documents.push(this.#normalizeNgDoc(doc, statusMap, phase.name, discipline.name, format.name));
           }
 
-          // Documentos diretos na disciplina tambem
+          // Documentos diretos na fase tambem
           for (const doc of formats.documents || []) {
             documents.push(this.#normalizeNgDoc(doc, statusMap, phase.name, discipline.name, null));
           }
@@ -249,8 +251,8 @@ class AutodocHttpClient {
           }
         }
 
-        // Documentos diretos na disciplina (sem subpasta de formato)
-        for (const doc of disciplines.documents || []) {
+        // Documentos diretos na fase (sem subpasta de formato)
+        for (const doc of phases.documents || []) {
           documents.push(this.#normalizeNgDoc(doc, statusMap, phase.name, discipline.name, null));
         }
       }
@@ -361,14 +363,14 @@ class AutodocHttpClient {
       const resp = await fetch(url, {
         headers: { 'Cookie': cookieStr() },
       });
-      if (resp.status !== 200) return [];
+      if (resp.status !== 200) return { children: [], error: true };
       const body = await resp.text();
-      if (!body.startsWith('[')) return [];
+      if (!body.startsWith('[')) return { children: [], error: true };
       await new Promise(resolve => setTimeout(resolve, 200));
-      return JSON.parse(body);
+      return { children: JSON.parse(body), error: false };
     } catch (err) {
       console.warn(`[AutodocHttpClient] Classic TreeView erro folder ${folderId}:`, err.message);
-      return [];
+      return { children: [], error: true };
     }
   }
 
@@ -378,7 +380,7 @@ class AutodocHttpClient {
    * A TreeView retorna { id, name, isParent, tipo }:
    *   tipo 0 = folder, 1 = project, 2 = discipline, 3 = linked, 4 = document
    *
-   * Hierarquia tipica: Project → Fase (folder) → Disciplina (folder/tipo2) → Documento (tipo4)
+   * Hierarquia tipica: Project → Disciplina (folder) → Fase (folder/tipo2) → Documento (tipo4)
    * Metadados limitados (sem code, revision, status) — suficiente para contagem de entregas.
    */
   async #classicCrawlDocuments(customerId, customerName, classicInstanceId, projectFolderId) {
@@ -394,11 +396,10 @@ class AutodocHttpClient {
     let aborted = false;
     let consecutiveErrors = 0;
 
-    // Nova sessao para cada crawl (evita corrupcao)
-    const session = await this.#classicLogin(customerId, customerName);
-    const projects = await this.#classicListProjects(session, classicInstanceId);
-    if (!projects) {
-      console.warn(`[AutodocHttpClient] Classic crawl: falha ao selecionar empresa ${classicInstanceId}`);
+    // Reutilizar sessao existente para mesmo classicInstanceId (cache 5min)
+    const session = await this.#getOrCreateClassicSession(customerId, customerName, classicInstanceId);
+    if (!session) {
+      console.warn(`[AutodocHttpClient] Classic crawl: falha ao obter sessao para empresa ${classicInstanceId}`);
       return [];
     }
 
@@ -417,9 +418,9 @@ class AutodocHttpClient {
         return;
       }
 
-      const children = await this.#classicGetChildren(session, folderId);
+      const result = await this.#classicGetChildren(session, folderId);
 
-      if (children.length === 0) {
+      if (result.error) {
         consecutiveErrors++;
         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
           console.warn(`[AutodocHttpClient] Classic crawl ${customerName}: ${MAX_CONSECUTIVE_ERRORS} erros consecutivos, abortando`);
@@ -427,10 +428,11 @@ class AutodocHttpClient {
           return;
         }
       } else {
+        // Resposta bem-sucedida (mesmo vazia) reseta o contador
         consecutiveErrors = 0;
       }
 
-      for (const child of children) {
+      for (const child of result.children) {
         if (aborted) return;
 
         if (child.tipo === 4) {
@@ -455,15 +457,17 @@ class AutodocHttpClient {
           let nextPhase = phaseName;
           let nextDisc = disciplineName;
 
-          if (depth === 0) {
-            // Primeiro nivel dentro do projeto = fase
-            nextPhase = child.name;
-            nextDisc = null;
-          } else if (depth === 1) {
-            // Segundo nivel = disciplina
+          if (child.tipo === 2) {
+            // tipo 2 = discipline (independente do depth)
             nextDisc = child.name;
+          } else if (!disciplineName) {
+            // Sem disciplina definida: primeiro folder = disciplina
+            nextDisc = child.name;
+          } else if (!phaseName) {
+            // Com disciplina mas sem fase: proximo folder = fase
+            nextPhase = child.name;
           }
-          // depth >= 2: manter fase/disciplina atuais
+          // Ja tem ambos: manter fase/disciplina atuais
 
           await crawlFolder(child.id, depth + 1, nextPhase, nextDisc);
         }
@@ -484,9 +488,20 @@ class AutodocHttpClient {
    */
   #extractDocCode(name) {
     if (!name) return null;
-    // Padrao: letras-letras-numeros (codigo tipico de documento de engenharia)
-    const match = name.match(/^([A-Z]{2,5}[-_][A-Z]{1,5}[-_]\d{2,5})/i);
-    return match ? match[1].toUpperCase() : null;
+    // Padroes de codigo de documento de engenharia:
+    // - LETRAS-LETRAS-NUMEROS (ex: ARQ-PB-001)
+    // - LETRAS-LETRAS-LETRAS-NUMEROS (ex: ARQ-PB-DET-001, 4 segmentos)
+    // - NUMEROS-LETRAS-NUMEROS (ex: 001-ARQ-001, prefixo numerico)
+    const patterns = [
+      /\b([A-Z]{2,5}[-_][A-Z]{1,5}[-_][A-Z]{1,5}[-_]\d{2,5})\b/i,  // 4 segmentos
+      /\b([A-Z]{2,5}[-_][A-Z]{1,5}[-_]\d{2,5})\b/i,                  // 3 segmentos (padrao)
+      /\b(\d{2,5}[-_][A-Z]{2,5}[-_]\d{2,5})\b/i,                     // prefixo numerico
+    ];
+    for (const re of patterns) {
+      const match = name.match(re);
+      if (match) return match[1].toUpperCase();
+    }
+    return null;
   }
 
   /**
@@ -495,8 +510,43 @@ class AutodocHttpClient {
    */
   #extractRevision(name) {
     if (!name) return null;
-    const match = name.match(/\b(R(?:ev)?\.?\s*\d{1,3})\b/i);
-    return match ? match[1].replace(/\s/g, '') : null;
+    // Padroes de revisao: R01, Rev03, Rev.03, V01, V.01, REV-A, REV.A
+    const patterns = [
+      /\b(R(?:ev)?[-.]?\s*\d{1,3})\b/i,       // R01, Rev03, Rev.03, Rev-03
+      /\b(V\.?\s*\d{1,3})\b/i,                  // V01, V.01
+      /\b(REV[-.]?[A-Z])\b/i,                   // REV-A, REV.A, REVA
+    ];
+    for (const re of patterns) {
+      const match = name.match(re);
+      if (match) return match[1].replace(/\s/g, '');
+    }
+    return null;
+  }
+
+  /**
+   * Reutiliza sessao Classic existente ou cria nova (cache 5min por classicInstanceId).
+   */
+  async #getOrCreateClassicSession(customerId, customerName, classicInstanceId) {
+    const CLASSIC_SESSION_TTL = 5 * 60 * 1000; // 5 min
+    const cached = this.#classicSessionCache.get(classicInstanceId);
+    if (cached && Date.now() < cached.expiry) {
+      return cached.session;
+    }
+
+    try {
+      const session = await this.#classicLogin(customerId, customerName);
+      const projects = await this.#classicListProjects(session, classicInstanceId);
+      if (!projects) return null;
+
+      this.#classicSessionCache.set(classicInstanceId, {
+        session,
+        expiry: Date.now() + CLASSIC_SESSION_TTL,
+      });
+      return session;
+    } catch (err) {
+      console.warn(`[AutodocHttpClient] Classic session erro ${customerName}:`, err.message);
+      return null;
+    }
   }
 
   /**

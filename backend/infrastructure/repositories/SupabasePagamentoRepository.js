@@ -223,15 +223,40 @@ class SupabasePagamentoRepository extends PagamentoRepository {
     if (error) throw new Error(`Erro ao salvar change log batch: ${error.message}`);
   }
 
-  async findChangeLogByProject(projectCode) {
-    const { data, error } = await this.#supabase
+  async findChangeLogByProject(projectCode, options = {}) {
+    let query = this.#supabase
       .from(CHANGELOG_TABLE)
       .select('*')
       .eq('project_code', projectCode)
       .order('created_at', { ascending: false });
 
+    if (options.since) {
+      query = query.gt('created_at', options.since);
+    }
+    if (options.excludeEmail) {
+      query = query.neq('edited_by_email', options.excludeEmail);
+    }
+
+    const { data, error } = await query;
     if (error) throw new Error(`Erro ao buscar change log: ${error.message}`);
     return data || [];
+  }
+
+  async countChangeLogSince(since, excludeEmail) {
+    let query = this.#supabase
+      .from(CHANGELOG_TABLE)
+      .select('id, parcela_id', { count: 'exact' })
+      .gt('created_at', since);
+
+    if (excludeEmail) {
+      query = query.neq('edited_by_email', excludeEmail);
+    }
+
+    const { data, count, error } = await query;
+    if (error) throw new Error(`Erro ao contar changelog: ${error.message}`);
+
+    const parcelaIds = [...new Set((data || []).map(d => d.parcela_id).filter(Boolean))];
+    return { count: count || 0, parcela_ids: parcelaIds };
   }
 
   // --- Dashboard / Summary ---

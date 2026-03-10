@@ -1,9 +1,10 @@
 .parcelas-panel {
   background: #ffffff;
   border: 1px solid #e6e6e6;
+  border-left: 4px solid #ffdd00;
   border-radius: 12px;
   overflow: hidden;
-  font-family: Verdana, sans-serif;
+  font-family: 'Inter', Verdana, Geneva, Tahoma, sans-serif;
 }
 
 .parcelas-panel-header {
@@ -93,7 +94,7 @@
 .parcelas-table th {
   text-align: left;
   padding: 10px 14px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #6b7280;
   text-transform: uppercase;
@@ -104,7 +105,7 @@
 }
 
 .parcelas-table td {
-  padding: 10px 14px;
+  padding: 12px 14px;
   color: #1a1a1a;
   border-bottom: 1px solid #f0f0f0;
   vertical-align: middle;
@@ -120,11 +121,18 @@
 }
 
 .parcelas-table tr:hover td {
-  background: #f5f5f0;
+  background: #fffef5;
 }
 
-.parcelas-task-cell {
-  max-width: 200px;
+/* ===== CRONOGRAMA CELL (merged Tarefa + St.Projetos + smartsheet_status) ===== */
+.parcelas-cronograma-cell {
+  max-width: 240px;
+}
+
+.parcelas-cronograma-task-name {
+  display: block;
+  margin-bottom: 4px;
+  line-height: 1.3;
 }
 
 .parcelas-no-task {
@@ -138,9 +146,79 @@
   gap: 6px;
 }
 
+/* Badge smartsheet_status */
+.parcela-status-cronograma-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.parcela-status-cronograma-badge--completo {
+  color: #15803d;
+  background: rgba(21, 128, 61, 0.12);
+}
+
+.parcela-status-cronograma-badge--andamento {
+  color: #0369a1;
+  background: rgba(3, 105, 161, 0.12);
+}
+
+.parcela-status-cronograma-badge--outro {
+  color: #737373;
+  background: rgba(115, 115, 115, 0.12);
+}
+
+/* ===== DATAS CELL (merged Data Termino + Dilatacao + Data Pagamento) ===== */
+.parcelas-datas-cell {
+  white-space: nowrap;
+}
+
+.parcelas-datas-termino {
+  display: block;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.parcelas-datas-pagamento {
+  display: block;
+  font-size: 12px;
+  color: #737373;
+  line-height: 1.4;
+  margin-top: 1px;
+}
+
+.parcelas-datas-pagamento.parcela-data-atrasada {
+  color: #ef4444 !important;
+  font-weight: 600;
+}
+
+.parcelas-datas-dilatacao-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  color: #737373;
+  margin-top: 1px;
+}
+
+/* ===== DESCRICAO CELL (absorver Origem) ===== */
+.parcelas-descricao-origem {
+  display: block;
+  font-size: 11px;
+  color: #737373;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* ===== ACTIONS CELL ===== */
 .parcelas-actions-cell {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
 .parcelas-action-btn {
@@ -148,10 +226,13 @@
   border: none;
   color: #737373;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   border-radius: 4px;
   display: flex;
   align-items: center;
+  min-width: 28px;
+  min-height: 28px;
+  justify-content: center;
 }
 
 .parcelas-action-btn:hover {
@@ -204,7 +285,7 @@
 }
 
 .parcela-row-nao-vinculada {
-  border-left: 3px solid #ff9800 !important;
+  border-left: 3px solid #d97706 !important;
 }
 
 /* Celula descricao sem valor */
@@ -214,7 +295,7 @@
   color: #92400e;
 }
 
-/* Data atrasada */
+/* Data atrasada (legacy, kept for backward compat) */
 .parcela-data-atrasada {
   color: #ef4444 !important;
   font-weight: 600;
@@ -222,7 +303,7 @@
 
 /* Alerta cronograma */
 .parcela-row-alerta {
-  background: rgba(251, 191, 36, 0.08) !important;
+  background: rgba(251, 191, 36, 0.12) !important;
 }
 
 .parcela-alerta-icon {
@@ -264,7 +345,7 @@
 /* ===== TIPO SERVICO BADGE ===== */
 .parcela-tipo-servico-badge {
   display: inline-block;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 3px;
@@ -273,7 +354,7 @@
   vertical-align: middle;
 }
 
-/* Email cobrança NF button */
+/* Email cobranca NF button */
 .parcelas-action-email {
   color: #6366f1;
   text-decoration: none;
@@ -293,10 +374,10 @@
   color: #9d174d;
 }
 
-/* Data Limite Solicitacao (Phase 5) */
+/* Data Limite Solicitacao */
 .parcela-data-limite {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: #6b7280;
   margin-top: 2px;
 }
@@ -304,4 +385,134 @@
 .parcela-data-limite-vencida {
   color: #ef4444;
   font-weight: 600;
+}
+
+/* ===== SOLICITACAO BADGE ===== */
+.parcela-solicitacao-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2196f3;
+  background: rgba(33, 150, 243, 0.12);
+  white-space: nowrap;
+}
+
+.parcela-solicitacao-vazio {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+/* ===== SEM VINCULACAO NECESSARIA ===== */
+.parcela-sem-vinculacao-necessaria {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* ===== EMPTY STATE ===== */
+.parcelas-empty-state {
+  padding: 48px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.parcelas-empty-state svg {
+  color: #d1d5db;
+  margin-bottom: 4px;
+}
+
+.parcelas-empty-state-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.parcelas-empty-state-subtitle {
+  font-size: 13px;
+  color: #737373;
+  margin: 0 0 12px;
+}
+
+/* ===== PRAZO BADGE ===== */
+.parcela-prazo-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.parcela-prazo-atrasado {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.10);
+}
+
+.parcela-prazo-esse_mes {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.10);
+}
+
+.parcela-prazo-esse_quarter {
+  color: #0369a1;
+  background: rgba(3, 105, 161, 0.10);
+}
+
+.parcela-prazo-futuro {
+  color: #737373;
+  background: rgba(115, 115, 115, 0.10);
+}
+
+.parcela-prazo-sem_data {
+  color: #9ca3af;
+  background: rgba(156, 163, 175, 0.10);
+}
+
+/* ===== DESTAQUE PARCELA ATUALIZADA ===== */
+.parcela-row-atualizado {
+  background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%) !important;
+  border-left: 3px solid #f57f17 !important;
+  animation: parcela-highlight-fade 2s ease-out;
+}
+
+@keyframes parcela-highlight-fade {
+  0% { box-shadow: inset 0 0 0 2px rgba(245, 127, 23, 0.25); }
+  100% { box-shadow: none; }
+}
+
+.parcela-atualizado-badge {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #f57f17;
+  background: rgba(245, 127, 23, 0.12);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  margin-left: 0.375rem;
+}
+
+/* ===== RESPONSIVO - MOBILE ===== */
+@media (max-width: 768px) {
+  /* Esconder colunas: Valor (3rd), Prazo (7th), Solicitacao (8th) */
+  .parcelas-table th:nth-child(3),
+  .parcelas-table td:nth-child(3),
+  .parcelas-table th:nth-child(7),
+  .parcelas-table td:nth-child(7),
+  .parcelas-table th:nth-child(8),
+  .parcelas-table td:nth-child(8) {
+    display: none;
+  }
+
+  .parcelas-table th,
+  .parcelas-table td {
+    padding: 8px 10px;
+  }
 }

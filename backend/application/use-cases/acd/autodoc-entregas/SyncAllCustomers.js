@@ -26,7 +26,8 @@ class SyncAllCustomers {
       console.warn(`[SyncAllCustomers] Erro ao limpar runs órfãos:`, err.message);
     }
 
-    const mappings = await this.#repository.getProjectMappings({ activeOnly: true });
+    const allMappings = await this.#repository.getProjectMappings({ activeOnly: true });
+    const mappings = allMappings.filter(m => m.portfolio_project_code !== '__DISMISSED__');
 
     if (mappings.length === 0) {
       return { totalCustomers: 0, totalDocuments: 0, newDocuments: 0, results: [] };
@@ -48,9 +49,27 @@ class SyncAllCustomers {
       const customerName = customerMappings[0]?.autodoc_customer_name || customerId;
 
       try {
+        // Setar total de projetos para esta conta
+        await this.#repository.updateSyncRunProgress(syncRun.id, {
+          totalProjects: customerMappings.length,
+          projectsCompleted: 0,
+        });
+
+        const onProjectProgress = async ({ projectName, index, total }) => {
+          try {
+            await this.#repository.updateSyncRunProgress(syncRun.id, {
+              currentProject: projectName,
+              projectsCompleted: index,
+              totalProjects: total,
+            });
+          } catch (e) {
+            // Nao falhar o sync por erro de progresso
+          }
+        };
+
         const syncUseCase = new SyncCustomerDocuments(this.#repository, this.#autodocClient);
         const result = await Promise.race([
-          syncUseCase.execute({ customerId, mappings: customerMappings }),
+          syncUseCase.execute({ customerId, mappings: customerMappings, onProjectProgress }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error(`Customer sync timeout (${CUSTOMER_TIMEOUT / 1000}s) para ${customerName}`)), CUSTOMER_TIMEOUT)
           ),

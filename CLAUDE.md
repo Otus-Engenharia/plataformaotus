@@ -76,6 +76,46 @@ Ao desenvolver com Claude Code:
 3. Claude NÃO PODE commitar direto em `main` ou `develop`
 4. Use o skill `otus-deploy` para o fluxo completo
 
+## Workflow Guidelines
+
+### Abordagem de Trabalho
+
+1. **Plan First**: Para tasks não-triviais (3+ passos ou decisões arquiteturais), entrar em plan mode antes de implementar. Escrever specs claras reduz retrabalho.
+2. **Subagents para Contexto Limpo**: Delegar pesquisa, exploração e análise paralela a subagents. Uma tarefa por subagent para execução focada. Manter a janela de contexto principal limpa.
+3. **Se Algo Deu Errado, PARE**: Se a implementação divergir do esperado, parar imediatamente e re-planejar. Não insistir numa abordagem quebrada.
+
+### Verificação Obrigatória
+
+**NUNCA considerar uma task completa sem provar que funciona:**
+
+1. Backend alterado → verificar que `npm start` roda sem erros no `backend/`
+2. Frontend alterado → verificar que `npm run build` compila sem erros no `frontend/`
+3. Endpoints alterados → testar com curl, browser, ou demonstrar output
+4. Mudanças visuais → capturar screenshot ou descrever o resultado
+5. Perguntar-se: "Um desenvolvedor sênior aprovaria este código?"
+
+### Resolução Autônoma de Bugs
+
+Ao receber um bug report ou encontrar um erro:
+1. **Investigar primeiro** — ler logs, stack traces e código relacionado antes de perguntar ao usuário
+2. **Buscar root cause** — não aplicar fixes superficiais ou temporários
+3. **Resolver de forma autônoma** — o usuário não precisa explicar como debugar
+4. **Só perguntar quando genuinamente bloqueado** ou quando há decisão de negócio envolvida
+
+### Aprendizado Contínuo
+
+Quando o usuário corrigir um erro do Claude:
+1. Registrar o padrão no **auto-memory** (`MEMORY.md`) para não repetir
+2. Identificar se há outros locais no código com o mesmo problema
+3. Aplicar a correção em todos os locais afetados, não apenas no reportado
+
+## Princípios de Desenvolvimento
+
+1. **Simplicidade**: Fazer a mudança mais simples que resolve o problema. Sem over-engineering.
+2. **Impacto Mínimo**: Alterar apenas o necessário. Não refatorar código adjacente. Não introduzir bugs.
+3. **Root Cause**: Corrigir a causa raiz, não os sintomas. Sem fixes temporários. Padrão de desenvolvedor sênior.
+4. **Elegância Proporcional**: Para mudanças não-triviais, pausar e considerar se há abordagem mais limpa. Para fixes simples e óbvios, ir direto ao ponto.
+
 ## Architecture
 
 ### Domain Driven Design (DDD)
@@ -146,6 +186,57 @@ O domínio de Feedbacks está 100% implementado em DDD e serve como modelo:
 - Google OAuth 2.0 with three roles: `director` (full access), `admin` (full access), `leader` (filtered to own projects)
 - Role mappings defined in `auth-config.js`
 - Leader names must match exactly with BigQuery `lider` column values
+
+## Design System / Brand Guidelines
+
+### Fonte
+- **Família**: `'Inter', Verdana, Geneva, Tahoma, sans-serif` (definida em `index.css`)
+- Título master (h1): **32px bold** — usar apenas uma vez por página
+- Títulos (h2, h3): **22px bold**
+- Textos (body): **10px regular**
+
+### Paleta de Cores — Fundo Claro (padrão)
+
+| Uso | Cor | Hex |
+|-----|-----|-----|
+| Acento principal (elementos do dash, hover, scrollbar) | Amarelo | `#ffdd00` |
+| Acento secundário | Amarelo escuro | `#d3af00` |
+| Texto primário (maior contraste) | Preto | `#1a1a1a` |
+| Texto secundário | Cinza escuro | `#444444` |
+| Texto muted | Cinza médio | `#737373` |
+| Fundo principal | Branco | `#ffffff` |
+| Fundo degradê | Branco → cinza | `#ffffff → #ededed` |
+
+> **Amarelos (#ffdd00, #d3af00) são para elementos visuais do dash, NUNCA para textos em fundo claro.**
+
+### Paleta de Cores — Fundo Escuro
+
+| Uso | Cor | Hex |
+|-----|-----|-----|
+| Texto amarelo claro | Amarelo suave | `#ffe98f` |
+| Texto amarelo principal | Amarelo Otus | `#ffdd00` |
+| Texto amarelo muted | Amarelo escuro | `#a38800` |
+| Texto primário (maior contraste) | Branco | `#ffffff` |
+| Texto secundário | Cinza claro | `#d8d8d8` |
+| Texto muted | Cinza médio | `#b3b3b3` |
+| Fundo principal | Preto | `#1a1a1a` |
+| Fundo degradê | Preto → cinza | `#1a1a1a → #444444` |
+
+### Cores de Status (semânticas)
+
+| Status | Hex | Uso |
+|--------|-----|-----|
+| Sucesso | `#15803d` | Positivo, aprovado, no prazo |
+| Alerta | `#d97706` | Atenção, pendente |
+| Perigo | `#dc2626` | Erro, atrasado, crítico |
+| Info | `#0369a1` | Informativo, neutro |
+
+### Regras para Novos Componentes
+
+1. Usar as cores da paleta acima — não inventar cinzas ou amarelos novos
+2. Amarelos são para **elementos visuais** (bordas, ícones, badges), não para texto em fundo claro
+3. Para texto em fundo escuro, usar os amarelos da paleta escura (#ffe98f, #ffdd00)
+4. Preferir CSS custom properties (`var(--color-*)`) quando disponíveis em `index.css`
 
 ## Environment Variables
 

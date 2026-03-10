@@ -15,7 +15,7 @@ class SyncCustomerDocuments {
     this.#autodocClient = autodocClient;
   }
 
-  async execute({ customerId, mappings }) {
+  async execute({ customerId, mappings, onProjectProgress }) {
     let totalDocuments = 0;
     let newDocuments = 0;
 
@@ -58,6 +58,15 @@ class SyncCustomerDocuments {
 
         totalDocuments += rawDocs.length;
 
+        // Buscar datas existentes para preservar autodoc_created_at de docs ja sincronizados
+        const docIds = rawDocs.map(d => String(d.id));
+        let existingDatesMap = new Map();
+        try {
+          existingDatesMap = await this.#repository.findExistingDatesByDocIds(docIds);
+        } catch (err) {
+          console.warn(`[SyncCustomerDocuments] Erro ao buscar datas existentes:`, err.message);
+        }
+
         // Para cada documento, classificar e criar entidade
         const entities = [];
         for (const rawDoc of rawDocs) {
@@ -67,6 +76,10 @@ class SyncCustomerDocuments {
             const existing = await this.#repository.findByDocumentCode(rawDoc.code);
             classificationResult = DocumentClassifier.classify(rawDoc, existing);
           }
+
+          // Preservar data existente: rawDoc.createdAt (API) > existente no DB > fallback now
+          const existingDate = existingDatesMap.get(String(rawDoc.id));
+          const resolvedDate = rawDoc.createdAt || existingDate || new Date().toISOString();
 
           const doc = AutodocDocument.create({
             autodocDocId: rawDoc.id,
@@ -83,7 +96,7 @@ class SyncCustomerDocuments {
             status: rawDoc.status,
             autodocStatusName: rawDoc.statusName,
             author: rawDoc.author,
-            autodocCreatedAt: rawDoc.createdAt || new Date().toISOString(),
+            autodocCreatedAt: resolvedDate,
           });
 
           doc.classify(classificationResult.classification);
@@ -106,6 +119,16 @@ class SyncCustomerDocuments {
         console.log(`[SyncCustomerDocuments] Projeto ${mapping.portfolio_project_code}: ${rawDocs.length} docs`);
       } catch (err) {
         console.error(`[SyncCustomerDocuments] Erro no projeto ${mapping.portfolio_project_code}:`, err.message);
+      }
+
+      // Reportar progresso
+      if (onProjectProgress) {
+        const idx = mappings.indexOf(mapping) + 1;
+        await onProjectProgress({
+          projectName: mapping.autodoc_project_name || mapping.portfolio_project_code,
+          index: idx,
+          total: mappings.length,
+        });
       }
 
       // Rate limit entre projetos

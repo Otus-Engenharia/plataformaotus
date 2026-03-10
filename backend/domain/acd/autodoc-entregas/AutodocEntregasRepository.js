@@ -20,6 +20,10 @@ class AutodocEntregasRepository {
     throw new Error('Metodo upsertDocuments deve ser implementado');
   }
 
+  async findExistingDatesByDocIds(docIds) {
+    throw new Error('Metodo findExistingDatesByDocIds deve ser implementado');
+  }
+
   // --- Mapeamentos ---
 
   async getProjectMappings(options = {}) {
