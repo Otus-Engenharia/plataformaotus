@@ -59,7 +59,9 @@ class EnrichParcelasWithSmartsheet {
         const task = tasksByRowId.get(String(parcela.smartsheetRowId));
 
         if (task) {
-          const currentDataTermino = task.DataDeTermino || null;
+          const rawDataTermino = task.DataDeTermino || null;
+          const currentDataTermino = rawDataTermino && typeof rawDataTermino === 'object' && rawDataTermino.value != null
+            ? String(rawDataTermino.value) : (rawDataTermino ? String(rawDataTermino) : null);
           response.smartsheet_status = task.Status || null;
           response.smartsheet_data_termino = currentDataTermino;
 
@@ -71,8 +73,12 @@ class EnrichParcelasWithSmartsheet {
               project_code: projectCode,
               action: 'smartsheet_change',
               field_changed: 'data_termino',
-              old_value: parcela.lastSmartsheetDataTermino ? String(parcela.lastSmartsheetDataTermino) : null,
-              new_value: currentDataTermino ? String(currentDataTermino) : null,
+              old_value: (() => {
+                const v = parcela.lastSmartsheetDataTermino;
+                if (!v) return null;
+                return typeof v === 'object' && v.value != null ? String(v.value) : String(v);
+              })(),
+              new_value: currentDataTermino,
               edited_by_email: 'sistema',
               edited_by_name: 'Smartsheet Sync',
             });
