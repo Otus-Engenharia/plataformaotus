@@ -30,8 +30,9 @@ const supabase = getSupabaseServiceClient();
 async function discoverProjects() {
   console.log('\n=== PASSO 1: Descobrindo projetos Autodoc ===\n');
 
-  const projects = await client.discoverAllProjects();
+  const { projects, diagnostics } = await client.discoverAllProjects();
   console.log(`Total de projetos descobertos: ${projects.length}`);
+  console.log(`Diagnósticos: ${diagnostics.length} entradas`);
 
   // Agrupar por customer
   const byCustomer = new Map();

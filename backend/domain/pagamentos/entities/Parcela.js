@@ -26,6 +26,8 @@ class Parcela {
   #gerenteEmail;
   #alertaCronograma;
   #tipoServico;
+  #dilatacaoDias;
+  #statusSolicitacao;
   #createdBy;
   #createdAt;
   #updatedAt;
@@ -54,6 +56,8 @@ class Parcela {
     gerenteEmail = null,
     alertaCronograma = null,
     tipoServico = 'coordenacao',
+    dilatacaoDias = 0,
+    statusSolicitacao = null,
     createdBy = null,
     createdAt = null,
     updatedAt = null,
@@ -83,6 +87,8 @@ class Parcela {
     this.#gerenteEmail = gerenteEmail || null;
     this.#alertaCronograma = alertaCronograma || null;
     this.#tipoServico = tipoServico || 'coordenacao';
+    this.#dilatacaoDias = dilatacaoDias != null ? Number(dilatacaoDias) : 0;
+    this.#statusSolicitacao = statusSolicitacao || null;
     this.#createdBy = createdBy || null;
     this.#createdAt = createdAt ? new Date(createdAt) : new Date();
     this.#updatedAt = updatedAt ? new Date(updatedAt) : new Date();
@@ -112,12 +118,16 @@ class Parcela {
   get gerenteEmail() { return this.#gerenteEmail; }
   get alertaCronograma() { return this.#alertaCronograma; }
   get tipoServico() { return this.#tipoServico; }
+  get dilatacaoDias() { return this.#dilatacaoDias; }
+  get statusSolicitacao() { return this.#statusSolicitacao; }
   get createdBy() { return this.#createdBy; }
   get createdAt() { return this.#createdAt; }
   get updatedAt() { return this.#updatedAt; }
 
   get isVinculado() { return !!this.#smartsheetRowId; }
-  get isRecebido() { return this.#statusFinanceiro.isClosed; }
+  get isFaturado() { return this.#statusFinanceiro.isClosed; }
+  // Backward compat alias
+  get isRecebido() { return this.isFaturado; }
 
   get dataPagamentoEfetiva() {
     return this.#dataPagamentoManual || this.#dataPagamentoCalculada || null;
@@ -182,6 +192,11 @@ class Parcela {
     this.#updatedAt = new Date();
   }
 
+  marcarSolicitado() {
+    this.#statusSolicitacao = 'solicitado';
+    this.#updatedAt = new Date();
+  }
+
   calcularDataPagamento(regra) {
     if (!regra || this.#parcelaSemCronograma) {
       this.#dataPagamentoCalculada = null;
@@ -194,11 +209,18 @@ class Parcela {
       return;
     }
 
-    this.#dataPagamentoCalculada = regra.calcularDataPagamento(dataBase);
+    const dataPagamento = regra.calcularDataPagamento(dataBase);
+    if (dataPagamento && this.#dilatacaoDias > 0) {
+      const d = new Date(dataPagamento);
+      d.setDate(d.getDate() + this.#dilatacaoDias);
+      this.#dataPagamentoCalculada = d.toISOString().split('T')[0];
+    } else {
+      this.#dataPagamentoCalculada = dataPagamento;
+    }
     this.#updatedAt = new Date();
   }
 
-  updateFields({ descricao, valor, origem, fase, comentarioFinanceiro, comentarioProjetos, dataPagamentoManual, parcelaSemCronograma, gerenteEmail, tipoServico }) {
+  updateFields({ descricao, valor, origem, fase, comentarioFinanceiro, comentarioProjetos, dataPagamentoManual, parcelaSemCronograma, gerenteEmail, tipoServico, dilatacaoDias }) {
     if (descricao !== undefined) this.#descricao = descricao?.trim() || null;
     if (valor !== undefined) this.#valor = valor != null ? Number(valor) : null;
     if (origem !== undefined) this.#origem = new OrigemParcela(origem);
@@ -209,6 +231,7 @@ class Parcela {
     if (parcelaSemCronograma !== undefined) this.#parcelaSemCronograma = !!parcelaSemCronograma;
     if (gerenteEmail !== undefined) this.#gerenteEmail = gerenteEmail || null;
     if (tipoServico !== undefined) this.#tipoServico = tipoServico || 'coordenacao';
+    if (dilatacaoDias !== undefined) this.#dilatacaoDias = dilatacaoDias != null ? Number(dilatacaoDias) : 0;
     this.#updatedAt = new Date();
   }
 
@@ -237,6 +260,8 @@ class Parcela {
       gerente_email: this.#gerenteEmail,
       alerta_cronograma: this.#alertaCronograma,
       tipo_servico: this.#tipoServico,
+      dilatacao_dias: this.#dilatacaoDias,
+      status_solicitacao: this.#statusSolicitacao,
       created_by: this.#createdBy,
       created_at: this.#createdAt.toISOString(),
       updated_at: this.#updatedAt.toISOString(),
@@ -252,7 +277,8 @@ class Parcela {
       status_financeiro_color: this.#statusFinanceiro.color,
       origem_label: this.#origem.label,
       is_vinculado: this.isVinculado,
-      is_recebido: this.isRecebido,
+      is_faturado: this.isFaturado,
+      is_recebido: this.isFaturado,
       data_pagamento_efetiva: this.dataPagamentoEfetiva,
     };
   }
@@ -269,18 +295,9 @@ class Parcela {
       } else if (old === 'vinculado') {
         statusProjetos = 'vinculado';
         statusFinanceiro = 'pendente';
-      } else if (old === 'aguardando_medicao') {
-        statusProjetos = 'vinculado';
-        statusFinanceiro = 'aguardando_medicao';
-      } else if (old === 'medicao_solicitada') {
-        statusProjetos = 'vinculado';
-        statusFinanceiro = 'medicao_solicitada';
-      } else if (old === 'aguardando_recebimento') {
-        statusProjetos = 'vinculado';
-        statusFinanceiro = 'aguardando_recebimento';
       } else if (old === 'recebido') {
         statusProjetos = 'vinculado';
-        statusFinanceiro = 'recebido';
+        statusFinanceiro = 'faturado';
       } else {
         statusProjetos = 'nao_vinculado';
         statusFinanceiro = 'pendente';
@@ -311,6 +328,8 @@ class Parcela {
       gerenteEmail: data.gerente_email,
       alertaCronograma: data.alerta_cronograma,
       tipoServico: data.tipo_servico,
+      dilatacaoDias: data.dilatacao_dias,
+      statusSolicitacao: data.status_solicitacao,
       createdBy: data.created_by,
       createdAt: data.created_at,
       updatedAt: data.updated_at,

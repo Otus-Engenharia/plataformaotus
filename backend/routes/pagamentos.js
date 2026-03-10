@@ -155,7 +155,7 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
   // PUT /parcelas/:id - Update
   router.put('/parcelas/:id', requireAuth, async (req, res) => {
     try {
-      const { descricao, valor, origem, fase, status_projetos, status_financeiro, comentario_financeiro, comentario_projetos, data_pagamento_manual, parcela_sem_cronograma, gerente_email, tipo_servico } = req.body;
+      const { descricao, valor, origem, fase, status_projetos, status_financeiro, comentario_financeiro, comentario_projetos, data_pagamento_manual, parcela_sem_cronograma, gerente_email, tipo_servico, dilatacao_dias } = req.body;
 
       // Financial fields require canManagePagamentos; comments allowed for leaders
       const isFinancialUpdate = valor !== undefined || origem !== undefined || status_financeiro !== undefined || data_pagamento_manual !== undefined;
@@ -178,6 +178,7 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
         parcelaSemCronograma: parcela_sem_cronograma,
         gerenteEmail: gerente_email,
         tipoServico: tipo_servico,
+        dilatacaoDias: dilatacao_dias,
       });
 
       if (logAction) {
@@ -204,6 +205,15 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
         return res.status(403).json({ success: false, error: 'Acesso negado para status financeiro' });
       }
 
+      // Handle solicitacao field inline
+      if (field === 'solicitacao') {
+        const parcela = await repository.findParcelaById(req.params.id);
+        if (!parcela) return res.status(404).json({ success: false, error: 'Parcela nao encontrada' });
+        if (value === 'solicitado') parcela.marcarSolicitado();
+        const updated = await repository.updateParcela(parcela);
+        return res.json({ success: true, data: updated.toResponse() });
+      }
+
       const updateStatus = new UpdateParcelaStatus(repository);
       const result = await updateStatus.execute({
         id: req.params.id,
@@ -220,6 +230,42 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
       res.json({ success: true, data: result });
     } catch (error) {
       console.error('Erro ao atualizar status da parcela:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // PATCH /parcelas/:id/dilatacao - Update dilatacao dias
+  router.patch('/parcelas/:id/dilatacao', requireAuth, async (req, res) => {
+    try {
+      const { dilatacao_dias } = req.body;
+      if (dilatacao_dias === undefined || dilatacao_dias === null) {
+        return res.status(400).json({ success: false, error: 'dilatacao_dias e obrigatorio' });
+      }
+
+      const parcela = await repository.findParcelaById(req.params.id);
+      if (!parcela) {
+        return res.status(404).json({ success: false, error: 'Parcela nao encontrada' });
+      }
+
+      parcela.updateFields({ dilatacaoDias: Number(dilatacao_dias) });
+
+      // Recalculate payment date if there's a regra
+      if (parcela.companyId) {
+        const regra = await repository.findRegraByCompanyId(parcela.companyId);
+        if (regra) {
+          parcela.calcularDataPagamento(regra);
+        }
+      }
+
+      const updated = await repository.updateParcela(parcela);
+
+      if (logAction) {
+        await logAction(req, 'update', 'parcela', req.params.id, `Dilatacao alterada para ${dilatacao_dias} dias`);
+      }
+
+      res.json({ success: true, data: updated.toResponse() });
+    } catch (error) {
+      console.error('Erro ao atualizar dilatacao:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -320,6 +366,59 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
       res.json({ success: true, data: result });
     } catch (error) {
       console.error('Erro ao buscar parcelas futuras:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // GET /cronograma-financeiro - All parcelas for cronograma view
+  router.get('/cronograma-financeiro', requireAuth, async (req, res) => {
+    try {
+      const { months, leader } = req.query;
+      const allParcelas = leader
+        ? await repository.findParcelasByGerente(leader)
+        : await repository.findAllParcelas();
+
+      const numMonths = months ? Number(months) : 12;
+      const now = new Date();
+      const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endMonth = new Date(now.getFullYear(), now.getMonth() + numMonths, 0);
+
+      // Get project data for names
+      const projectCodes = [...new Set(allParcelas.map(p => p.projectCode))];
+      const projectDataMap = projectCodes.length > 0
+        ? await repository.getProjectDataByProjectCodes(projectCodes)
+        : {};
+
+      // Filter parcelas within the selected period (or already overdue)
+      const today = new Date();
+      const filtered = allParcelas.filter(p => {
+        const dateStr = p.dataPagamentoEfetiva || p.dataPagamentoCalculada || p.dataPagamentoManual;
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+        // Include if within range OR already overdue
+        return (d >= startMonth && d <= endMonth) || d < today;
+      });
+
+      // Sort chronologically by payment date
+      filtered.sort((a, b) => {
+        const da = new Date(a.dataPagamentoEfetiva || a.dataPagamentoCalculada || a.dataPagamentoManual);
+        const db = new Date(b.dataPagamentoEfetiva || b.dataPagamentoCalculada || b.dataPagamentoManual);
+        return da - db;
+      });
+
+      const result = filtered.map(p => {
+        const pd = projectDataMap[p.projectCode] || {};
+        return {
+          ...p.toResponse(),
+          project_name: pd.project_name || '',
+          project_status: pd.status || '',
+        };
+      });
+
+      res.json({ success: true, data: result, months: numMonths });
+    } catch (error) {
+      console.error('Erro ao buscar cronograma financeiro:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });

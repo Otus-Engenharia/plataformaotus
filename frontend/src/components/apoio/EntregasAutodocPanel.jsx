@@ -6,7 +6,7 @@
  * novo_arquivo/nova_revisao/mudanca_fase.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { autodocEntregasApi } from '../../api/autodocEntregas';
 import { useAuth } from '../../contexts/AuthContext';
 import './EntregasAutodocPanel.css';
@@ -123,9 +123,13 @@ export default function EntregasAutodocPanel() {
   const days = daysOption === 'biz1' ? getBusinessDayDaysAgo(1) : daysOption;
   const [classificationFilter, setClassificationFilter] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(null); // { running, completed, failed, total }
   const [syncResult, setSyncResult] = useState(null);
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const pollRef = useRef(null);
+  const pollStartRef = useRef(null);
+  const batchIdRef = useRef(null);
 
   const limit = 50;
 
@@ -169,22 +173,100 @@ export default function EntregasAutodocPanel() {
     fetchSummary();
   }, [fetchDocs, fetchSummary]);
 
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    pollStartRef.current = null;
+    batchIdRef.current = null;
+  }, []);
+
+  const pollSyncStatus = useCallback(async () => {
+    try {
+      const res = await autodocEntregasApi.getSyncStatus(batchIdRef.current);
+      if (!res.data?.success) return;
+
+      const { running, completed, failed, total } = res.data.data;
+      setSyncProgress({ running, completed, failed, total });
+
+      // Se nao ha mais running, sync terminou
+      if (running === 0 && total > 0) {
+        stopPolling();
+        setSyncing(false);
+        setSyncProgress(null);
+
+        if (failed > 0) {
+          setSyncResult({ error: `${failed} conta(s) com erro. ${completed} concluida(s).` });
+        } else {
+          setSyncResult({ totalCustomers: completed, totalDocuments: '-', newDocuments: '-' });
+        }
+
+        fetchDocs();
+        fetchSummary();
+        return;
+      }
+
+      // Timeout de seguranca: 10 min
+      if (pollStartRef.current && Date.now() - pollStartRef.current > 10 * 60 * 1000) {
+        stopPolling();
+        setSyncing(false);
+        setSyncProgress(null);
+        setSyncResult({ error: 'Timeout: sync demorou mais de 10 minutos. Verifique o status manualmente.' });
+      }
+    } catch (err) {
+      console.error('Erro ao consultar sync status:', err);
+    }
+  }, [stopPolling, fetchDocs, fetchSummary]);
+
+  const startPolling = useCallback(() => {
+    stopPolling();
+    pollStartRef.current = Date.now();
+    // Primeiro poll imediato
+    pollSyncStatus();
+    pollRef.current = setInterval(pollSyncStatus, 5000);
+  }, [stopPolling, pollSyncStatus]);
+
+  // Ao montar, verificar se ha sync em andamento (sem batchId = fallback últimas 2h)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await autodocEntregasApi.getSyncStatus();
+        if (cancelled || !res.data?.success) return;
+        const { running } = res.data.data;
+        if (running > 0) {
+          batchIdRef.current = null; // fallback: sem batchId
+          setSyncing(true);
+          startPolling();
+        }
+      } catch (err) {
+        // Ignora erro na verificacao inicial
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup ao desmontar
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
   const handleSyncAll = async () => {
     if (syncing) return;
     setSyncing(true);
     setSyncResult(null);
+    setSyncProgress(null);
     try {
       const res = await autodocEntregasApi.syncAll();
       if (res.data?.success) {
-        setSyncResult(res.data.data);
-        fetchDocs();
-        fetchSummary();
+        batchIdRef.current = res.data.batchId || null;
+        startPolling();
       }
     } catch (err) {
       console.error('Erro no sync:', err);
-      setSyncResult({ error: err.response?.data?.error || err.message });
-    } finally {
       setSyncing(false);
+      setSyncResult({ error: err.response?.data?.error || err.message });
     }
   };
 
@@ -205,7 +287,9 @@ export default function EntregasAutodocPanel() {
               {syncing ? (
                 <>
                   <span className="adoc-spinner" />
-                  Sincronizando...
+                  {syncProgress
+                    ? `Sincronizando... ${syncProgress.completed}/${syncProgress.total} contas`
+                    : 'Sincronizando...'}
                 </>
               ) : (
                 'Sincronizar Agora'
@@ -224,7 +308,7 @@ export default function EntregasAutodocPanel() {
       {/* Sync result toast */}
       {syncResult && !syncResult.error && (
         <div className="adoc-toast adoc-toast--success">
-          Sync concluido: {syncResult.totalCustomers} contas, {syncResult.totalDocuments} documentos, {syncResult.newDocuments} novos
+          Sync concluido: {syncResult.totalCustomers} conta(s) sincronizada(s)
           <button className="adoc-toast-close" onClick={() => setSyncResult(null)}>&times;</button>
         </div>
       )}

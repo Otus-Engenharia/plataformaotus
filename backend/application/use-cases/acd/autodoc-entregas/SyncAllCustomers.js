@@ -15,7 +15,17 @@ class SyncAllCustomers {
     this.#autodocClient = autodocClient;
   }
 
-  async execute() {
+  async execute({ batchId } = {}) {
+    // Limpar runs órfãos (running > 30 min) antes de iniciar
+    try {
+      const timedOut = await this.#repository.timeoutStaleRuns(30);
+      if (timedOut > 0) {
+        console.log(`[SyncAllCustomers] ${timedOut} sync runs órfãos marcados como timeout`);
+      }
+    } catch (err) {
+      console.warn(`[SyncAllCustomers] Erro ao limpar runs órfãos:`, err.message);
+    }
+
     const mappings = await this.#repository.getProjectMappings({ activeOnly: true });
 
     if (mappings.length === 0) {
@@ -30,14 +40,21 @@ class SyncAllCustomers {
       byCustomer.get(key).push(mapping);
     }
 
+    const CUSTOMER_TIMEOUT = 300_000; // 5 min por customer
     const results = [];
 
     for (const [customerId, customerMappings] of byCustomer) {
-      const syncRun = await this.#repository.createSyncRun(customerId);
+      const syncRun = await this.#repository.createSyncRun(customerId, batchId);
+      const customerName = customerMappings[0]?.autodoc_customer_name || customerId;
 
       try {
         const syncUseCase = new SyncCustomerDocuments(this.#repository, this.#autodocClient);
-        const result = await syncUseCase.execute({ customerId, mappings: customerMappings });
+        const result = await Promise.race([
+          syncUseCase.execute({ customerId, mappings: customerMappings }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Customer sync timeout (${CUSTOMER_TIMEOUT / 1000}s) para ${customerName}`)), CUSTOMER_TIMEOUT)
+          ),
+        ]);
 
         await this.#repository.completeSyncRun(syncRun.id, {
           projectsScanned: customerMappings.length,
@@ -52,10 +69,13 @@ class SyncAllCustomers {
           ...result,
         });
       } catch (err) {
+        const isTimeout = err.message.includes('timeout');
         await this.#repository.completeSyncRun(syncRun.id, {
           error: err.message,
-          status: 'error',
+          status: isTimeout ? 'timeout' : 'error',
         });
+
+        console.warn(`[SyncAllCustomers] Customer ${customerName} ${isTimeout ? 'timeout' : 'erro'}:`, err.message);
 
         results.push({
           customerId,

@@ -36,10 +36,15 @@ function DesviosPortfolioView() {
   }, [portfolioData]);
 
   // IDs de todos os projetos do portfolio (já filtrado por líder no backend)
+  // Inclui tanto smartsheet_id quanto project_code para match com snapshots
   const allProjectIds = useMemo(() => {
-    return (portfolioData || [])
-      .filter(p => p.smartsheet_id)
-      .map(p => String(p.smartsheet_id));
+    const ids = [];
+    for (const p of (portfolioData || [])) {
+      if (p.smartsheet_id) ids.push(String(p.smartsheet_id));
+      const code = p.project_code_norm || p.project_code;
+      if (code) ids.push(String(code));
+    }
+    return ids;
   }, [portfolioData]);
 
   // IDs filtrados pelos filtros de Time/Lider do PortfolioContext
@@ -91,7 +96,7 @@ function DesviosPortfolioView() {
     const filterSet = filteredProjectIds.length > 0 ? new Set(filteredProjectIds) : null;
 
     const byProject = changelog.by_project
-      .filter(p => !filterSet || filterSet.has(p.project_id))
+      .filter(p => !filterSet || filterSet.has(p.project_id) || filterSet.has(p.project_code))
       .map(proj => {
         // Filtrar month_pairs por período
         let pairs = proj.month_pairs;
@@ -167,10 +172,10 @@ function DesviosPortfolioView() {
     return [...periods].sort().reverse();
   }, [changelog]);
 
-  const getProjectName = (projectId) => {
-    const meta = projectMeta.get(projectId);
-    if (meta) return meta.project_name || meta.project_code_norm || projectId;
-    return projectId;
+  const getProjectName = (projectId, projectCode) => {
+    const meta = projectMeta.get(projectId) || (projectCode ? projectMeta.get(projectCode) : null);
+    if (meta) return meta.project_name || meta.project_code_norm || projectCode || projectId;
+    return projectCode || projectId;
   };
 
   const formatPeriodLabel = (dateStr) => {
@@ -285,7 +290,7 @@ function DesviosPortfolioView() {
                       <td>{idx + 1}</td>
                       <td className="desvios-project-name">
                         <span className={`desvios-expand-icon ${isExpanded ? 'rotated' : ''}`}>&#9654;</span>
-                        {getProjectName(proj.project_id)}
+                        {getProjectName(proj.project_id, proj.project_code)}
                       </td>
                       <td className="desvios-num" style={{ color: s.desvios > 0 ? '#EF4444' : undefined }}>{s.desvios}</td>
                       <td className="desvios-num" style={{ color: s.criadas > 0 ? '#3B82F6' : undefined }}>{s.criadas}</td>

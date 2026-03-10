@@ -20,7 +20,7 @@ class ListParcelasByGerente {
           gerente_email: email,
           total_parcelas: 0,
           valor_total: 0,
-          parcelas_recebidas: 0,
+          parcelas_faturadas: 0,
           parcelas_sem_vinculacao: 0,
           proximo_pagamento: null,
         };
@@ -28,10 +28,10 @@ class ListParcelasByGerente {
       const proj = projectMap[code];
       proj.total_parcelas++;
       proj.valor_total += Number(p.valor) || 0;
-      if (p.statusFinanceiro.value === 'recebido') proj.parcelas_recebidas++;
+      if (p.statusFinanceiro.value === 'faturado') proj.parcelas_faturadas++;
       if (!p.isVinculado && !p.isRecebido && !p.parcelaSemCronograma) proj.parcelas_sem_vinculacao++;
 
-      if (p.statusFinanceiro.value !== 'recebido') {
+      if (p.statusFinanceiro.value !== 'faturado') {
         const dateStr = p.dataPagamentoCalculada || p.dataPagamentoManual;
         if (dateStr) {
           const d = new Date(dateStr);

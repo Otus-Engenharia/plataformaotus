@@ -700,7 +700,10 @@ function VistaClienteApontamentosView() {
                                 <span className="vca-issue-title">{issue.title || 'Sem título'}</span>
                               </div>
                               {isExpanded && issue.description && (
-                                <div className="vca-issue-description">{issue.description}</div>
+                                <div
+                                  className="vca-issue-description"
+                                  dangerouslySetInnerHTML={{ __html: issue.description }}
+                                />
                               )}
                             </td>
                             <td>
