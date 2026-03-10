@@ -5,7 +5,7 @@ class UpdateParcela {
     this.#repository = repository;
   }
 
-  async execute({ id, descricao, valor, origem, fase, statusProjetos, statusFinanceiro, comentarioFinanceiro, comentarioProjetos, dataPagamentoManual, parcelaSemCronograma, gerenteEmail, tipoServico }) {
+  async execute({ id, descricao, valor, origem, fase, statusProjetos, statusFinanceiro, comentarioFinanceiro, comentarioProjetos, dataPagamentoManual, parcelaSemCronograma, gerenteEmail, tipoServico, dilatacaoDias }) {
     const parcela = await this.#repository.findParcelaById(id);
     if (!parcela) throw new Error('Parcela nao encontrada');
 
@@ -28,6 +28,7 @@ class UpdateParcela {
       parcelaSemCronograma,
       gerenteEmail,
       tipoServico,
+      dilatacaoDias,
     });
 
     const updated = await this.#repository.updateParcela(parcela);

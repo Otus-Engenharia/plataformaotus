@@ -19,10 +19,13 @@ class SyncCustomerDocuments {
     let totalDocuments = 0;
     let newDocuments = 0;
 
+    // Determinar se algum mapping desta conta usa API classica
+    const anyClassic = mappings.some(m => m.use_classic_api === true);
+
     // Buscar status map da conta
     let statusMap = new Map();
     try {
-      const statuses = await this.#autodocClient.getStatuses(customerId);
+      const statuses = await this.#autodocClient.getStatuses(customerId, { useClassicApi: anyClassic });
       for (const s of (statuses || [])) {
         statusMap.set(String(s.id), s.name);
       }
@@ -30,14 +33,28 @@ class SyncCustomerDocuments {
       console.warn(`[SyncCustomerDocuments] Erro ao buscar status do customer ${customerId}:`, err.message);
     }
 
+    const CRAWL_TIMEOUT = 120_000; // 2 min por projeto
+
     for (const mapping of mappings) {
       try {
-        // Crawl documentos do projeto
-        const rawDocs = await this.#autodocClient.crawlProjectDocuments(
+        // Crawl documentos do projeto com timeout
+        const useClassicApi = mapping.use_classic_api === true;
+        const crawlPromise = this.#autodocClient.crawlProjectDocuments(
           customerId,
           mapping.autodoc_project_folder_id,
-          statusMap
+          statusMap,
+          {
+            useClassicApi,
+            classicInstanceId: mapping.classic_instance_id || null,
+            customerName: mapping.autodoc_customer_name || customerId,
+          }
         );
+        const rawDocs = await Promise.race([
+          crawlPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Crawl timeout (${CRAWL_TIMEOUT / 1000}s) para projeto ${mapping.portfolio_project_code}`)), CRAWL_TIMEOUT)
+          ),
+        ]);
 
         totalDocuments += rawDocs.length;
 

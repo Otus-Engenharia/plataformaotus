@@ -28,18 +28,18 @@ class GetDashboardKpis {
       !p.isVinculado && !p.isRecebido && !p.parcelaSemCronograma
     ).length;
 
-    // Valor pendente (all except recebido)
+    // Valor pendente (all except faturado)
     const valorPendente = Object.entries(sumsByStatus)
-      .filter(([status]) => status !== 'recebido')
+      .filter(([status]) => status !== 'faturado')
       .reduce((sum, [, val]) => sum + val, 0);
 
-    const valorRecebido = sumsByStatus['recebido'] || 0;
+    const valorFaturado = sumsByStatus['faturado'] || 0;
 
     // Proximos 30 dias
     const now = new Date();
     const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const proximos30Dias = allParcelas.filter(p => {
-      if (p.statusFinanceiro.value === 'recebido') return false;
+      if (p.statusFinanceiro.value === 'faturado') return false;
       const dateStr = p.dataPagamentoCalculada || p.dataPagamentoManual;
       if (!dateStr) return false;
       const d = new Date(dateStr);
@@ -52,7 +52,7 @@ class GetDashboardKpis {
       projetos_ativos_sem_parcelas: projetosAtivosSemParcelas,
       parcelas_sem_vinculacao: parcelasSemVinculacao,
       valor_pendente: valorPendente,
-      valor_recebido: valorRecebido,
+      valor_faturado: valorFaturado,
       proximos_30_dias: proximos30Dias,
       total_parcelas: totalParcelas,
       total_projetos_com_parcelas: projectCodesWithParcelas.length,

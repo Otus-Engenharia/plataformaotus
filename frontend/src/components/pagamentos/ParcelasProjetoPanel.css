@@ -110,12 +110,17 @@
   vertical-align: middle;
 }
 
+/* Zebra striping */
+.parcelas-table tbody tr:nth-child(even) td {
+  background: #fafbfc;
+}
+
 .parcelas-table tr:last-child td {
   border-bottom: none;
 }
 
 .parcelas-table tr:hover td {
-  background: #f9fafb;
+  background: #f5f5f0;
 }
 
 .parcelas-task-cell {
@@ -286,4 +291,17 @@
 .parcela-tipo-servico-modelagem {
   background: #fce7f3;
   color: #9d174d;
+}
+
+/* Data Limite Solicitacao (Phase 5) */
+.parcela-data-limite {
+  display: block;
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.parcela-data-limite-vencida {
+  color: #ef4444;
+  font-weight: 600;
 }

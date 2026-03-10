@@ -14,7 +14,7 @@ class DiscoverAutodocProjects {
 
   async execute({ portfolioProjectCodes = [] }) {
     // 1. Descobrir todos os projetos Autodoc
-    const allProjects = await this.#autodocClient.discoverAllProjects();
+    const { projects: allProjects, diagnostics } = await this.#autodocClient.discoverAllProjects();
 
     // 2. Buscar mapeamentos existentes
     const existingMappings = await this.#repository.getProjectMappings({ activeOnly: false });
@@ -41,13 +41,16 @@ class DiscoverAutodocProjects {
         customerName: project.customerName,
         projectFolderId: project.projectFolderId,
         projectName: project.projectName,
+        autodocProduct: project.autodocProduct || null,
+        useClassicApi: project.useClassicApi || false,
+        classicInstanceId: project.classicInstanceId || null,
         alreadyMapped,
         mappedProjectCode: mappedCode || null,
         suggestedMatch,
       };
     });
 
-    return results;
+    return { results, diagnostics };
   }
 
   #findBestMatch(projectName, projectCodes) {

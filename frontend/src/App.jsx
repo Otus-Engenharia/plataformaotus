@@ -1541,9 +1541,10 @@ function AppContent() {
     vista_cliente: 'Vista do Cliente',
   };
   const currentTitle = currentArea ? areaTitles[currentArea] : 'Plataforma Otus';
-  // Não mostrar Oráculo na Home, OKRs, Indicadores legados e área /ind
+  // Não mostrar Oráculo na Home, OKRs, Indicadores legados, área /ind e Vista Cliente
   const isOKRsOrIndicadoresRoute = location.pathname.startsWith('/okrs') || location.pathname.startsWith('/ind');
-  const showOracle = !isHomeRoute && !isOKRsOrIndicadoresRoute;
+  const isVistaClienteRoute = location.pathname.startsWith('/vista-cliente');
+  const showOracle = !isHomeRoute && !isOKRsOrIndicadoresRoute && !isVistaClienteRoute;
   
   // Tela Home: sem TopBar, sem Sidebar, sem Oráculo
   if (isHomeRoute) {
@@ -2007,8 +2008,8 @@ function AppContent() {
           {(location.pathname.startsWith('/projetos') ||
             location.pathname.startsWith('/todos') ||
             location.pathname.startsWith('/agenda')) && <TodoCreateFAB />}
-          {/* Relato Create FAB - criar relatos rapidamente de qualquer página */}
-          <RelatoCreateFAB />
+          {/* Relato Create FAB - criar relatos rapidamente (não na Vista Cliente) */}
+          {!isVistaClienteRoute && <RelatoCreateFAB />}
           {/* Bug Report FAB - disponível em todas as páginas exceto Home/Login */}
           <BugReportFAB />
         </main>

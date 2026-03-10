@@ -33,7 +33,7 @@ SELECT
   s.DataDeTermino,
   s.Disciplina,
   s.Level,
-  SAFE_CAST(s.Duracao AS INT64) AS Duracao,
+  SAFE_CAST(s.Duracao AS FLOAT64) AS Duracao,
   s.Status,
   s.rowNumber,
   s.Categoria_de_atraso,

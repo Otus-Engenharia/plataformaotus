@@ -34,6 +34,7 @@ export default function MapeamentoAutodocPanel() {
   const [portfolioSearch, setPortfolioSearch] = useState('');
   const [coverageAutodocSearch, setCoverageAutodocSearch] = useState('');
   const [discoveryPortfolioSearch, setDiscoveryPortfolioSearch] = useState('');
+  const [diagnostics, setDiagnostics] = useState([]);
   const [clientFilter, setClientFilter] = useState('');
   const [statusProjectFilter, setStatusProjectFilter] = useState('active');
 
@@ -93,6 +94,7 @@ export default function MapeamentoAutodocPanel() {
       const res = await autodocEntregasApi.discoverProjects(portfolioCodes);
       if (res.data?.success) {
         setProjects(res.data.data || []);
+        setDiagnostics(res.data.diagnostics || []);
         // Pre-selecionar sugestoes
         const preSelected = {};
         for (const p of (res.data.data || [])) {
@@ -127,6 +129,8 @@ export default function MapeamentoAutodocPanel() {
         autodocCustomerName: project.customerName,
         autodocProjectFolderId: project.projectFolderId,
         autodocProjectName: project.projectName,
+        useClassicApi: project.useClassicApi || false,
+        classicInstanceId: project.classicInstanceId || null,
       });
 
       // Atualizar estado local
@@ -156,6 +160,8 @@ export default function MapeamentoAutodocPanel() {
         autodocCustomerName: project.customerName,
         autodocProjectFolderId: project.projectFolderId,
         autodocProjectName: project.projectName,
+        useClassicApi: project.useClassicApi || false,
+        classicInstanceId: project.classicInstanceId || null,
       });
 
       setProjects(prev => prev.map(p => {
@@ -223,6 +229,8 @@ export default function MapeamentoAutodocPanel() {
           autodocCustomerName: project.customerName,
           autodocProjectFolderId: project.projectFolderId,
           autodocProjectName: project.projectName,
+          useClassicApi: project.useClassicApi || false,
+          classicInstanceId: project.classicInstanceId || null,
         });
         confirmed++;
       } catch (err) {
@@ -289,6 +297,8 @@ export default function MapeamentoAutodocPanel() {
         autodocCustomerName: autodocProject.customerName,
         autodocProjectFolderId: autodocProject.projectFolderId,
         autodocProjectName: autodocProject.projectName,
+        useClassicApi: autodocProject.useClassicApi || false,
+        classicInstanceId: autodocProject.classicInstanceId || null,
       });
 
       setProjects(prev => prev.map(p => {
@@ -729,6 +739,19 @@ export default function MapeamentoAutodocPanel() {
           </div>
           <div className="adoc-map-filter-count">
             <strong>{filteredProjects.length}</strong> projeto{filteredProjects.length !== 1 ? 's' : ''}
+          </div>
+        </div>
+      )}
+
+      {/* Diagnostics: Classic accounts with errors */}
+      {diagnostics.filter(d => d.status === 'classic-no-instance' || d.status === 'classic-error').length > 0 && (
+        <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 6, padding: '10px 14px', marginBottom: 12, fontSize: 13 }}>
+          <strong style={{ color: '#92400e' }}>Contas Classic com erro:</strong>{' '}
+          <span style={{ color: '#78350f' }}>
+            {diagnostics.filter(d => d.status === 'classic-no-instance' || d.status === 'classic-error').map(d => d.customerName).join(', ')}
+          </span>
+          <div style={{ color: '#92400e', marginTop: 4, fontSize: 12 }}>
+            Não foi possível acessar estas contas via Classic API. Verifique os logs do servidor.
           </div>
         </div>
       )}

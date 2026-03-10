@@ -7,12 +7,7 @@ const STATUS_PROJETOS_CONFIG = {
 
 const STATUS_FINANCEIRO_CONFIG = {
   pendente: { label: 'Pendente', color: '#9e9e9e', bg: 'rgba(158,158,158,0.12)' },
-  aguardando_medicao: { label: 'Aguardando Medicao', color: '#ff5722', bg: 'rgba(255,87,34,0.12)' },
-  medicao_solicitada: { label: 'Medicao Solicitada', color: '#9c27b0', bg: 'rgba(156,39,176,0.12)' },
-  aguardando_faturamento: { label: 'Aguardando Faturamento', color: '#ff9800', bg: 'rgba(255,152,0,0.12)' },
-  faturado: { label: 'Faturado', color: '#2196f3', bg: 'rgba(33,150,243,0.12)' },
-  aguardando_recebimento: { label: 'Aguardando Recebimento', color: '#ffc107', bg: 'rgba(255,193,7,0.12)' },
-  recebido: { label: 'Pago', color: '#4caf50', bg: 'rgba(76,175,80,0.12)' },
+  faturado: { label: 'Faturado', color: '#4caf50', bg: 'rgba(76,175,80,0.12)' },
 };
 
 const SEM_VINCULACAO_CONFIG = { label: 'Sem Vinculacao', color: '#9ca3af', bg: 'rgba(156,163,175,0.12)' };

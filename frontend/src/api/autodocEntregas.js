@@ -38,6 +38,12 @@ export const autodocEntregasApi = {
       withCredentials: true,
     }),
 
+  getSyncStatus: (batchId) =>
+    axios.get(`${API_URL}/api/autodoc-entregas/sync-status`, {
+      params: batchId ? { batchId } : undefined,
+      withCredentials: true,
+    }),
+
   discoverProjects: (portfolioProjectCodes = []) =>
     axios.post(`${API_URL}/api/autodoc-entregas/discover`, { portfolioProjectCodes }, {
       withCredentials: true,

@@ -70,7 +70,7 @@ class SupabasePagamentoRepository extends PagamentoRepository {
       .from(PARCELAS_TABLE)
       .select('*')
       .not('smartsheet_row_id', 'is', null)
-      .neq('status_financeiro', 'recebido')
+      .neq('status_financeiro', 'faturado')
       .order('project_code', { ascending: true });
 
     if (error) throw new Error(`Erro ao buscar parcelas vinculadas: ${error.message}`);
@@ -81,7 +81,7 @@ class SupabasePagamentoRepository extends PagamentoRepository {
     let query = this.#supabase
       .from(PARCELAS_TABLE)
       .select('*')
-      .neq('status_financeiro', 'recebido')
+      .neq('status_financeiro', 'faturado')
       .order('data_pagamento_calculada', { ascending: true, nullsFirst: false });
 
     if (options.leader) {
@@ -136,7 +136,7 @@ class SupabasePagamentoRepository extends PagamentoRepository {
     let query = this.#supabase
       .from(PARCELAS_TABLE)
       .select('*', { count: 'exact', head: true })
-      .in('status_financeiro', ['pendente', 'aguardando_medicao', 'aguardando_faturamento', 'aguardando_recebimento']);
+      .eq('status_financeiro', 'pendente');
 
     if (userEmail) {
       query = query.eq('gerente_email', userEmail);

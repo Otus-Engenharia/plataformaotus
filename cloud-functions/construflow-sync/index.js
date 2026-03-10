@@ -14,6 +14,7 @@
  */
 
 import { BigQuery } from '@google-cloud/bigquery';
+import { Readable } from 'stream';
 import {
   fetchProjects,
   fetchProjectIssues,
@@ -125,7 +126,7 @@ async function insertToBigQuery(tableName, rows, schema = null) {
     ignoreUnknownValues: true,
   };
 
-  const { Readable } = require('stream');
+
   const readableStream = new Readable();
   readableStream.push(buffer);
   readableStream.push(null);
@@ -401,6 +402,40 @@ async function deleteProjectRows(tableName, projectId) {
 }
 
 /**
+ * Deleta rows de tabela relacionada usando subquery na tabela issues.
+ * Usado para tabelas como issues_disciplines que não têm coluna projectId.
+ */
+async function deleteRelatedRows(tableName, fkColumn, projectId) {
+  const bq = getBigQueryClient();
+  const maxRetries = 3;
+  const retryDelayMs = 60_000;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await bq.query({
+        query: `DELETE FROM \`${CONFIG.bigquery.projectId}.${CONFIG.bigquery.dataset}.${tableName}\`
+                WHERE CAST(${fkColumn} AS STRING) IN (
+                  SELECT CAST(id AS STRING) FROM \`${CONFIG.bigquery.projectId}.${CONFIG.bigquery.dataset}.issues\`
+                  WHERE CAST(projectId AS STRING) = @projectId
+                )`,
+        params: { projectId: String(projectId) },
+        location: CONFIG.bigquery.location,
+      });
+      console.log(`   🗑️ Rows relacionadas do projeto ${projectId} deletadas de ${tableName}`);
+      return;
+    } catch (err) {
+      const isStreamingBufferError = err.message?.includes('streaming buffer');
+      if (isStreamingBufferError && attempt < maxRetries) {
+        console.warn(`   ⚠️ Streaming buffer ativo em ${tableName}, tentativa ${attempt}/${maxRetries}. Aguardando ${retryDelayMs / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+/**
  * Insere rows no BigQuery via load job (para sync single-project).
  * Usa load job em vez de streaming insert para evitar conflito com DML:
  * "UPDATE or DELETE over rows in the streaming buffer is not supported"
@@ -427,7 +462,7 @@ async function appendToBigQuery(tableName, rows) {
     ignoreUnknownValues: true,
   };
 
-  const { Readable } = require('stream');
+
   const readableStream = new Readable();
   readableStream.push(buffer);
   readableStream.push(null);
@@ -449,19 +484,16 @@ async function appendToBigQuery(tableName, rows) {
 }
 
 /**
- * Sincroniza issues de um único projeto (DELETE + INSERT)
+ * Sincroniza issues de um único projeto (FETCH → DELETE → INSERT)
+ * Fetch primeiro para não perder dados se o fetch falhar ou retornar 0.
  */
 async function syncSingleProject(projectId, graphqlConfig, restConfig) {
   console.log(`\n📊 Sync single-project: ${projectId}`);
 
-  // 1. DELETE rows existentes
-  await deleteProjectRows('issues', projectId);
-  await deleteProjectRows('issues_disciplines', projectId);
-
-  // 2. Fetch issues via GraphQL
+  // 1. FETCH issues via GraphQL (ANTES de deletar!)
   const issues = await fetchProjectIssues(projectId, graphqlConfig);
   if (issues.length === 0) {
-    console.log(`⚠️ Nenhuma issue encontrada para projeto ${projectId}`);
+    console.log(`⚠️ Nenhuma issue encontrada para projeto ${projectId} — dados existentes preservados`);
     return { issues: 0, issuesDisciplines: 0 };
   }
 
@@ -504,7 +536,11 @@ async function syncSingleProject(projectId, graphqlConfig, restConfig) {
     }
   }
 
-  // 3. Enriquecer com categorias do REST
+  // 3. DELETE rows existentes (só após fetch com sucesso)
+  await deleteRelatedRows('issues_disciplines', 'issueId', projectId);
+  await deleteProjectRows('issues', projectId);
+
+  // 4. Enriquecer com categorias do REST
   const categoryMap = await fetchIssueCategoryMap(restConfig);
   let enrichedCount = 0;
   for (const issue of allIssues) {
@@ -516,7 +552,7 @@ async function syncSingleProject(projectId, graphqlConfig, restConfig) {
   }
   console.log(`🏷️ ${enrichedCount} issues enriquecidas com categoria do REST`);
 
-  // 4. INSERT (append, sem truncate)
+  // 5. INSERT (append, sem truncate)
   const issuesInserted = await appendToBigQuery('issues', allIssues);
   const disciplinesInserted = await appendToBigQuery('issues_disciplines', allIssuesDisciplines);
 
