@@ -4373,6 +4373,7 @@
 .okr-comment__content {
   font-size: 0.875rem;
   color: var(--color-text-secondary, #666666);
+  white-space: pre-line;
   margin: 0;
   line-height: 1.5;
 }
@@ -5968,6 +5969,7 @@
 .okr-comment__content {
   font-size: 0.875rem;
   color: var(--color-text-secondary, #6b7280);
+  white-space: pre-line;
   margin: 0;
   line-height: 1.5;
 }
