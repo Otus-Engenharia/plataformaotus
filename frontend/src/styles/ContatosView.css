@@ -94,6 +94,50 @@
   box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.2);
 }
 
+/* Busca por empresa */
+.contatos-search-group {
+  flex-grow: 1;
+}
+
+.contatos-search-wrapper {
+  position: relative;
+}
+
+.contatos-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.contatos-search-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem 0.625rem 2.25rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #374151;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.contatos-search-input::placeholder {
+  color: #9ca3af;
+}
+
+.contatos-search-input:hover {
+  border-color: #d1d5db;
+}
+
+.contatos-search-input:focus {
+  outline: none;
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.2);
+}
+
 .contatos-clear-btn {
   display: flex;
   align-items: center;

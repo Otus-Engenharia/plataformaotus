@@ -306,6 +306,9 @@ function Sidebar({ collapsed, onToggle, area }) {
   // State para badge de feedbacks atualizados
   const [feedbackUpdatesCount, setFeedbackUpdatesCount] = useState(0);
 
+  // State para badge de SPOTs atualizados
+  const [spotsUpdatesCount, setSpotsUpdatesCount] = useState(0);
+
   // State para badge de solicitações de contato pendentes
   const [pendingContactRequestCount, setPendingContactRequestCount] = useState(0);
 
@@ -462,6 +465,35 @@ function Sidebar({ collapsed, onToggle, area }) {
     const interval = setInterval(fetchMyUpdates, 120000); // 2 min
     return () => clearInterval(interval);
   }, [user?.id]);
+
+  // Atualizar last_seen e limpar badge quando acessar SPOTs
+  useEffect(() => {
+    if (!user?.id) return;
+    if (location.pathname.includes('/spots')) {
+      localStorage.setItem(`spots_last_seen_${user.id}`, new Date().toISOString());
+      setSpotsUpdatesCount(0);
+    }
+  }, [user?.id, location.pathname]);
+
+  // Buscar contagem de SPOTs atualizados (para badge) - 1x no mount + intervalo de 2 min
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchSpotsUpdates = () => {
+      const lastSeen = localStorage.getItem(`spots_last_seen_${user.id}`);
+      if (!lastSeen) {
+        localStorage.setItem(`spots_last_seen_${user.id}`, new Date().toISOString());
+        return;
+      }
+      axios.get(`/api/pagamentos/updates-count?since=${encodeURIComponent(lastSeen)}&excludeEmail=${encodeURIComponent(user.email)}`)
+        .then(res => {
+          if (res.data.success) setSpotsUpdatesCount(res.data.data?.count || 0);
+        })
+        .catch(() => {});
+    };
+    fetchSpotsUpdates();
+    const interval = setInterval(fetchSpotsUpdates, 120000);
+    return () => clearInterval(interval);
+  }, [user?.id, user?.email]);
 
   // Função para carregar projetos de um setor (lazy load)
   const loadSectorProjects = useCallback((sectorId) => {
@@ -710,6 +742,7 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.financeiro}</span>
         <span className="nav-text">SPOTs</span>
+        {spotsUpdatesCount > 0 && <span className="nav-notification-badge">{spotsUpdatesCount}</span>}
       </Link>
       <Link
         to="/lideres-projeto/indicadores-vendas"
@@ -854,6 +887,7 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.financeiro}</span>
         <span className="nav-text">SPOTs Financeiro</span>
+        {spotsUpdatesCount > 0 && <span className="nav-notification-badge">{spotsUpdatesCount}</span>}
       </Link>
       <Link
         to="/admin-financeiro/calendario-pagamentos"
@@ -2023,7 +2057,7 @@ function App() {
     <Router>
       <AuthProvider>
         <OracleProvider>
-          <AppContent />
+            <AppContent />
         </OracleProvider>
       </AuthProvider>
     </Router>

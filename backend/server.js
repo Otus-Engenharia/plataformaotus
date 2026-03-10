@@ -77,7 +77,7 @@ import {
   fetchAllDisciplines, fetchAllCompanies, fetchAllProjects,
   fetchDisciplineCompanyAggregation, fetchDisciplineCompanyDetails,
   // Apoio de Projetos - Portfolio
-  fetchProjectFeaturesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
+  fetchProjectFeaturesForPortfolio, fetchComercialInfosForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
   // Portfolio - Edicao inline
   fetchProjectsFromSupabase, fetchPortfolioEditOptions, updateProjectField,
   // OAuth tokens (Gmail Draft)
@@ -858,16 +858,26 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
         _team_id: p.team_id,
         _company_id: p.company_id,
         _project_manager_id: p.project_manager_id,
+        // Empreendimento
+        area_construida: p.area_construida ?? null,
+        area_efetiva: p.area_efetiva ?? null,
+        numero_unidades: p.numero_unidades ?? null,
+        tipologia_empreendimento: p.tipologia_empreendimento ?? null,
+        endereco: p.address ?? null,
       });
     }
 
-    // 3. Supabase: project_features
-    const featuresMap = await fetchProjectFeaturesForPortfolio();
+    // 3. Supabase: project_features + comercial_infos
+    const [featuresMap, comercialMap] = await Promise.all([
+      fetchProjectFeaturesForPortfolio(),
+      fetchComercialInfosForPortfolio(),
+    ]);
 
-    // 4. Merge: BigQuery base + Supabase editáveis + features
+    // 4. Merge: BigQuery base + Supabase editáveis + features + comercial
     const enrichedData = bqData.map(row => {
       const supabase = supabaseMap.get(row.project_code_norm) || {};
       const features = featuresMap[row.project_code_norm] || {};
+      const comercial = comercialMap[row.project_code_norm] || {};
       return {
         ...row,
         // Supabase sobrescreve campos editáveis (tempo real)
@@ -881,6 +891,14 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
         ...(supabase._company_id != null && { _company_id: supabase._company_id }),
         ...(supabase._project_manager_id != null && { _project_manager_id: supabase._project_manager_id }),
         ...(supabase.project_order != null && { project_order: supabase.project_order }),
+        // Empreendimento (Supabase)
+        ...(supabase.area_construida != null && { area_construida: supabase.area_construida }),
+        ...(supabase.area_efetiva != null && { area_efetiva: supabase.area_efetiva }),
+        ...(supabase.numero_unidades != null && { numero_unidades: supabase.numero_unidades }),
+        ...(supabase.tipologia_empreendimento != null && { tipologia_empreendimento: supabase.tipologia_empreendimento }),
+        ...(supabase.endereco != null && { endereco: supabase.endereco }),
+        // Comercial
+        ...(comercial.responsavel_acd != null && { responsavel_acd: comercial.responsavel_acd }),
         // Features
         ...features,
         construflow_disciplinasclientes: features.construflow_disciplinasclientes || row.disciplina_cliente || null,
@@ -898,6 +916,7 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
           continue;
         }
         const features = featuresMap[p.project_code] || {};
+        const comercial = comercialMap[p.project_code] || {};
         enrichedData.push({
           project_order: p.project_order || null,
           project_code_norm: p.project_code,
@@ -912,6 +931,13 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
           _company_id: p.company_id,
           _project_manager_id: p.project_manager_id,
           _source: 'supabase_only',
+          // Empreendimento
+          area_construida: p.area_construida ?? null,
+          area_efetiva: p.area_efetiva ?? null,
+          numero_unidades: p.numero_unidades ?? null,
+          tipologia_empreendimento: p.tipologia_empreendimento ?? null,
+          endereco: p.address ?? null,
+          responsavel_acd: comercial.responsavel_acd ?? null,
           ...features,
         });
       }
@@ -1398,6 +1424,81 @@ app.post('/api/portfolio/cobertura-disciplinas', requireAuth, async (req, res) =
     res.json({ success: true, data: results });
   } catch (error) {
     console.error('❌ Erro na cobertura batch:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/projects/team-status
+ * Retorna status de preenchimento de Equipe (cobertura disciplinas 100%) e Nomenclatura para projetos ativos.
+ * Body: { projects: [{ construflowId, smartsheetId, projectCode }, ...] }
+ */
+app.post('/api/projects/team-status', requireAuth, async (req, res) => {
+  try {
+    const { projects } = req.body;
+    if (!Array.isArray(projects) || projects.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+
+    const codeList = projects.map(p => p.projectCode).filter(Boolean);
+    if (codeList.length === 0) {
+      return res.json({ success: true, data: {} });
+    }
+
+    // 1. Equipe: reusar lógica de cobertura-disciplinas (completionPercentage === 100)
+    const { smartsheetByProject, construflowByProject } = await queryDisciplinesCrossReferenceBatch(projects);
+    const construflowIds = projects.map(p => p.construflowId).filter(Boolean);
+    const projectIdMap = await fetchProjectIdsByConstruflowBatch(construflowIds);
+    const allProjectIds = [...new Set(Object.values(projectIdMap).filter(Boolean))];
+    const [disciplinesByProject, mappingsByProject] = await Promise.all([
+      fetchProjectDisciplinesBatch(allProjectIds),
+      fetchDisciplineMappingsBatch(allProjectIds)
+    ]);
+
+    const equipePercentageMap = {};
+    for (const p of projects) {
+      const ssId = p.smartsheetId ? String(p.smartsheetId) : null;
+      const cfId = p.construflowId ? String(p.construflowId) : null;
+      const smartsheetNames = (ssId && smartsheetByProject[ssId]) || [];
+      const construflowNames = (cfId && construflowByProject[cfId]) || [];
+
+      const internalId = cfId ? projectIdMap[cfId] : null;
+      const otusTeam = internalId ? (disciplinesByProject[internalId] || []) : [];
+      const otusNames = otusTeam.map(d => d.discipline?.discipline_name).filter(Boolean);
+      const customMappings = internalId ? (mappingsByProject[internalId] || []) : [];
+
+      const { groups, analysis } = classifyDisciplines(smartsheetNames, construflowNames, otusNames, customMappings);
+
+      // Sem ConstruFlow: ajustar como no cobertura-disciplinas
+      if (!cfId && analysis.totalUnique > 0) {
+        const adjustedComplete = groups.completeInAll3.length + groups.missingConstruflow.length;
+        analysis.completionPercentage = Math.round((adjustedComplete / analysis.totalUnique) * 1000) / 10;
+      }
+
+      equipePercentageMap[p.projectCode] = analysis.totalUnique > 0 ? analysis.completionPercentage : null;
+    }
+
+    // 2. Nomenclatura: buscar nomenclatura_lookup_entries
+    const supabase = getSupabaseClient();
+    const { data: nomenclatura } = await supabase
+      .from('nomenclatura_lookup_entries')
+      .select('project_code')
+      .in('project_code', codeList);
+
+    const nomenclaturaCodes = new Set((nomenclatura || []).map(n => n.project_code));
+
+    // 3. Montar resultado
+    const result = {};
+    for (const code of codeList) {
+      result[code] = {
+        equipe_percentage: equipePercentageMap[code] ?? null,
+        has_nomenclatura: nomenclaturaCodes.has(code),
+      };
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Erro ao buscar team-status:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2281,14 +2382,41 @@ app.get('/api/apoio-projetos/portfolio', requireAuth, withBqCache(900), async (r
     // Usa BigQuery direto (view Supabase portfolio_realtime não existe atualmente)
     const portfolioData = await queryPortfolio(null);
 
-    const featuresMap = await fetchProjectFeaturesForPortfolio();
+    const [featuresMap, comercialMap, supabaseProjects] = await Promise.all([
+      fetchProjectFeaturesForPortfolio(),
+      fetchComercialInfosForPortfolio(),
+      fetchProjectsFromSupabase(),
+    ]);
 
-    const enrichedData = portfolioData.map(row => ({
-      ...row,
-      plataforma_acd: featuresMap[row.project_code_norm]?.plataforma_acd || null,
-      controle_apoio: featuresMap[row.project_code_norm]?.controle_apoio || null,
-      link_ifc: featuresMap[row.project_code_norm]?.link_ifc || null,
-    }));
+    // Mapa Supabase para campos do empreendimento
+    const supabaseMap = new Map();
+    for (const p of supabaseProjects) {
+      supabaseMap.set(p.project_code, {
+        area_construida: p.area_construida ?? null,
+        area_efetiva: p.area_efetiva ?? null,
+        numero_unidades: p.numero_unidades ?? null,
+        tipologia_empreendimento: p.tipologia_empreendimento ?? null,
+        endereco: p.address ?? null,
+      });
+    }
+
+    const enrichedData = portfolioData.map(row => {
+      const sup = supabaseMap.get(row.project_code_norm) || {};
+      const comercial = comercialMap[row.project_code_norm] || {};
+      return {
+        ...row,
+        plataforma_acd: featuresMap[row.project_code_norm]?.plataforma_acd || null,
+        controle_apoio: featuresMap[row.project_code_norm]?.controle_apoio || null,
+        link_ifc: featuresMap[row.project_code_norm]?.link_ifc || null,
+        // Empreendimento
+        ...(sup.area_construida != null && { area_construida: sup.area_construida }),
+        ...(sup.area_efetiva != null && { area_efetiva: sup.area_efetiva }),
+        ...(sup.numero_unidades != null && { numero_unidades: sup.numero_unidades }),
+        ...(sup.tipologia_empreendimento != null && { tipologia_empreendimento: sup.tipologia_empreendimento }),
+        ...(sup.endereco != null && { endereco: sup.endereco }),
+        ...(comercial.responsavel_acd != null && { responsavel_acd: comercial.responsavel_acd }),
+      };
+    });
 
     res.json({
       success: true,
@@ -8547,8 +8675,8 @@ app.listen(PORT, HOST, async () => {
   }, { timezone: 'America/Sao_Paulo' });
   console.log('⏰ Cron job configurado: scan IFC a cada 6h BRT');
 
-  // Cron job: sync Autodoc diario as 08:00 e 19:00 BRT
-  cron.schedule('0 8,19 * * *', async () => {
+  // Cron job: sync Autodoc diario as 06:00 e 19:00 BRT
+  cron.schedule('0 6,19 * * *', async () => {
     console.log('[Cron] Iniciando sync automatico Autodoc...');
     try {
       const { SupabaseAutodocEntregasRepository } = await import('./infrastructure/repositories/SupabaseAutodocEntregasRepository.js');
@@ -8565,5 +8693,5 @@ app.listen(PORT, HOST, async () => {
       console.error('[Cron] Erro no sync Autodoc:', err.message);
     }
   }, { timezone: 'America/Sao_Paulo' });
-  console.log('⏰ Cron job configurado: sync Autodoc diario 08:00 e 19:00 BRT');
+  console.log('⏰ Cron job configurado: sync Autodoc diario 06:00 e 19:00 BRT');
 });

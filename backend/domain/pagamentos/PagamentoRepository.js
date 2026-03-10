@@ -65,8 +65,12 @@ class PagamentoRepository {
     throw new Error('Metodo saveChangeLogBatch deve ser implementado');
   }
 
-  async findChangeLogByProject(projectCode) {
+  async findChangeLogByProject(projectCode, options = {}) {
     throw new Error('Metodo findChangeLogByProject deve ser implementado');
+  }
+
+  async countChangeLogSince(since, excludeEmail) {
+    throw new Error('Metodo countChangeLogSince deve ser implementado');
   }
 
   // --- Dashboard / Summary ---

@@ -48,4 +48,10 @@ export const autodocEntregasApi = {
     axios.post(`${API_URL}/api/autodoc-entregas/discover`, { portfolioProjectCodes }, {
       withCredentials: true,
     }),
+
+  getDailyStats: (params = {}) =>
+    axios.get(`${API_URL}/api/autodoc-entregas/daily-stats`, {
+      params,
+      withCredentials: true,
+    }),
 };

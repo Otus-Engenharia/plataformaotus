@@ -5889,6 +5889,11 @@ export async function fetchProjectsFromSupabase() {
       project_manager_id,
       teams:team_id (id, team_name, team_number),
       project_order,
+      area_construida,
+      area_efetiva,
+      numero_unidades,
+      tipologia_empreendimento,
+      address,
       companies:company_id (id, name, company_type),
       users_otus:project_manager_id (id, name)
     `);
@@ -6018,6 +6023,33 @@ export async function fetchProjectFeaturesForPortfolio() {
     if (code) {
       const { projects, project_id, ...fields } = row;
       map[code] = fields;
+    }
+  });
+
+  return map;
+}
+
+/**
+ * Busca dados comerciais (responsavel_acd) para enriquecer portfolio
+ * Retorna mapa { project_code: { responsavel_acd } }
+ */
+export async function fetchComercialInfosForPortfolio() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('project_comercial_infos')
+    .select('responsavel_acd, projects!inner(project_code)');
+
+  if (error) {
+    console.error('Erro ao buscar project_comercial_infos:', error.message);
+    return {};
+  }
+
+  const map = {};
+  (data || []).forEach(row => {
+    const code = row.projects?.project_code;
+    if (code && row.responsavel_acd) {
+      map[code] = { responsavel_acd: row.responsavel_acd };
     }
   });
 

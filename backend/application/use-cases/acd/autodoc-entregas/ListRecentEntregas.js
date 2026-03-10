@@ -15,8 +15,14 @@ class ListRecentEntregas {
       days, projectCode, classification, page, limit,
     });
 
+    const nameMap = await this.#repository.getProjectNameMap();
+
     return {
-      data: data.map(doc => doc.toResponse()),
+      data: data.map(doc => {
+        const resp = doc.toResponse();
+        resp.project_name = nameMap.get(resp.project_code) || resp.project_code;
+        return resp;
+      }),
       total,
       page,
       limit,

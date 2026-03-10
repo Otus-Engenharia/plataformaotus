@@ -49,22 +49,40 @@ function getVincClass(vinculadas, total) {
   return 'pagamentos-fin-vinc-none';
 }
 
+function getVincColor(vinculadas, total) {
+  if (total === 0) return 'vinc-none';
+  if (vinculadas === total) return 'vinc-full';
+  if (vinculadas > 0) return 'vinc-partial';
+  return 'vinc-none';
+}
+
 export default function PagamentosLiderView() {
   const { user, hasFullAccess, isAdmin, isDirector } = useAuth();
   const showLiderFilter = hasFullAccess || isAdmin || isDirector;
+  const [highlightSince] = useState(() => {
+    if (!user?.id) return null;
+    return localStorage.getItem(`spots_last_seen_${user.id}`) || null;
+  });
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [expandedProject, setExpandedProject] = useState(null);
   const [filterBusca, setFilterBusca] = useState('');
   const [filterStatus, setFilterStatus] = useState({ Ativos: true, 'A Iniciar': false, Pausados: false, Finalizados: false });
   const [filterVinculacao, setFilterVinculacao] = useState({ sem: false, todas: false });
   const [ocultarFaturados, setOcultarFaturados] = useState(false);
   const [filterLider, setFilterLider] = useState('');
+  const [filterPrazo, setFilterPrazo] = useState({ atrasado: false, esse_mes: false, esse_quarter: false, futuro: false, sem_data: false });
   const [activeTab, setActiveTab] = useState('projetos');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const { data } = await axios.get('/api/pagamentos/meus-projetos');
       if (data.success) setProjects(data.data);
@@ -72,6 +90,7 @@ export default function PagamentosLiderView() {
       console.error('Erro ao carregar meus pagamentos:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -92,6 +111,23 @@ export default function PagamentosLiderView() {
         return { ...p, vinculadas };
       });
   }, [projects]);
+
+  // KPI computations
+  const kpis = useMemo(() => {
+    const totalProjetos = projectsEnriched.length;
+    const valorTotal = projectsEnriched.reduce((sum, p) => sum + (p.valor_total || 0), 0);
+    const parcelasSemVinc = projectsEnriched.reduce((sum, p) => sum + (p.parcelas_sem_vinculacao || 0), 0);
+
+    const now = new Date();
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const prox30Dias = projectsEnriched.filter(p => {
+      if (!p.proximo_pagamento) return false;
+      const d = new Date(p.proximo_pagamento);
+      return d >= now && d <= in30Days;
+    }).length;
+
+    return { totalProjetos, valorTotal, parcelasSemVinc, prox30Dias };
+  }, [projectsEnriched]);
 
   // Count per status group
   const statusCounts = useMemo(() => {
@@ -114,11 +150,42 @@ export default function PagamentosLiderView() {
     return counts;
   }, [projectsEnriched]);
 
+  // Count prazo buckets from proximo_pagamento
+  const prazoCounts = useMemo(() => {
+    const counts = { atrasado: 0, esse_mes: 0, esse_quarter: 0, futuro: 0, sem_data: 0 };
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+    const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0);
+    projectsEnriched.forEach(p => {
+      if (!p.proximo_pagamento) { counts.sem_data++; return; }
+      const d = new Date(p.proximo_pagamento);
+      if (d < today) counts.atrasado++;
+      else if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) counts.esse_mes++;
+      else if (d <= qEnd) counts.esse_quarter++;
+      else counts.futuro++;
+    });
+    return counts;
+  }, [projectsEnriched]);
+
+  // Sort handler
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return <span className="pagamentos-lider-sort-icon">▲</span>;
+    return <span className="pagamentos-lider-sort-icon active">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>;
+  };
+
   const filteredProjects = useMemo(() => {
     const anyStatusActive = Object.values(filterStatus).some(Boolean);
     const anyVincActive = filterVinculacao.sem || filterVinculacao.todas;
 
-    return projectsEnriched.filter(p => {
+    let result = projectsEnriched.filter(p => {
       // Status filter
       if (anyStatusActive) {
         const group = getStatusGroup(p.status);
@@ -134,7 +201,7 @@ export default function PagamentosLiderView() {
         if (filterVinculacao.sem && filterVinculacao.todas && !(hasSem || hasTodas)) return false;
       }
 
-      // Leader filter (Phase 3)
+      // Leader filter
       if (filterLider) {
         const liderName = p.gerente_name || p.gerente_email || '';
         if (liderName !== filterLider) return false;
@@ -150,11 +217,57 @@ export default function PagamentosLiderView() {
       }
       return true;
     });
-  }, [projectsEnriched, filterStatus, filterVinculacao, filterBusca, filterLider]);
+
+    // Sort
+    if (sortConfig.key) {
+      result = [...result].sort((a, b) => {
+        let aVal, bVal;
+        switch (sortConfig.key) {
+          case 'projeto':
+            aVal = (a.project_code || '').toLowerCase();
+            bVal = (b.project_code || '').toLowerCase();
+            break;
+          case 'status':
+            aVal = (a.status || '').toLowerCase();
+            bVal = (b.status || '').toLowerCase();
+            break;
+          case 'cliente':
+            aVal = (a.company_name || '').toLowerCase();
+            bVal = (b.company_name || '').toLowerCase();
+            break;
+          case 'parcelas':
+            aVal = a.total_parcelas || 0;
+            bVal = b.total_parcelas || 0;
+            break;
+          case 'vinculacao':
+            aVal = a.total_parcelas > 0 ? a.vinculadas / a.total_parcelas : 0;
+            bVal = b.total_parcelas > 0 ? b.vinculadas / b.total_parcelas : 0;
+            break;
+          case 'valor':
+            aVal = a.valor_total || 0;
+            bVal = b.valor_total || 0;
+            break;
+          case 'proxPagamento':
+            aVal = a.proximo_pagamento ? new Date(a.proximo_pagamento).getTime() : Infinity;
+            bVal = b.proximo_pagamento ? new Date(b.proximo_pagamento).getTime() : Infinity;
+            break;
+          default:
+            return 0;
+        }
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [projectsEnriched, filterStatus, filterVinculacao, filterBusca, filterLider, sortConfig]);
 
   const toggleExpand = (code) => {
     setExpandedProject(prev => prev === code ? null : code);
   };
+
+  const hasActiveFilters = Object.values(filterStatus).some(Boolean) || filterBusca || filterVinculacao.sem || filterVinculacao.todas || ocultarFaturados || filterLider || Object.values(filterPrazo).some(Boolean);
 
   if (loading) {
     return (
@@ -169,8 +282,13 @@ export default function PagamentosLiderView() {
       {/* Header */}
       <div className="pagamentos-lider-header">
         <h2>Pagamentos SPOTs</h2>
-        <button className="pagamentos-lider-refresh" onClick={fetchData}>
-          ATUALIZAR
+        <button
+          className="pagamentos-lider-refresh"
+          onClick={() => fetchData(true)}
+          disabled={refreshing}
+        >
+          <span className={`pagamentos-lider-refresh-icon${refreshing ? ' spinning' : ''}`}>↻</span>
+          Atualizar
         </button>
       </div>
 
@@ -192,6 +310,29 @@ export default function PagamentosLiderView() {
 
       {activeTab === 'projetos' ? (
         <>
+          {/* KPI Cards */}
+          <div className="pagamentos-fin-kpis">
+            <div className="pagamentos-fin-kpi">
+              <span className="pagamentos-fin-kpi-label">Total Projetos</span>
+              <span className="pagamentos-fin-kpi-value">{kpis.totalProjetos}</span>
+              <span className="pagamentos-fin-kpi-context">com parcelas</span>
+            </div>
+            <div className="pagamentos-fin-kpi pagamentos-fin-kpi-primary">
+              <span className="pagamentos-fin-kpi-label">Valor Total</span>
+              <span className="pagamentos-fin-kpi-value pagamentos-fin-kpi-value-currency">{formatCurrency(kpis.valorTotal)}</span>
+            </div>
+            <div className={`pagamentos-fin-kpi${kpis.parcelasSemVinc > 0 ? ' pagamentos-fin-kpi-warning' : ''}`}>
+              <span className="pagamentos-fin-kpi-label">Sem Vinculação</span>
+              <span className="pagamentos-fin-kpi-value">{kpis.parcelasSemVinc}</span>
+              <span className="pagamentos-fin-kpi-context">parcelas pendentes</span>
+            </div>
+            <div className="pagamentos-fin-kpi">
+              <span className="pagamentos-fin-kpi-label">Próximos 30 dias</span>
+              <span className="pagamentos-fin-kpi-value">{kpis.prox30Dias}</span>
+              <span className="pagamentos-fin-kpi-context">pagamentos</span>
+            </div>
+          </div>
+
           {/* Filters */}
           <div className="pagamentos-lider-filters">
             {/* Row 1: STATUS + busca */}
@@ -219,8 +360,8 @@ export default function PagamentosLiderView() {
             </div>
 
             {/* Row 2: VINCULACAO + Leader filter */}
-            <div className="pagamentos-lider-filters-row" style={{ marginTop: '0.5rem' }}>
-              <span className="pagamentos-lider-filters-label">VINCULACAO</span>
+            <div className="pagamentos-lider-filters-row">
+              <span className="pagamentos-lider-filters-label">VINCULAÇÃO</span>
               <div className="pagamentos-lider-filter-group__toggles">
                 <label className="pagamentos-lider-toggle">
                   <input type="checkbox" checked={filterVinculacao.sem}
@@ -253,6 +394,27 @@ export default function PagamentosLiderView() {
                 </select>
               )}
             </div>
+
+            {/* Row 3: PRAZO */}
+            <div className="pagamentos-lider-filters-row">
+              <span className="pagamentos-lider-filters-label">PRAZO</span>
+              <div className="pagamentos-lider-filter-group__toggles">
+                {[
+                  { key: 'atrasado', label: 'Atrasado' },
+                  { key: 'esse_mes', label: 'Esse Mês' },
+                  { key: 'esse_quarter', label: 'Esse Quarter' },
+                  { key: 'futuro', label: 'Futuro' },
+                  { key: 'sem_data', label: 'Sem Data' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="pagamentos-lider-toggle">
+                    <input type="checkbox" checked={filterPrazo[key]}
+                      onChange={e => setFilterPrazo(prev => ({ ...prev, [key]: e.target.checked }))} />
+                    <span className="pagamentos-lider-toggle-slider"></span>
+                    <span className="pagamentos-lider-toggle-label">{label} <span className="pagamentos-lider-toggle-count">{prazoCounts[key]}</span></span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Projects Table */}
@@ -264,36 +426,61 @@ export default function PagamentosLiderView() {
               </span>
             </div>
             {filteredProjects.length === 0 ? (
-              <div className="pagamentos-fin-empty">
-                {Object.values(filterStatus).some(Boolean) || filterBusca || filterVinculacao.sem || filterVinculacao.todas || ocultarFaturados || filterLider
-                  ? 'Nenhum projeto com os filtros selecionados'
-                  : 'Nenhum projeto com parcelas cadastradas'}
+              <div className="pagamentos-lider-empty-state">
+                <div className="pagamentos-lider-empty-icon">
+                  {hasActiveFilters ? '🔍' : '📋'}
+                </div>
+                <p className="pagamentos-lider-empty-title">
+                  {hasActiveFilters ? 'Nenhum projeto encontrado' : 'Nenhum projeto com parcelas'}
+                </p>
+                <p className="pagamentos-lider-empty-subtitle">
+                  {hasActiveFilters
+                    ? 'Tente ajustar os filtros para ver mais resultados'
+                    : 'Cadastre parcelas nos projetos para visualizar aqui'}
+                </p>
               </div>
             ) : (
               <div className="pagamentos-fin-table-container">
                 <table className="pagamentos-fin-table">
                   <thead>
                     <tr>
-                      <th>Projeto</th>
+                      <th className="pagamentos-lider-th-sortable" onClick={() => handleSort('projeto')}>
+                        Projeto {getSortIcon('projeto')}
+                      </th>
                       <th>Tipo</th>
-                      <th>Status</th>
-                      <th>Cliente</th>
-                      <th>Parcelas</th>
-                      <th>Vinculacao</th>
-                      <th>Valor Total</th>
-                      <th>Prox. Pagamento</th>
+                      <th className="pagamentos-lider-th-sortable" onClick={() => handleSort('status')}>
+                        Status {getSortIcon('status')}
+                      </th>
+                      <th className="pagamentos-lider-th-sortable" onClick={() => handleSort('cliente')}>
+                        Cliente {getSortIcon('cliente')}
+                      </th>
+                      <th className="pagamentos-lider-th-sortable" onClick={() => handleSort('parcelas')}>
+                        Parcelas {getSortIcon('parcelas')}
+                      </th>
+                      <th className="pagamentos-lider-th-sortable" onClick={() => handleSort('vinculacao')}>
+                        Vinculação {getSortIcon('vinculacao')}
+                      </th>
+                      <th className="pagamentos-lider-th-sortable" onClick={() => handleSort('valor')}>
+                        Valor Total {getSortIcon('valor')}
+                      </th>
+                      <th className="pagamentos-lider-th-sortable" onClick={() => handleSort('proxPagamento')}>
+                        Próx. Pagamento {getSortIcon('proxPagamento')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredProjects.map(p => {
                       const faturadas = p.parcelas_faturadas ?? p.parcelas_recebidas ?? 0;
+                      const isExpanded = expandedProject === p.project_code;
+                      const vincPercent = p.total_parcelas > 0 ? (p.vinculadas / p.total_parcelas) * 100 : 0;
                       return (
                       <React.Fragment key={p.project_code}>
                         <tr
-                          className={`${expandedProject === p.project_code ? 'row-expanded' : ''} ${p.parcelas_sem_vinculacao > 0 ? 'row-warning' : ''}`}
+                          className={`${isExpanded ? 'row-expanded' : ''} ${p.parcelas_sem_vinculacao > 0 ? 'row-warning' : ''}`}
                           onClick={() => toggleExpand(p.project_code)}
                         >
                           <td>
+                            <span className="pagamentos-lider-chevron">{isExpanded ? '▾' : '▸'}</span>
                             <strong>{p.project_code}</strong>
                             {p.project_name && <span className="pagamentos-fin-project-name">{p.project_name}</span>}
                           </td>
@@ -310,14 +497,22 @@ export default function PagamentosLiderView() {
                           <td>{p.company_name || '-'}</td>
                           <td>{p.total_parcelas} ({faturadas} faturados)</td>
                           <td>
-                            <span className={getVincClass(p.vinculadas, p.total_parcelas)}>
-                              {p.total_parcelas > 0 ? `${p.vinculadas}/${p.total_parcelas}` : '-'}
-                            </span>
+                            <div className="pagamentos-lider-vinc-cell">
+                              <div className="pagamentos-lider-vinc-bar">
+                                <div
+                                  className={`pagamentos-lider-vinc-fill ${getVincColor(p.vinculadas, p.total_parcelas)}`}
+                                  style={{ width: `${vincPercent}%` }}
+                                />
+                              </div>
+                              <span className={getVincClass(p.vinculadas, p.total_parcelas)}>
+                                {p.total_parcelas > 0 ? `${p.vinculadas}/${p.total_parcelas}` : '-'}
+                              </span>
+                            </div>
                           </td>
                           <td className="pagamentos-fin-valor-cell">{formatCurrency(p.valor_total)}</td>
                           <td>{formatDate(p.proximo_pagamento)}</td>
                         </tr>
-                        {expandedProject === p.project_code && (
+                        {isExpanded && (
                           <tr className="pagamentos-fin-expand-row">
                             <td colSpan="8">
                               <div className="pagamentos-fin-expand-content">
@@ -328,6 +523,8 @@ export default function PagamentosLiderView() {
                                   mode="lider"
                                   tipoPagamento={p.tipo_pagamento}
                                   ocultarFaturados={ocultarFaturados}
+                                  filterPrazo={filterPrazo}
+                                  highlightSince={highlightSince}
                                 />
                               </div>
                             </td>

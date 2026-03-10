@@ -59,6 +59,25 @@ export const VIEWS = {
       'qtd_pausas',
       'total_dias_pausa'
     ]
+  },
+  empreendimento: {
+    id: 'empreendimento',
+    name: 'Empreendimento',
+    columns: [
+      'project_order',
+      'project_code_norm',
+      'project_name',
+      'status',
+      'tipologia_empreendimento',
+      'area_construida',
+      'area_efetiva',
+      'numero_unidades',
+      'endereco',
+      'data_inicio_cronograma',
+      'duracao_total_meses',
+      'quantidade_ciclos',
+      'responsavel_acd'
+    ]
   }
 };
 
@@ -99,7 +118,14 @@ export const COLUMN_NAMES_PT = {
   'data_fim_ultima_pausa': 'Fim<br/>Ultima Pausa',
   'data_termino_contrato': 'Termino<br/>Contrato',
   'data_termino_contrato_com_pausas': 'Termino Contrato<br/>c/ Pausas',
-  'diferenca_cronograma_contrato': 'Diferenca<br/>(meses)'
+  'diferenca_cronograma_contrato': 'Diferenca<br/>(meses)',
+  'tipologia_empreendimento': 'Tipologia',
+  'area_construida': 'Area<br/>Construida (m²)',
+  'area_efetiva': 'Area<br/>Efetiva (m²)',
+  'numero_unidades': 'N° de<br/>Unidades',
+  'endereco': 'Localizacao<br/>da Obra',
+  'quantidade_ciclos': 'Qtd<br/>Ciclos',
+  'responsavel_acd': 'Resp.<br/>Construflow'
 };
 
 // Colunas que sao valores monetarios
@@ -160,7 +186,14 @@ export const COLUMN_WIDTHS = {
   'valor_aditivo_total': 100,
   'valor_total_contrato_mais_aditivos': 100,
   'qtd_aditivos_distintos': 85,
-  'tipo_venda': 100
+  'tipo_venda': 100,
+  'tipologia_empreendimento': 120,
+  'area_construida': 110,
+  'area_efetiva': 110,
+  'numero_unidades': 85,
+  'endereco': 180,
+  'quantidade_ciclos': 80,
+  'responsavel_acd': 130
 };
 
 /**

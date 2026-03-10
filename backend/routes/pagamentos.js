@@ -1,6 +1,5 @@
 import express from 'express';
 import { SupabasePagamentoRepository } from '../infrastructure/repositories/SupabasePagamentoRepository.js';
-import { NotificationService } from '../infrastructure/services/NotificationService.js';
 import {
   CreateParcela,
   UpdateParcela,
@@ -21,21 +20,14 @@ import {
 const router = express.Router();
 
 let pagamentoRepository = null;
-let notificationService = null;
 
 function getRepository() {
   if (!pagamentoRepository) pagamentoRepository = new SupabasePagamentoRepository();
   return pagamentoRepository;
 }
 
-function getNotificationService() {
-  if (!notificationService) notificationService = new NotificationService();
-  return notificationService;
-}
-
 function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction, withBqCache, bigqueryClient) {
   const repository = getRepository();
-  const notifications = getNotificationService();
 
   // GET /dashboard-kpis
   router.get('/dashboard-kpis', requireAuth, async (req, res) => {
@@ -93,7 +85,7 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
         return res.status(400).json({ success: false, error: 'project_code e parcela_numero sao obrigatorios' });
       }
 
-      const createParcela = new CreateParcela(repository, notifications);
+      const createParcela = new CreateParcela(repository);
       const result = await createParcela.execute({
         projectCode: project_code,
         projectId: project_id || null,
@@ -290,7 +282,7 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
         return res.status(400).json({ success: false, error: 'row_id e task_name sao obrigatorios' });
       }
 
-      const vincularParcela = new VincularParcela(repository, notifications);
+      const vincularParcela = new VincularParcela(repository);
       const result = await vincularParcela.execute({
         id: req.params.id,
         rowId: row_id,
@@ -337,7 +329,7 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
         return res.status(400).json({ success: false, error: 'projectCode e obrigatorio' });
       }
 
-      const enrich = new EnrichParcelasWithSmartsheet(repository, notifications);
+      const enrich = new EnrichParcelasWithSmartsheet(repository);
       const result = await enrich.execute({
         projectCode,
         smartsheetId: smartsheetId || null,
@@ -529,16 +521,30 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
     }
   });
 
+  // GET /updates-count - Count changelog entries since a given date (for badge)
+  router.get('/updates-count', requireAuth, async (req, res) => {
+    try {
+      const { since, excludeEmail } = req.query;
+      if (!since) return res.status(400).json({ success: false, error: 'since e obrigatorio' });
+
+      const result = await repository.countChangeLogSince(since, excludeEmail || null);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao contar updates:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // GET /change-log - Audit history
   router.get('/change-log', requireAuth, async (req, res) => {
     try {
-      const { projectCode } = req.query;
+      const { projectCode, since, excludeEmail } = req.query;
       if (!projectCode) {
         return res.status(400).json({ success: false, error: 'projectCode e obrigatorio' });
       }
 
       const getChangeLog = new GetParcelaChangeLog(repository);
-      const result = await getChangeLog.execute({ projectCode });
+      const result = await getChangeLog.execute({ projectCode, since, excludeEmail });
 
       res.json({ success: true, data: result });
     } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 import ParcelasProjetoPanel from './ParcelasProjetoPanel';
 import ParcelaFormDialog from './ParcelaFormDialog';
 import CalendarioPagamentosView from './CalendarioPagamentosView';
@@ -50,7 +51,12 @@ function getVincClass(count, total) {
 }
 
 export default function PagamentosFinanceiroView() {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [highlightSince] = useState(() => {
+    if (!user?.id) return null;
+    return localStorage.getItem(`spots_last_seen_${user.id}`) || null;
+  });
   const [kpis, setKpis] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -395,6 +401,7 @@ export default function PagamentosFinanceiroView() {
                                   companyId={p.company_name}
                                   mode="financeiro"
                                   tipoPagamento={p.tipo_pagamento}
+                                  highlightSince={highlightSince}
                                 />
                               </div>
                             </td>
