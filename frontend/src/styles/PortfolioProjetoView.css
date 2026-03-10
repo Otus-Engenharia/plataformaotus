@@ -584,6 +584,18 @@
   font-family: 'Inter', Verdana, sans-serif;
 }
 
+.ppv-text-block {
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  color: #444444;
+  line-height: 1.6;
+  margin: 0;
+  padding: 1rem;
+  background: #fafafa;
+  border-radius: 8px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
 /* ============================= */
 /* Link                          */
 /* ============================= */
