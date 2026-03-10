@@ -315,6 +315,19 @@
   font-size: 14px;
 }
 
+/* ===== SCROLL CONTIDO ===== */
+.pagamentos-lider-container .pagamentos-fin-table-container {
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.pagamentos-lider-container .pagamentos-fin-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: #f7f8fa;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .pagamentos-lider-container {

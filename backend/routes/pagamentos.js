@@ -111,6 +111,55 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
     }
   });
 
+  // POST /parcelas/batch - Create multiple parcelas at once
+  router.post('/parcelas/batch', requireAuth, async (req, res) => {
+    try {
+      if (!canManagePagamentos(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      const { project_code, company_id, parcelas } = req.body;
+
+      if (!project_code || !Array.isArray(parcelas) || parcelas.length === 0) {
+        return res.status(400).json({ success: false, error: 'project_code e array parcelas sao obrigatorios' });
+      }
+
+      if (parcelas.length > 50) {
+        return res.status(400).json({ success: false, error: 'Maximo de 50 parcelas por vez' });
+      }
+
+      const createParcela = new CreateParcela(repository);
+      const results = [];
+
+      for (const item of parcelas) {
+        const result = await createParcela.execute({
+          projectCode: project_code,
+          projectId: null,
+          companyId: company_id || null,
+          parcelaNumero: item.parcela_numero,
+          descricao: item.descricao || null,
+          valor: item.valor || null,
+          origem: item.origem || 'Contrato',
+          fase: null,
+          gerenteEmail: null,
+          tipoServico: item.tipo_servico || 'coordenacao',
+          createdBy: req.user.email,
+          parcelaSemCronograma: item.parcela_sem_cronograma || false,
+        });
+        results.push(result);
+
+        if (logAction) {
+          await logAction(req, 'create', 'parcela', result.id, 'Parcela criada (batch)', { project_code, parcela_numero: item.parcela_numero });
+        }
+      }
+
+      res.status(201).json({ success: true, data: results, count: results.length });
+    } catch (error) {
+      console.error('Erro ao criar parcelas em batch:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // GET /parcelas - List by project
   router.get('/parcelas', requireAuth, async (req, res) => {
     try {
@@ -193,10 +242,6 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
         return res.status(400).json({ success: false, error: 'field e value sao obrigatorios' });
       }
 
-      if (field === 'financeiro' && !canManagePagamentos(req.user)) {
-        return res.status(403).json({ success: false, error: 'Acesso negado para status financeiro' });
-      }
-
       // Handle solicitacao field inline
       if (field === 'solicitacao') {
         const parcela = await repository.findParcelaById(req.params.id);
@@ -204,6 +249,10 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
         if (value === 'solicitado') parcela.marcarSolicitado();
         const updated = await repository.updateParcela(parcela);
         return res.json({ success: true, data: updated.toResponse() });
+      }
+
+      if (field === 'financeiro' && !canManagePagamentos(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado para status financeiro' });
       }
 
       const updateStatus = new UpdateParcelaStatus(repository);

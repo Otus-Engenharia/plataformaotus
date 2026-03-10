@@ -20,6 +20,10 @@
   font-family: Verdana, sans-serif;
 }
 
+.parcela-dialog--batch {
+  width: 860px;
+}
+
 .parcela-dialog-header {
   display: flex;
   align-items: center;
@@ -146,4 +150,100 @@
 
 .parcela-btn-secondary:hover {
   background: #f9fafb;
+}
+
+/* ===== BATCH MODE ===== */
+.parcela-quantidade-field {
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.parcela-quantidade-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.parcela-quantidade-field input {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #1a1a1a;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.parcela-quantidade-field input:focus {
+  border-color: #3b82f6;
+}
+
+.parcela-batch-header {
+  display: grid;
+  grid-template-columns: 50px 1fr 120px 130px 160px 70px;
+  gap: 8px;
+  padding: 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.parcela-batch-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.parcela-batch-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 120px 130px 160px 70px;
+  gap: 8px;
+  align-items: center;
+}
+
+.parcela-batch-row input,
+.parcela-batch-row select {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-size: 13px;
+  color: #1a1a1a;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.parcela-batch-row input:focus,
+.parcela-batch-row select:focus {
+  border-color: #3b82f6;
+}
+
+.parcela-batch-num {
+  text-align: center;
+  background: #f6f6f6 !important;
+  color: #737373 !important;
+  font-weight: 600;
+}
+
+.parcela-batch-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.parcela-batch-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
 }

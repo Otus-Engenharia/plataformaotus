@@ -423,6 +423,21 @@
   flex-shrink: 0;
 }
 
+/* ── CS Responsável Cell ── */
+.area-pf-cs-resp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+}
+.area-pf-cs-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 /* ── Loading / Error / Empty ── */
 .area-pf-loading {
   display: flex;

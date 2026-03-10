@@ -240,6 +240,21 @@
   border-color: rgba(20, 184, 166, 0.15);
 }
 
+.ppv-tag-cs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(236, 72, 153, 0.08);
+  color: #be185d;
+  border-color: rgba(236, 72, 153, 0.15);
+}
+.ppv-tag-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 /* ============================= */
 /* Campos Editaveis              */
 /* ============================= */

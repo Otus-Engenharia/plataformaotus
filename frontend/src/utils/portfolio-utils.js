@@ -14,6 +14,7 @@ export const VIEWS = {
       'project_code_norm',
       'project_name',
       'comercial_name',
+      'cs_responsavel_name',
       'status',
       'client',
       'nome_time',
@@ -125,6 +126,7 @@ export const COLUMN_NAMES_PT = {
   'numero_unidades': 'N° de<br/>Unidades',
   'endereco': 'Localizacao<br/>da Obra',
   'quantidade_ciclos': 'Qtd<br/>Ciclos',
+  'cs_responsavel_name': 'Resp.<br/>CS',
   'responsavel_acd': 'Resp.<br/>Construflow'
 };
 
@@ -193,6 +195,7 @@ export const COLUMN_WIDTHS = {
   'numero_unidades': 85,
   'endereco': 180,
   'quantidade_ciclos': 80,
+  'cs_responsavel_name': 130,
   'responsavel_acd': 130
 };
 

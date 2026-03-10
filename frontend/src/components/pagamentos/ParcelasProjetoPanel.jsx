@@ -78,8 +78,19 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
       .catch(() => {});
   }, [highlightSince, projectCode, user?.email]);
 
+  const nextParcelaNumero = Math.max(0, ...parcelas.map(p => p.parcela_numero || 0)) + 1;
+
   const handleCreateParcela = async (formData) => {
     await axios.post('/api/pagamentos/parcelas', formData);
+    fetchParcelas();
+  };
+
+  const handleCreateParcelasBatch = async (parcelasData) => {
+    await axios.post('/api/pagamentos/parcelas/batch', {
+      project_code: projectCode,
+      company_id: companyId,
+      parcelas: parcelasData,
+    });
     fetchParcelas();
   };
 
@@ -293,11 +304,14 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
                     {updatedParcelaIds.has(p.id) && (
                       <span className="parcela-atualizado-badge">Atualizado</span>
                     )}
-                    {p.tipo_servico && p.tipo_servico !== 'coordenacao' && (
-                      <span className="parcela-tipo-servico-badge parcela-tipo-servico-modelagem">MOD</span>
-                    )}
                     {p.tipo_servico === 'coordenacao' && (
                       <span className="parcela-tipo-servico-badge parcela-tipo-servico-coordenacao">COORD</span>
+                    )}
+                    {p.tipo_servico === 'compatibilizacao' && (
+                      <span className="parcela-tipo-servico-badge parcela-tipo-servico-compatibilizacao">COMPAT</span>
+                    )}
+                    {p.tipo_servico === 'modelagem' && (
+                      <span className="parcela-tipo-servico-badge parcela-tipo-servico-modelagem">MOD</span>
                     )}
                     {p.origem && (
                       <span className="parcelas-descricao-origem">{p.origem}</span>
@@ -453,19 +467,23 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditingParcela(null); }}
         onSave={editingParcela ? handleUpdateParcela : handleCreateParcela}
+        onSaveBatch={handleCreateParcelasBatch}
         parcela={editingParcela}
         projectCode={projectCode}
         companyId={companyId}
+        nextParcelaNumero={nextParcelaNumero}
       />
 
       <ParcelaFormDialog
         open={aditivoFormOpen}
         onClose={() => setAditivoFormOpen(false)}
         onSave={handleCreateAditivo}
+        onSaveBatch={handleCreateParcelasBatch}
         parcela={null}
         projectCode={projectCode}
         companyId={companyId}
         isAditivo={true}
+        nextParcelaNumero={nextParcelaNumero}
       />
 
       <VincularParcelaDialog

@@ -345,6 +345,35 @@
   letter-spacing: 0.03em;
 }
 
+/* CS Section */
+.eotus-cs-section {
+  margin-bottom: 4px;
+}
+.eotus-member-card--cs {
+  background: #FDF2F8;
+  border-color: #FBCFE8;
+}
+.eotus-member-card--cs:hover {
+  border-color: #f9a8d4;
+}
+.eotus-avatar--cs {
+  background: #FCE7F3;
+  color: #9D174D;
+}
+.eotus-cs-badge {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: #EC4899;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 /* Remove Button */
 .eotus-remove-btn {
   background: none;

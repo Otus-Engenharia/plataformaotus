@@ -151,6 +151,8 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [], onFieldUpdate
     coordinator: projectData.coordenador,
     comercialName: projectData.comercial_name,
     disciplinaCliente: projectData.disciplina_cliente,
+    csResponsavel: projectData.cs_responsavel_name,
+    csResponsavelAvatar: projectData.cs_responsavel_avatar,
   };
 
   // Calcular desvio cronograma
@@ -297,13 +299,21 @@ function PortfolioProjetoView({ selectedProjectId, portfolio = [], onFieldUpdate
           )}
 
           {/* Tags: Lider, Coord, Disciplina */}
-          {(heroLeaders.length > 0 || heroData.disciplinaCliente) && (
+          {(heroLeaders.length > 0 || heroData.disciplinaCliente || heroData.csResponsavel) && (
             <div className="ppv-hero-leaders">
               {heroLeaders.map((text, i) => (
                 <span key={i} className={`ppv-hero-leader-tag ${text.startsWith('Líder') ? 'ppv-tag-lider' : 'ppv-tag-coord'}`}>{text}</span>
               ))}
               {heroData.disciplinaCliente && (
                 <span className="ppv-hero-leader-tag ppv-tag-disciplina">{heroData.disciplinaCliente}</span>
+              )}
+              {heroData.csResponsavel && (
+                <span className="ppv-hero-leader-tag ppv-tag-cs">
+                  {heroData.csResponsavelAvatar && (
+                    <img className="ppv-tag-avatar" src={heroData.csResponsavelAvatar} alt={heroData.csResponsavel} />
+                  )}
+                  CS: {heroData.csResponsavel}
+                </span>
               )}
             </div>
           )}
