@@ -105,6 +105,8 @@ class GenerateWeeklyReport {
       driveFolderId,
       clientEmails = [],
       teamEmails = [],
+      leaderEmail = null,
+      otusTeamEmails = [],
       ganttUrl,
       disciplinaUrl,
       capaEmailUrl,
@@ -220,6 +222,8 @@ class GenerateWeeklyReport {
         projectName,
         clientEmails,
         teamEmails,
+        leaderEmail,
+        otusTeamEmails,
         userId,
         weekText,
       });
