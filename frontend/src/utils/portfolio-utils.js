@@ -310,11 +310,13 @@ export const parseDate = (value) => {
       if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
         return null;
       }
-      if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        date = new Date(trimmed + 'T00:00:00');
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
         date = new Date(trimmed);
       } else if (/^\d{2}\/\d{2}\/\d{4}/.test(trimmed)) {
         const [day, month, year] = trimmed.split('/');
-        date = new Date(`${year}-${month}-${day}`);
+        date = new Date(`${year}-${month}-${day}T00:00:00`);
       } else {
         date = new Date(trimmed);
       }
