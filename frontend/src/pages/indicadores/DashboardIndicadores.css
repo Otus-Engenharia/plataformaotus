@@ -946,6 +946,7 @@
 
 .ind-card__note-text {
   color: var(--color-text-secondary);
+  white-space: pre-line;
 }
 
 /* ─── Footer Link ─── */
