@@ -5997,10 +5997,11 @@ export async function updateProjectField(projectCode, field, value) {
 export async function fetchPortfolioEditOptions() {
   const supabase = getSupabaseClient();
 
-  const [teamsResult, companiesResult, leadersResult] = await Promise.all([
+  const [teamsResult, companiesResult, leadersResult, csUsersResult] = await Promise.all([
     supabase.from('teams').select('id, team_name, team_number').order('team_number'),
     supabase.from('companies').select('id, name').order('name'),
-    supabase.from('users_otus').select('id, name, role, setor:setor_id(name)').eq('is_active', true).in('role', ['leader', 'admin', 'director', 'ceo', 'dev']).order('name')
+    supabase.from('users_otus').select('id, name, role, setor:setor_id(name)').eq('is_active', true).in('role', ['leader', 'admin', 'director', 'ceo', 'dev']).order('name'),
+    supabase.from('users_otus').select('id, name, avatar_url').eq('is_active', true).order('name')
   ]);
 
   if (teamsResult.error) {
@@ -6012,6 +6013,9 @@ export async function fetchPortfolioEditOptions() {
   if (leadersResult.error) {
     throw new Error(`Erro ao buscar lideres: ${leadersResult.error.message}`);
   }
+  if (csUsersResult.error) {
+    throw new Error(`Erro ao buscar usuarios CS: ${csUsersResult.error.message}`);
+  }
 
   // Filtra lideres: apenas usuarios do setor Operacao com role leader ou superior
   const filteredLeaders = (leadersResult.data || [])
@@ -6021,7 +6025,8 @@ export async function fetchPortfolioEditOptions() {
   return {
     teams: teamsResult.data || [],
     companies: companiesResult.data || [],
-    leaders: filteredLeaders
+    leaders: filteredLeaders,
+    csUsers: csUsersResult.data || []
   };
 }
 
