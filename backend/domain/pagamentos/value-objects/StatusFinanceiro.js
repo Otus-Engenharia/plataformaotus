@@ -1,40 +1,38 @@
 const VALID_STATUSES = Object.freeze({
   PENDENTE: 'pendente',
-  AGUARDANDO_MEDICAO: 'aguardando_medicao',
-  MEDICAO_SOLICITADA: 'medicao_solicitada',
-  AGUARDANDO_FATURAMENTO: 'aguardando_faturamento',
   FATURADO: 'faturado',
-  AGUARDANDO_RECEBIMENTO: 'aguardando_recebimento',
-  RECEBIDO: 'recebido',
 });
 
 const STATUS_LABELS = Object.freeze({
   [VALID_STATUSES.PENDENTE]: 'Pendente',
-  [VALID_STATUSES.AGUARDANDO_MEDICAO]: 'Aguardando Medicao',
-  [VALID_STATUSES.MEDICAO_SOLICITADA]: 'Medicao Solicitada',
-  [VALID_STATUSES.AGUARDANDO_FATURAMENTO]: 'Aguardando Faturamento',
   [VALID_STATUSES.FATURADO]: 'Faturado',
-  [VALID_STATUSES.AGUARDANDO_RECEBIMENTO]: 'Aguardando Recebimento',
-  [VALID_STATUSES.RECEBIDO]: 'Pago',
 });
 
 const STATUS_COLORS = Object.freeze({
   [VALID_STATUSES.PENDENTE]: '#9e9e9e',
-  [VALID_STATUSES.AGUARDANDO_MEDICAO]: '#ff5722',
-  [VALID_STATUSES.MEDICAO_SOLICITADA]: '#9c27b0',
-  [VALID_STATUSES.AGUARDANDO_FATURAMENTO]: '#ff9800',
-  [VALID_STATUSES.FATURADO]: '#2196f3',
-  [VALID_STATUSES.AGUARDANDO_RECEBIMENTO]: '#ffc107',
-  [VALID_STATUSES.RECEBIDO]: '#4caf50',
+  [VALID_STATUSES.FATURADO]: '#4caf50',
 });
 
-const CLOSED_STATUSES = Object.freeze([VALID_STATUSES.RECEBIDO]);
+const CLOSED_STATUSES = Object.freeze([VALID_STATUSES.FATURADO]);
+
+// Map old statuses to new ones for backward compatibility
+const LEGACY_STATUS_MAP = Object.freeze({
+  recebido: 'faturado',
+  aguardando_medicao: 'pendente',
+  medicao_solicitada: 'pendente',
+  aguardando_faturamento: 'pendente',
+  aguardando_recebimento: 'pendente',
+});
 
 class StatusFinanceiro {
   #value;
 
   constructor(value) {
-    const normalized = String(value).toLowerCase().trim();
+    let normalized = String(value).toLowerCase().trim();
+    // Map legacy statuses
+    if (LEGACY_STATUS_MAP[normalized]) {
+      normalized = LEGACY_STATUS_MAP[normalized];
+    }
     if (!StatusFinanceiro.isValid(normalized)) {
       throw new Error(
         `Status financeiro invalido: "${value}". Valores permitidos: ${Object.values(VALID_STATUSES).join(', ')}`
@@ -68,7 +66,7 @@ class StatusFinanceiro {
   static get COLORS() { return STATUS_COLORS; }
 
   static pendente() { return new StatusFinanceiro(VALID_STATUSES.PENDENTE); }
-  static recebido() { return new StatusFinanceiro(VALID_STATUSES.RECEBIDO); }
+  static faturado() { return new StatusFinanceiro(VALID_STATUSES.FATURADO); }
 }
 
 export { StatusFinanceiro, VALID_STATUSES as StatusFinanceiroEnum };

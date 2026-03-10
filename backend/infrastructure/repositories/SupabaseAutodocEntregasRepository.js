@@ -118,6 +118,8 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
       autodoc_customer_name: mapping.autodocCustomerName,
       autodoc_project_folder_id: mapping.autodocProjectFolderId,
       autodoc_project_name: mapping.autodocProjectName,
+      use_classic_api: mapping.useClassicApi === true,
+      classic_instance_id: mapping.classicInstanceId || null,
       active: mapping.active !== false,
       updated_at: new Date().toISOString(),
     };
@@ -189,13 +191,16 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
 
   // --- Sync Runs ---
 
-  async createSyncRun(customerId) {
+  async createSyncRun(customerId, batchId = null) {
+    const row = {
+      autodoc_customer_id: customerId,
+      status: 'running',
+    };
+    if (batchId) row.batch_id = batchId;
+
     const { data, error } = await this.#supabase
       .from(SYNC_RUNS_TABLE)
-      .insert({
-        autodoc_customer_id: customerId,
-        status: 'running',
-      })
+      .insert(row)
       .select()
       .single();
 
@@ -204,6 +209,49 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
     }
 
     return data;
+  }
+
+  async timeoutStaleRuns(minutesThreshold = 30) {
+    const cutoff = new Date(Date.now() - minutesThreshold * 60 * 1000).toISOString();
+
+    const { data, error } = await this.#supabase
+      .from(SYNC_RUNS_TABLE)
+      .update({
+        status: 'timeout',
+        finished_at: new Date().toISOString(),
+        error: `Timeout: sync não completou em ${minutesThreshold} minutos`,
+      })
+      .eq('status', 'running')
+      .lt('started_at', cutoff)
+      .select('id');
+
+    if (error) {
+      throw new Error(`Erro ao limpar sync runs órfãos: ${error.message}`);
+    }
+
+    return (data || []).length;
+  }
+
+  async getRecentSyncRuns(hours = 2, { batchId } = {}) {
+    let query = this.#supabase
+      .from(SYNC_RUNS_TABLE)
+      .select('*')
+      .order('started_at', { ascending: false });
+
+    if (batchId) {
+      query = query.eq('batch_id', batchId);
+    } else {
+      const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      query = query.gte('started_at', since);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Erro ao buscar sync runs recentes: ${error.message}`);
+    }
+
+    return data || [];
   }
 
   async completeSyncRun(id, { projectsScanned = 0, documentsFound = 0, newDocuments = 0, error: runError = null, status = 'completed' }) {

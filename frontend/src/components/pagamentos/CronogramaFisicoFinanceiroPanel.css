@@ -1,0 +1,234 @@
+/* CronogramaFisicoFinanceiroPanel */
+
+.crono-fin-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.crono-fin-loading,
+.crono-fin-empty {
+  padding: 3rem;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* Controls */
+.crono-fin-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  padding: 0.75rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.crono-fin-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.crono-fin-controls-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: Verdana, sans-serif;
+}
+
+.crono-fin-period-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.crono-fin-period-btn {
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #f9fafb;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: Verdana, sans-serif;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.crono-fin-period-btn:hover {
+  border-color: #ffdd00;
+}
+
+.crono-fin-period-btn.active {
+  background: #ffdd00;
+  border-color: #ffdd00;
+  color: #1a1a1a;
+}
+
+/* Table wrapper with horizontal scroll */
+.crono-fin-table-wrapper {
+  overflow-x: auto;
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.crono-fin-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-family: Verdana, sans-serif;
+  font-size: 12px;
+}
+
+.crono-fin-table thead th {
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 10px 12px;
+  border-bottom: 2px solid #e6e6e6;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.crono-fin-table tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+  color: #1a1a1a;
+}
+
+/* Zebra striping */
+.crono-fin-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.crono-fin-table tbody tr:hover {
+  background: #f5f5f0;
+}
+
+/* Sticky columns */
+.crono-fin-sticky-col {
+  position: sticky;
+  background: inherit;
+  z-index: 2;
+}
+
+.crono-fin-col-projeto {
+  left: 0;
+  min-width: 160px;
+  max-width: 200px;
+  background: #fff;
+}
+
+.crono-fin-col-parcela {
+  left: 160px;
+  min-width: 120px;
+  max-width: 160px;
+  background: #fff;
+}
+
+.crono-fin-col-valor {
+  left: 280px;
+  min-width: 100px;
+  text-align: right;
+  background: #fff;
+}
+
+.crono-fin-col-dilatacao {
+  left: 380px;
+  min-width: 60px;
+  text-align: center;
+  background: #fff;
+}
+
+/* Override sticky bg for even rows */
+.crono-fin-table tbody tr:nth-child(even) .crono-fin-sticky-col {
+  background: #fafafa;
+}
+
+.crono-fin-table tbody tr:hover .crono-fin-sticky-col {
+  background: #f5f5f0;
+}
+
+.crono-fin-table thead .crono-fin-sticky-col {
+  z-index: 3;
+  background: #f9fafb;
+}
+
+.crono-fin-project-name {
+  display: block;
+  font-size: 10px;
+  color: #9ca3af;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Month cells */
+.crono-fin-month-col {
+  min-width: 100px;
+  text-align: center;
+}
+
+.crono-fin-month-cell {
+  text-align: center;
+  font-size: 11px;
+}
+
+.crono-fin-cell-faturado {
+  background: rgba(76, 175, 80, 0.12) !important;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.crono-fin-cell-pendente {
+  background: rgba(33, 150, 243, 0.08) !important;
+  color: #1565c0;
+  font-weight: 500;
+}
+
+.crono-fin-cell-atrasado {
+  background: rgba(244, 67, 54, 0.1) !important;
+  color: #c62828;
+  font-weight: 600;
+}
+
+/* Faturado row */
+.crono-fin-row-faturado {
+  opacity: 0.6;
+}
+
+/* Totals row */
+.crono-fin-totals-row {
+  background: #f0f0f0 !important;
+}
+
+.crono-fin-totals-row td {
+  font-weight: 700;
+  border-top: 2px solid #d1d5db;
+  padding: 10px 12px;
+}
+
+.crono-fin-total-cell {
+  color: #1a1a1a;
+  font-size: 11px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .crono-fin-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -208,8 +208,8 @@ export default function PagamentosFinanceiroView() {
             <span className="pagamentos-fin-kpi-value pagamentos-fin-kpi-value-currency">{formatCurrency(kpis.valor_pendente)}</span>
           </div>
           <div className="pagamentos-fin-kpi pagamentos-fin-kpi-primary">
-            <span className="pagamentos-fin-kpi-label">Valor Recebido</span>
-            <span className="pagamentos-fin-kpi-value pagamentos-fin-kpi-value-currency">{formatCurrency(kpis.valor_recebido)}</span>
+            <span className="pagamentos-fin-kpi-label">Valor Faturado</span>
+            <span className="pagamentos-fin-kpi-value pagamentos-fin-kpi-value-currency">{formatCurrency(kpis.valor_faturado)}</span>
           </div>
           <div className="pagamentos-fin-kpi">
             <span className="pagamentos-fin-kpi-label">Proximos 30 dias</span>
@@ -330,7 +330,7 @@ export default function PagamentosFinanceiroView() {
                       <th>Lider</th>
                       <th>Parcelas</th>
                       <th>Vinculacao</th>
-                      <th>Recebidas</th>
+                      <th>Faturadas</th>
                       <th>Valor Total</th>
                       <th>Prox. Pagamento</th>
                     </tr>
@@ -380,7 +380,7 @@ export default function PagamentosFinanceiroView() {
                           </td>
                           <td>
                             {p.total_parcelas > 0
-                              ? <span className={getVincClass(p.parcelas_recebidas, p.total_parcelas)}>{p.parcelas_recebidas}/{p.total_parcelas}</span>
+                              ? <span className={getVincClass(p.parcelas_faturadas ?? p.parcelas_recebidas ?? 0, p.total_parcelas)}>{p.parcelas_faturadas ?? p.parcelas_recebidas ?? 0}/{p.total_parcelas}</span>
                               : '-'}
                           </td>
                           <td className="pagamentos-fin-valor-cell">{formatCurrency(p.valor_total)}</td>

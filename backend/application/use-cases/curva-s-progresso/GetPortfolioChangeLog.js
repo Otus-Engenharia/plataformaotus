@@ -19,7 +19,9 @@ class GetPortfolioChangeLog {
    * @returns {{ by_project, summary, aggregated_discipline_scores }}
    */
   async execute({ projectIds } = {}) {
-    const { projectSnapshots } = await this.#queryAllSnapshotTasks();
+    const { projectSnapshots, projectCodeMap } = await this.#queryAllSnapshotTasks();
+
+    console.log(`📊 [GetPortfolioChangeLog] ${projectSnapshots?.size || 0} projetos recebidos, ${projectCodeMap?.size || 0} com project_code`);
 
     if (!projectSnapshots || projectSnapshots.size === 0) {
       return {
@@ -29,7 +31,19 @@ class GetPortfolioChangeLog {
       };
     }
 
-    const filterSet = projectIds ? new Set(projectIds) : null;
+    // Construir filterSet que aceita ID_Projeto diretamente
+    // OU converte project_code → ID_Projeto via mapeamento reverso
+    let filterSet = null;
+    if (projectIds) {
+      filterSet = new Set(projectIds);
+      // Também incluir ID_Projeto se o filterSet contém o project_code correspondente
+      for (const [idProjeto, projectCode] of projectCodeMap) {
+        if (filterSet.has(projectCode)) {
+          filterSet.add(idProjeto);
+        }
+      }
+    }
+
     const byProject = [];
 
     for (const [projectId, snapshots] of projectSnapshots) {
@@ -43,10 +57,19 @@ class GetPortfolioChangeLog {
 
       byProject.push({
         project_id: projectId,
+        project_code: projectCodeMap.get(projectId) || projectId,
         month_pairs: diffResult.month_pairs,
         overall_summary: diffResult.overall_summary,
         discipline_scores: disciplineScores,
       });
+    }
+
+    console.log(`📊 [GetPortfolioChangeLog] ${byProject.length} projetos com alterações detectadas`);
+    if (byProject.length > 0) {
+      const sampleProject = byProject[0];
+      const sampleSnaps = projectSnapshots.get(sampleProject.project_id);
+      const sampleDates = sampleSnaps ? [...sampleSnaps.keys()].sort() : [];
+      console.log(`📊 [GetPortfolioChangeLog] Amostra projeto=${sampleProject.project_id}: ${sampleDates.length} snapshots, dates=[${sampleDates.join(', ')}], changes=${sampleProject.overall_summary.total_changes} (desvios=${sampleProject.overall_summary.total_desvios})`);
     }
 
     // Ordenar por total de alterações (mais problemáticos primeiro)

@@ -4,6 +4,7 @@
  * Endpoints para entregas Autodoc e mapeamento de projetos.
  */
 
+import crypto from 'node:crypto';
 import express from 'express';
 import { SupabaseAutodocEntregasRepository } from '../infrastructure/repositories/SupabaseAutodocEntregasRepository.js';
 import { AutodocHttpClient } from '../infrastructure/services/AutodocHttpClient.js';
@@ -72,7 +73,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
 
   /**
    * POST /api/autodoc-entregas/sync-all
-   * Sincroniza todos os customers. Privileged only.
+   * Inicia sync de todos os customers (fire-and-forget). Privileged only.
    */
   router.post('/sync-all', requireAuth, async (req, res) => {
     try {
@@ -81,18 +82,51 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
       }
 
       const useCase = new SyncAllCustomers(getRepository(), getAutodocClient());
-      const result = await useCase.execute();
+      const batchId = crypto.randomUUID();
 
-      if (logAction) {
-        await logAction(req, 'sync-all', 'autodoc-entregas', null, 'Sync all Autodoc customers', {
-          totalCustomers: result.totalCustomers,
-          totalDocuments: result.totalDocuments,
+      // Fire-and-forget: iniciar sync sem aguardar
+      useCase.execute({ batchId })
+        .then((result) => {
+          if (logAction) {
+            logAction(req, 'sync-all', 'autodoc-entregas', null, 'Sync all Autodoc customers', {
+              totalCustomers: result.totalCustomers,
+              totalDocuments: result.totalDocuments,
+            }).catch(err => console.error('Erro ao logar acao sync-all:', err));
+          }
+          console.log(`[autodoc-entregas] Sync concluido: ${result.totalCustomers} contas, ${result.totalDocuments} docs`);
+        })
+        .catch((err) => {
+          console.error('[autodoc-entregas] Erro no sync fire-and-forget:', err);
         });
-      }
 
-      res.json({ success: true, data: result });
+      res.json({ success: true, message: 'Sync iniciado', batchId });
     } catch (error) {
-      console.error('Erro ao sincronizar Autodoc:', error);
+      console.error('Erro ao iniciar sync Autodoc:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/autodoc-entregas/sync-status
+   * Retorna status dos sync runs recentes (ultimas 2h).
+   */
+  router.get('/sync-status', requireAuth, async (req, res) => {
+    try {
+      const { batchId } = req.query;
+      const repo = getRepository();
+      const runs = await repo.getRecentSyncRuns(2, { batchId: batchId || undefined });
+
+      const running = runs.filter(r => r.status === 'running').length;
+      const completed = runs.filter(r => r.status === 'completed').length;
+      const failed = runs.filter(r => r.status === 'error' || r.status === 'timeout').length;
+      const total = runs.length;
+
+      res.json({
+        success: true,
+        data: { running, completed, failed, total, runs },
+      });
+    } catch (error) {
+      console.error('Erro ao buscar sync status:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -165,6 +199,29 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   });
 
   /**
+   * GET /api/autodoc-entregas/debug-customers
+   * Retorna estrutura dos customers com products (para investigacao). Privileged only.
+   */
+  router.get('/debug-customers', requireAuth, async (req, res) => {
+    try {
+      if (!isPrivileged(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+      const client = getAutodocClient();
+      const customersResponse = await client.getCustomers();
+      const customers = customersResponse?.data || customersResponse || [];
+      const summary = (Array.isArray(customers) ? customers : []).map(c => ({
+        id: c.id || c.customerId,
+        name: c.name || c.customerName,
+        products: c.products || [],
+      }));
+      res.json({ success: true, data: summary });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * POST /api/autodoc-entregas/discover
    * Descobre projetos Autodoc e sugere matches. Privileged only.
    */
@@ -178,7 +235,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
       const useCase = new DiscoverAutodocProjects(getRepository(), getAutodocClient());
       const result = await useCase.execute({ portfolioProjectCodes });
 
-      res.json({ success: true, data: result });
+      res.json({ success: true, data: result.results, diagnostics: result.diagnostics });
     } catch (error) {
       console.error('Erro ao descobrir projetos Autodoc:', error);
       res.status(500).json({ success: false, error: error.message });

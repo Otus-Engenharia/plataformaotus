@@ -68,6 +68,17 @@ class EnrichParcelasWithSmartsheet {
     for (const parcela of parcelas) {
       const response = parcela.toResponse();
 
+      // Phase 5: Compute data_limite_solicitacao from regra
+      if (regra && parcela.smartsheetDataTermino) {
+        const dataTermino = new Date(parcela.smartsheetDataTermino);
+        const totalDias = regra.totalDias || 0;
+        if (totalDias > 0) {
+          const dataLimite = new Date(dataTermino);
+          dataLimite.setDate(dataLimite.getDate() - totalDias);
+          response.data_limite_solicitacao = dataLimite.toISOString().split('T')[0];
+        }
+      }
+
       if (parcela.smartsheetRowId) {
         const task = tasksByRowId.get(String(parcela.smartsheetRowId));
 

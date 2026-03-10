@@ -8547,8 +8547,8 @@ app.listen(PORT, HOST, async () => {
   }, { timezone: 'America/Sao_Paulo' });
   console.log('⏰ Cron job configurado: scan IFC a cada 6h BRT');
 
-  // Cron job: sync Autodoc a cada 6h (02:00, 08:00, 14:00, 20:00 BRT)
-  cron.schedule('0 2,8,14,20 * * *', async () => {
+  // Cron job: sync Autodoc diario as 08:00 e 19:00 BRT
+  cron.schedule('0 8,19 * * *', async () => {
     console.log('[Cron] Iniciando sync automatico Autodoc...');
     try {
       const { SupabaseAutodocEntregasRepository } = await import('./infrastructure/repositories/SupabaseAutodocEntregasRepository.js');
@@ -8565,5 +8565,5 @@ app.listen(PORT, HOST, async () => {
       console.error('[Cron] Erro no sync Autodoc:', err.message);
     }
   }, { timezone: 'America/Sao_Paulo' });
-  console.log('⏰ Cron job configurado: sync Autodoc a cada 6h BRT');
+  console.log('⏰ Cron job configurado: sync Autodoc diario 08:00 e 19:00 BRT');
 });
