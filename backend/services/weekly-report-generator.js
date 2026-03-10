@@ -1641,9 +1641,16 @@ export async function createGmailDrafts(clientHtml, teamHtml, options = {}) {
     projectName = 'Projeto',
     clientEmails = [],
     teamEmails = [],
+    leaderEmail = null,
+    otusTeamEmails = [],
     userId,
     weekText = '',
   } = options;
+
+  const CS_EMAIL = 'cs@otusengenharia.com';
+
+  // Monta CC base: líder + CS + equipe Otus, filtrando nulos/vazios e deduplicando
+  const baseCc = [...new Set([leaderEmail, CS_EMAIL, ...otusTeamEmails].filter(e => e && e.includes('@')))];
 
   let clientDraftUrl = null;
   let teamDraftUrl = null;
@@ -1653,8 +1660,13 @@ export async function createGmailDrafts(clientHtml, teamHtml, options = {}) {
   // Cria rascunho para o cliente
   if (userId && clientEmails.length > 0 && clientHtml) {
     try {
+      // CC = baseCc sem quem já está no To
+      const toSet = new Set(clientEmails.map(e => e.toLowerCase()));
+      const cc = baseCc.filter(e => !toSet.has(e.toLowerCase()));
+
       const result = await createGmailDraft(userId, {
         to: clientEmails,
+        cc: cc.length > 0 ? cc : undefined,
         subject: `${subject} - Cliente`,
         body: `Relatório semanal do projeto ${projectName} para o cliente.`,
         htmlBody: clientHtml,
@@ -1672,8 +1684,13 @@ export async function createGmailDrafts(clientHtml, teamHtml, options = {}) {
   // Cria rascunho para o time (inclui emails do cliente + equipe)
   if (userId && (teamEmails.length > 0 || clientEmails.length > 0) && teamHtml) {
     try {
+      const allTo = [...clientEmails, ...teamEmails];
+      const toSet = new Set(allTo.map(e => e.toLowerCase()));
+      const cc = baseCc.filter(e => !toSet.has(e.toLowerCase()));
+
       const result = await createGmailDraft(userId, {
-        to: [...clientEmails, ...teamEmails],
+        to: allTo,
+        cc: cc.length > 0 ? cc : undefined,
         subject: `${subject} - Equipe`,
         body: `Relatório semanal do projeto ${projectName} para a equipe.`,
         htmlBody: teamHtml,

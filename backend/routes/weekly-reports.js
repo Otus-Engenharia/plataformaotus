@@ -15,7 +15,7 @@ import {
   GetReportStatus,
   GetWeeklyLog,
 } from '../application/use-cases/weekly-reports/index.js';
-import { fetchProjectClientContacts, fetchProjectDisciplines, fetchUserTeamName, fetchUserTeamId, fetchActiveProjectsByTeam, fetchReportEnabledByTeam, fetchProjectFeaturesForPortfolio, getSupabaseClient } from '../supabase.js';
+import { fetchProjectClientContacts, fetchProjectDisciplines, fetchUserTeamName, fetchUserTeamId, fetchActiveProjectsByTeam, fetchReportEnabledByTeam, fetchProjectFeaturesForPortfolio, getSupabaseClient, fetchOtusTeamForProject } from '../supabase.js';
 import { hasFullAccess } from '../auth-config.js';
 
 const router = express.Router();
@@ -81,6 +81,32 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
       }
     } catch (err) {
       console.warn('[getEnrichedProject] Erro ao buscar equipe:', err.message);
+    }
+
+    // Busca email do líder e emails da equipe Otus do projeto
+    try {
+      const otusTeam = await fetchOtusTeamForProject(projectCode);
+      if (otusTeam) {
+        // Leader email
+        const leaderUser = otusTeam.defaultMembers?.find(m => m.id === otusTeam.leaderId)
+          || otusTeam.manualMembers?.find(m => m.id === otusTeam.leaderId);
+        enriched.leader_email = leaderUser?.email || null;
+        if (!enriched.leader_email && otusTeam.leaderId) {
+          const supabase = getSupabaseClient();
+          const { data: leaderRow } = await supabase
+            .from('users_otus').select('email').eq('id', otusTeam.leaderId).single();
+          enriched.leader_email = leaderRow?.email || null;
+        }
+
+        // Emails de todos os membros da equipe Otus (default + manuais)
+        const otusTeamEmails = [
+          ...(otusTeam.defaultMembers || []).filter(m => m.email?.includes('@')).map(m => m.email),
+          ...(otusTeam.manualMembers || []).filter(m => m.user?.email?.includes('@')).map(m => m.user.email),
+        ];
+        enriched.otus_team_emails = otusTeamEmails;
+      }
+    } catch (err) {
+      console.warn('[getEnrichedProject] Erro ao buscar equipe Otus:', err.message);
     }
 
     return enriched;
@@ -270,6 +296,8 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
           driveFolderId: project.pasta_emails_id || project.drive_folder_id,
           clientEmails: project.client_emails ? project.client_emails.split(',').map(e => e.trim()) : [],
           teamEmails: project.team_emails ? project.team_emails.split(',').map(e => e.trim()) : [],
+          leaderEmail: project.leader_email || null,
+          otusTeamEmails: project.otus_team_emails || [],
           ganttUrl: project.gantt_email_url,
           disciplinaUrl: project.disciplina_email_url,
           capaEmailUrl: project.capa_email_url,
