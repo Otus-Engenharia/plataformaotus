@@ -438,6 +438,46 @@
   flex-shrink: 0;
 }
 
+/* ── Editable Cell ── */
+.area-pf-editable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+  transition: background-color 0.15s;
+}
+.area-pf-editable:hover {
+  background-color: #f3f4f6;
+}
+
+.area-pf-inline-select {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 0.82rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  border: 1.5px solid #ffdd00;
+  border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.25);
+  background: #fff;
+}
+
+.area-pf-save-check {
+  color: #15803d;
+  font-weight: 700;
+  margin-left: 4px;
+  animation: area-pf-fade-out 1.5s ease forwards;
+}
+
+@keyframes area-pf-fade-out {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.area-pf-just-saved {
+  background-color: rgba(21, 128, 61, 0.08);
+  transition: background-color 1.5s ease;
+}
+
 /* ── Loading / Error / Empty ── */
 .area-pf-loading {
   display: flex;

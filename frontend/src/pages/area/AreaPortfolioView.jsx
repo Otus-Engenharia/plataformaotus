@@ -52,7 +52,7 @@ const Icons = {
 };
 
 export default function AreaPortfolioView() {
-  const { user } = useAuth();
+  const { user, canEditPortfolio } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -68,6 +68,11 @@ export default function AreaPortfolioView() {
   const [showPausados, setShowPausados] = useState(false);
   const [showAIniciar, setShowAIniciar] = useState(true); // ON por padrao
   const [showAtivos, setShowAtivos] = useState(false);
+
+  // Edicao inline - Resp. CS
+  const [editingCell, setEditingCell] = useState(null);   // { projectCode, field }
+  const [csUsers, setCsUsers] = useState(null);           // [{ id, name, avatar_url }]
+  const [savedCell, setSavedCell] = useState(null);        // { projectCode, field }
 
   // Vista ativa
   const [activeView, setActiveView] = useState('info');
@@ -105,6 +110,43 @@ export default function AreaPortfolioView() {
   }, [user?.id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Busca opcoes de edicao (csUsers) se usuario tem permissao
+  useEffect(() => {
+    if (!canEditPortfolio) return;
+    axios.get(`${API_URL}/api/portfolio/edit-options`, { withCredentials: true })
+      .then(res => res.data?.success && setCsUsers(res.data.data.csUsers || []))
+      .catch(err => console.error('Erro ao buscar edit options:', err));
+  }, [canEditPortfolio]);
+
+  // Handler para trocar responsavel CS
+  const handleCsResponsavelChange = useCallback(async (projectCode, newUserId) => {
+    setEditingCell(null);
+    const prev = data;
+    // Optimistic update
+    setData(d => d.map(row => {
+      if (row.project_code_norm !== projectCode) return row;
+      const selectedUser = newUserId ? csUsers?.find(u => u.id === newUserId) : null;
+      return {
+        ...row,
+        _cs_responsavel_id: newUserId || null,
+        cs_responsavel_name: selectedUser?.name || null,
+        cs_responsavel_avatar: selectedUser?.avatar_url || null,
+      };
+    }));
+
+    try {
+      await axios.put(`${API_URL}/api/projetos/cs-responsavel`,
+        { projectCode, csResponsavelId: newUserId || null },
+        { withCredentials: true }
+      );
+      setSavedCell({ projectCode, field: 'cs_responsavel_name' });
+      setTimeout(() => setSavedCell(null), 1500);
+    } catch (err) {
+      console.error('Erro ao atualizar responsavel CS:', err);
+      setData(prev);
+    }
+  }, [data, csUsers]);
 
   // Valores unicos para filtros
   const uniqueTimes = useMemo(() => {
@@ -232,9 +274,42 @@ export default function AreaPortfolioView() {
     }
 
     if (col === 'cs_responsavel_name') {
+      const code = row.project_code_norm;
+      const isEditing = editingCell?.projectCode === code && editingCell?.field === 'cs_responsavel_name';
+      const justSaved = savedCell?.projectCode === code && savedCell?.field === 'cs_responsavel_name';
+
+      if (isEditing && csUsers) {
+        return (
+          <td key={col}>
+            <select
+              className="area-pf-inline-select"
+              autoFocus
+              defaultValue={row._cs_responsavel_id || ''}
+              onChange={(e) => handleCsResponsavelChange(code, e.target.value || null)}
+              onBlur={() => setEditingCell(null)}
+              onKeyDown={(e) => e.key === 'Escape' && setEditingCell(null)}
+            >
+              <option value="">Sem responsavel</option>
+              {csUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </td>
+        );
+      }
+
       return (
-        <td key={col}>
-          {val ? (
+        <td key={col} className={justSaved ? 'area-pf-just-saved' : ''}>
+          {canEditPortfolio && csUsers ? (
+            <span
+              className="area-pf-editable area-pf-cs-resp"
+              onClick={() => setEditingCell({ projectCode: code, field: 'cs_responsavel_name' })}
+            >
+              {row.cs_responsavel_avatar && (
+                <img className="area-pf-cs-avatar" src={row.cs_responsavel_avatar} alt={val} />
+              )}
+              {val || '-'}
+              {justSaved && <span className="area-pf-save-check">&#10003;</span>}
+            </span>
+          ) : val ? (
             <span className="area-pf-cs-resp">
               {row.cs_responsavel_avatar && (
                 <img className="area-pf-cs-avatar" src={row.cs_responsavel_avatar} alt={val} />
