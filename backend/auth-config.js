@@ -158,44 +158,29 @@ export function isLeader(email) {
 }
 
 /**
- * Lista de emails do setor de vendas
- * TODO: Implementar controle de cadastros depois
+ * Setores que podem acessar Formulário de Passagem e área de Vendas
  */
-export const VENDAS_EMAILS = [
-  // Adicione aqui os emails do setor de vendas
-  // Exemplo: 'vendas@otusengenharia.com',
-];
-
-/**
- * Verifica se um usuário pertence ao setor de vendas
- * @param {string} email - Email do usuário
- * @returns {boolean}
- */
-export function isVendas(email) {
-  if (!email) return false;
-  return VENDAS_EMAILS.includes(email.toLowerCase());
-}
+const VENDAS_SECTORS = ['Vendas'];
 
 /**
  * Verifica se um usuário pode acessar o Formulário de Passagem
- * (Dev, Diretores, Admin, Líderes e Vendas)
+ * (Privilegiados ou membros do setor Vendas)
  * @param {string|Object} emailOrUser - Email ou user object
  * @returns {boolean}
  */
 export function canAccessFormularioPassagem(emailOrUser) {
-  const email = typeof emailOrUser === 'object' ? emailOrUser?.email : emailOrUser;
-  return isPrivileged(emailOrUser) || isVendas(email);
+  if (isPrivileged(emailOrUser)) return true;
+  if (typeof emailOrUser === 'object' && emailOrUser?.setor_name && VENDAS_SECTORS.includes(emailOrUser.setor_name)) return true;
+  return false;
 }
 
 /**
  * Verifica se um usuário pode acessar a área de Vendas
- * (Dev, Diretores, Admin, Líderes e Vendas)
  * @param {string|Object} emailOrUser - Email ou user object
  * @returns {boolean}
  */
 export function canAccessVendas(emailOrUser) {
-  const email = typeof emailOrUser === 'object' ? emailOrUser?.email : emailOrUser;
-  return isPrivileged(emailOrUser) || isVendas(email);
+  return canAccessFormularioPassagem(emailOrUser);
 }
 
 /**
