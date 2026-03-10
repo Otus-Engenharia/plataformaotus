@@ -336,7 +336,7 @@ class Parcela {
     });
   }
 
-  static create({ projectCode, projectId, companyId, parcelaNumero, descricao, valor, origem, fase, gerenteEmail, tipoServico, createdBy }) {
+  static create({ projectCode, projectId, companyId, parcelaNumero, descricao, valor, origem, fase, gerenteEmail, tipoServico, createdBy, parcelaSemCronograma }) {
     return new Parcela({
       projectCode,
       projectId,
@@ -351,6 +351,7 @@ class Parcela {
       gerenteEmail,
       tipoServico,
       createdBy,
+      parcelaSemCronograma: parcelaSemCronograma || false,
     });
   }
 }

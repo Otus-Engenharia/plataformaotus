@@ -79,7 +79,7 @@ import {
   // Apoio de Projetos - Portfolio
   fetchProjectFeaturesForPortfolio, fetchComercialInfosForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
   // Portfolio - Edicao inline
-  fetchProjectsFromSupabase, fetchPortfolioEditOptions, updateProjectField,
+  fetchProjectsFromSupabase, fetchPortfolioEditOptions, updateProjectField, updateCsResponsavel,
   // OAuth tokens (Gmail Draft)
   getUserOAuthTokens, resolveRecipientEmails, resolveRecipientContacts,
   // Whiteboard
@@ -864,6 +864,10 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
         numero_unidades: p.numero_unidades ?? null,
         tipologia_empreendimento: p.tipologia_empreendimento ?? null,
         endereco: p.address ?? null,
+        // CS Responsável
+        cs_responsavel_name: p.cs_responsavel?.name || null,
+        cs_responsavel_avatar: p.cs_responsavel?.avatar_url || null,
+        _cs_responsavel_id: p.cs_responsavel_id || null,
       });
     }
 
@@ -897,6 +901,10 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
         ...(supabase.numero_unidades != null && { numero_unidades: supabase.numero_unidades }),
         ...(supabase.tipologia_empreendimento != null && { tipologia_empreendimento: supabase.tipologia_empreendimento }),
         ...(supabase.endereco != null && { endereco: supabase.endereco }),
+        // CS Responsável
+        ...(supabase.cs_responsavel_name != null && { cs_responsavel_name: supabase.cs_responsavel_name }),
+        ...(supabase.cs_responsavel_avatar != null && { cs_responsavel_avatar: supabase.cs_responsavel_avatar }),
+        ...(supabase._cs_responsavel_id != null && { _cs_responsavel_id: supabase._cs_responsavel_id }),
         // Comercial
         ...(comercial.responsavel_acd != null && { responsavel_acd: comercial.responsavel_acd }),
         // Features
@@ -938,6 +946,10 @@ app.get('/api/portfolio', requireAuth, withBqCache(1800), async (req, res) => {
           tipologia_empreendimento: p.tipologia_empreendimento ?? null,
           endereco: p.address ?? null,
           responsavel_acd: comercial.responsavel_acd ?? null,
+          // CS Responsável
+          cs_responsavel_name: p.cs_responsavel?.name || null,
+          cs_responsavel_avatar: p.cs_responsavel?.avatar_url || null,
+          _cs_responsavel_id: p.cs_responsavel_id || null,
           ...features,
         });
       }
@@ -1140,6 +1152,33 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Erro ao atualizar portfolio:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/projetos/cs-responsavel
+ * Atualiza o responsável CS de um projeto
+ * Body: { projectCode, csResponsavelId }
+ */
+app.put('/api/projetos/cs-responsavel', requireAuth, async (req, res) => {
+  try {
+    if (!canEditPortfolio(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode, csResponsavelId } = req.body;
+    if (!projectCode) {
+      return res.status(400).json({ success: false, error: 'projectCode é obrigatório' });
+    }
+
+    const result = await updateCsResponsavel(projectCode, csResponsavelId);
+    invalidatePortfolioCache();
+    await logAction(req, 'update', 'portfolio', projectCode, 'cs_responsavel_id', { value: csResponsavelId });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar responsável CS:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

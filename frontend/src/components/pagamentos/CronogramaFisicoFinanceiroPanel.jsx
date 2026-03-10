@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import InlineDilatacaoInput from './InlineDilatacaoInput';
+import InlineStatusDropdown from './InlineStatusDropdown';
+import { STATUS_FINANCEIRO_CONFIG } from './ParcelaStatusBadge';
 import './CronogramaFisicoFinanceiroPanel.css';
+
+const STATUS_FINANCEIRO_OPTIONS = Object.entries(STATUS_FINANCEIRO_CONFIG).map(([value, cfg]) => ({
+  value, label: cfg.label, color: cfg.color,
+}));
 
 const formatCurrency = (v) => {
   if (v == null) return '';
@@ -27,7 +33,7 @@ function getMonthKey(dateStr) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilter }) {
+export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilter, showStatusColumn = false }) {
   const [parcelas, setParcelas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [numMonths, setNumMonths] = useState(12);
@@ -90,6 +96,12 @@ export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilt
     setParcelas(prev => prev.map(p => p.id === updatedParcela.id ? { ...updatedParcela, project_name: p.project_name, project_status: p.project_status } : p));
   };
 
+  const handleStatusChanged = (updatedParcela) => {
+    setParcelas(prev => prev.map(p => p.id === updatedParcela.id
+      ? { ...updatedParcela, project_name: p.project_name, project_status: p.project_status }
+      : p));
+  };
+
   if (loading) {
     return <div className="crono-fin-loading">Carregando cronograma financeiro...</div>;
   }
@@ -141,6 +153,7 @@ export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilt
                 <th className="crono-fin-sticky-col crono-fin-col-parcela">Parcela</th>
                 <th className="crono-fin-sticky-col crono-fin-col-valor">Valor</th>
                 <th className="crono-fin-sticky-col crono-fin-col-dilatacao">Dilat.</th>
+                {showStatusColumn && <th className="crono-fin-sticky-col crono-fin-col-status">Status</th>}
                 {monthColumns.map(m => (
                   <th key={m.key} className="crono-fin-month-col">{m.label}</th>
                 ))}
@@ -172,6 +185,17 @@ export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilt
                         onChanged={handleDilatacaoChanged}
                       />
                     </td>
+                    {showStatusColumn && (
+                      <td className="crono-fin-sticky-col crono-fin-col-status">
+                        <InlineStatusDropdown
+                          parcelaId={p.id}
+                          field="financeiro"
+                          currentStatus={p.status_financeiro}
+                          statusOptions={STATUS_FINANCEIRO_OPTIONS}
+                          onStatusChanged={handleStatusChanged}
+                        />
+                      </td>
+                    )}
                     {monthColumns.map(m => (
                       <td key={m.key} className={`crono-fin-month-cell ${parcelaMonthKey === m.key ? (isFaturado ? 'crono-fin-cell-faturado' : isAtrasado ? 'crono-fin-cell-atrasado' : 'crono-fin-cell-pendente') : ''}`}>
                         {parcelaMonthKey === m.key ? formatCurrency(p.valor) : ''}
@@ -183,7 +207,7 @@ export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilt
             </tbody>
             <tfoot>
               <tr className="crono-fin-totals-row">
-                <td className="crono-fin-sticky-col crono-fin-col-projeto" colSpan="4"><strong>Total</strong></td>
+                <td className="crono-fin-sticky-col crono-fin-col-projeto" colSpan={showStatusColumn ? 5 : 4}><strong>Total</strong></td>
                 {monthColumns.map(m => (
                   <td key={m.key} className="crono-fin-month-cell crono-fin-total-cell">
                     {monthTotals[m.key] > 0 ? formatCurrency(monthTotals[m.key]) : ''}

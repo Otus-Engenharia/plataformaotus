@@ -231,6 +231,21 @@ export default function AreaPortfolioView() {
       return <td key={col} className="area-pf-name" title={val}>{val || '-'}</td>;
     }
 
+    if (col === 'cs_responsavel_name') {
+      return (
+        <td key={col}>
+          {val ? (
+            <span className="area-pf-cs-resp">
+              {row.cs_responsavel_avatar && (
+                <img className="area-pf-cs-avatar" src={row.cs_responsavel_avatar} alt={val} />
+              )}
+              {val}
+            </span>
+          ) : '-'}
+        </td>
+      );
+    }
+
     if (col === 'status') {
       return (
         <td key={col}>

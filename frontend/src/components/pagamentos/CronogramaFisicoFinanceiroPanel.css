@@ -73,6 +73,8 @@
 /* Table wrapper with horizontal scroll */
 .crono-fin-table-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
   background: #ffffff;
   border: 1px solid #e6e6e6;
   border-radius: 4px;
@@ -150,6 +152,12 @@
   left: 380px;
   min-width: 60px;
   text-align: center;
+  background: #fff;
+}
+
+.crono-fin-col-status {
+  left: 440px;
+  min-width: 110px;
   background: #fff;
 }
 

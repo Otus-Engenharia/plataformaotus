@@ -9,7 +9,7 @@ class CreateParcela {
     this.#notificationService = notificationService;
   }
 
-  async execute({ projectCode, projectId, companyId, parcelaNumero, descricao, valor, origem, fase, gerenteEmail, tipoServico, createdBy }) {
+  async execute({ projectCode, projectId, companyId, parcelaNumero, descricao, valor, origem, fase, gerenteEmail, tipoServico, createdBy, parcelaSemCronograma }) {
     const parcela = Parcela.create({
       projectCode,
       projectId,
@@ -22,6 +22,7 @@ class CreateParcela {
       gerenteEmail,
       tipoServico,
       createdBy,
+      parcelaSemCronograma,
     });
 
     const saved = await this.#repository.saveParcela(parcela);

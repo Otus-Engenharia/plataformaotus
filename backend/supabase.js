@@ -4963,9 +4963,13 @@ export async function fetchOtusTeamForProject(projectCode) {
   const { data: project, error: projectError } = await supabase
     .from('projects')
     .select(`
-      id, project_code, team_id, project_manager_id,
+      id, project_code, team_id, project_manager_id, cs_responsavel_id,
       teams:team_id(id, team_name, team_number),
-      leader:project_manager_id(id, name, email)
+      leader:project_manager_id(id, name, email),
+      cs_responsavel:cs_responsavel_id(id, name, email, phone, avatar_url, is_active,
+        cargo:position_id(id, name),
+        team:team_id(id, team_name, team_number)
+      )
     `)
     .eq('project_code', projectCode)
     .single();
@@ -5031,7 +5035,7 @@ export async function fetchOtusTeamForProject(projectCode) {
 
   const manualMembers = (!manualError && manualRows) ? manualRows : [];
 
-  return { teamName, teamId, leaderId, leaderName, defaultMembers, manualMembers };
+  return { teamName, teamId, leaderId, leaderName, defaultMembers, manualMembers, csResponsavel: project.cs_responsavel || null };
 }
 
 /**
@@ -5895,7 +5899,9 @@ export async function fetchProjectsFromSupabase() {
       tipologia_empreendimento,
       address,
       companies:company_id (id, name, company_type),
-      users_otus:project_manager_id (id, name)
+      users_otus:project_manager_id (id, name),
+      cs_responsavel_id,
+      cs_responsavel:cs_responsavel_id (id, name, avatar_url)
     `);
 
   if (error) {
@@ -5903,6 +5909,27 @@ export async function fetchProjectsFromSupabase() {
   }
 
   return data || [];
+}
+
+/**
+ * Atualiza o responsável CS de um projeto
+ * @param {string} projectCode - Codigo do projeto
+ * @param {string|null} userId - UUID do users_otus ou null para remover
+ * @returns {Promise<Object>}
+ */
+export async function updateCsResponsavel(projectCode, userId) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from('projects')
+    .update({ cs_responsavel_id: userId || null })
+    .eq('project_code', projectCode)
+    .select('project_code, cs_responsavel:cs_responsavel_id(id, name, avatar_url)')
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar responsável CS: ${error.message}`);
+  }
+  return data;
 }
 
 /**
