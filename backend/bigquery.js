@@ -75,6 +75,17 @@ async function executeQuery(query, params) {
     const [rows] = await job.getQueryResults();
     
     console.log(`✅ Query retornou ${rows.length} linhas no total.`);
+
+    // Normalizar BigQueryDate/BigQueryTimestamp → string plain
+    for (const row of rows) {
+      for (const key of Object.keys(row)) {
+        const val = row[key];
+        if (val && typeof val === 'object' && val.value !== undefined && Object.keys(val).length === 1) {
+          row[key] = val.value;
+        }
+      }
+    }
+
     return rows;
   } catch (error) {
     console.error('❌ Erro ao executar query no BigQuery:');

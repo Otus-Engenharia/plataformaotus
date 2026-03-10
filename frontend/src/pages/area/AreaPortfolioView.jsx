@@ -24,7 +24,10 @@ import {
 import { initSeenProjects, markProjectSeen, pruneSeenCodes } from '../../utils/projectSeenTracker';
 import '../../styles/AreaPortfolioView.css';
 
-const COLUMNS = VIEWS.info.columns;
+const VIEW_OPTIONS = [
+  { key: 'info', label: 'Informações' },
+  { key: 'empreendimento', label: 'Empreendimento' },
+];
 
 const Icons = {
   Refresh: () => (
@@ -65,6 +68,10 @@ export default function AreaPortfolioView() {
   const [showPausados, setShowPausados] = useState(false);
   const [showAIniciar, setShowAIniciar] = useState(true); // ON por padrao
   const [showAtivos, setShowAtivos] = useState(false);
+
+  // Vista ativa
+  const [activeView, setActiveView] = useState('info');
+  const columns = VIEWS[activeView]?.columns || VIEWS.info.columns;
 
   // Sorting
   const [sortKey, setSortKey] = useState('project_order');
@@ -194,12 +201,12 @@ export default function AreaPortfolioView() {
 
   // Copiar TSV
   const handleCopy = () => {
-    const headers = COLUMNS.map(col => {
+    const headers = columns.map(col => {
       const label = COLUMN_NAMES_PT[col] || col;
       return label.replace(/<br\/?>/g, ' ');
     });
     const rows = sortedData.map(row =>
-      COLUMNS.map(col => {
+      columns.map(col => {
         const val = row[col];
         if (val == null) return '';
         return String(val);
@@ -283,6 +290,19 @@ export default function AreaPortfolioView() {
             <span className="area-pf-kpi-label">Novos</span>
           </div>
         )}
+      </div>
+
+      {/* View Selector */}
+      <div className="area-pf-view-selector">
+        {VIEW_OPTIONS.map(v => (
+          <button
+            key={v.key}
+            className={`area-pf-view-btn ${activeView === v.key ? 'active' : ''}`}
+            onClick={() => setActiveView(v.key)}
+          >
+            {v.label}
+          </button>
+        ))}
       </div>
 
       {/* Busca */}
@@ -386,7 +406,7 @@ export default function AreaPortfolioView() {
           <table className="area-pf-table">
             <thead>
               <tr>
-                {COLUMNS.map(col => (
+                {columns.map(col => (
                   <th
                     key={col}
                     style={{ width: COLUMN_WIDTHS[col] || 'auto' }}
@@ -412,7 +432,7 @@ export default function AreaPortfolioView() {
                     onClick={() => isNew && handleRowClick(code)}
                     style={isNew ? { cursor: 'pointer' } : undefined}
                   >
-                    {COLUMNS.map(col => renderCell(row, col))}
+                    {columns.map(col => renderCell(row, col))}
                   </tr>
                 );
               })}
