@@ -25,6 +25,8 @@ import { createRoutes as createNomenclaturaRoutes } from './nomenclatura.js';
 import { createRoutes as createMarcosProjetoRoutes } from './marcos-projeto.js';
 import { createRoutes as createPagamentoRoutes } from './pagamentos.js';
 import { createRoutes as createNotificacaoRoutes } from './notificacoes.js';
+import { createRoutes as createPesquisasCSRoutes } from './pesquisas-cs.js';
+import { createRoutes as createCustomerSuccessRoutes } from './customer-success.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -121,5 +123,13 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const notificacaoRoutes = createNotificacaoRoutes(requireAuth);
   app.use('/api/notificacoes', notificacaoRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/autodoc-entregas, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto, /api/pagamentos');
+  // Rotas de Pesquisas CS (DDD) — Percepção de Equipe
+  const pesquisasCSRoutes = createPesquisasCSRoutes(requireAuth, isPrivileged, logAction);
+  app.use('/api/cs/percepcao-equipe', pesquisasCSRoutes);
+
+  // Rotas de Customer Success (DDD) — Classificação + Snapshots
+  const customerSuccessRoutes = createCustomerSuccessRoutes(requireAuth, isPrivileged, logAction);
+  app.use('/api/cs/classificacoes', customerSuccessRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/autodoc-entregas, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto, /api/pagamentos, /api/cs/percepcao-equipe, /api/cs/classificacoes');
 }
