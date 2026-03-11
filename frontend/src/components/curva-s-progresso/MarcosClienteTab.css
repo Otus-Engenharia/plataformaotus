@@ -1,0 +1,388 @@
+/* MarcosClienteTab — prefixo .mct- */
+
+.mct-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mct-loading,
+.mct-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #737373;
+  font-size: 10px;
+}
+
+/* ---- KPI Strip ---- */
+.mct-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.mct-kpi-card {
+  background: #fff;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  padding: 0.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mct-kpi-value {
+  font-size: 22px;
+  font-weight: bold;
+  color: #1a1a1a;
+}
+
+.mct-kpi-label {
+  font-size: 10px;
+  color: #737373;
+}
+
+.mct-kpi-danger .mct-kpi-value { color: #dc2626; }
+.mct-kpi-warning .mct-kpi-value { color: #d97706; }
+.mct-kpi-success .mct-kpi-value { color: #15803d; }
+
+/* ---- Project Group ---- */
+.mct-project-group {
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.mct-project-group.mct-selected {
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 1px #ffdd0040;
+}
+
+.mct-project-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  background: #fafafa;
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s;
+}
+
+.mct-project-header:hover {
+  background: #f5f5f5;
+}
+
+.mct-arrow {
+  font-size: 8px;
+  color: #737373;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.mct-arrow.open {
+  transform: rotate(90deg);
+}
+
+.mct-project-name {
+  font-size: 10px;
+  font-weight: bold;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.mct-project-count {
+  font-size: 10px;
+  color: #737373;
+}
+
+.mct-pending-badge {
+  background: #dc2626;
+  color: #fff;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ---- Project Body ---- */
+.mct-project-body {
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.mct-pending-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fef2f2;
+  padding: 0.375rem 0.625rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  font-size: 10px;
+  color: #dc2626;
+}
+
+.mct-mark-seen-btn {
+  background: none;
+  border: 1px solid #dc2626;
+  color: #dc2626;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mct-mark-seen-btn:hover {
+  background: #dc262610;
+}
+
+.mct-empty-project {
+  font-size: 10px;
+  color: #737373;
+  padding: 0.5rem 0;
+  text-align: center;
+}
+
+/* ---- Table ---- */
+.mct-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.mct-table th {
+  text-align: left;
+  padding: 0.375rem 0.5rem;
+  font-weight: bold;
+  color: #444444;
+  border-bottom: 1px solid #ededed;
+  white-space: nowrap;
+}
+
+.mct-table td {
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid #f5f5f5;
+  color: #1a1a1a;
+  vertical-align: middle;
+}
+
+.mct-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mct-td-nome {
+  font-weight: 600;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Desvio ---- */
+.mct-desvio {
+  font-weight: 600;
+}
+
+.mct-desvio.atrasado {
+  color: #dc2626;
+}
+
+.mct-desvio.adiantado {
+  color: #15803d;
+}
+
+/* ---- Status Badge ---- */
+.mct-status-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mct-status-badge.feito {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.mct-status-badge.andamento {
+  background: #dbeafe;
+  color: #0369a1;
+}
+
+.mct-status-badge.atrasado {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.mct-status-badge.pendente {
+  background: #f5f5f5;
+  color: #737373;
+}
+
+/* ---- Link Button ---- */
+.mct-task-linked {
+  font-size: 10px;
+  color: #444444;
+}
+
+.mct-link-btn {
+  background: none;
+  border: 1px dashed #d3af00;
+  color: #d3af00;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mct-link-btn:hover {
+  background: #ffdd0015;
+  border-style: solid;
+}
+
+/* ---- Link Modal ---- */
+.mct-link-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mct-link-modal {
+  background: #fff;
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+
+.mct-link-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #ededed;
+}
+
+.mct-link-modal-header h3 {
+  font-size: 12px;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.mct-link-modal-close {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: #737373;
+  padding: 4px;
+}
+
+.mct-link-modal-close:hover {
+  color: #1a1a1a;
+}
+
+.mct-link-search {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #ededed;
+}
+
+.mct-link-search input {
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #ededed;
+  border-radius: 4px;
+  font-size: 10px;
+  outline: none;
+}
+
+.mct-link-search input:focus {
+  border-color: #ffdd00;
+}
+
+.mct-link-list {
+  overflow-y: auto;
+  flex: 1;
+  max-height: 400px;
+}
+
+.mct-link-loading,
+.mct-link-empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: #737373;
+  font-size: 10px;
+}
+
+.mct-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.mct-link-item:hover {
+  background: #fffbe6;
+}
+
+.mct-link-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mct-link-item-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mct-link-item-meta {
+  font-size: 9px;
+  color: #737373;
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 2px;
+}
+
+.mct-select-btn {
+  background: #ffdd00;
+  border: none;
+  color: #1a1a1a;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.mct-select-btn:hover {
+  background: #d3af00;
+}

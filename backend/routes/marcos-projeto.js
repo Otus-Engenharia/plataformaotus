@@ -553,6 +553,116 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
   });
 
   /**
+   * POST /api/marcos-projeto/enriched-batch
+   * Retorna marcos enriquecidos de múltiplos projetos de uma vez.
+   * Body: { projects: [{ projectCode, smartsheetId, projectName }, ...] }
+   * Response: { success: true, data: { [projectCode]: { marcos, pendingCount } } }
+   */
+  router.post('/enriched-batch', requireAuth, async (req, res) => {
+    try {
+      const { projects } = req.body;
+      if (!projects || !Array.isArray(projects) || projects.length === 0) {
+        return res.status(400).json({ success: false, error: 'projects (array) é obrigatório' });
+      }
+
+      const result = {};
+
+      // 1. Fetch all marcos from Supabase in one query
+      const projectCodes = projects.map(p => p.projectCode).filter(Boolean);
+      const { data: allMarcos, error: marcosErr } = await supabase()
+        .from(TABLE)
+        .select('*')
+        .in('project_code', projectCodes)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (marcosErr) throw marcosErr;
+
+      // Group marcos by project_code
+      const marcosByProject = {};
+      for (const m of (allMarcos || [])) {
+        if (!marcosByProject[m.project_code]) marcosByProject[m.project_code] = [];
+        marcosByProject[m.project_code].push(m);
+      }
+
+      // 2. Fetch pending counts for all projects in one query
+      const { data: editLogCounts, error: editErr } = await supabase()
+        .from(EDIT_LOG_TABLE)
+        .select('project_code', { count: 'exact' })
+        .in('project_code', projectCodes)
+        .eq('seen_by_leader', false);
+
+      // Count per project from raw rows
+      const pendingByProject = {};
+      if (!editErr && editLogCounts) {
+        for (const row of editLogCounts) {
+          pendingByProject[row.project_code] = (pendingByProject[row.project_code] || 0) + 1;
+        }
+      }
+
+      // 3. Enrich with BigQuery in parallel (only for projects with smartsheetId/projectName)
+      const enrichmentPromises = projects
+        .filter(p => p.projectCode && (p.smartsheetId || p.projectName) && bigqueryClient?.queryCronograma)
+        .map(async (p) => {
+          try {
+            const tasks = await bigqueryClient.queryCronograma(p.smartsheetId || null, p.projectName || null);
+            return { projectCode: p.projectCode, tasks };
+          } catch {
+            return { projectCode: p.projectCode, tasks: [] };
+          }
+        });
+
+      const enrichmentResults = await Promise.allSettled(enrichmentPromises);
+      const tasksByProject = {};
+      for (const r of enrichmentResults) {
+        if (r.status === 'fulfilled' && r.value) {
+          tasksByProject[r.value.projectCode] = r.value.tasks;
+        }
+      }
+
+      // 4. Build result for each project
+      for (const p of projects) {
+        const pc = p.projectCode;
+        if (!pc) continue;
+
+        const marcos = marcosByProject[pc] || [];
+        const tasks = tasksByProject[pc] || [];
+
+        // Build task lookup by rowId
+        const tasksByRowId = new Map();
+        tasks.forEach(t => {
+          if (t.rowId) tasksByRowId.set(String(t.rowId), t);
+        });
+
+        // Enrich each marco
+        const enrichedMarcos = marcos.map(marco => {
+          const enriched = { ...marco };
+          if (marco.smartsheet_row_id) {
+            const task = tasksByRowId.get(String(marco.smartsheet_row_id));
+            if (task) {
+              enriched.smartsheet_status = task.Status || null;
+              enriched.smartsheet_data_termino = task.DataDeTermino || null;
+              enriched.smartsheet_variancia = task.VarianciaBaselineOtus != null
+                ? Number(task.VarianciaBaselineOtus) : null;
+            }
+          }
+          return enriched;
+        });
+
+        result[pc] = {
+          marcos: enrichedMarcos,
+          pendingCount: pendingByProject[pc] || 0,
+        };
+      }
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao buscar marcos enriched-batch:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * PUT /api/marcos-projeto/reorder
    * Reordena marcos (batch update de sort_order)
    */
