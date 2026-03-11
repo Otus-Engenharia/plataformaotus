@@ -27,6 +27,7 @@ import { createRoutes as createPagamentoRoutes } from './pagamentos.js';
 import { createRoutes as createNotificacaoRoutes } from './notificacoes.js';
 import { createRoutes as createPesquisasCSRoutes } from './pesquisas-cs.js';
 import { createRoutes as createCustomerSuccessRoutes } from './customer-success.js';
+import { createRoutes as createNpsRoutes } from './nps.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -131,5 +132,9 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const customerSuccessRoutes = createCustomerSuccessRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/cs/classificacoes', customerSuccessRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/autodoc-entregas, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto, /api/pagamentos, /api/cs/percepcao-equipe, /api/cs/classificacoes');
+  // Rotas de NPS (DDD) — Feedbacks NPS do Cliente
+  const npsRoutes = createNpsRoutes(requireAuth, isPrivileged, logAction);
+  app.use('/api/nps', npsRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/autodoc-entregas, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto, /api/pagamentos, /api/cs/percepcao-equipe, /api/cs/classificacoes, /api/nps');
 }

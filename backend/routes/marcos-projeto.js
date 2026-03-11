@@ -20,6 +20,72 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
   const supabase = () => getSupabaseServiceClient();
   const badgeCacheMiddleware = withBqCache ? withBqCache(60) : (req, res, next) => next();
 
+  /**
+   * Auto-importa marcos do Smartsheet/BigQuery para o Supabase.
+   * Reutilizado por GET /enriched (fallback) e POST /import.
+   * Retorna o número de marcos importados.
+   */
+  async function autoImportMarcos(projectCode, smartsheetId, projectName, userId) {
+    if (!bigqueryClient?.queryCronograma) return 0;
+    if (!smartsheetId && !projectName) return 0;
+
+    const tasks = await bigqueryClient.queryCronograma(smartsheetId || null, projectName || null);
+
+    const marcosMap = new Map();
+    tasks.forEach(t => {
+      const marco = t.CaminhoCriticoMarco;
+      if (!marco || !String(marco).trim()) return;
+      if (String(marco).trim().toUpperCase().startsWith('INT')) return;
+
+      const nome = String(marco).trim();
+      const variancia = t.VarianciaBaselineOtus;
+      const dataTermino = t.DataDeTermino;
+
+      const entry = {
+        nome,
+        status: normalizeStatus(t.Status, variancia),
+        prazo_atual: sanitizeDate(dataTermino),
+        prazo_baseline: sanitizeDate(t.DataDeFimBaselineOtus),
+        variacao_dias: variancia != null ? Number(variancia) : 0,
+      };
+
+      if (marcosMap.has(nome)) {
+        const existing = marcosMap.get(nome);
+        const existingDate = existing.prazo_atual ? new Date(existing.prazo_atual) : null;
+        const newDate = entry.prazo_atual ? new Date(entry.prazo_atual) : null;
+        if (newDate && (!existingDate || newDate > existingDate)) {
+          marcosMap.set(nome, entry);
+        }
+      } else {
+        marcosMap.set(nome, entry);
+      }
+    });
+
+    const marcosToImport = Array.from(marcosMap.values());
+    if (marcosToImport.length === 0) return 0;
+
+    const rows = marcosToImport.map((m, idx) => ({
+      project_code: projectCode,
+      nome: m.nome,
+      status: m.status,
+      prazo_baseline: m.prazo_baseline,
+      prazo_atual: m.prazo_atual,
+      variacao_dias: m.variacao_dias,
+      source: 'smartsheet',
+      sort_order: idx,
+      created_by: userId || null,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { data, error } = await supabase()
+      .from(TABLE)
+      .upsert(rows, { onConflict: 'project_code,nome' })
+      .select();
+
+    if (error) throw error;
+    return data?.length || 0;
+  }
+
   // ============================================================================
   // STATIC ROUTES (must be defined BEFORE parameterized routes like /:id)
   // ============================================================================
@@ -89,7 +155,36 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
       if (marcosErr) throw marcosErr;
 
       if (!marcos || marcos.length === 0) {
-        return res.json({ success: true, data: [] });
+        // Auto-import: tenta importar do Smartsheet/BigQuery
+        if (smartsheetId || projectName) {
+          try {
+            const imported = await autoImportMarcos(projectCode, smartsheetId, projectName, req.user?.id);
+            if (imported > 0) {
+              // Re-busca marcos recém-importados para continuar o fluxo de enrichment
+              const { data: freshMarcos, error: freshErr } = await supabase()
+                .from(TABLE)
+                .select('*')
+                .eq('project_code', projectCode)
+                .order('sort_order', { ascending: true })
+                .order('created_at', { ascending: true });
+
+              if (!freshErr && freshMarcos && freshMarcos.length > 0) {
+                // Continua o fluxo normal de enrichment com os marcos importados
+                // (reatribui para a variável e deixa o código abaixo processar)
+                marcos.push(...freshMarcos);
+              } else {
+                return res.json({ success: true, data: [] });
+              }
+            } else {
+              return res.json({ success: true, data: [] });
+            }
+          } catch (importErr) {
+            console.error('Auto-import marcos falhou (graceful):', importErr.message);
+            return res.json({ success: true, data: [] });
+          }
+        } else {
+          return res.json({ success: true, data: [] });
+        }
       }
 
       // 2. Se não temos smartsheetId/projectName ou bigqueryClient, retorna marcos simples
@@ -323,76 +418,30 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
       if (!smartsheetId && !projectName) {
         return res.status(400).json({ success: false, error: 'smartsheetId ou projectName é obrigatório' });
       }
-
-      // Busca dados do cronograma via BigQuery
       if (!bigqueryClient?.queryCronograma) {
         return res.status(500).json({ success: false, error: 'BigQuery client não disponível' });
       }
 
-      const tasks = await bigqueryClient.queryCronograma(smartsheetId || null, projectName || null);
+      const imported = await autoImportMarcos(projectCode, smartsheetId, projectName, req.user?.id);
 
-      // Extrai marcos (mesma lógica do frontend VistaClienteInicioView)
-      const marcosMap = new Map();
-      tasks.forEach(t => {
-        const marco = t.CaminhoCriticoMarco;
-        if (!marco || !String(marco).trim()) return;
-        if (String(marco).trim().toUpperCase().startsWith('INT')) return;
-
-        const nome = String(marco).trim();
-        const variancia = t.VarianciaBaselineOtus;
-        const dataTermino = t.DataDeTermino;
-
-        const entry = {
-          nome,
-          status: normalizeStatus(t.Status, variancia),
-          prazo_atual: sanitizeDate(dataTermino),
-          prazo_baseline: sanitizeDate(t.DataDeFimBaselineOtus),
-          variacao_dias: variancia != null ? Number(variancia) : 0,
-        };
-
-        if (marcosMap.has(nome)) {
-          const existing = marcosMap.get(nome);
-          const existingDate = existing.prazo_atual ? new Date(existing.prazo_atual) : null;
-          const newDate = entry.prazo_atual ? new Date(entry.prazo_atual) : null;
-          if (newDate && (!existingDate || newDate > existingDate)) {
-            marcosMap.set(nome, entry);
-          }
-        } else {
-          marcosMap.set(nome, entry);
-        }
-      });
-
-      const marcosToImport = Array.from(marcosMap.values());
-      if (marcosToImport.length === 0) {
+      if (imported === 0) {
         return res.json({ success: true, imported: 0, message: 'Nenhum marco encontrado no Smartsheet' });
       }
 
-      // Upsert no Supabase
-      const rows = marcosToImport.map((m, idx) => ({
-        project_code: projectCode,
-        nome: m.nome,
-        status: m.status,
-        prazo_baseline: m.prazo_baseline,
-        prazo_atual: m.prazo_atual,
-        variacao_dias: m.variacao_dias,
-        source: 'smartsheet',
-        sort_order: idx,
-        created_by: req.user?.id || null,
-        updated_at: new Date().toISOString(),
-      }));
-
+      // Busca marcos recém-importados para retornar
       const { data, error } = await supabase()
         .from(TABLE)
-        .upsert(rows, { onConflict: 'project_code,nome' })
-        .select();
+        .select('*')
+        .eq('project_code', projectCode)
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
 
       if (logAction) {
-        await logAction(req, 'import', 'marco_projeto', null, `${marcosToImport.length} marcos importados para ${projectCode}`);
+        await logAction(req, 'import', 'marco_projeto', null, `${imported} marcos importados para ${projectCode}`);
       }
 
-      res.json({ success: true, imported: data?.length || 0, data: data || [] });
+      res.json({ success: true, imported, data: data || [] });
     } catch (error) {
       console.error('Erro ao importar marcos:', error);
       res.status(500).json({ success: false, error: error.message });
