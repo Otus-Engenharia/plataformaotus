@@ -154,68 +154,48 @@ function VistaClienteInicioView() {
     }
   }, [projectCode, smartsheetId, projectName]);
 
-  // ---- Fetch marcos ----
+  // ---- Fetch marcos (Supabase enriched) ----
   const fetchMarcos = useCallback(async () => {
-    if (!smartsheetId && !projectName) {
+    if (!projectCode) {
       setMarcos([]);
       return;
     }
     setMarcosLoading(true);
     try {
       const params = new URLSearchParams();
+      params.set('projectCode', projectCode);
       if (smartsheetId) params.set('smartsheetId', smartsheetId);
       if (projectName) params.set('projectName', projectName);
 
       const res = await axios.get(
-        `${API_URL}/api/projetos/cronograma?${params}`,
+        `${API_URL}/api/marcos-projeto/enriched?${params}`,
         { withCredentials: true }
       );
-      const tasks = res.data?.data || [];
+      const rawMarcos = res.data?.data || [];
+
       const now = new Date();
       const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
 
-      const marcosMap = new Map();
-      tasks.forEach(t => {
-        const marco = t.CaminhoCriticoMarco;
-        if (!marco || !String(marco).trim()) return;
-        if (String(marco).trim().toUpperCase().startsWith('INT')) return;
-
-        const nome = String(marco).trim();
-        const variancia = t.VarianciaBaselineOtus;
-        const dataTermino = t.DataDeTermino;
-        const dataAtualizacao = t.DataAtualizacao ? new Date(t.DataAtualizacao) : null;
-        const alteradoRecente = dataAtualizacao && dataAtualizacao >= oneMonthAgo;
-
-        if (marcosMap.has(nome)) {
-          const existing = marcosMap.get(nome);
-          const existingDate = existing.prazoAtual ? new Date(existing.prazoAtual) : null;
-          const newDate = dataTermino ? new Date(dataTermino) : null;
-          if (newDate && (!existingDate || newDate > existingDate)) {
-            marcosMap.set(nome, {
-              nome, status: t.Status, prazoAtual: dataTermino,
-              prazoBase: t.DataDeFimBaselineOtus,
-              variacaoDias: variancia != null ? Number(variancia) : null,
-              alteradoRecente: existing.alteradoRecente || alteradoRecente,
-            });
-          }
-        } else {
-          marcosMap.set(nome, {
-            nome, status: t.Status, prazoAtual: dataTermino,
-            prazoBase: t.DataDeFimBaselineOtus,
-            variacaoDias: variancia != null ? Number(variancia) : null,
-            alteradoRecente,
-          });
-        }
+      const mapped = rawMarcos.map(m => {
+        const updatedAt = m.updated_at ? new Date(m.updated_at) : null;
+        return {
+          nome: m.nome,
+          status: m.smartsheet_status || m.status || null,
+          prazoAtual: m.smartsheet_data_termino || m.prazo_atual || null,
+          prazoBase: m.prazo_baseline || null,
+          variacaoDias: m.smartsheet_variancia != null ? Number(m.smartsheet_variancia) : (m.variacao_dias != null ? Number(m.variacao_dias) : null),
+          alteradoRecente: updatedAt && updatedAt >= oneMonthAgo,
+        };
       });
 
-      setMarcos(Array.from(marcosMap.values()));
+      setMarcos(mapped);
     } catch (err) {
       console.error('Erro ao buscar marcos:', err);
       setMarcos([]);
     } finally {
       setMarcosLoading(false);
     }
-  }, [smartsheetId, projectName]);
+  }, [projectCode, smartsheetId, projectName]);
 
   // ---- Fetch apontamentos ----
   const fetchApontamentos = useCallback(async () => {

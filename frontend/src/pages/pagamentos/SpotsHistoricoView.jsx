@@ -163,7 +163,15 @@ export default function SpotsHistoricoView() {
     ? entries
     : entries.filter(e => e.action === filterAction);
 
-  const batchedEntries = groupBySyncBatch(filteredEntries);
+  const batchedEntries = groupBySyncBatch(filteredEntries).filter(entry => {
+    if (entry.action !== 'smartsheet_change') return true;
+    // For smartsheet_change, keep only if at least 1 detail has valid old_value
+    const details = entry._batchEntries || (entry.field_changed ? [entry] : []);
+    return details.some(de => {
+      const raw = de.old_value;
+      return raw != null && raw !== '' && raw !== '[object Object]';
+    });
+  });
   const grouped = groupByDate(batchedEntries);
 
   const formatTime = (d) => {
@@ -263,18 +271,16 @@ export default function SpotsHistoricoView() {
                             <div className={detailEntries.length > 1 ? 'spots-hist-detail-group' : ''}>
                               {detailEntries.map((de, idx) => {
                                 const rawOld = sanitizeValue(de.old_value);
-                                let rawNew = sanitizeValue(de.new_value);
+                                const rawNew = sanitizeValue(de.new_value);
                                 const field = de.field_changed;
-                                // Fallback: use parcela's current smartsheet_data_termino when new_value is null
-                                if (!rawNew && field === 'data_termino' && de.action === 'smartsheet_change') {
-                                  const parcelaDate = de.parcelas_pagamento?.smartsheet_data_termino
-                                    || entry.parcelas_pagamento?.smartsheet_data_termino;
-                                  if (parcelaDate) rawNew = String(parcelaDate);
-                                }
                                 if (!field) return null;
                                 const fieldLabel = FIELD_LABELS[field] || field;
                                 const oldFormatted = formatChangeValue(field, rawOld);
                                 const newFormatted = formatChangeValue(field, rawNew);
+                                // Skip entries where old and new are identical (no real change)
+                                if (oldFormatted && newFormatted && oldFormatted === newFormatted) return null;
+                                // Skip corrupted smartsheet_change entries without old_value (incomplete data)
+                                if ((de.action === 'smartsheet_change' || entry.action === 'smartsheet_change') && !oldFormatted) return null;
                                 if (!oldFormatted && !newFormatted) {
                                   return (
                                     <div key={idx} className="spots-hist-detail">

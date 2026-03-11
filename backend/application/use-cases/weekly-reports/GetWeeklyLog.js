@@ -62,7 +62,7 @@ class GetWeeklyLog {
     // Set para lookup O(1): "projectCode|weekYear-weekNumber"
     const sentSet = new Set();
     for (const row of rows) {
-      sentSet.add(`${row.project_code}|${row.week_year}-${row.week_number}`);
+      sentSet.add(`${(row.project_code || '').trim()}|${row.week_year}-${row.week_number}`);
     }
 
     // Monta matriz: bot ativo primeiro, depois inativos, depois não cadastrados
@@ -78,7 +78,7 @@ class GetWeeklyLog {
       const weeksMap = {};
       for (const col of weekColumns) {
         if (botActive) {
-          weeksMap[col.weekKey] = sentSet.has(`${p.project_code}|${col.weekKey}`) ? 'sent' : 'not_sent';
+          weeksMap[col.weekKey] = sentSet.has(`${(p.project_code || '').trim()}|${col.weekKey}`) ? 'sent' : 'not_sent';
         } else if (botInactive) {
           weeksMap[col.weekKey] = 'inactive';
         } else {

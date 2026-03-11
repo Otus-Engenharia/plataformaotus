@@ -53,6 +53,16 @@ class GenerateWeeklyReport {
     const now = new Date();
     const { weekNumber, weekYear } = GenerateWeeklyReport.#getISOWeek(now);
 
+    // Previne duplicatas: se já existe report para este projeto/semana, retorna o existente
+    const alreadyExists = await this.#reportRepository.existsForProjectWeek(
+      projectCode, weekYear, weekNumber
+    );
+    if (alreadyExists) {
+      const existing = await this.#reportRepository.findByWeek(weekYear, weekNumber);
+      const match = existing.find(r => r.projectCode === projectCode);
+      if (match) return match.toResponse();
+    }
+
     // Cria registro no banco
     const report = WeeklyReport.create({
       projectCode,
