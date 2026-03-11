@@ -41,10 +41,14 @@ class SyncAllCustomers {
       byCustomer.get(key).push(mapping);
     }
 
-    const CUSTOMER_TIMEOUT = 300_000; // 5 min por customer
     const results = [];
 
     for (const [customerId, customerMappings] of byCustomer) {
+      // Classic API crawl e muito mais lento (HTML parse por pasta) — timeout maior
+      const hasClassic = customerMappings.some(m => m.use_classic_api === true);
+      const CUSTOMER_TIMEOUT = hasClassic
+        ? 600_000 * Math.max(1, customerMappings.length) // 10 min por projeto Classic
+        : 300_000; // 5 min NG
       const syncRun = await this.#repository.createSyncRun(customerId, batchId);
       const customerName = customerMappings[0]?.autodoc_customer_name || customerId;
 

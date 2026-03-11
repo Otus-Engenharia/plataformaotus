@@ -354,11 +354,16 @@ class AutodocHttpClient {
 
   /**
    * Busca filhos de uma pasta no Classic via TreeView.
-   * @returns {Array} array de { id, name, isParent, tipo }
+   * A Classic API (zTree) requer parametros `id` e `tipo` para expandir um no.
+   * Sem `tipo`, o endpoint retorna siblings em vez de children.
+   * @param {object} session - sessao Classic com cookieStr()
+   * @param {string|number} folderId - ID do no a expandir
+   * @param {number} folderTipo - tipo do no (0=folder, 1=project, 2=discipline)
+   * @returns {{ children: Array, error: boolean }}
    */
-  async #classicGetChildren(session, folderId) {
+  async #classicGetChildren(session, folderId, folderTipo = 1) {
     const { cookieStr } = session;
-    const url = `${CLASSIC_BASE}/Diretorios/TreeViewDiretorios/?idDiretorio=${folderId}`;
+    const url = `${CLASSIC_BASE}/Diretorios/TreeViewDiretorios/?id=${folderId}&tipo=${folderTipo}`;
     try {
       const resp = await fetch(url, {
         headers: { 'Cookie': cookieStr() },
@@ -390,8 +395,8 @@ class AutodocHttpClient {
     }
 
     const MAX_DEPTH = 10;
-    const TIMEOUT_MS = 60_000; // 60s por projeto Classic
-    const MAX_CONSECUTIVE_ERRORS = 3;
+    const TIMEOUT_MS = 180_000; // 3min por projeto Classic
+    const MAX_CONSECUTIVE_ERRORS = 5;
     const startTime = Date.now();
     let aborted = false;
     let consecutiveErrors = 0;
@@ -404,21 +409,64 @@ class AutodocHttpClient {
     }
 
     const documents = [];
+    const visitedFolders = new Set();
 
-    // Crawl recursivo com rastreamento de fase/disciplina pela hierarquia
-    const crawlFolder = async (folderId, depth, phaseName, disciplineName) => {
-      if (aborted) return;
-      if (depth > MAX_DEPTH) {
-        console.warn(`[AutodocHttpClient] Classic crawl ${customerName}: maxDepth ${MAX_DEPTH} atingido em folder ${folderId}`);
-        return;
+    // Buscar arquivos de uma pasta via /Diretorios/Index/{folderId} (HTML parse)
+    const fetchFolderFiles = async (folderId, disciplineName, phaseName) => {
+      if (visitedFolders.has(folderId)) return;
+      visitedFolders.add(folderId);
+
+      const { cookieStr } = session;
+      try {
+        const resp = await fetch(`${CLASSIC_BASE}/Diretorios/Index/${folderId}`, {
+          headers: { 'Cookie': cookieStr() },
+        });
+        if (resp.status !== 200) return;
+        const html = await resp.text();
+
+        // Parse: cada arquivo tem id="verCheckboxArquivo_{id}", nome em <b>, revisao, titulo, data, tamanho
+        const fileRegex = /id="verCheckboxArquivo_(\d+)"[\s\S]*?<b>([^<]+)<\/b>[\s\S]*?<li class="eCellNoBorder">(\d+)<\/li>[\s\S]*?<li class="eCellNoBorder">([^<]*)<\/li>[\s\S]*?<span>\s*(\d{2}\/\d{2}\/\d{4})\s*<\/span>[\s\S]*?(\d+\s*[kKmMgG][bB])/g;
+
+        let m;
+        while ((m = fileRegex.exec(html)) !== null) {
+          const name = m[2].trim();
+          const dateStr = m[5]; // DD/MM/YYYY
+          const [dd, mm, yyyy] = dateStr.split('/');
+          const isoDate = `${yyyy}-${mm}-${dd}T00:00:00Z`;
+
+          documents.push({
+            id: String(m[1]),
+            name,
+            code: this.#extractDocCode(name),
+            revision: m[3] || this.#extractRevision(name),
+            fileUrl: null,
+            rawSize: null,
+            status: null,
+            statusName: null,
+            author: null,
+            createdAt: isoDate,
+            phaseName: phaseName || null,
+            disciplineName: disciplineName || null,
+            formatFolder: null,
+          });
+        }
+        await new Promise(resolve => setTimeout(resolve, 150));
+      } catch (err) {
+        console.warn(`[AutodocHttpClient] Classic fetchFolderFiles erro ${folderId}:`, err.message);
       }
+    };
+
+    // Crawl recursivo: navegar pastas via TreeView, buscar arquivos via Index
+    const crawlFolder = async (folderId, folderTipo, depth, phaseName, disciplineName) => {
+      if (aborted) return;
+      if (depth > MAX_DEPTH) return;
       if (Date.now() - startTime > TIMEOUT_MS) {
         if (!aborted) console.warn(`[AutodocHttpClient] Classic crawl ${customerName}: timeout ${TIMEOUT_MS}ms atingido (${documents.length} docs coletados)`);
         aborted = true;
         return;
       }
 
-      const result = await this.#classicGetChildren(session, folderId);
+      const result = await this.#classicGetChildren(session, folderId, folderTipo);
 
       if (result.error) {
         consecutiveErrors++;
@@ -427,55 +475,43 @@ class AutodocHttpClient {
           aborted = true;
           return;
         }
-      } else {
-        // Resposta bem-sucedida (mesmo vazia) reseta o contador
-        consecutiveErrors = 0;
+        return;
+      }
+      consecutiveErrors = 0;
+
+      const subfolders = result.children.filter(c => c.isParent || c.tipo === 0 || c.tipo === 1 || c.tipo === 2 || c.tipo === 3);
+      const isLeaf = subfolders.length === 0;
+
+      // Se pasta folha, buscar arquivos via Index page
+      if (isLeaf) {
+        await fetchFolderFiles(folderId, disciplineName, phaseName);
+        return;
       }
 
-      for (const child of result.children) {
+      // Recursao nas subpastas
+      for (const child of subfolders) {
         if (aborted) return;
 
-        if (child.tipo === 4) {
-          // Documento encontrado
-          documents.push({
-            id: String(child.id),
-            name: child.name || '',
-            code: this.#extractDocCode(child.name),
-            revision: this.#extractRevision(child.name),
-            fileUrl: null,
-            rawSize: null,
-            status: null,
-            statusName: null,
-            author: null,
-            createdAt: null,
-            phaseName: phaseName || null,
-            disciplineName: disciplineName || null,
-            formatFolder: null,
-          });
-        } else if (child.isParent || child.tipo === 0 || child.tipo === 1 || child.tipo === 2) {
-          // Pasta/projeto/disciplina — recursao
-          let nextPhase = phaseName;
-          let nextDisc = disciplineName;
+        let nextPhase = phaseName;
+        let nextDisc = disciplineName;
 
-          if (child.tipo === 2) {
-            // tipo 2 = discipline (independente do depth)
-            nextDisc = child.name;
-          } else if (!disciplineName) {
-            // Sem disciplina definida: primeiro folder = disciplina
-            nextDisc = child.name;
-          } else if (!phaseName) {
-            // Com disciplina mas sem fase: proximo folder = fase
-            nextPhase = child.name;
-          }
-          // Ja tem ambos: manter fase/disciplina atuais
-
-          await crawlFolder(child.id, depth + 1, nextPhase, nextDisc);
+        if (child.tipo === 2) {
+          nextDisc = child.name;
+        } else if (!disciplineName) {
+          nextDisc = child.name;
+        } else if (!phaseName) {
+          nextPhase = child.name;
         }
-        // tipo 3 (linked) — ignorar
+
+        await crawlFolder(child.id, child.tipo, depth + 1, nextPhase, nextDisc);
       }
+
+      // Tambem buscar arquivos no proprio folder (pode ter docs + subpastas)
+      await fetchFolderFiles(folderId, disciplineName, phaseName);
     };
 
-    await crawlFolder(projectFolderId, 0, null, null);
+    // Iniciar crawl no projeto (tipo 1)
+    await crawlFolder(projectFolderId, 1, 0, null, null);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[AutodocHttpClient] Classic crawl ${customerName}/${projectFolderId}: ${documents.length} documentos em ${elapsed}s${aborted ? ' (abortado)' : ''}`);

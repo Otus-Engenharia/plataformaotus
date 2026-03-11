@@ -1327,15 +1327,18 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
     let inOtus = false;
     let mapping = null;
     let isClientOwned = false;
+    let allMappingIds = [];
     if (inSmartsheet) {
       if (checkOtusMatch(normKey, 'smartsheet')) inOtus = true;
       const sm = getCustomMapping(normKey, 'smartsheet');
+      if (sm?.mappingId) allMappingIds.push(sm.mappingId);
       mapping = mapping || sm;
       if (sm?.isClientOwned) isClientOwned = true;
     }
     if (inConstruflow) {
       if (checkOtusMatch(normKey, 'construflow')) inOtus = true;
       const cm = getCustomMapping(normKey, 'construflow');
+      if (cm?.mappingId) allMappingIds.push(cm.mappingId);
       mapping = mapping || cm;
       if (cm?.isClientOwned) isClientOwned = true;
     }
@@ -1353,6 +1356,7 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       name: originalName, normKey, inSmartsheet, inConstruflow, inOtus,
       hasCustomMapping: !!mapping,
       mappingId: mapping?.mappingId || null,
+      allMappingIds,
       mappedToName: mapping?.standardName || mapping?.targetName || null,
       isFreeMapping: !!(mapping?.targetName && !mapping?.standardName),
       isAutoOtus: autoOtus,

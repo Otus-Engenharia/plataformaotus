@@ -175,6 +175,31 @@
   background: #FAFAFA;
 }
 
+.ecli-th-checkbox,
+.ecli-td-checkbox {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  text-align: center;
+  padding: 4px !important;
+}
+.ecli-th-checkbox input[type="checkbox"],
+.ecli-td-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+  accent-color: #ffdd00;
+}
+
+.ecli-copy-btn {
+  background: #f3f4f6 !important;
+  color: #444 !important;
+  border-color: #d1d5db !important;
+}
+.ecli-copy-btn:hover {
+  background: #e5e7eb !important;
+}
+
 .ecli-th-actions {
   width: 80px;
 }

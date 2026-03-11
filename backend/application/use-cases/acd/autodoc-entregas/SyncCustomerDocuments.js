@@ -33,12 +33,11 @@ class SyncCustomerDocuments {
       console.warn(`[SyncCustomerDocuments] Erro ao buscar status do customer ${customerId}:`, err.message);
     }
 
-    const CRAWL_TIMEOUT = 120_000; // 2 min por projeto
-
     for (const mapping of mappings) {
       try {
         // Crawl documentos do projeto com timeout
         const useClassicApi = mapping.use_classic_api === true;
+        const CRAWL_TIMEOUT = useClassicApi ? 300_000 : 120_000; // 5 min Classic, 2 min NG
         const crawlPromise = this.#autodocClient.crawlProjectDocuments(
           customerId,
           mapping.autodoc_project_folder_id,
