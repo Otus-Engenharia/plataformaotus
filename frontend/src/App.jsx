@@ -47,6 +47,8 @@ const IfcChangeLogView = lazy(() => import('./pages/apoio/IfcChangeLogView'));
 const EntregasAutodocView = lazy(() => import('./pages/apoio/EntregasAutodocView'));
 const MapeamentoAutodocView = lazy(() => import('./pages/apoio/MapeamentoAutodocView'));
 const EstudoCustoKanbanView = lazy(() => import('./pages/cs/EstudoCustoKanbanView'));
+const PercepcaoEquipeView = lazy(() => import('./pages/cs/PercepcaoEquipeView'));
+const ClassificacaoClientesView = lazy(() => import('./pages/cs/ClassificacaoClientesView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -776,6 +778,22 @@ function Sidebar({ collapsed, onToggle, area }) {
         {newProjectCount > 0 && (
           <span className="nav-notification-badge">{newProjectCount}</span>
         )}
+      </Link>
+      <Link
+        to="/cs-area/percepcao"
+        className={`nav-link nav-link-modern ${location.pathname === '/cs-area/percepcao' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Percepção da Equipe')}
+      >
+        <span className="nav-icon">{icons.indicadores}</span>
+        <span className="nav-text">Percepção</span>
+      </Link>
+      <Link
+        to="/cs-area/classificacao"
+        className={`nav-link nav-link-modern ${location.pathname === '/cs-area/classificacao' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Classificação de Clientes')}
+      >
+        <span className="nav-icon">{icons.contatos}</span>
+        <span className="nav-text">Classificação</span>
       </Link>
       <Link
         to="/cs-area/quadro"
@@ -1681,6 +1699,12 @@ function AppContent() {
               <Route path="estudos-custos" element={<EstudoCustoKanbanView />} />
               <Route path="portfolio" element={<AreaPortfolioView />} />
               <Route path="quadro" element={<WhiteboardView boardId="cs" />} />
+              <Route path="percepcao" element={<PercepcaoEquipeView />} />
+              <Route path="classificacao" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <ClassificacaoClientesView />
+                </Suspense>
+              } />
             </Route>
             {/* Área Apoio de Projetos - rotas aninhadas */}
             <Route
