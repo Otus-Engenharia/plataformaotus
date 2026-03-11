@@ -15,6 +15,7 @@ import {
   GetDashboardKpis,
   ListAllProjectsSummary,
   ListParcelasByGerente,
+  ListGlobalChangeLog,
 } from '../application/use-cases/pagamentos/index.js';
 
 const router = express.Router();
@@ -580,6 +581,23 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
       res.json({ success: true, data: result });
     } catch (error) {
       console.error('Erro ao contar updates:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // GET /global-change-log - Global audit history (all projects)
+  router.get('/global-change-log', requireAuth, async (req, res) => {
+    try {
+      const { limit, offset, excludeEmail } = req.query;
+      const listGlobalChangeLog = new ListGlobalChangeLog(repository);
+      const result = await listGlobalChangeLog.execute({
+        limit: Number(limit) || 100,
+        offset: Number(offset) || 0,
+        excludeEmail,
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao buscar global change log:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
