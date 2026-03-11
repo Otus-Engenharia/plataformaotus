@@ -28,11 +28,11 @@ class GetPercepcaoStats {
     // Por projeto
     const byProjeto = new Map();
     for (const r of responses) {
-      if (!byProjeto.has(r.projeto_codigo)) byProjeto.set(r.projeto_codigo, []);
-      byProjeto.get(r.projeto_codigo).push(r);
+      if (!byProjeto.has(r.project_code)) byProjeto.set(r.project_code, []);
+      byProjeto.get(r.project_code).push(r);
     }
     const porProjeto = [...byProjeto.entries()].map(([codigo, items]) => ({
-      projeto_codigo: codigo,
+      project_code: codigo,
       respostas: items.length,
       ...this.#calcularMedias(items),
     }));

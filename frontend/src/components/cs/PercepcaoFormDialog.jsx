@@ -65,7 +65,7 @@ const MESES = [
 function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submitting = false, fixedProjeto = null }) {
   const now = new Date();
   const [form, setForm] = useState({
-    projeto_codigo: fixedProjeto || '',
+    project_code: fixedProjeto || '',
     mes_referencia: now.getMonth() + 1,
     ano_referencia: now.getFullYear(),
     cronograma: '',
@@ -90,7 +90,7 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
     e.preventDefault();
     setError('');
 
-    if (!form.projeto_codigo) {
+    if (!form.project_code) {
       setError('Selecione um projeto');
       return;
     }
@@ -103,7 +103,7 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
     }
 
     const payload = {
-      projeto_codigo: form.projeto_codigo,
+      project_code: form.project_code,
       mes_referencia: Number(form.mes_referencia),
       ano_referencia: Number(form.ano_referencia),
       cronograma: form.cronograma ? Number(form.cronograma) : null,
@@ -170,8 +170,8 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
               ) : (
                 <select
                   id="perc-projeto"
-                  value={form.projeto_codigo}
-                  onChange={e => handleChange('projeto_codigo', e.target.value)}
+                  value={form.project_code}
+                  onChange={e => handleChange('project_code', e.target.value)}
                   className="percepcao-input-v2"
                 >
                   <option value="">Selecione o projeto...</option>

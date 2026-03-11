@@ -4,7 +4,7 @@
  *
  * Representa uma avaliação de percepção da equipe sobre um projeto em um mês.
  * Múltiplas respostas por projeto/mês (uma por analista).
- * UNIQUE = (projeto_codigo, mes_referencia, ano_referencia, respondente_email)
+ * UNIQUE = (project_code, mes_referencia, ano_referencia, respondente_email)
  */
 
 import { Dimensao } from '../value-objects/Dimensao.js';
@@ -13,7 +13,7 @@ import { PeriodoReferencia } from '../value-objects/PeriodoReferencia.js';
 class PercepcaoEquipe {
   #id;
   #periodo;
-  #projetoCodigo;
+  #projectCode;
   #respondenteEmail;
   #respondenteNome;
   #cronograma;
@@ -31,7 +31,7 @@ class PercepcaoEquipe {
     id = null,
     mes,
     ano,
-    projetoCodigo,
+    projectCode,
     respondenteEmail,
     respondenteNome = null,
     cronograma = null,
@@ -45,7 +45,7 @@ class PercepcaoEquipe {
     createdAt = null,
     updatedAt = null,
   }) {
-    if (!projetoCodigo || String(projetoCodigo).trim().length === 0) {
+    if (!projectCode || String(projectCode).trim().length === 0) {
       throw new Error('O código do projeto é obrigatório');
     }
     if (!respondenteEmail || String(respondenteEmail).trim().length === 0) {
@@ -54,7 +54,7 @@ class PercepcaoEquipe {
 
     this.#id = id;
     this.#periodo = new PeriodoReferencia(mes, ano);
-    this.#projetoCodigo = String(projetoCodigo).trim();
+    this.#projectCode = String(projectCode).trim();
     this.#respondenteEmail = String(respondenteEmail).trim().toLowerCase();
     this.#respondenteNome = respondenteNome?.trim() || null;
 
@@ -75,7 +75,7 @@ class PercepcaoEquipe {
   // --- Getters ---
   get id() { return this.#id; }
   get periodo() { return this.#periodo; }
-  get projetoCodigo() { return this.#projetoCodigo; }
+  get projectCode() { return this.#projectCode; }
   get respondenteEmail() { return this.#respondenteEmail; }
   get respondenteNome() { return this.#respondenteNome; }
   get cronograma() { return this.#cronograma; }
@@ -131,7 +131,7 @@ class PercepcaoEquipe {
       id: this.#id,
       mes_referencia: this.#periodo.mes,
       ano_referencia: this.#periodo.ano,
-      projeto_codigo: this.#projetoCodigo,
+      project_code: this.#projectCode,
       respondente_email: this.#respondenteEmail,
       respondente_nome: this.#respondenteNome,
       cronograma: this.#cronograma.value,
@@ -154,7 +154,7 @@ class PercepcaoEquipe {
       ano_referencia: this.#periodo.ano,
       periodo_label: this.#periodo.label,
       periodo_key: this.#periodo.key,
-      projeto_codigo: this.#projetoCodigo,
+      project_code: this.#projectCode,
       respondente_email: this.#respondenteEmail,
       respondente_nome: this.#respondenteNome,
       cronograma: this.#cronograma.value,
@@ -179,7 +179,7 @@ class PercepcaoEquipe {
       id: data.id,
       mes: data.mes_referencia,
       ano: data.ano_referencia,
-      projetoCodigo: data.projeto_codigo,
+      projectCode: data.project_code,
       respondenteEmail: data.respondente_email,
       respondenteNome: data.respondente_nome,
       cronograma: data.cronograma,

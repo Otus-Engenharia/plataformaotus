@@ -12,9 +12,9 @@ class CreatePercepcaoEquipe {
     this.#repository = repository;
   }
 
-  async execute({ projetoCodigo, mes, ano, respondenteEmail, respondenteNome, cronograma, qualidade, comunicacao, custos, parceria, confianca, oportunidadeRevenda, comentarios }) {
+  async execute({ projectCode, mes, ano, respondenteEmail, respondenteNome, cronograma, qualidade, comunicacao, custos, parceria, confianca, oportunidadeRevenda, comentarios }) {
     const percepcao = PercepcaoEquipe.create({
-      projetoCodigo,
+      projectCode,
       mes,
       ano,
       respondenteEmail,

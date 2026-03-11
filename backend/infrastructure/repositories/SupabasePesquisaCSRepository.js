@@ -48,7 +48,7 @@ class SupabasePesquisaCSRepository extends PesquisaCSRepository {
     const { data, error } = await this.#supabase
       .from(TABLE)
       .upsert(rows, {
-        onConflict: 'projeto_codigo,mes_referencia,ano_referencia,respondente_email',
+        onConflict: 'project_code,mes_referencia,ano_referencia,respondente_email',
       })
       .select();
 
@@ -65,7 +65,7 @@ class SupabasePesquisaCSRepository extends PesquisaCSRepository {
       .select('*')
       .order('ano_referencia', { ascending: false })
       .order('mes_referencia', { ascending: false })
-      .order('projeto_codigo', { ascending: true });
+      .order('project_code', { ascending: true });
 
     if (filters.ano) {
       query = query.eq('ano_referencia', filters.ano);
@@ -73,8 +73,8 @@ class SupabasePesquisaCSRepository extends PesquisaCSRepository {
     if (filters.mes) {
       query = query.eq('mes_referencia', filters.mes);
     }
-    if (filters.projetoCodigo) {
-      query = query.eq('projeto_codigo', filters.projetoCodigo);
+    if (filters.projectCode) {
+      query = query.eq('project_code', filters.projectCode);
     }
     if (filters.respondenteEmail) {
       query = query.eq('respondente_email', filters.respondenteEmail);
@@ -107,7 +107,7 @@ class SupabasePesquisaCSRepository extends PesquisaCSRepository {
   async findProjetosComResposta(mes, ano) {
     const { data, error } = await this.#supabase
       .from(TABLE)
-      .select('projeto_codigo')
+      .select('project_code')
       .eq('mes_referencia', mes)
       .eq('ano_referencia', ano);
 
@@ -115,7 +115,7 @@ class SupabasePesquisaCSRepository extends PesquisaCSRepository {
       throw new Error(`Erro ao buscar projetos com resposta: ${error.message}`);
     }
 
-    return [...new Set((data || []).map(r => r.projeto_codigo))];
+    return [...new Set((data || []).map(r => r.project_code))];
   }
 
   async delete(id) {
