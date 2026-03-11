@@ -65,6 +65,13 @@ class EnrichParcelasWithSmartsheet {
           response.smartsheet_status = task.Status || null;
           response.smartsheet_data_termino = currentDataTermino;
 
+          // Capture old value BEFORE detectar (it overwrites lastSmartsheetDataTermino)
+          const oldDataTermino = (() => {
+            const v = parcela.lastSmartsheetDataTermino;
+            if (!v) return null;
+            return typeof v === 'object' && v.value != null ? String(v.value) : String(v);
+          })();
+
           const mudou = parcela.detectarMudancaCronograma(currentDataTermino);
 
           if (mudou) {
@@ -73,11 +80,7 @@ class EnrichParcelasWithSmartsheet {
               project_code: projectCode,
               action: 'smartsheet_change',
               field_changed: 'data_termino',
-              old_value: (() => {
-                const v = parcela.lastSmartsheetDataTermino;
-                if (!v) return null;
-                return typeof v === 'object' && v.value != null ? String(v.value) : String(v);
-              })(),
+              old_value: oldDataTermino,
               new_value: currentDataTermino,
               edited_by_email: 'sistema',
               edited_by_name: 'Smartsheet Sync',

@@ -31,6 +31,56 @@ const FIELD_LABELS = {
   smartsheet_data_termino: 'Data Termino Cronograma',
 };
 
+const DATE_FIELDS = new Set(['data_termino', 'smartsheet_data_termino']);
+const CURRENCY_FIELDS = new Set(['valor']);
+
+function formatChangeValue(field, value) {
+  if (value == null || value === '') return null;
+  const str = String(value);
+  if (DATE_FIELDS.has(field)) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+    }
+  }
+  if (CURRENCY_FIELDS.has(field)) {
+    const num = parseFloat(str);
+    if (!isNaN(num)) {
+      return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+  }
+  return str;
+}
+
+function groupBySyncBatch(entries) {
+  const result = [];
+  const used = new Set();
+  for (let i = 0; i < entries.length; i++) {
+    if (used.has(i)) continue;
+    const entry = entries[i];
+    const ts = new Date(entry.created_at).getTime();
+    const batch = [entry];
+    used.add(i);
+    for (let j = i + 1; j < entries.length; j++) {
+      if (used.has(j)) continue;
+      const other = entries[j];
+      if (
+        other.parcela_id === entry.parcela_id &&
+        Math.abs(new Date(other.created_at).getTime() - ts) <= 2000
+      ) {
+        batch.push(other);
+        used.add(j);
+      }
+    }
+    if (batch.length > 1) {
+      result.push({ ...entry, _batchEntries: batch });
+    } else {
+      result.push(entry);
+    }
+  }
+  return result;
+}
+
 const ACTION_FILTER_OPTIONS = [
   { key: 'todos', label: 'Todos' },
   { key: 'editar', label: 'Edicoes' },
@@ -113,7 +163,8 @@ export default function SpotsHistoricoView() {
     ? entries
     : entries.filter(e => e.action === filterAction);
 
-  const grouped = groupByDate(filteredEntries);
+  const batchedEntries = groupBySyncBatch(filteredEntries);
+  const grouped = groupByDate(batchedEntries);
 
   const formatTime = (d) => {
     if (!d) return '';
@@ -205,31 +256,49 @@ export default function SpotsHistoricoView() {
                           )}
                           {entryIsNew && <span className="spots-hist-new-badge">Novo</span>}
                         </div>
-                        {entry.field_changed && (() => {
-                          const oldVal = sanitizeValue(entry.old_value);
-                          const newVal = sanitizeValue(entry.new_value);
-                          const fieldLabel = FIELD_LABELS[entry.field_changed] || entry.field_changed;
-                          // Both corrupted — show simple message
-                          if (!oldVal && !newVal) {
-                            return (
-                              <div className="spots-hist-detail">
-                                <span className="spots-hist-field">{fieldLabel}</span>
-                                <span className="spots-hist-muted"> alterado(a)</span>
-                              </div>
-                            );
-                          }
+                        {(() => {
+                          const detailEntries = entry._batchEntries || (entry.field_changed ? [entry] : []);
+                          if (detailEntries.length === 0) return null;
                           return (
-                            <div className="spots-hist-detail">
-                              <span className="spots-hist-field">{fieldLabel}:</span>
-                              {oldVal && <span className="spots-hist-old">{oldVal}</span>}
-                              {oldVal && newVal && <span className="spots-hist-arrow">&rarr;</span>}
-                              {newVal && <span className="spots-hist-new">{newVal}</span>}
+                            <div className={detailEntries.length > 1 ? 'spots-hist-detail-group' : ''}>
+                              {detailEntries.map((de, idx) => {
+                                const rawOld = sanitizeValue(de.old_value);
+                                let rawNew = sanitizeValue(de.new_value);
+                                const field = de.field_changed;
+                                // Fallback: use parcela's current smartsheet_data_termino when new_value is null
+                                if (!rawNew && field === 'data_termino' && de.action === 'smartsheet_change') {
+                                  const parcelaDate = de.parcelas_pagamento?.smartsheet_data_termino
+                                    || entry.parcelas_pagamento?.smartsheet_data_termino;
+                                  if (parcelaDate) rawNew = String(parcelaDate);
+                                }
+                                if (!field) return null;
+                                const fieldLabel = FIELD_LABELS[field] || field;
+                                const oldFormatted = formatChangeValue(field, rawOld);
+                                const newFormatted = formatChangeValue(field, rawNew);
+                                if (!oldFormatted && !newFormatted) {
+                                  return (
+                                    <div key={idx} className="spots-hist-detail">
+                                      <span className="spots-hist-field">{fieldLabel}</span>
+                                      <span className="spots-hist-muted"> alterado(a)</span>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div key={idx} className="spots-hist-detail">
+                                    <span className="spots-hist-field">{fieldLabel}:</span>
+                                    {oldFormatted && <span className="spots-hist-old">{oldFormatted}</span>}
+                                    {oldFormatted && newFormatted && <span className="spots-hist-arrow">&rarr;</span>}
+                                    {!oldFormatted && newFormatted && <span className="spots-hist-arrow">&rarr;</span>}
+                                    {newFormatted && <span className="spots-hist-new">{newFormatted}</span>}
+                                  </div>
+                                );
+                              })}
                             </div>
                           );
                         })()}
                         <div className="spots-hist-meta">
-                          <span className="spots-hist-author">
-                            {entry.edited_by_name || entry.edited_by_email}
+                          <span className={`spots-hist-author ${entry.action === 'smartsheet_change' ? 'spots-hist-author-auto' : ''}`}>
+                            {entry.action === 'smartsheet_change' ? 'Smartsheet Sync' : (entry.edited_by_name || entry.edited_by_email)}
                           </span>
                           <span className="spots-hist-time">{formatTime(entry.created_at)}</span>
                         </div>

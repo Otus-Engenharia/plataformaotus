@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 const DIMENSOES = [
   { key: 'cronograma', label: 'Cronograma', required: false, hint: 'Deixe vazio para projetos de compatibilização' },
@@ -83,6 +83,40 @@ function PercepcaoFormDialog({
   });
   const [error, setError] = useState('');
 
+  // Reset form state when dialog opens or fixedProjeto changes
+  useEffect(() => {
+    if (open) {
+      setSelectedCodes(fixedProjeto ? [fixedProjeto] : []);
+      setForm({
+        mes_referencia: now.getMonth() + 1,
+        ano_referencia: now.getFullYear(),
+        cronograma: '',
+        qualidade: '',
+        comunicacao: '',
+        custos: '',
+        parceria: '',
+        confianca: '',
+        oportunidade_revenda: '',
+        comentarios: '',
+      });
+      setError('');
+    }
+  }, [open, fixedProjeto]);
+
+  // Revenda auto-disable logic — must be before early return to keep hooks order stable
+  const revendaDisabled = useMemo(() => {
+    if (!portfolioMap || selectedCodes.length === 0 || !percepcoes.length) return false;
+    const selectedClients = new Set(
+      selectedCodes.map(code => portfolioMap.get(code)?.client).filter(Boolean)
+    );
+    if (selectedClients.size === 0) return false;
+    return percepcoes.some(p =>
+      p.oportunidade_revenda != null &&
+      !selectedCodes.includes(p.project_code) &&
+      selectedClients.has(portfolioMap.get(p.project_code)?.client)
+    );
+  }, [selectedCodes, percepcoes, portfolioMap]);
+
   if (!open) return null;
 
   const isMultiMode = !fixedProjeto;
@@ -104,20 +138,6 @@ function PercepcaoFormDialog({
     setSelectedCodes(selectable);
   };
   const clearSelection = () => setSelectedCodes([]);
-
-  // Revenda auto-disable logic
-  const revendaDisabled = useMemo(() => {
-    if (!portfolioMap || selectedCodes.length === 0 || !percepcoes.length) return false;
-    const selectedClients = new Set(
-      selectedCodes.map(code => portfolioMap.get(code)?.client).filter(Boolean)
-    );
-    if (selectedClients.size === 0) return false;
-    return percepcoes.some(p =>
-      p.oportunidade_revenda != null &&
-      !selectedCodes.includes(p.project_code) &&
-      selectedClients.has(portfolioMap.get(p.project_code)?.client)
-    );
-  }, [selectedCodes, percepcoes, portfolioMap]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

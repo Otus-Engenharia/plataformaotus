@@ -653,7 +653,8 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                         <tr>
                           <th>Projeto</th>
                           <th className="wr-status-table-center">Equipe</th>
-                          <th className="wr-status-table-center">Nomenclatura</th>
+                          <th className="wr-status-table-center">Nomenclatura Modelos</th>
+                          <th className="wr-status-table-center">Nomenclatura Pranchas</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -661,7 +662,8 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                           const isSelected = project.project_code_norm === selectedProjectId;
                           const status = equipeNomStatus[project.project_code_norm];
                           const equipePct = status?.equipe_percentage;
-                          const hasNomenclatura = status?.has_nomenclatura || false;
+                          const hasModelos = status?.has_nomenclatura_modelos || false;
+                          const hasPranchas = status?.has_nomenclatura_pranchas || false;
                           return (
                             <tr
                               key={project.project_code_norm}
@@ -679,8 +681,13 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                                 </span>
                               </td>
                               <td className="wr-status-table-center">
-                                <span className={`wr-kpi-pill ${hasNomenclatura ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
-                                  {hasNomenclatura ? 'Preenchido' : 'Não preenchido'}
+                                <span className={`wr-kpi-pill ${hasModelos ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {hasModelos ? 'Preenchido' : 'Não preenchido'}
+                                </span>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${hasPranchas ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {hasPranchas ? 'Preenchido' : 'Não preenchido'}
                                 </span>
                               </td>
                             </tr>

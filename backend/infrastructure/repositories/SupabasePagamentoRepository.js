@@ -242,6 +242,21 @@ class SupabasePagamentoRepository extends PagamentoRepository {
     return data || [];
   }
 
+  async findChangeLogGlobal({ since, excludeEmail, limit = 100, offset = 0 }) {
+    let query = this.#supabase
+      .from(CHANGELOG_TABLE)
+      .select('*, parcelas_pagamento:parcela_id(*)', { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (since) query = query.gt('created_at', since);
+    if (excludeEmail) query = query.neq('edited_by_email', excludeEmail);
+
+    const { data, count, error } = await query.range(offset, offset + limit - 1);
+    if (error) throw new Error(`Erro ao buscar change log global: ${error.message}`);
+
+    return { entries: data || [], total: count || 0 };
+  }
+
   async countChangeLogSince(since, excludeEmail) {
     let query = this.#supabase
       .from(CHANGELOG_TABLE)

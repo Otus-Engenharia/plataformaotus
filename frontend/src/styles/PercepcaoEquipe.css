@@ -1113,6 +1113,40 @@
   margin: 0;
 }
 
+/* ---- Client Group (Pending by client) ---- */
+.percepcao-client-group {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border-color, #f0f0f0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.percepcao-client-group:last-child {
+  margin-bottom: 0;
+}
+
+.percepcao-client-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.75rem;
+  background: rgba(0, 0, 0, 0.025);
+  border-bottom: 1px solid var(--border-color, #f0f0f0);
+  gap: 0.5rem;
+}
+
+.percepcao-client-group-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary, #444444);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.percepcao-client-group .percepcao-project-list {
+  padding-left: 0.5rem;
+}
+
 /* ---- Timeline Chart ---- */
 .percepcao-chart-wrap {
   background: var(--card-bg, #fff);

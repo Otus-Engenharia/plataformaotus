@@ -1528,21 +1528,26 @@ app.post('/api/projects/team-status', requireAuth, async (req, res) => {
       equipePercentageMap[p.projectCode] = analysis.totalUnique > 0 ? analysis.completionPercentage : null;
     }
 
-    // 2. Nomenclatura: buscar nomenclatura_lookup_entries
+    // 2. Nomenclatura: buscar por tipo (modelos vs pranchas)
     const supabase = getSupabaseClient();
-    const { data: nomenclatura } = await supabase
-      .from('nomenclatura_lookup_entries')
-      .select('project_code')
-      .in('project_code', codeList);
+    const [{ data: nomenclaturaLookups }, { data: nomenclaturaPatterns }] = await Promise.all([
+      supabase.from('nomenclatura_lookup_entries').select('project_code').in('project_code', codeList),
+      supabase.from('project_nomenclatura').select('project_code, tipo').in('project_code', codeList),
+    ]);
 
-    const nomenclaturaCodes = new Set((nomenclatura || []).map(n => n.project_code));
+    // Lookups não têm tipo — contam para ambos
+    const lookupsSet = new Set((nomenclaturaLookups || []).map(n => n.project_code));
+    const modelosCodes = new Set((nomenclaturaPatterns || []).filter(n => n.tipo === 'modelos').map(n => n.project_code));
+    const pranchasCodes = new Set((nomenclaturaPatterns || []).filter(n => n.tipo === 'pranchas').map(n => n.project_code));
 
     // 3. Montar resultado
     const result = {};
     for (const code of codeList) {
       result[code] = {
         equipe_percentage: equipePercentageMap[code] ?? null,
-        has_nomenclatura: nomenclaturaCodes.has(code),
+        has_nomenclatura: modelosCodes.has(code) || pranchasCodes.has(code) || lookupsSet.has(code),
+        has_nomenclatura_modelos: modelosCodes.has(code) || lookupsSet.has(code),
+        has_nomenclatura_pranchas: pranchasCodes.has(code) || lookupsSet.has(code),
       };
     }
 

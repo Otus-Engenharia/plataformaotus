@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import ParcelasProjetoPanel from './ParcelasProjetoPanel';
 import CronogramaFisicoFinanceiroPanel from './CronogramaFisicoFinanceiroPanel';
+import SpotsHistoricoView from '../../pages/pagamentos/SpotsHistoricoView';
 import './PagamentosLiderView.css';
 import './PagamentosFinanceiroView.css';
 
@@ -306,6 +307,15 @@ export default function PagamentosLiderView() {
         >
           Cronograma
         </button>
+        <button
+          className={`pagamentos-fin-tab ${activeTab === 'historico' ? 'pagamentos-fin-tab-active' : ''}`}
+          onClick={() => {
+            setActiveTab('historico');
+            if (user?.id) localStorage.setItem(`spots_last_seen_${user.id}`, new Date().toISOString());
+          }}
+        >
+          Historico
+        </button>
       </div>
 
       {activeTab === 'projetos' ? (
@@ -539,12 +549,14 @@ export default function PagamentosLiderView() {
             )}
           </div>
         </>
-      ) : (
+      ) : activeTab === 'cronograma' ? (
         <CronogramaFisicoFinanceiroPanel
           leaders={leaders}
           showLiderFilter={showLiderFilter}
         />
-      )}
+      ) : activeTab === 'historico' ? (
+        <SpotsHistoricoView />
+      ) : null}
     </div>
   );
 }

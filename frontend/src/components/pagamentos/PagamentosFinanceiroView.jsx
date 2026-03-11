@@ -3,8 +3,8 @@ import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import ParcelasProjetoPanel from './ParcelasProjetoPanel';
 import ParcelaFormDialog from './ParcelaFormDialog';
-import CalendarioPagamentosView from './CalendarioPagamentosView';
 import CronogramaFisicoFinanceiroPanel from './CronogramaFisicoFinanceiroPanel';
+import SpotsHistoricoView from '../../pages/pagamentos/SpotsHistoricoView';
 import { useNavigate } from 'react-router-dom';
 import './PagamentosFinanceiroView.css';
 
@@ -235,16 +235,16 @@ export default function PagamentosFinanceiroView() {
           Projetos
         </button>
         <button
-          className={`pagamentos-fin-tab ${activeTab === 'calendario' ? 'pagamentos-fin-tab-active' : ''}`}
-          onClick={() => setActiveTab('calendario')}
-        >
-          Calendario
-        </button>
-        <button
           className={`pagamentos-fin-tab ${activeTab === 'cronograma' ? 'pagamentos-fin-tab-active' : ''}`}
           onClick={() => setActiveTab('cronograma')}
         >
           Cronograma
+        </button>
+        <button
+          className={`pagamentos-fin-tab ${activeTab === 'historico' ? 'pagamentos-fin-tab-active' : ''}`}
+          onClick={() => setActiveTab('historico')}
+        >
+          Historico
         </button>
       </div>
 
@@ -429,7 +429,7 @@ export default function PagamentosFinanceiroView() {
           showStatusColumn={true}
         />
       ) : (
-        <CalendarioPagamentosView />
+        <SpotsHistoricoView />
       )}
 
       {/* Aditivo Quick Dialog */}
