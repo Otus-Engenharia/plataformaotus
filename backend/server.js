@@ -8742,4 +8742,17 @@ app.listen(PORT, HOST, async () => {
     }
   }, { timezone: 'America/Sao_Paulo' });
   console.log('⏰ Cron job configurado: sync Autodoc diario 06:00 e 19:00 BRT');
+
+  // Cron job: snapshot CS do portfólio todo dia 1 às 03:00 BRT
+  cron.schedule('0 3 1 * *', async () => {
+    console.log('[Cron] Iniciando snapshot CS do portfolio...');
+    try {
+      const { runCSSnapshot } = await import('./jobs/cs-snapshot.js');
+      const result = await runCSSnapshot();
+      console.log(`[Cron] Snapshot CS concluido: ${result.totalProjetos} projetos, data: ${result.snapshotDate}`);
+    } catch (err) {
+      console.error('[Cron] Erro no snapshot CS:', err.message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+  console.log('⏰ Cron job configurado: snapshot CS portfolio dia 1 de cada mes 03:00 BRT');
 });

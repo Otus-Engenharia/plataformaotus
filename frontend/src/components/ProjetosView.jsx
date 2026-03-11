@@ -15,6 +15,7 @@ import CronogramaView from './CronogramaView';
 import EquipeView from './EquipeView';
 import CurvaSProgressoView from './CurvaSProgressoView';
 import RelatosView from './relatos/RelatosView';
+import PercepcaoProjetoTab from './cs/PercepcaoProjetoTab';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import SearchableDropdown from './SearchableDropdown';
@@ -120,6 +121,11 @@ const SUBVIEWS = {
     id: 'relatos',
     name: 'Relatos',
     component: RelatosView,
+  },
+  percepcao: {
+    id: 'percepcao',
+    name: 'Percepção',
+    component: PercepcaoProjetoTab,
   },
 };
 
@@ -448,6 +454,11 @@ function ProjetosView() {
               portfolio={portfolio}
             />
           ) : activeSubview === 'relatos' ? (
+            <SubviewComponent
+              selectedProjectId={selectedProjectId}
+              portfolio={portfolio}
+            />
+          ) : activeSubview === 'percepcao' ? (
             <SubviewComponent
               selectedProjectId={selectedProjectId}
               portfolio={portfolio}
