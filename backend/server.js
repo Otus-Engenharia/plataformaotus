@@ -19,7 +19,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import NodeCache from 'node-cache';
 import passport from './auth.js';
-import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName, queryHorasComplianceOperacao, querySmartsheetHealth, queryIssuesLastModified } from './bigquery.js';
+import { queryPortfolio, queryCurvaS, queryCurvaSColaboradores, queryCustosPorUsuarioProjeto, queryReconciliacaoMensal, queryReconciliacaoUsuarios, queryReconciliacaoProjetos, queryIssues, queryCronograma, getTableSchema, queryNPSRaw, queryPortClientes, queryNPSFilterOptions, queryEstudoCustos, queryHorasRaw, queryProximasTarefasAll, queryModelagemTarefas, queryControlePassivo, queryCustosAgregadosProjeto, queryDisciplinesCrossReference, queryDisciplinesCrossReferenceBatch, warmupSchemaCache, checkWeeklyReportReadiness, queryConstruflowIssuesByDiscipline, queryWeeklyReportData, queryActiveProjectsForWeeklyReports, queryAllActiveProjects, queryNomeTimeByTeamName, queryHorasComplianceOperacao, querySmartsheetHealth, queryIssuesLastModified, queryFechamentosFase } from './bigquery.js';
 import cron from 'node-cron';
 import { isDirector, isAdmin, isPrivileged, isDev, hasFullAccess, getLeaderNameFromEmail, getUserRole, getUltimoTimeForLeader, canAccessFormularioPassagem, canAccessVendas, getRealEmailForIndicadores, canManageDemandas, canManageEstudosCustos, canManageApoioProjetos, canEditPortfolio, canManagePagamentos } from './auth-config.js';
 import { setupDDDRoutes } from './routes/index.js';
@@ -2645,6 +2645,40 @@ app.get('/api/cs/nps', requireAuth, withBqCache(3600), async (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar NPS:', err);
     res.status(500).json({ success: false, error: err.message || 'Erro ao buscar NPS' });
+  }
+});
+
+/**
+ * Rota: GET /api/cs/fechamentos-fase
+ * Tarefas de fechamento de fase do SmartSheet para calendário CS.
+ */
+app.get('/api/cs/fechamentos-fase', requireAuth, withBqCache(3600), async (req, res) => {
+  try {
+    const rows = await queryFechamentosFase();
+
+    // Agrupar por projeto
+    const byProject = {};
+    for (const row of rows) {
+      const key = row.project_code_norm || row.NomeDaPlanilha;
+      if (!byProject[key]) {
+        byProject[key] = {
+          project_code: row.project_code_norm || null,
+          project_name: row.project_name || row.NomeDaPlanilha,
+          fechamentos: [],
+        };
+      }
+      byProject[key].fechamentos.push({
+        task_name: row.NomeDaTarefa,
+        start_date: row.DataDeInicio,
+        end_date: row.DataDeTermino,
+        status: row.Status || 'Pendente',
+      });
+    }
+
+    res.json({ success: true, data: Object.values(byProject) });
+  } catch (err) {
+    console.error('Erro ao buscar fechamentos de fase:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
