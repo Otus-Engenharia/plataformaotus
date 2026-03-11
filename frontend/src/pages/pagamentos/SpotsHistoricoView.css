@@ -183,6 +183,22 @@
 }
 
 /* Detail (field changed) */
+.spots-hist-detail-group {
+  background: #f9fafb;
+  border-left: 2px solid #e5e7eb;
+  border-radius: 0 4px 4px 0;
+  padding: 4px 8px;
+  margin-top: 6px;
+}
+
+.spots-hist-detail-group .spots-hist-detail {
+  margin-top: 2px;
+}
+
+.spots-hist-detail-group .spots-hist-detail:first-child {
+  margin-top: 0;
+}
+
 .spots-hist-detail {
   display: flex;
   align-items: center;
@@ -194,19 +210,33 @@
 
 .spots-hist-field {
   color: #737373;
+  font-weight: 500;
+}
+
+.spots-hist-muted {
+  color: #9ca3af;
+  font-style: italic;
 }
 
 .spots-hist-old {
-  color: #ef4444;
+  color: #dc2626;
   text-decoration: line-through;
+  background: rgba(220, 38, 38, 0.06);
+  padding: 0 4px;
+  border-radius: 3px;
 }
 
 .spots-hist-arrow {
-  color: #9ca3af;
+  color: #737373;
+  font-weight: 600;
 }
 
 .spots-hist-new {
-  color: #22c55e;
+  color: #15803d;
+  font-weight: 600;
+  background: rgba(21, 128, 61, 0.06);
+  padding: 0 4px;
+  border-radius: 3px;
 }
 
 /* Meta */
@@ -220,6 +250,12 @@
 
 .spots-hist-author {
   color: #737373;
+}
+
+.spots-hist-author-auto {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 10px;
 }
 
 /* Load More */

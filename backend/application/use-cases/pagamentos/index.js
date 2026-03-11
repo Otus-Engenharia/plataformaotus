@@ -12,3 +12,4 @@ export { GetDashboardKpis } from './GetDashboardKpis.js';
 export { ListAllProjectsSummary } from './ListAllProjectsSummary.js';
 export { ListParcelasByGerente } from './ListParcelasByGerente.js';
 export { UpdateParcelaStatus } from './UpdateParcelaStatus.js';
+export { ListGlobalChangeLog } from './ListGlobalChangeLog.js';

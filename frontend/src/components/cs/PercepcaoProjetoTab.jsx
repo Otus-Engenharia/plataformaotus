@@ -39,6 +39,7 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
   const [submitting, setSubmitting] = useState(false);
   const [expandedProject, setExpandedProject] = useState(null);
   const [allYearPercepcoes, setAllYearPercepcoes] = useState([]);
+  const [fillClientCodes, setFillClientCodes] = useState(null);
 
   const isAdmin = hasFullAccess;
   const userTeam = effectiveUser?.team_name || null;
@@ -223,9 +224,9 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
     },
   }), []);
 
-  // Get percepcao data for a specific project
-  const getProjectPercepcao = (projectCode) => {
-    return percepcoes.find(p => p.project_code === projectCode);
+  // Get ALL percepcoes for a specific project (multiple respondents)
+  const getProjectPercepcoes = (projectCode) => {
+    return percepcoes.filter(p => p.project_code === projectCode);
   };
 
   const handleSubmit = async (payload) => {
@@ -250,13 +251,35 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
     }
   };
 
+  // Group ALL projects by client (filled first, then pending within each group)
+  const projectsByClient = useMemo(() => {
+    const respondedCodes = new Set(percepcoes.map(p => p.project_code));
+    const groups = new Map();
+    for (const p of activeProjects) {
+      const client = p.client || 'Sem cliente';
+      if (!groups.has(client)) groups.set(client, { filled: [], pending: [] });
+      const bucket = groups.get(client);
+      if (respondedCodes.has(p.project_name)) {
+        bucket.filled.push(p);
+      } else {
+        bucket.pending.push(p);
+      }
+    }
+    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+  }, [activeProjects, percepcoes]);
+
   const handleFill = (projectCode) => {
     setFormProjeto(projectCode);
+    setFillClientCodes(null);
     setShowForm(true);
   };
 
-  const handleFillAllPending = () => {
+  const handleFillClient = (clientProjects) => {
+    const codes = clientProjects
+      .filter(p => !userRespondedCodes.has(p.project_name))
+      .map(p => p.project_name);
     setFormProjeto(null);
+    setFillClientCodes(codes);
     setShowForm(true);
   };
 
@@ -351,110 +374,139 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
 
       {!loading && (
         <div className="percepcao-compliance-lists">
-          {/* Pending projects */}
-          {pendingProjects.length > 0 && (
+          {/* Projects grouped by client — filled first, then pending */}
+          {projectsByClient.length > 0 && (
             <div className="percepcao-section">
-              <div className="percepcao-section-title-row">
-                <h3 className="percepcao-section-title" style={{ color: '#dc2626' }}>
-                  Pendentes ({pendingProjects.length})
-                </h3>
-                {userPendingCodes.length > 1 && (
-                  <button
-                    className="percepcao-btn-primary percepcao-btn-sm"
-                    onClick={handleFillAllPending}
-                  >
-                    Preencher Pendentes
-                  </button>
-                )}
-              </div>
-              <div className="percepcao-project-list">
-                {pendingProjects.map(p => (
-                  <div key={p.project_name} className="percepcao-project-row percepcao-project-pending">
-                    <div className="percepcao-project-info">
-                      <span className="percepcao-project-dot" style={{ background: '#dc2626' }} />
-                      <span className="percepcao-project-code">{p.project_name}</span>
-                    </div>
-                    <button
-                      className="percepcao-btn-primary"
-                      onClick={() => handleFill(p.project_name)}
-                    >
-                      Preencher
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Filled projects */}
-          {filledProjects.length > 0 && (
-            <div className="percepcao-section">
-              <h3 className="percepcao-section-title" style={{ color: '#15803d' }}>
-                Preenchidos ({filledProjects.length})
+              <h3 className="percepcao-section-title" style={{ color: 'var(--text-primary, #1a1a1a)' }}>
+                Projetos por Cliente
               </h3>
-              <div className="percepcao-project-list">
-                {filledProjects.map(p => {
-                  const perc = getProjectPercepcao(p.project_name);
-                  const isExpanded = expandedProject === p.project_name;
-                  const userResponded = userRespondedCodes.has(p.project_name);
-                  return (
-                    <div key={p.project_name} className="percepcao-project-row-wrap">
-                      <div
-                        className="percepcao-project-row percepcao-project-done"
-                        onClick={() => setExpandedProject(isExpanded ? null : p.project_name)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div className="percepcao-project-info">
-                          <span className="percepcao-project-dot" style={{ background: '#15803d' }} />
-                          <span className="percepcao-project-code">{p.project_name}</span>
-                        </div>
-                        <div className="percepcao-project-meta">
-                          {perc?.isp != null && (
-                            <span
-                              className="percepcao-isp-badge"
-                              style={{ color: perc.isp >= 2.5 ? '#15803d' : perc.isp >= 1.5 ? '#d97706' : '#dc2626' }}
-                            >
-                              ISP: {perc.isp.toFixed(2)}
-                            </span>
-                          )}
-                          {!userResponded && (
-                            <button
-                              className="percepcao-btn-secondary percepcao-btn-sm"
-                              onClick={(e) => { e.stopPropagation(); handleFill(p.project_name); }}
-                            >
-                              Preencher
-                            </button>
-                          )}
-                          <span className="percepcao-expand-icon">{isExpanded ? '\u25BE' : '\u25B8'}</span>
-                        </div>
-                      </div>
-                      {isExpanded && perc && (
-                        <div className="percepcao-project-detail">
-                          <div className="percepcao-detail-grid">
-                            <DetailItem label="Cronograma" value={perc.cronograma} />
-                            <DetailItem label="Qualidade" value={perc.qualidade} />
-                            <DetailItem label="Comunicação" value={perc.comunicacao} />
-                            <DetailItem label="Custos" value={perc.custos} />
-                            <DetailItem label="Parceria" value={perc.parceria} />
-                            <DetailItem label="Confiança" value={perc.confianca} />
-                          </div>
-                          <div className="percepcao-detail-indices">
-                            <IndexBadge label="IP" value={perc.ip} />
-                            <IndexBadge label="IVE" value={perc.ive} />
-                            <IndexBadge label="ISP" value={perc.isp} />
-                          </div>
-                          {perc.comentarios && (
-                            <p className="percepcao-detail-comment">{perc.comentarios}</p>
-                          )}
-                          <p className="percepcao-detail-respondent">
-                            {perc.respondente_nome || perc.respondente_email}
-                          </p>
-                        </div>
+              {projectsByClient.map(([client, { filled, pending }]) => {
+                const total = filled.length + pending.length;
+                const clientPendingForUser = pending.filter(p => !userRespondedCodes.has(p.project_name));
+                const summaryParts = [];
+                if (filled.length > 0) summaryParts.push(`${filled.length} preenchido${filled.length > 1 ? 's' : ''}`);
+                if (pending.length > 0) summaryParts.push(`${pending.length} pendente${pending.length > 1 ? 's' : ''}`);
+                return (
+                  <div key={client} className="percepcao-client-group">
+                    <div className="percepcao-client-group-header">
+                      <span className="percepcao-client-group-name">
+                        {client} ({total} projeto{total > 1 ? 's' : ''} — {summaryParts.join(', ')})
+                      </span>
+                      {clientPendingForUser.length > 1 && (
+                        <button
+                          className="percepcao-btn-primary percepcao-btn-sm"
+                          onClick={() => handleFillClient([...filled, ...pending])}
+                        >
+                          Preencher Cliente
+                        </button>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="percepcao-project-list">
+                      {/* Filled projects */}
+                      {filled.map(p => {
+                        const percs = getProjectPercepcoes(p.project_name);
+                        const isExpanded = expandedProject === p.project_name;
+                        const userResponded = userRespondedCodes.has(p.project_name);
+                        // Average ISP across all respondents for the header badge
+                        const ispValues = percs.map(pc => pc.isp).filter(v => v != null);
+                        const avgIsp = ispValues.length > 0
+                          ? ispValues.reduce((a, b) => a + b, 0) / ispValues.length
+                          : null;
+                        return (
+                          <div key={p.project_name} className="percepcao-project-row-wrap">
+                            <div
+                              className="percepcao-project-row percepcao-project-done"
+                              onClick={() => setExpandedProject(isExpanded ? null : p.project_name)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <div className="percepcao-project-info">
+                                <span className="percepcao-project-dot" style={{ background: '#15803d' }} />
+                                <span className="percepcao-project-code">{p.project_name}</span>
+                                {percs.length > 1 && (
+                                  <span style={{ fontSize: '9px', color: '#737373', marginLeft: 4 }}>
+                                    ({percs.length} respostas)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="percepcao-project-meta">
+                                {avgIsp != null && (
+                                  <span
+                                    className="percepcao-isp-badge"
+                                    style={{ color: avgIsp >= 2.5 ? '#15803d' : avgIsp >= 1.5 ? '#d97706' : '#dc2626' }}
+                                  >
+                                    ISP{percs.length > 1 ? ' (média)' : ''}: {avgIsp.toFixed(2)}
+                                  </span>
+                                )}
+                                {!userResponded && (
+                                  <button
+                                    className="percepcao-btn-secondary percepcao-btn-sm"
+                                    onClick={(e) => { e.stopPropagation(); handleFill(p.project_name); }}
+                                  >
+                                    Preencher
+                                  </button>
+                                )}
+                                <span className="percepcao-expand-icon">{isExpanded ? '\u25BE' : '\u25B8'}</span>
+                              </div>
+                            </div>
+                            {isExpanded && percs.length > 0 && (
+                              <div className="percepcao-project-detail">
+                                {percs.map((perc, idx) => (
+                                  <div key={perc.id || idx}>
+                                    {percs.length > 1 && (
+                                      <p className="percepcao-detail-respondent" style={{ fontWeight: 600, marginBottom: 6, marginTop: idx > 0 ? 4 : 0 }}>
+                                        {perc.respondente_nome || perc.respondente_email}
+                                      </p>
+                                    )}
+                                    <div className="percepcao-detail-grid">
+                                      <DetailItem label="Cronograma" value={perc.cronograma} />
+                                      <DetailItem label="Qualidade" value={perc.qualidade} />
+                                      <DetailItem label="Comunicação" value={perc.comunicacao} />
+                                      <DetailItem label="Custos" value={perc.custos} />
+                                      <DetailItem label="Parceria" value={perc.parceria} />
+                                      <DetailItem label="Confiança" value={perc.confianca} />
+                                    </div>
+                                    <div className="percepcao-detail-indices">
+                                      <IndexBadge label="IP" value={perc.ip} />
+                                      <IndexBadge label="IVE" value={perc.ive} />
+                                      <IndexBadge label="ISP" value={perc.isp} />
+                                    </div>
+                                    {perc.comentarios && (
+                                      <p className="percepcao-detail-comment">{perc.comentarios}</p>
+                                    )}
+                                    {percs.length === 1 && (
+                                      <p className="percepcao-detail-respondent">
+                                        {perc.respondente_nome || perc.respondente_email}
+                                      </p>
+                                    )}
+                                    {percs.length > 1 && idx < percs.length - 1 && (
+                                      <hr style={{ border: 'none', borderTop: '1px solid #e5e5e5', margin: '10px 0' }} />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {/* Pending projects */}
+                      {pending.map(p => (
+                        <div key={p.project_name} className="percepcao-project-row percepcao-project-pending">
+                          <div className="percepcao-project-info">
+                            <span className="percepcao-project-dot" style={{ background: '#dc2626' }} />
+                            <span className="percepcao-project-code">{p.project_name}</span>
+                          </div>
+                          <button
+                            className="percepcao-btn-primary"
+                            onClick={() => handleFill(p.project_name)}
+                          >
+                            Preencher
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -466,10 +518,10 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
 
       <PercepcaoFormDialog
         open={showForm}
-        onClose={() => { setShowForm(false); setFormProjeto(null); }}
+        onClose={() => { setShowForm(false); setFormProjeto(null); setFillClientCodes(null); }}
         onSubmit={handleSubmit}
         fixedProjeto={formProjeto}
-        projetos={formProjeto ? [formProjeto] : userPendingCodes}
+        projetos={formProjeto ? [formProjeto] : (fillClientCodes || userPendingCodes)}
         submitting={submitting}
         percepcoes={percepcoes}
         portfolioMap={portfolioMap}
