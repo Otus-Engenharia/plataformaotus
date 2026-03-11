@@ -178,12 +178,25 @@ function VistaClienteInicioView() {
 
       const mapped = rawMarcos.map(m => {
         const updatedAt = m.updated_at ? new Date(m.updated_at) : null;
+        const cronogramaDate = m.smartsheet_data_termino || m.prazo_atual || null;
+        const expectativaCliente = m.cliente_expectativa_data || null;
+
+        // Desvio = cronograma - expectativa cliente (em dias)
+        let desvio = null;
+        if (cronogramaDate && expectativaCliente) {
+          const dCrono = new Date(cronogramaDate);
+          const dExpect = new Date(expectativaCliente);
+          if (!isNaN(dCrono) && !isNaN(dExpect)) {
+            desvio = Math.round((dCrono - dExpect) / (1000 * 60 * 60 * 24));
+          }
+        }
+
         return {
           nome: m.nome,
           status: m.smartsheet_status || m.status || null,
-          prazoAtual: m.smartsheet_data_termino || m.prazo_atual || null,
+          prazoAtual: cronogramaDate,
           prazoBase: m.prazo_baseline || null,
-          variacaoDias: m.smartsheet_variancia != null ? Number(m.smartsheet_variancia) : (m.variacao_dias != null ? Number(m.variacao_dias) : null),
+          variacaoDias: desvio,
           alteradoRecente: updatedAt && updatedAt >= oneMonthAgo,
         };
       });

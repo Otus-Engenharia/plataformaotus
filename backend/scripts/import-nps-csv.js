@@ -34,49 +34,59 @@ import { SupabaseNpsResponseRepository } from '../infrastructure/repositories/Su
 import { ImportNpsResponses } from '../application/use-cases/nps/ImportNpsResponses.js';
 
 function parseCSV(content) {
-  const lines = content.split('\n');
-  if (lines.length < 2) return [];
-
-  const headers = parseCSVLine(lines[0]);
-  const rows = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const values = parseCSVLine(line);
-    const row = {};
-    headers.forEach((h, idx) => {
-      row[h.trim()] = values[idx]?.trim() || '';
-    });
-    rows.push(row);
-  }
-
-  return rows;
-}
-
-function parseCSVLine(line) {
-  const result = [];
+  // Parse CSV handling multiline quoted fields
+  const records = [];
+  let headers = null;
   let current = '';
   let inQuotes = false;
+  let fields = [];
 
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      if (inQuotes && content[i + 1] === '"') {
         current += '"';
         i++;
       } else {
         inQuotes = !inQuotes;
       }
     } else if (char === ',' && !inQuotes) {
-      result.push(current);
+      fields.push(current);
       current = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && content[i + 1] === '\n') i++;
+      fields.push(current);
+      current = '';
+
+      if (!headers) {
+        headers = fields.map(h => h.trim());
+      } else if (fields.some(f => f.trim())) {
+        const row = {};
+        headers.forEach((h, idx) => {
+          row[h] = (fields[idx] || '').trim();
+        });
+        records.push(row);
+      }
+      fields = [];
     } else {
       current += char;
     }
   }
-  result.push(current);
-  return result;
+
+  // Last record
+  if (fields.length > 0 || current) {
+    fields.push(current);
+    if (headers && fields.some(f => f.trim())) {
+      const row = {};
+      headers.forEach((h, idx) => {
+        row[h] = (fields[idx] || '').trim();
+      });
+      records.push(row);
+    }
+  }
+
+  return records;
 }
 
 function parseBrazilianDate(dateStr) {
