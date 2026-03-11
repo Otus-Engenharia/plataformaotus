@@ -25,7 +25,7 @@ export default function TodoCreateDialog({ todo, projects, favoriteProjects = []
     description: todo?.description || '',
     priority: todo?.priority || 'média',
     status: todo?.status || 'backlog',
-    due_date: todo?.due_date ? (() => { const d = new Date(todo.due_date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : '',
+    due_date: todo?.due_date?.slice(0, 10) || '',
     assignee: todo?.assignee || defaultAssignee || '',
     project_id: todo?.project_id || '',
   });
