@@ -18,6 +18,7 @@ import ChartFilterSidebar from './curva-s-progresso/ChartFilterSidebar';
 import ChangeLogPanel from './curva-s-progresso/ChangeLogPanel';
 import ChangeLogTab from './curva-s-progresso/ChangeLogTab';
 import PhaseDurationChart from './curva-s-progresso/PhaseDurationChart';
+import MarcosClienteTab from './curva-s-progresso/MarcosClienteTab';
 import '../styles/CurvaSProgressoView.css';
 
 function CurvaSProgressoView({ selectedProjectId, portfolio }) {
@@ -31,7 +32,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
   const [timeseriesLoading, setTimeseriesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('grafico');
+  const [activeTab, setActiveTab] = useState('marcos_cliente');
 
   // Filtros de visibilidade das curvas
   const [showExecutado, setShowExecutado] = useState(true);
@@ -369,7 +370,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     }
   };
 
-  if (!selectedProjectId) {
+  if (!selectedProjectId && activeTab !== 'marcos_cliente') {
     return (
       <div className="curva-s-progresso-empty">
         <p>Selecione um projeto para visualizar a Curva S de progresso.</p>
@@ -377,7 +378,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
     );
   }
 
-  if (!smartsheetId && !projectName) {
+  if (!smartsheetId && !projectName && activeTab !== 'marcos_cliente') {
     return (
       <div className="curva-s-progresso-empty">
         <p>Este projeto não possui SmartSheet vinculado. A Curva S requer dados do cronograma.</p>
@@ -420,6 +421,12 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
 
       {/* Tabs internas */}
       <div className="curva-s-tabs">
+        <button
+          className={`curva-s-tab ${activeTab === 'marcos_cliente' ? 'active' : ''}`}
+          onClick={() => setActiveTab('marcos_cliente')}
+        >
+          Marcos do Cliente
+        </button>
         <button
           className={`curva-s-tab ${activeTab === 'grafico' ? 'active' : ''}`}
           onClick={() => setActiveTab('grafico')}
@@ -475,6 +482,13 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
 
       {/* Conteúdo baseado na tab ativa */}
       <div className="curva-s-content">
+        {activeTab === 'marcos_cliente' && (
+          <MarcosClienteTab
+            selectedProjectId={selectedProjectId}
+            portfolio={portfolio}
+          />
+        )}
+
         {activeTab === 'grafico' && (
           <div className="curva-s-chart-layout-v3">
             <ChartFilterSidebar

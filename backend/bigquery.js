@@ -1542,6 +1542,7 @@ export async function queryCronograma(smartsheetId, projectName = null) {
         SELECT ${selectFields}
         FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\`
         WHERE ID_Projeto = '${escapedId}'
+          AND CAST(Level AS INT64) = 5
         ORDER BY DataDeTermino ASC, NomeDaTarefa ASC
       `;
 
@@ -1576,6 +1577,7 @@ export async function queryCronograma(smartsheetId, projectName = null) {
             AND NomeDaPlanilha NOT LIKE '%OBSOLETO%'
             AND NomeDaPlanilha NOT LIKE '%obsoleto%'
             AND NomeDaPlanilha NOT LIKE '%Copy%'
+            AND CAST(Level AS INT64) = 5
         )
         SELECT ${selectFields}
         FROM normalized
@@ -2553,6 +2555,7 @@ async function querySnapshotFallbackForCronograma(smartsheetId, projectName = nu
       AND snap.NomeDaPlanilha NOT LIKE '%Cópia%'
       AND snap.NomeDaPlanilha NOT LIKE '%OBSOLETO%'
       AND snap.NomeDaPlanilha NOT LIKE '%Copy%'
+      AND CAST(snap.Level AS INT64) = 5
     ORDER BY snap.DataDeTermino ASC, snap.NomeDaTarefa ASC
   `;
 
@@ -3417,5 +3420,46 @@ export async function querySmartsheetHealth() {
   } catch (error) {
     console.error('❌ [querySmartsheetHealth]', error.message);
     throw new Error(`Erro ao buscar saúde SmartSheet: ${error.message}`);
+  }
+}
+
+/**
+ * Busca tarefas de Fechamento de Fase (Level 5) do SmartSheet
+ * Para o calendário de fechamentos na área CS.
+ */
+export async function queryFechamentosFase() {
+  const smartsheetProjectId = 'dadosindicadores';
+  const smartsheetDataset = 'smartsheet';
+  const smartsheetTable = 'smartsheet_data_projetos';
+
+  const query = `
+    SELECT
+      s.ID_Projeto,
+      s.NomeDaPlanilha,
+      s.NomeDaTarefa,
+      s.DataDeInicio,
+      s.DataDeTermino,
+      s.Status,
+      CAST(s.Level AS INT64) AS Level,
+      p.project_code_norm,
+      p.project_name
+    FROM \`${smartsheetProjectId}.${smartsheetDataset}.${smartsheetTable}\` s
+    LEFT JOIN \`${projectId}.${datasetId}.${tablePortfolio}\` p
+      ON LOWER(REGEXP_REPLACE(s.NomeDaPlanilha, r'[^a-zA-Z0-9]', ''))
+       = LOWER(REGEXP_REPLACE(p.project_name, r'[^a-zA-Z0-9]', ''))
+    WHERE CAST(s.Level AS INT64) = 5
+      AND LOWER(s.NomeDaTarefa) LIKE '%fechamento%fase%'
+      AND s.NomeDaPlanilha NOT LIKE '%(Backup%'
+      AND s.NomeDaPlanilha NOT LIKE '%OBSOLETO%'
+    ORDER BY s.DataDeTermino ASC
+  `;
+
+  try {
+    const rows = await executeQuery(query);
+    console.log(`✅ [queryFechamentosFase] ${rows.length} tarefas de fechamento encontradas`);
+    return rows;
+  } catch (error) {
+    console.error('❌ [queryFechamentosFase]', error.message);
+    throw new Error(`Erro ao buscar fechamentos de fase: ${error.message}`);
   }
 }

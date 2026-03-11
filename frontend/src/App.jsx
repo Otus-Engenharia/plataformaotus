@@ -49,6 +49,8 @@ const MapeamentoAutodocView = lazy(() => import('./pages/apoio/MapeamentoAutodoc
 const EstudoCustoKanbanView = lazy(() => import('./pages/cs/EstudoCustoKanbanView'));
 const PercepcaoEquipeView = lazy(() => import('./pages/cs/PercepcaoEquipeView'));
 const ClassificacaoClientesView = lazy(() => import('./pages/cs/ClassificacaoClientesView'));
+const PesquisasCSView = lazy(() => import('./pages/cs/PesquisasCSView'));
+const FechamentosFaseView = lazy(() => import('./pages/cs/FechamentosFaseView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -93,7 +95,7 @@ const ProjectView = lazy(() => import('./pages/workspace/ProjectView'));
 const ControlePassivoView = lazy(() => import('./components/ControlePassivoView'));
 const PagamentosFinanceiroView = lazy(() => import('./components/pagamentos/PagamentosFinanceiroView'));
 const PagamentosLiderView = lazy(() => import('./components/pagamentos/PagamentosLiderView'));
-const CalendarioPagamentosView = lazy(() => import('./components/pagamentos/CalendarioPagamentosView'));
+const SpotsHistoricoView = lazy(() => import('./pages/pagamentos/SpotsHistoricoView'));
 const RegrasClientePanel = lazy(() => import('./components/pagamentos/RegrasClientePanel'));
 const IndicadoresVendasView = lazy(() => import('./components/IndicadoresVendasView'));
 const ClientesView = lazy(() => import('./components/ClientesView'));
@@ -118,8 +120,9 @@ const VistaClienteRelatosView = lazy(() => import('./pages/vista-cliente/VistaCl
 const VistaClienteAlteracoesView = lazy(() => import('./pages/vista-cliente/VistaClienteAlteracoesView'));
 const NpsClienteView = lazy(() => import('./pages/nps/NpsClienteView'));
 
-// Lideres - Marcos
+// Lideres - Marcos + Pesquisas CS
 const MarcosLiderView = lazy(() => import('./pages/lideres-projeto/MarcosLiderView'));
+const PesquisasLiderView = lazy(() => import('./pages/lideres/PesquisasLiderView'));
 
 // Economia de Horas
 const TimeSavingsDashboardView = lazy(() => import('./pages/time-savings/TimeSavingsDashboardView'));
@@ -477,7 +480,7 @@ function Sidebar({ collapsed, onToggle, area }) {
   // Atualizar last_seen e limpar badge quando acessar SPOTs
   useEffect(() => {
     if (!user?.id) return;
-    if (location.pathname.includes('/spots')) {
+    if (location.pathname.includes('/spots') || location.pathname.includes('/historico-spots')) {
       localStorage.setItem(`spots_last_seen_${user.id}`, new Date().toISOString());
       setSpotsUpdatesCount(0);
     }
@@ -760,6 +763,18 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-icon">{icons.financeiro}</span>
         <span className="nav-text">Indicadores Vendas</span>
       </Link>
+      <Link
+        to="/lideres-projeto/pesquisas-cs"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/pesquisas-cs' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Pesquisas CS')}
+      >
+        <span className="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        </span>
+        <span className="nav-text">Pesquisas CS</span>
+      </Link>
     </>
   );
 
@@ -800,6 +815,30 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.contatos}</span>
         <span className="nav-text">Classificação</span>
+      </Link>
+      <Link
+        to="/cs-area/pesquisas"
+        className={`nav-link nav-link-modern ${location.pathname === '/cs-area/pesquisas' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Pesquisas de Fechamento')}
+      >
+        <span className="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        </span>
+        <span className="nav-text">Pesquisas</span>
+      </Link>
+      <Link
+        to="/cs-area/fechamentos"
+        className={`nav-link nav-link-modern ${location.pathname === '/cs-area/fechamentos' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Fechamentos de Fase')}
+      >
+        <span className="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </span>
+        <span className="nav-text">Fechamentos</span>
       </Link>
       <Link
         to="/cs-area/quadro"
@@ -914,12 +953,12 @@ function Sidebar({ collapsed, onToggle, area }) {
         {spotsUpdatesCount > 0 && <span className="nav-notification-badge">{spotsUpdatesCount}</span>}
       </Link>
       <Link
-        to="/admin-financeiro/calendario-pagamentos"
-        className={`nav-link nav-link-modern ${location.pathname === '/admin-financeiro/calendario-pagamentos' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Calendário Pagamentos')}
+        to="/admin-financeiro/historico-spots"
+        className={`nav-link nav-link-modern ${location.pathname === '/admin-financeiro/historico-spots' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Histórico SPOTs')}
       >
-        <span className="nav-icon">{icons.cronograma}</span>
-        <span className="nav-text">Calendário</span>
+        <span className="nav-icon">{icons.history}</span>
+        <span className="nav-text">Histórico</span>
       </Link>
       <Link
         to="/admin-financeiro/regras-clientes"
@@ -1695,6 +1734,11 @@ function AppContent() {
                   <IndicadoresVendasView />
                 </Suspense>
               } />
+              <Route path="pesquisas-cs" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <PesquisasLiderView />
+                </Suspense>
+              } />
             </Route>
             {/* Área CS - rotas aninhadas */}
             <Route
@@ -1719,6 +1763,8 @@ function AppContent() {
                   <ClassificacaoClientesView />
                 </Suspense>
               } />
+              <Route path="pesquisas" element={<PesquisasCSView />} />
+              <Route path="fechamentos" element={<FechamentosFaseView />} />
             </Route>
             {/* Área Apoio de Projetos - rotas aninhadas */}
             <Route
@@ -1764,9 +1810,9 @@ function AppContent() {
                   <PagamentosFinanceiroView />
                 </Suspense>
               } />
-              <Route path="calendario-pagamentos" element={
+              <Route path="historico-spots" element={
                 <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                  <CalendarioPagamentosView />
+                  <SpotsHistoricoView />
                 </Suspense>
               } />
               <Route path="regras-clientes" element={
