@@ -131,7 +131,14 @@ function PercepcaoEquipeView() {
   const handleSubmit = async (payload) => {
     setSubmitting(true);
     try {
-      await axios.post(`${API_URL}/api/cs/percepcao-equipe`, payload, { withCredentials: true });
+      const codes = payload.project_codes || [payload.project_code];
+      for (const code of codes) {
+        await axios.post(
+          `${API_URL}/api/cs/percepcao-equipe`,
+          { ...payload, project_code: code, project_codes: undefined },
+          { withCredentials: true }
+        );
+      }
       setShowForm(false);
       fetchData();
     } catch (err) {
@@ -170,6 +177,31 @@ function PercepcaoEquipeView() {
       alert(err.response?.data?.error || 'Erro ao remover');
     }
   };
+
+  // Per-user responded set (projects already filled by current user this month)
+  const userRespondedCodes = useMemo(() => {
+    if (!user?.email) return new Set();
+    const email = user.email.toLowerCase();
+    return new Set(
+      data.filter(p => p.respondente_email?.toLowerCase() === email).map(p => p.project_code)
+    );
+  }, [data, user?.email]);
+
+  // Build portfolioMap and active project names for form dialog
+  const portfolioMap = useMemo(() => {
+    const map = new Map();
+    portfolio.forEach(p => map.set(p.project_name, { client: p.client }));
+    return map;
+  }, [portfolio]);
+
+  const activeProjectNames = useMemo(() => {
+    const seen = new Set();
+    return portfolio
+      .filter(p => isActive(p.status) && p.project_code_norm)
+      .filter(p => { if (seen.has(p.project_code_norm)) return false; seen.add(p.project_code_norm); return true; })
+      .map(p => p.project_name)
+      .sort();
+  }, [portfolio]);
 
   const TABS = [
     { key: 'dashboard', label: 'Dashboard' },
@@ -225,8 +257,11 @@ function PercepcaoEquipeView() {
         open={showForm}
         onClose={() => setShowForm(false)}
         onSubmit={handleSubmit}
-        projetos={projetos}
+        projetos={activeProjectNames.length > 0 ? activeProjectNames : projetos}
         submitting={submitting}
+        percepcoes={data}
+        portfolioMap={portfolioMap}
+        userRespondedCodes={userRespondedCodes}
       />
 
       <PercepcaoImportDialog

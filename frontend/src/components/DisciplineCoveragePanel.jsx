@@ -71,6 +71,13 @@ const UserIcon = () => (
   </svg>
 );
 
+const PencilIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    <path d="m15 5 4 4" />
+  </svg>
+);
+
 // ===== Progress Ring =====
 
 function ProgressRing({ percentage, complete, total }) {
@@ -219,6 +226,7 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
   const [selectedDisciplineId, setSelectedDisciplineId] = useState('');
   const [savingMapping, setSavingMapping] = useState(false);
   const [savingClient, setSavingClient] = useState(null);
+  const [editingRegularizado, setEditingRegularizado] = useState(null);
 
   // Refs for scroll-to
   const cadastrarRef = useRef(null);
@@ -289,6 +297,19 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
       if (onMappingChange) onMappingChange();
     } catch (error) {
       console.error('Erro ao remover mapeamento:', error);
+    }
+  };
+
+  // Remove all mappings for a discipline (used in Regularizado edit)
+  const handleRemoveAllMappings = async (allMappingIds) => {
+    try {
+      for (const id of allMappingIds) {
+        await axios.delete(`${API_URL}/api/projetos/equipe/mapeamentos-disciplinas/${id}`, { withCredentials: true });
+      }
+      setEditingRegularizado(null);
+      if (onMappingChange) onMappingChange();
+    } catch (error) {
+      console.error('Erro ao remover mapeamentos:', error);
     }
   };
 
@@ -659,24 +680,88 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
             defaultOpen={false}
             sectionRef={regularizadoRef}
           >
-            {regularizado.map(d => (
-              <div key={d.normKey} className="dcov-completed-row">
-                {d.name}
-                <div className="dcov-completed-checks">
-                  {d.isAutoOtus && (
-                    <span className="dcov-auto-badge" title="Detectado automaticamente como Otus">Auto (Otus)</span>
+            {regularizado.map(d => {
+              const isEditable = (d.isClientOwned && !d.isAutoClient) || d.hasCustomMapping;
+              const isEditing = editingRegularizado === d.normKey;
+              return (
+                <React.Fragment key={d.normKey}>
+                  <div className="dcov-completed-row">
+                    {d.name}
+                    {d.hasCustomMapping && d.mappedToName && (
+                      <span
+                        className={`dcov-custom-badge${d.isFreeMapping ? ' dcov-custom-badge--free' : ''}`}
+                        title={d.isFreeMapping
+                          ? `Mapeamento livre: "${d.name}" → "${d.mappedToName}"`
+                          : `Conectado à disciplina Otus "${d.mappedToName}"`}
+                      >
+                        <LinkIcon /> {d.mappedToName}
+                      </span>
+                    )}
+                    <div className="dcov-completed-checks">
+                      {d.isAutoOtus && (
+                        <span className="dcov-auto-badge" title="Detectado automaticamente como Otus">Auto (Otus)</span>
+                      )}
+                      {d.isClientOwned && (
+                        <span className="dcov-client-badge" title={d.isAutoClient ? 'Detectado automaticamente pelo nome' : 'Responsabilidade do cliente'}>
+                          {d.isAutoClient ? 'Auto (Cliente)' : 'Cliente'}
+                        </span>
+                      )}
+                      <span className="dcov-mini-check" title="Smartsheet"><CheckIcon size={12} /></span>
+                      <span className="dcov-mini-check" title="ConstruFlow"><CheckIcon size={12} /></span>
+                      <span className="dcov-mini-check" title="Otus"><CheckIcon size={12} /></span>
+                      {isEditable && (
+                        <button
+                          className="dcov-btn-edit"
+                          onClick={() => setEditingRegularizado(isEditing ? null : d.normKey)}
+                          title="Editar vínculos"
+                          aria-label={`Editar vínculos de ${d.name}`}
+                        >
+                          <PencilIcon />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {isEditing && (
+                    <div className="dcov-regularizado-edit-row">
+                      {d.isClientOwned && !d.isAutoClient && (
+                        <button
+                          className="dcov-btn-secondary"
+                          onClick={() => handleRemoveAllMappings(d.allMappingIds || (d.mappingId ? [d.mappingId] : []))}
+                        >
+                          <CloseIcon /> Remover Cliente
+                        </button>
+                      )}
+                      {d.hasCustomMapping && (
+                        <>
+                          <button
+                            className="dcov-btn-secondary"
+                            onClick={() => handleRemoveAllMappings(d.allMappingIds || (d.mappingId ? [d.mappingId] : []))}
+                          >
+                            <CloseIcon /> Remover vínculo
+                          </button>
+                          <button
+                            className="dcov-btn-secondary"
+                            onClick={() => {
+                              setEditingRegularizado(null);
+                              setExpandedMapping(d.normKey);
+                            }}
+                          >
+                            <LinkIcon /> Vincular a outra
+                          </button>
+                        </>
+                      )}
+                      <button
+                        className="dcov-mapping-btn dcov-mapping-btn--cancel"
+                        onClick={() => setEditingRegularizado(null)}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
                   )}
-                  {d.isClientOwned && (
-                    <span className="dcov-client-badge" title={d.isAutoClient ? 'Detectado automaticamente pelo nome' : 'Responsabilidade do cliente'}>
-                      {d.isAutoClient ? 'Auto (Cliente)' : 'Cliente'}
-                    </span>
-                  )}
-                  <span className="dcov-mini-check" title="Smartsheet"><CheckIcon size={12} /></span>
-                  <span className="dcov-mini-check" title="ConstruFlow"><CheckIcon size={12} /></span>
-                  <span className="dcov-mini-check" title="Otus"><CheckIcon size={12} /></span>
-                </div>
-              </div>
-            ))}
+                  {expandedMapping === d.normKey && renderMappingForm(d)}
+                </React.Fragment>
+              );
+            })}
           </CollapsibleSection>
         )}
 

@@ -42,14 +42,10 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
 
   const isAdmin = hasFullAccess;
   const userTeam = effectiveUser?.team_name || null;
+  const userEmail = effectiveUser?.email?.toLowerCase();
 
-  // Auto-set team for leaders
-  useEffect(() => {
-    if (!isAdmin && userTeam) {
-      setSelectedTeam(userTeam);
-    }
-  }, [isAdmin, userTeam]);
-
+  // Portfolio já é filtrado server-side para líderes.
+  // O dropdown de time só aparece para admins (que selecionam manualmente).
   // Extract unique teams from portfolio
   const uniqueTeams = useMemo(() => {
     return [...new Set(portfolio.map(p => p.nome_time).filter(Boolean))].sort((a, b) =>
@@ -94,7 +90,17 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
     return () => { cancelled = true; };
   }, [ano]);
 
-  // Compliance calculation
+  // Per-user responded set
+  const userRespondedCodes = useMemo(() => {
+    if (!userEmail) return new Set();
+    return new Set(
+      percepcoes
+        .filter(p => p.respondente_email?.toLowerCase() === userEmail)
+        .map(p => p.project_code)
+    );
+  }, [percepcoes, userEmail]);
+
+  // Compliance calculation (any response = filled for compliance)
   const { activeProjects, filledProjects, pendingProjects, compliancePercent } = useMemo(() => {
     const teamFilter = selectedTeam || null;
     const active = portfolio.filter(
@@ -125,6 +131,20 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
       compliancePercent: pct,
     };
   }, [portfolio, percepcoes, selectedTeam]);
+
+  // User-pending projects (pending for the current user regardless of compliance)
+  const userPendingCodes = useMemo(() => {
+    return activeProjects
+      .filter(p => !userRespondedCodes.has(p.project_name))
+      .map(p => p.project_name);
+  }, [activeProjects, userRespondedCodes]);
+
+  // Portfolio map for revenda logic
+  const portfolioMap = useMemo(() => {
+    const map = new Map();
+    portfolio.forEach(p => map.set(p.project_name, { client: p.client }));
+    return map;
+  }, [portfolio]);
 
   // Timeline chart data — monthly ativos vs preenchidos
   const chartData = useMemo(() => {
@@ -211,7 +231,14 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
   const handleSubmit = async (payload) => {
     setSubmitting(true);
     try {
-      await axios.post(`${API_URL}/api/cs/percepcao-equipe`, payload, { withCredentials: true });
+      const codes = payload.project_codes || [payload.project_code];
+      for (const code of codes) {
+        await axios.post(
+          `${API_URL}/api/cs/percepcao-equipe`,
+          { ...payload, project_code: code, project_codes: undefined },
+          { withCredentials: true }
+        );
+      }
       setShowForm(false);
       setFormProjeto(null);
       fetchPercepcoes();
@@ -225,6 +252,11 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
 
   const handleFill = (projectCode) => {
     setFormProjeto(projectCode);
+    setShowForm(true);
+  };
+
+  const handleFillAllPending = () => {
+    setFormProjeto(null);
     setShowForm(true);
   };
 
@@ -322,9 +354,19 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
           {/* Pending projects */}
           {pendingProjects.length > 0 && (
             <div className="percepcao-section">
-              <h3 className="percepcao-section-title" style={{ color: '#dc2626' }}>
-                Pendentes ({pendingProjects.length})
-              </h3>
+              <div className="percepcao-section-title-row">
+                <h3 className="percepcao-section-title" style={{ color: '#dc2626' }}>
+                  Pendentes ({pendingProjects.length})
+                </h3>
+                {userPendingCodes.length > 1 && (
+                  <button
+                    className="percepcao-btn-primary percepcao-btn-sm"
+                    onClick={handleFillAllPending}
+                  >
+                    Preencher Pendentes
+                  </button>
+                )}
+              </div>
               <div className="percepcao-project-list">
                 {pendingProjects.map(p => (
                   <div key={p.project_name} className="percepcao-project-row percepcao-project-pending">
@@ -354,6 +396,7 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
                 {filledProjects.map(p => {
                   const perc = getProjectPercepcao(p.project_name);
                   const isExpanded = expandedProject === p.project_name;
+                  const userResponded = userRespondedCodes.has(p.project_name);
                   return (
                     <div key={p.project_name} className="percepcao-project-row-wrap">
                       <div
@@ -364,9 +407,6 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
                         <div className="percepcao-project-info">
                           <span className="percepcao-project-dot" style={{ background: '#15803d' }} />
                           <span className="percepcao-project-code">{p.project_name}</span>
-                          {p.project_name && (
-                            <span className="percepcao-project-name">{p.project_name}</span>
-                          )}
                         </div>
                         <div className="percepcao-project-meta">
                           {perc?.isp != null && (
@@ -376,6 +416,14 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
                             >
                               ISP: {perc.isp.toFixed(2)}
                             </span>
+                          )}
+                          {!userResponded && (
+                            <button
+                              className="percepcao-btn-secondary percepcao-btn-sm"
+                              onClick={(e) => { e.stopPropagation(); handleFill(p.project_name); }}
+                            >
+                              Preencher
+                            </button>
                           )}
                           <span className="percepcao-expand-icon">{isExpanded ? '\u25BE' : '\u25B8'}</span>
                         </div>
@@ -421,7 +469,11 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
         onClose={() => { setShowForm(false); setFormProjeto(null); }}
         onSubmit={handleSubmit}
         fixedProjeto={formProjeto}
+        projetos={formProjeto ? [formProjeto] : userPendingCodes}
         submitting={submitting}
+        percepcoes={percepcoes}
+        portfolioMap={portfolioMap}
+        userRespondedCodes={userRespondedCodes}
       />
     </div>
   );

@@ -75,6 +75,10 @@ function EquipeProjetistasPanel({
   // --- Estado busca ---
   const [searchTerm, setSearchTerm] = useState('');
 
+  // --- Estado seleção + cópia ---
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [copyFeedback, setCopyFeedback] = useState(''); // 'tabela' | 'emails' | ''
+
   // Filtro de busca
   const filteredEquipe = useMemo(() => {
     if (!searchTerm.trim()) return equipe;
@@ -383,8 +387,91 @@ function EquipeProjetistasPanel({
     }
   };
 
+  // Items selecionáveis (ativos com email)
+  const selectableItems = useMemo(() =>
+    filteredEquipe.filter(item => item.status !== 'demitido' && (item.email || item.contact?.email)),
+    [filteredEquipe]
+  );
+
+  const allSelected = selectableItems.length > 0 && selectableItems.every(item => selectedIds.has(item.id));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(selectableItems.map(item => item.id)));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const copyToClipboard = async (text, feedbackType) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopyFeedback(feedbackType);
+    setTimeout(() => setCopyFeedback(''), 2500);
+  };
+
+  const handleCopyTable = () => {
+    const headers = ['Disciplina', 'Empresa', 'Contato', 'Cargo', 'Email', 'Telefone', 'Detalhes'];
+    const rows = filteredEquipe
+      .filter(item => item.status !== 'demitido')
+      .map(item => [
+        item.discipline?.discipline_name || '-',
+        item.company?.name || '-',
+        item.contact?.name || '-',
+        item.position || item.contact?.position || '-',
+        item.email || item.contact?.email || '-',
+        item.phone || item.contact?.phone || '-',
+        item.discipline_detail || '-',
+      ].join('\t'));
+    const tsv = [headers.join('\t'), ...rows].join('\n');
+    copyToClipboard(tsv, 'tabela');
+  };
+
+  const handleCopyEmails = () => {
+    const emails = new Set();
+    filteredEquipe.forEach(item => {
+      if (selectedIds.has(item.id)) {
+        const email = item.email || item.contact?.email;
+        if (email) emails.add(email);
+      }
+    });
+    const emailList = [...emails].join('; ');
+    copyToClipboard(emailList, `${emails.size} email${emails.size > 1 ? 's' : ''}`);
+    setSelectedIds(new Set());
+  };
+
   return (
     <div className="ecli-panel">
+      {/* Toast de cópia */}
+      {copyFeedback && (
+        <div className="ecli-request-toast">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <span>{copyFeedback === 'tabela' ? 'Tabela copiada!' : `${copyFeedback} copiado(s)!`}</span>
+        </div>
+      )}
+
       {/* Toast de sucesso */}
       {requestSuccess && (
         <div className="ecli-request-toast">
@@ -416,7 +503,25 @@ function EquipeProjetistasPanel({
               )}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {selectedIds.size > 0 && (
+              <button className="ecli-add-btn" onClick={handleCopyEmails} title="Copiar emails selecionados">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                Copiar {selectedIds.size} Email{selectedIds.size > 1 ? 's' : ''}
+              </button>
+            )}
+            {filteredEquipe.length > 0 && (
+              <button className="ecli-add-btn ecli-copy-btn" onClick={handleCopyTable} title="Copiar tabela como TSV">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                Copiar Tabela
+              </button>
+            )}
             <button className="ecli-add-btn" onClick={handleAdd}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -486,6 +591,15 @@ function EquipeProjetistasPanel({
           <table className="ecli-table">
             <thead>
               <tr>
+                <th className="ecli-th-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    title="Selecionar todos com email"
+                    disabled={selectableItems.length === 0}
+                  />
+                </th>
                 <th>Disciplina</th>
                 <th>Empresa</th>
                 <th>Contato</th>
@@ -499,7 +613,7 @@ function EquipeProjetistasPanel({
             <tbody>
               {filteredEquipe.length === 0 && !searchTerm ? (
                 <tr>
-                  <td colSpan={8} className="ecli-empty-row">
+                  <td colSpan={9} className="ecli-empty-row">
                     Nenhuma disciplina cadastrada
                   </td>
                 </tr>
@@ -517,8 +631,20 @@ function EquipeProjetistasPanel({
                     ? `Demitido em ${item.demitido_em ? new Date(item.demitido_em).toLocaleDateString('pt-BR') : '-'}${item.motivo_demissao ? ` — ${item.motivo_demissao}` : ''}`
                     : '';
 
+                  const hasEmail = !!(email);
+                  const isSelectable = !isDismissed && hasEmail;
+
                   return (
                     <tr key={item.id} className={isDismissed ? 'ecli-row--demitido' : ''} title={dismissedTooltip}>
+                      <td className="ecli-td-checkbox">
+                        {isSelectable ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(item.id)}
+                            onChange={() => toggleSelect(item.id)}
+                          />
+                        ) : null}
+                      </td>
                       <td>
                         <div className="ecli-discipline-cell">
                           <span className={`ecli-dot ecli-dot--${completeness}`} />
