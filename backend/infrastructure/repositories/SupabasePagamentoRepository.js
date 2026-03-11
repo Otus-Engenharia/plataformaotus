@@ -250,6 +250,8 @@ class SupabasePagamentoRepository extends PagamentoRepository {
 
     if (since) query = query.gt('created_at', since);
     if (excludeEmail) query = query.neq('edited_by_email', excludeEmail);
+    // Exclude corrupted smartsheet_change entries without old_value (NULL or empty string)
+    query = query.or('and(old_value.not.is.null,old_value.neq.),action.neq.smartsheet_change');
 
     const { data, count, error } = await query.range(offset, offset + limit - 1);
     if (error) throw new Error(`Erro ao buscar change log global: ${error.message}`);
@@ -266,6 +268,8 @@ class SupabasePagamentoRepository extends PagamentoRepository {
     if (excludeEmail) {
       query = query.neq('edited_by_email', excludeEmail);
     }
+    // Exclude corrupted smartsheet_change entries without old_value (NULL or empty string)
+    query = query.or('and(old_value.not.is.null,old_value.neq.),action.neq.smartsheet_change');
 
     const { data, count, error } = await query;
     if (error) throw new Error(`Erro ao contar changelog: ${error.message}`);

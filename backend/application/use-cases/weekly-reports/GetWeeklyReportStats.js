@@ -86,7 +86,7 @@ class GetWeeklyReportStats {
 
       if (isCurrentWeek) {
         // Semana atual: SEMPRE calcular com dados em tempo real
-        const generated = stat?.generated || 0;
+        const generated = Math.min(stat?.generated || 0, totalReportEnabled);
         const pctEnabled = totalAllActive > 0
           ? Math.round((totalReportEnabled / totalAllActive) * 1000) / 10
           : 0;
@@ -108,19 +108,51 @@ class GetWeeklyReportStats {
           coverage: pctSent,
         });
       } else if (snapshot) {
-        // Semanas passadas: snapshot wins (dados históricos confiáveis)
+        // Semanas passadas: snapshot como base, mas corrige se inflado por duplicatas históricas
+        const liveGenerated = stat?.generated || 0;
+        let reportsSent = snapshot.reports_sent;
+        const reportEnabled = snapshot.projects_report_enabled;
+
+        // Auto-corrige com live data se disponível
+        if (liveGenerated > 0 && liveGenerated < reportsSent) {
+          reportsSent = liveGenerated;
+        }
+
+        // Hard cap: nunca mais enviados do que habilitados
+        if (reportEnabled > 0 && reportsSent > reportEnabled) {
+          reportsSent = reportEnabled;
+        }
+
+        const pctReportsSent = reportEnabled > 0
+          ? Math.round((reportsSent / reportEnabled) * 1000) / 10
+          : 0;
+
+        // Atualiza snapshot se corrigido
+        if (reportsSent !== snapshot.reports_sent) {
+          this.#reportRepository.saveSnapshot({
+            weekYear, weekNumber,
+            snapshotDate: snapshot.snapshot_date,
+            totalActiveProjects: snapshot.total_active_projects,
+            projectsReportEnabled: reportEnabled,
+            reportsSent,
+            pctReportEnabled: parseFloat(snapshot.pct_report_enabled) || 0,
+            pctReportsSent,
+            leaderName: nomeTime,
+          }).catch(() => {});
+        }
+
         result.push({
           weekYear,
           weekNumber,
           weekText: stat?.weekText || GetWeeklyReportStats.getWeekDateRange(weekYear, weekNumber),
           totalActive: snapshot.total_active_projects,
-          reportEnabled: snapshot.projects_report_enabled,
-          reportsSent: snapshot.reports_sent,
+          reportEnabled,
+          reportsSent,
           pctReportEnabled: parseFloat(snapshot.pct_report_enabled) || 0,
-          pctReportsSent: parseFloat(snapshot.pct_reports_sent) || 0,
-          generated: snapshot.reports_sent,
-          active: snapshot.projects_report_enabled,
-          coverage: parseFloat(snapshot.pct_reports_sent) || 0,
+          pctReportsSent,
+          generated: reportsSent,
+          active: reportEnabled,
+          coverage: pctReportsSent,
         });
       } else {
         // Semana passada sem snapshot: sem dados confiáveis

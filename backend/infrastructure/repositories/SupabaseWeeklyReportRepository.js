@@ -122,7 +122,7 @@ class SupabaseWeeklyReportRepository extends WeeklyReportRepository {
       query = query.in('project_code', projectCodes);
     }
 
-    const { data, error } = await query;
+    const { data, error } = await query.limit(10000);
 
     if (error) {
       throw new Error(`Erro ao buscar estatísticas: ${error.message}`);
@@ -140,7 +140,7 @@ class SupabaseWeeklyReportRepository extends WeeklyReportRepository {
           projects: new Set(),
         });
       }
-      grouped.get(key).projects.add(row.project_code);
+      grouped.get(key).projects.add((row.project_code || '').trim());
     }
 
     return Array.from(grouped.values()).map(g => ({
@@ -255,7 +255,7 @@ class SupabaseWeeklyReportRepository extends WeeklyReportRepository {
       query = query.in('project_code', projectCodes);
     }
 
-    const { data, error } = await query;
+    const { data, error } = await query.limit(10000);
 
     if (error) {
       throw new Error(`Erro ao buscar log semanal: ${error.message}`);
