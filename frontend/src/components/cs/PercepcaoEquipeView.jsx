@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,6 +10,9 @@ import PercepcaoFormDialog from './PercepcaoFormDialog';
 import PercepcaoImportDialog from './PercepcaoImportDialog';
 import '../../styles/PercepcaoEquipe.css';
 
+const ACTIVE_STATUSES = ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'];
+const isActive = (status) => ACTIVE_STATUSES.includes((status || '').toLowerCase());
+
 function PercepcaoEquipeView() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'director';
@@ -19,10 +22,9 @@ function PercepcaoEquipeView() {
   const [filters, setFilters] = useState({ ano: String(now.getFullYear()), mes: '', projeto: '' });
   const [data, setData] = useState([]);
   const [stats, setStats] = useState(null);
-  const [compliance, setCompliance] = useState(null);
+  const [portfolio, setPortfolio] = useState([]);
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [complianceLoading, setComplianceLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -59,27 +61,72 @@ function PercepcaoEquipeView() {
     }
   }, [filters.ano, filters.mes, filters.projeto]);
 
-  const fetchCompliance = useCallback(async () => {
-    if (!filters.mes || !filters.ano) {
-      setCompliance(null);
-      return;
+  // Fetch portfolio once on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/portfolio`, { withCredentials: true });
+        setPortfolio(res.data || []);
+      } catch (err) {
+        console.error('Erro ao buscar portfolio:', err);
+      }
+    })();
+  }, []);
+
+  // Calculate compliance client-side (same pattern as PercepcaoProjetoTab)
+  const compliance = useMemo(() => {
+    if (!filters.mes || !filters.ano || portfolio.length === 0) return null;
+
+    // Deduplicate active projects by project_code_norm
+    const seen = new Set();
+    const uniqueActive = [];
+    for (const p of portfolio) {
+      if (isActive(p.status) && p.project_code_norm && !seen.has(p.project_code_norm)) {
+        seen.add(p.project_code_norm);
+        uniqueActive.push(p);
+      }
     }
-    setComplianceLoading(true);
-    try {
-      const res = await axios.get(
-        `${API_URL}/api/cs/percepcao-equipe/compliance?mes=${filters.mes}&ano=${filters.ano}`,
-        { withCredentials: true }
-      );
-      setCompliance(res.data?.data || null);
-    } catch (err) {
-      console.error('Erro ao buscar compliance:', err);
-    } finally {
-      setComplianceLoading(false);
+
+    // Filter percepcoes for selected month/year
+    const monthPercepcoes = data.filter(r => {
+      const rMes = String(r.mes);
+      const rAno = String(r.ano);
+      return rMes === String(filters.mes) && rAno === String(filters.ano);
+    });
+    const respondedNames = new Set(monthPercepcoes.map(r => r.projeto_codigo));
+
+    // Compare using project_name (full name matches projeto_codigo)
+    const preenchidosMap = {};
+    const pendentesMap = {};
+
+    for (const p of uniqueActive) {
+      const team = p.nome_time || 'Sem time';
+      const label = p.project_name || p.project_code_norm;
+      if (respondedNames.has(p.project_name)) {
+        if (!preenchidosMap[team]) preenchidosMap[team] = [];
+        preenchidosMap[team].push(label);
+      } else {
+        if (!pendentesMap[team]) pendentesMap[team] = [];
+        pendentesMap[team].push(label);
+      }
     }
-  }, [filters.mes, filters.ano]);
+
+    const totalPreenchidos = Object.values(preenchidosMap).reduce((s, arr) => s + arr.length, 0);
+    const totalPendentes = Object.values(pendentesMap).reduce((s, arr) => s + arr.length, 0);
+    const totalAtivos = totalPreenchidos + totalPendentes;
+    const percentual = totalAtivos > 0 ? Math.round((totalPreenchidos / totalAtivos) * 100) : 0;
+
+    return {
+      total_ativos: totalAtivos,
+      total_preenchidos: totalPreenchidos,
+      total_pendentes: totalPendentes,
+      percentual,
+      preenchidos: preenchidosMap,
+      pendentes: pendentesMap,
+    };
+  }, [portfolio, data, filters.mes, filters.ano]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { if (activeTab === 'compliance') fetchCompliance(); }, [activeTab, fetchCompliance]);
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);
@@ -171,7 +218,7 @@ function PercepcaoEquipeView() {
       )}
 
       {activeTab === 'compliance' && (
-        <PercepcaoComplianceView compliance={compliance} loading={complianceLoading} />
+        <PercepcaoComplianceView compliance={compliance} loading={loading} />
       )}
 
       <PercepcaoFormDialog

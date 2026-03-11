@@ -528,7 +528,8 @@ export default function SectorOKRs() {
     ));
 
     try {
-      await axios.put(`/api/okrs/${okrId}`, { peso: weight }, { withCredentials: true });
+      const putRes = await axios.put(`/api/okrs/${okrId}`, { peso: weight }, { withCredentials: true });
+      if (!putRes.data.success) throw new Error(putRes.data.error || 'Erro ao salvar peso');
       // Refetch weight sum
       const res = await axios.get(`/api/okrs/sector-weight-sum?setor_id=${id}&quarter=${currentQuarterValue}`, { withCredentials: true });
       if (res.data.success) {

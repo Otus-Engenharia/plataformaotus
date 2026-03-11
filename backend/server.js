@@ -40,6 +40,7 @@ import {
   fetchPositionIndicators, createPositionIndicator, updatePositionIndicator, deletePositionIndicator, syncPositionIndicators,
   fetchIndicadoresIndividuais, getIndicadorById, createIndicadorFromTemplate, updateIndicadorIndividual,
   fetchCheckIns, getCheckInById, createCheckIn, updateCheckIn, deleteCheckIn,
+  fetchIndicatorComments, createIndicatorComment, deleteIndicatorComment,
   fetchRecoveryPlans, createRecoveryPlan, updateRecoveryPlan, deleteRecoveryPlan,
   fetchPeopleWithScores, getPersonById, fetchTeam,
   fetchUsersWithRoles, updateUserPosition, updateUserSector, updateUserRole, updateUserStatus, updateUserLeader, updateUserPhone, getUserSectorByEmail, getUserByEmail, createUser,
@@ -6444,6 +6445,50 @@ app.delete('/api/ind/check-ins/:checkInId', requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('❌ Erro ao excluir check-in:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- COMENTÁRIOS DE INDICADORES ---
+
+/**
+ * Rota: POST /api/ind/indicators/:id/comments
+ * Cria um comentário no indicador
+ */
+app.post('/api/ind/indicators/:id/comments', requireAuth, async (req, res) => {
+  try {
+    const { texto } = req.body;
+    if (!texto || !texto.trim()) {
+      return res.status(400).json({ success: false, error: 'Texto do comentário é obrigatório' });
+    }
+
+    const effectiveUser = getEffectiveUser(req);
+    const comment = await createIndicatorComment({
+      indicador_id: req.params.id,
+      texto: texto.trim(),
+      user_name: effectiveUser.name || effectiveUser.email,
+      user_email: effectiveUser.email,
+    });
+
+    await logAction(req, 'create', 'indicator_comment', comment.id, `Comentário criado no indicador ${req.params.id}`);
+    res.json({ success: true, data: comment });
+  } catch (error) {
+    console.error('❌ Erro ao criar comentário de indicador:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: DELETE /api/ind/indicators/:id/comments/:commentId
+ * Deleta um comentário do indicador
+ */
+app.delete('/api/ind/indicators/:id/comments/:commentId', requireAuth, async (req, res) => {
+  try {
+    await deleteIndicatorComment(req.params.commentId);
+    await logAction(req, 'delete', 'indicator_comment', req.params.commentId, `Comentário excluído do indicador ${req.params.id}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Erro ao deletar comentário de indicador:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

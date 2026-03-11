@@ -270,6 +270,23 @@
   border: 1px solid rgba(21, 128, 61, 0.25);
 }
 
+.percepcao-compliance-team-group {
+  margin-bottom: 0.75rem;
+}
+
+.percepcao-compliance-team-group:last-child {
+  margin-bottom: 0;
+}
+
+.percepcao-compliance-team-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary, #444444);
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 /* ---- Dialog ---- */
 .percepcao-dialog-overlay {
   position: fixed;

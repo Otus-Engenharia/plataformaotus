@@ -266,6 +266,7 @@ export default function CheckInMeeting() {
   const [initiativesProgress, setInitiativesProgress] = useState({});
   const [actionPlans, setActionPlans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
@@ -359,6 +360,7 @@ export default function CheckInMeeting() {
 
     } catch (err) {
       console.error('Error fetching check-in data:', err);
+      setFetchError('Erro ao carregar dados do check-in. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -752,6 +754,19 @@ export default function CheckInMeeting() {
         <div className="chk-loading">
           <div className="chk-loading__spinner" />
           <span className="chk-loading__text">Carregando dados...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="chk-dashboard">
+        <div className="chk-loading">
+          <span className="chk-loading__text" style={{ color: '#dc2626' }}>{fetchError}</span>
+          <button onClick={() => { setFetchError(null); fetchData(); }} style={{ marginTop: 12, padding: '8px 16px', cursor: 'pointer' }}>
+            Tentar novamente
+          </button>
         </div>
       </div>
     );
