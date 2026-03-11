@@ -50,7 +50,7 @@ class Todo {
     this.#description = description?.trim() || null;
     this.#status = status instanceof TaskStatus ? status : new TaskStatus(status);
     this.#priority = priority instanceof TaskPriority ? priority : new TaskPriority(priority);
-    this.#dueDate = dueDate ? new Date(dueDate) : null;
+    this.#dueDate = dueDate ? String(dueDate).slice(0, 10) : null;
     this.#assignee = assignee || null;
     this.#createdBy = createdBy || null;
     this.#projectId = projectId || null;
@@ -84,10 +84,8 @@ class Todo {
   get isOverdue() {
     if (!this.#dueDate || this.isClosed) return false;
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(this.#dueDate);
-    due.setHours(23, 59, 59, 999);
-    return today > due;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    return todayStr > this.#dueDate;
   }
 
   isAssignedTo(userId) {
@@ -179,13 +177,11 @@ class Todo {
     }
 
     if (dueDate !== undefined) {
-      const newDueDate = dueDate ? new Date(dueDate) : null;
+      const newDueDate = dueDate ? String(dueDate).slice(0, 10) : null;
 
       // Auto-desvincula da agenda quando o dia muda
       if (this.#agendaTaskId) {
-        const oldDay = this.#dueDate?.toISOString().slice(0, 10) || null;
-        const newDay = newDueDate?.toISOString().slice(0, 10) || null;
-        if (oldDay !== newDay) {
+        if (this.#dueDate !== newDueDate) {
           this.#agendaTaskId = null;
         }
       }
@@ -241,7 +237,7 @@ class Todo {
       description: this.#description,
       status: this.#status.value,
       priority: this.#priority.value,
-      due_date: this.#dueDate?.toISOString().slice(0, 10) || null,
+      due_date: this.#dueDate || null,
       assignee: this.#assignee,
       created_by: this.#createdBy,
       project_id: this.#projectId,
@@ -269,7 +265,7 @@ class Todo {
       priority: this.#priority.value,
       priority_label: this.#priority.label,
       priority_color: this.#priority.color,
-      due_date: this.#dueDate?.toISOString().slice(0, 10) || null,
+      due_date: this.#dueDate || null,
       assignee: this.#assignee,
       assignee_name: assigneeData?.name || null,
       created_by: this.#createdBy,
