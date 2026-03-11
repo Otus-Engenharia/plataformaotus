@@ -58,7 +58,8 @@ export const VIEWS = {
       'duracao_aditivo_total_meses',
       'duracao_total_meses',
       'qtd_pausas',
-      'total_dias_pausa'
+      'total_dias_pausa',
+      'quantidade_ciclos'
     ]
   },
   empreendimento: {
