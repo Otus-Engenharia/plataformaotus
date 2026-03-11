@@ -156,8 +156,10 @@ class SupabaseCustomerSuccessRepository extends CustomerSuccessRepository {
       query = query.eq('snapshot_date', snapshotDate);
     } else if (month != null && year != null) {
       const paddedMonth = String(month).padStart(2, '0');
-      const prefix = `${year}-${paddedMonth}`;
-      query = query.like('snapshot_date', `${prefix}%`);
+      const startDate = `${year}-${paddedMonth}-01`;
+      const lastDay = new Date(Number(year), Number(month), 0).getDate();
+      const endDate = `${year}-${paddedMonth}-${String(lastDay).padStart(2, '0')}`;
+      query = query.gte('snapshot_date', startDate).lte('snapshot_date', endDate);
     }
 
     if (cliente) {
@@ -214,12 +216,15 @@ class SupabaseCustomerSuccessRepository extends CustomerSuccessRepository {
 
   async getSnapshotStats({ month, year }) {
     const paddedMonth = String(month).padStart(2, '0');
-    const prefix = `${year}-${paddedMonth}`;
+    const startDate = `${year}-${paddedMonth}-01`;
+    const lastDay = new Date(Number(year), Number(month), 0).getDate();
+    const endDate = `${year}-${paddedMonth}-${String(lastDay).padStart(2, '0')}`;
 
     const { data, error } = await this.#supabase
       .from(SNAPSHOTS_TABLE)
       .select('cliente, status_cliente, status_projeto')
-      .like('snapshot_date', `${prefix}%`);
+      .gte('snapshot_date', startDate)
+      .lte('snapshot_date', endDate);
 
     if (error) {
       console.warn(`Aviso ao buscar estatísticas de snapshots: ${error.message}`);

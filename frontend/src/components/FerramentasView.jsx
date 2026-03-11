@@ -94,7 +94,7 @@ function extractGoogleId(value) {
 
 function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
   const { canEditPortfolio } = useAuth();
-  const [activeTab, setActiveTab] = useState('config');
+  const [activeTab, setActiveTab] = useState('status');
   const [saving, setSaving] = useState({});
   const [editingField, setEditingField] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -498,6 +498,17 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
         <div className="ftv-tabs-header">
           <button
             type="button"
+            onClick={() => setActiveTab('status')}
+            className={`ftv-tab ${activeTab === 'status' ? 'active' : ''}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+            Status
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('config')}
             className={`ftv-tab ${activeTab === 'config' ? 'active' : ''}`}
           >
@@ -525,6 +536,170 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
         </div>
 
         <div className="ftv-tabs-content">
+          {/* Tab: Status */}
+          {activeTab === 'status' && (
+            <div className="ftv-tab-panel">
+              {/* Seção: Status dos Bots da Equipe */}
+              {activeProjects.length > 0 && (
+                <section className="ftv-section">
+                  <h4 className="ftv-section-title">Status dos Bots da Equipe <span className="ftv-bot-status-badge">{activeProjects.length}</span></h4>
+                  <div className="wr-status-table-wrapper">
+                    <table className="wr-status-table">
+                      <thead>
+                        <tr>
+                          <th>Projeto</th>
+                          <th className="wr-status-table-center">WhatsApp</th>
+                          <th className="wr-status-table-center">Relatório Semanal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeProjects.map((project) => {
+                          const isSelected = project.project_code_norm === selectedProjectId;
+                          const whatsappAtivo = project.bot_whatsapp_status === 'ativo';
+                          const relatorioAtivo = project.relatorio_semanal_status === 'ativo';
+                          return (
+                            <tr
+                              key={project.project_code_norm}
+                              className={isSelected ? 'wr-status-row-current' : ''}
+                            >
+                              <td>
+                                <div className="wr-status-project-name">
+                                  {project.nome_comercial || project.project_name || project.project_code_norm}
+                                </div>
+                                <div className="wr-status-project-code">{project.project_code_norm}</div>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${whatsappAtivo ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {whatsappAtivo ? 'Ativo' : 'Desativado'}
+                                </span>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${relatorioAtivo ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {relatorioAtivo ? 'Ativo' : 'Desativado'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {/* Seção: Plataformas da Equipe */}
+              {activeProjects.length > 0 && (
+                <section className="ftv-section">
+                  <h4 className="ftv-section-title">Plataformas da Equipe <span className="ftv-bot-status-badge">{activeProjects.length}</span></h4>
+                  <div className="wr-status-table-wrapper">
+                    <table className="wr-status-table">
+                      <thead>
+                        <tr>
+                          <th>Projeto</th>
+                          <th className="wr-status-table-center">Comunicação</th>
+                          <th className="wr-status-table-center">ACD</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeProjects.map((project) => {
+                          const isSelected = project.project_code_norm === selectedProjectId;
+                          const comValue = project.plataforma_comunicacao;
+                          const acdValue = project.plataforma_acd;
+                          const comField = PLATFORM_FIELDS.find(f => f.key === 'plataforma_comunicacao');
+                          const acdField = PLATFORM_FIELDS.find(f => f.key === 'plataforma_acd');
+                          const comLabel = comValue && comField
+                            ? (comField.options.find(o => o.value === comValue)?.label || comValue)
+                            : null;
+                          const acdLabel = acdValue && acdField
+                            ? (acdField.options.find(o => o.value === acdValue)?.label || acdValue)
+                            : null;
+                          return (
+                            <tr
+                              key={project.project_code_norm}
+                              className={isSelected ? 'wr-status-row-current' : ''}
+                            >
+                              <td>
+                                <div className="wr-status-project-name">
+                                  {project.nome_comercial || project.project_name || project.project_code_norm}
+                                </div>
+                                <div className="wr-status-project-code">{project.project_code_norm}</div>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${comLabel ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {comLabel || 'Não definido'}
+                                </span>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${acdLabel ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {acdLabel || 'Não definido'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {/* Seção: Equipe & Nomenclatura da Equipe */}
+              {activeProjects.length > 0 && (
+                <section className="ftv-section">
+                  <h4 className="ftv-section-title">Equipe &amp; Nomenclatura da Equipe <span className="ftv-bot-status-badge">{activeProjects.length}</span></h4>
+                  <div className="wr-status-table-wrapper">
+                    <table className="wr-status-table">
+                      <thead>
+                        <tr>
+                          <th>Projeto</th>
+                          <th className="wr-status-table-center">Equipe</th>
+                          <th className="wr-status-table-center">Nomenclatura</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeProjects.map((project) => {
+                          const isSelected = project.project_code_norm === selectedProjectId;
+                          const status = equipeNomStatus[project.project_code_norm];
+                          const equipePct = status?.equipe_percentage;
+                          const hasNomenclatura = status?.has_nomenclatura || false;
+                          return (
+                            <tr
+                              key={project.project_code_norm}
+                              className={isSelected ? 'wr-status-row-current' : ''}
+                            >
+                              <td>
+                                <div className="wr-status-project-name">
+                                  {project.nome_comercial || project.project_name || project.project_code_norm}
+                                </div>
+                                <div className="wr-status-project-code">{project.project_code_norm}</div>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${equipePct === 100 ? 'wr-kpi-pill-green' : equipePct > 0 ? 'wr-kpi-pill-yellow' : 'wr-kpi-pill-red'}`}>
+                                  {equipePct != null ? `${equipePct}%` : '—'}
+                                </span>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${hasNomenclatura ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {hasNomenclatura ? 'Preenchido' : 'Não preenchido'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {activeProjects.length === 0 && (
+                <div style={{ color: '#737373', fontSize: '13px', padding: '24px 0', textAlign: 'center' }}>
+                  Nenhum projeto ativo na equipe para exibir status.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tab: Configuração */}
           {activeTab === 'config' && (
             <div className="ftv-tab-panel">
@@ -604,69 +779,6 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                 </div>
               </section>
 
-              {/* Seção: Status dos Bots da Equipe */}
-              {activeProjects.length > 0 && (
-                <section className="ftv-section ftv-bot-status-section">
-                  <div
-                    className="ftv-bot-status-header"
-                    onClick={() => setBotStatusOpen(prev => !prev)}
-                  >
-                    <svg
-                      className={`ftv-bot-status-chevron ${botStatusOpen ? 'ftv-bot-status-chevron-open' : ''}`}
-                      width="16" height="16" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    >
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                    <h4 className="ftv-section-title" style={{ margin: 0 }}>Status dos Bots da Equipe</h4>
-                    <span className="ftv-bot-status-badge">{activeProjects.length}</span>
-                  </div>
-                  <div className={`ftv-bot-status-body ${botStatusOpen ? 'ftv-bot-status-body-open' : ''}`}>
-                    <div className="wr-status-table-wrapper">
-                      <table className="wr-status-table">
-                        <thead>
-                          <tr>
-                            <th>Projeto</th>
-                            <th className="wr-status-table-center">WhatsApp</th>
-                            <th className="wr-status-table-center">Relatório Semanal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activeProjects.map((project) => {
-                            const isSelected = project.project_code_norm === selectedProjectId;
-                            const whatsappAtivo = project.bot_whatsapp_status === 'ativo';
-                            const relatorioAtivo = project.relatorio_semanal_status === 'ativo';
-                            return (
-                              <tr
-                                key={project.project_code_norm}
-                                className={isSelected ? 'wr-status-row-current' : ''}
-                              >
-                                <td>
-                                  <div className="wr-status-project-name">
-                                    {project.nome_comercial || project.project_name || project.project_code_norm}
-                                  </div>
-                                  <div className="wr-status-project-code">{project.project_code_norm}</div>
-                                </td>
-                                <td className="wr-status-table-center">
-                                  <span className={`wr-kpi-pill ${whatsappAtivo ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
-                                    {whatsappAtivo ? 'Ativo' : 'Desativado'}
-                                  </span>
-                                </td>
-                                <td className="wr-status-table-center">
-                                  <span className={`wr-kpi-pill ${relatorioAtivo ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
-                                    {relatorioAtivo ? 'Ativo' : 'Desativado'}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </section>
-              )}
-
               {/* Seção: Ferramentas Internas */}
               <section className="ftv-section">
                 <h4 className="ftv-section-title">Ferramentas Internas</h4>
@@ -713,141 +825,6 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                   ))}
                 </div>
               </section>
-
-              {/* Seção: Plataformas da Equipe (colapsável) */}
-              {activeProjects.length > 0 && (
-                <section className="ftv-section ftv-bot-status-section">
-                  <div
-                    className="ftv-bot-status-header"
-                    onClick={() => setPlatformStatusOpen(v => !v)}
-                  >
-                    <svg
-                      className={`ftv-bot-status-chevron ${platformStatusOpen ? 'ftv-bot-status-chevron-open' : ''}`}
-                      width="16" height="16" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    >
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                    <h4 className="ftv-section-title" style={{ margin: 0 }}>Plataformas da Equipe</h4>
-                    <span className="ftv-bot-status-badge">{activeProjects.length}</span>
-                  </div>
-                  <div className={`ftv-bot-status-body ${platformStatusOpen ? 'ftv-bot-status-body-open' : ''}`}>
-                    <div className="wr-status-table-wrapper">
-                      <table className="wr-status-table">
-                        <thead>
-                          <tr>
-                            <th>Projeto</th>
-                            <th className="wr-status-table-center">Comunicação</th>
-                            <th className="wr-status-table-center">ACD</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activeProjects.map((project) => {
-                            const isSelected = project.project_code_norm === selectedProjectId;
-                            const comValue = project.plataforma_comunicacao;
-                            const acdValue = project.plataforma_acd;
-                            const comField = PLATFORM_FIELDS.find(f => f.key === 'plataforma_comunicacao');
-                            const acdField = PLATFORM_FIELDS.find(f => f.key === 'plataforma_acd');
-                            const comLabel = comValue && comField
-                              ? (comField.options.find(o => o.value === comValue)?.label || comValue)
-                              : null;
-                            const acdLabel = acdValue && acdField
-                              ? (acdField.options.find(o => o.value === acdValue)?.label || acdValue)
-                              : null;
-                            return (
-                              <tr
-                                key={project.project_code_norm}
-                                className={isSelected ? 'wr-status-row-current' : ''}
-                              >
-                                <td>
-                                  <div className="wr-status-project-name">
-                                    {project.nome_comercial || project.project_name || project.project_code_norm}
-                                  </div>
-                                  <div className="wr-status-project-code">{project.project_code_norm}</div>
-                                </td>
-                                <td className="wr-status-table-center">
-                                  <span className={`wr-kpi-pill ${comLabel ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
-                                    {comLabel || 'Não definido'}
-                                  </span>
-                                </td>
-                                <td className="wr-status-table-center">
-                                  <span className={`wr-kpi-pill ${acdLabel ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
-                                    {acdLabel || 'Não definido'}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* Seção: Equipe & Nomenclatura da Equipe (colapsável) */}
-              {activeProjects.length > 0 && (
-                <section className="ftv-section ftv-bot-status-section">
-                  <div
-                    className="ftv-bot-status-header"
-                    onClick={() => setEquipeNomStatusOpen(v => !v)}
-                  >
-                    <svg
-                      className={`ftv-bot-status-chevron ${equipeNomStatusOpen ? 'ftv-bot-status-chevron-open' : ''}`}
-                      width="16" height="16" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    >
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                    <h4 className="ftv-section-title" style={{ margin: 0 }}>Equipe &amp; Nomenclatura da Equipe</h4>
-                    <span className="ftv-bot-status-badge">{activeProjects.length}</span>
-                  </div>
-                  <div className={`ftv-bot-status-body ${equipeNomStatusOpen ? 'ftv-bot-status-body-open' : ''}`}>
-                    <div className="wr-status-table-wrapper">
-                      <table className="wr-status-table">
-                        <thead>
-                          <tr>
-                            <th>Projeto</th>
-                            <th className="wr-status-table-center">Equipe</th>
-                            <th className="wr-status-table-center">Nomenclatura</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activeProjects.map((project) => {
-                            const isSelected = project.project_code_norm === selectedProjectId;
-                            const status = equipeNomStatus[project.project_code_norm];
-                            const equipePct = status?.equipe_percentage;
-                            const hasNomenclatura = status?.has_nomenclatura || false;
-                            return (
-                              <tr
-                                key={project.project_code_norm}
-                                className={isSelected ? 'wr-status-row-current' : ''}
-                              >
-                                <td>
-                                  <div className="wr-status-project-name">
-                                    {project.nome_comercial || project.project_name || project.project_code_norm}
-                                  </div>
-                                  <div className="wr-status-project-code">{project.project_code_norm}</div>
-                                </td>
-                                <td className="wr-status-table-center">
-                                  <span className={`wr-kpi-pill ${equipePct === 100 ? 'wr-kpi-pill-green' : equipePct > 0 ? 'wr-kpi-pill-yellow' : 'wr-kpi-pill-red'}`}>
-                                    {equipePct != null ? `${equipePct}%` : '—'}
-                                  </span>
-                                </td>
-                                <td className="wr-status-table-center">
-                                  <span className={`wr-kpi-pill ${hasNomenclatura ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
-                                    {hasNomenclatura ? 'Preenchido' : 'Não preenchido'}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </section>
-              )}
 
               {/* Seção: IDs e URLs */}
               {idFieldsToShow.length > 0 && (

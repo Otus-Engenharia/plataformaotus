@@ -24,7 +24,7 @@ class ImportPercepcoes {
       try {
         const r = records[i];
         const percepcao = PercepcaoEquipe.create({
-          projetoCodigo: r.projeto_codigo,
+          projectCode: r.project_code,
           mes: r.mes_referencia,
           ano: r.ano_referencia,
           respondenteEmail: r.respondente_email,

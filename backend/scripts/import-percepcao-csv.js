@@ -167,7 +167,7 @@ function mapRow(fields) {
   ).join(' ');
 
   return {
-    projeto_codigo: projeto,
+    project_code: projeto,
     mes_referencia: mes,
     ano_referencia: ano,
     respondente_email: email,
@@ -233,13 +233,13 @@ async function main() {
   // Show sample
   console.log('\nSample (first 3):');
   records.slice(0, 3).forEach((r, i) => {
-    console.log(`  [${i}] ${r.projeto_codigo} ${r.mes_referencia}/${r.ano_referencia} ${r.respondente_email} - Q:${r.qualidade} Com:${r.comunicacao} Cu:${r.custos} P:${r.parceria} Co:${r.confianca} Cr:${r.cronograma ?? 'N/A'}`);
+    console.log(`  [${i}] ${r.project_code} ${r.mes_referencia}/${r.ano_referencia} ${r.respondente_email} - Q:${r.qualidade} Com:${r.comunicacao} Cu:${r.custos} P:${r.parceria} Co:${r.confianca} Cr:${r.cronograma ?? 'N/A'}`);
   });
 
   // Deduplicate by unique key (keep last occurrence = latest response)
   const seen = new Map();
   for (const r of records) {
-    const key = `${r.projeto_codigo}|${r.mes_referencia}|${r.ano_referencia}|${r.respondente_email}`;
+    const key = `${r.project_code}|${r.mes_referencia}|${r.ano_referencia}|${r.respondente_email}`;
     seen.set(key, r);
   }
   const deduped = [...seen.values()];

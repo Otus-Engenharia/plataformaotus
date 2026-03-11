@@ -36,21 +36,21 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   router.post('/', requireAuth, async (req, res) => {
     try {
       const {
-        projeto_codigo, mes_referencia, ano_referencia,
+        project_code, mes_referencia, ano_referencia,
         cronograma, qualidade, comunicacao, custos, parceria, confianca,
         oportunidade_revenda, comentarios,
       } = req.body;
 
-      if (!projeto_codigo || !mes_referencia || !ano_referencia) {
+      if (!project_code || !mes_referencia || !ano_referencia) {
         return res.status(400).json({
           success: false,
-          error: 'Campos obrigatórios: projeto_codigo, mes_referencia, ano_referencia',
+          error: 'Campos obrigatórios: project_code, mes_referencia, ano_referencia',
         });
       }
 
       const useCase = new CreatePercepcaoEquipe(repo);
       const result = await useCase.execute({
-        projetoCodigo: projeto_codigo,
+        projectCode: project_code,
         mes: mes_referencia,
         ano: ano_referencia,
         respondenteEmail: req.user.email,
@@ -67,7 +67,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
 
       if (logAction) {
         await logAction(req, 'create', 'percepcao_equipe', result.id, 'Percepção criada', {
-          projeto: projeto_codigo,
+          projeto: project_code,
           periodo: `${mes_referencia}/${ano_referencia}`,
         });
       }
@@ -92,7 +92,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
       const result = await useCase.execute({
         mes,
         ano,
-        projetoCodigo: projeto,
+        projectCode: projeto,
         respondenteEmail: email,
       });
 

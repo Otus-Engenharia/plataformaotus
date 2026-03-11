@@ -45,7 +45,7 @@ function PercepcaoImportDialog({ open, onClose, onImport, importing = false }) {
 
         <div className="percepcao-form" style={{ padding: '1.5rem' }}>
           <p style={{ marginBottom: '1rem', color: 'var(--text-secondary, #444)', fontSize: '10px' }}>
-            O CSV deve conter as colunas: projeto_codigo, mes_referencia, ano_referencia, respondente_email,
+            O CSV deve conter as colunas: project_code, mes_referencia, ano_referencia, respondente_email,
             respondente_nome, cronograma, qualidade, comunicacao, custos, parceria, confianca,
             oportunidade_revenda, comentarios
           </p>
@@ -101,7 +101,7 @@ function parseCSV(text) {
   const sep = lines[0].includes(';') ? ';' : ',';
   const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
 
-  const required = ['projeto_codigo', 'mes_referencia', 'ano_referencia', 'respondente_email', 'qualidade', 'comunicacao', 'custos', 'parceria', 'confianca'];
+  const required = ['project_code', 'mes_referencia', 'ano_referencia', 'respondente_email', 'qualidade', 'comunicacao', 'custos', 'parceria', 'confianca'];
   const missing = required.filter(r => !headers.includes(r));
   if (missing.length > 0) {
     throw new Error(`Colunas obrigatórias faltando: ${missing.join(', ')}`);

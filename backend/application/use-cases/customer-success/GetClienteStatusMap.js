@@ -40,7 +40,7 @@ class GetClienteStatusMap {
         ? new Date(row.data_termino_cronograma)
         : null;
 
-      projectsByCompany.get(companyId).projects.push({ statusProjeto, dataTermino });
+      projectsByCompany.get(companyId).projects.push({ statusProjeto, dataTermino, lider: row.lider || null });
     }
 
     const result = [];
@@ -50,10 +50,13 @@ class GetClienteStatusMap {
         projects.map(p => ({ statusProjeto: p.statusProjeto, dataTermino: p.dataTermino }))
       );
 
+      const lideres = [...new Set(projects.map(p => p.lider).filter(Boolean))];
+
       result.push({
         company_id: companyId,
         company_name: companyName,
         status_cliente: statusCliente.value,
+        lideres,
       });
     }
 

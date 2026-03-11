@@ -111,7 +111,7 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
       }
     }
 
-    const respondedCodes = new Set(percepcoes.map(p => p.projeto_codigo));
+    const respondedCodes = new Set(percepcoes.map(p => p.project_code));
     const filled = uniqueActive.filter(p => respondedCodes.has(p.project_name));
     const pending = uniqueActive.filter(p => !respondedCodes.has(p.project_name));
     const pct = uniqueActive.length > 0
@@ -139,8 +139,8 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
     for (let m = 1; m <= maxMes; m++) {
       const codesInMonth = new Set(
         allYearPercepcoes
-          .filter(p => p.mes_referencia === m && activeCodesSet.has(p.projeto_codigo))
-          .map(p => p.projeto_codigo)
+          .filter(p => p.mes_referencia === m && activeCodesSet.has(p.project_code))
+          .map(p => p.project_code)
       );
       preenchidosData.push(codesInMonth.size);
     }
@@ -205,7 +205,7 @@ function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
 
   // Get percepcao data for a specific project
   const getProjectPercepcao = (projectCode) => {
-    return percepcoes.find(p => p.projeto_codigo === projectCode);
+    return percepcoes.find(p => p.project_code === projectCode);
   };
 
   const handleSubmit = async (payload) => {

@@ -124,7 +124,7 @@ function StatusBadge({ status }) {
 }
 
 /* ─── Tab: Classificação ─── */
-function ClassificacaoTab({ companies, clientes, isAdmin, search, statusMap, filterStatus, filterClassificacao, onSaveClassificacao }) {
+function ClassificacaoTab({ companies, clientes, isAdmin, search, statusMap, liderMap, filterStatus, filterClassificacao, filterLider, onSaveClassificacao }) {
   const merged = useMemo(() => {
     const classMap = new Map(clientes.map(c => [c.company_id, c]));
     return companies.map(comp => ({
@@ -134,17 +134,19 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, statusMap, fil
       updated_by_name: classMap.get(comp.id)?.updated_by_name || null,
       updated_at: classMap.get(comp.id)?.updated_at || null,
       status_cliente: statusMap.get(comp.id) || null,
+      lideres: liderMap.get(comp.id) || [],
     }));
-  }, [companies, clientes, statusMap]);
+  }, [companies, clientes, statusMap, liderMap]);
 
   const filtered = useMemo(() => {
     return merged.filter(c => {
       if (search && !c.cliente?.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterStatus.length > 0 && !filterStatus.includes(c.status_cliente || 'Sem')) return false;
       if (filterClassificacao.length > 0 && !filterClassificacao.includes(c.classificacao || 'Sem')) return false;
+      if (filterLider && !c.lideres.includes(filterLider)) return false;
       return true;
     });
-  }, [merged, search, filterStatus, filterClassificacao]);
+  }, [merged, search, filterStatus, filterClassificacao, filterLider]);
 
   const classificados = merged.filter(c => c.classificacao).length;
 
@@ -154,7 +156,7 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, statusMap, fil
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
           <thead>
             <tr>
-              {['Cliente', 'Status', 'Classificação', 'Atualizado por', 'Atualizado em'].map(col => (
+              {['Cliente', 'Status', 'Classificação', 'Líder(es)', 'Atualizado por', 'Atualizado em'].map(col => (
                 <th
                   key={col}
                   style={{
@@ -175,7 +177,7 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, statusMap, fil
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   style={{ padding: '1.5rem 0.6rem', color: '#737373', textAlign: 'center' }}
                 >
                   {search ? 'Nenhum cliente encontrado para esta busca.' : 'Nenhum cliente cadastrado.'}
@@ -213,6 +215,9 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, statusMap, fil
                   )}
                 </td>
                 <td style={{ padding: '0.45rem 0.6rem', color: '#444444' }}>
+                  {c.lideres.length > 0 ? c.lideres.join(', ') : '-'}
+                </td>
+                <td style={{ padding: '0.45rem 0.6rem', color: '#444444' }}>
                   {c.updated_by_name || '-'}
                 </td>
                 <td style={{ padding: '0.45rem 0.6rem', color: '#737373' }}>
@@ -227,7 +232,7 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, statusMap, fil
       {filtered.length > 0 && (
         <p style={{ marginTop: '0.75rem', fontSize: '10px', color: '#737373' }}>
           {filtered.length} cliente(s) exibido(s)
-          {(search || filterStatus.length > 0 || filterClassificacao.length > 0) && ` de ${merged.length} no total`}.
+          {(search || filterStatus.length > 0 || filterClassificacao.length > 0 || filterLider) && ` de ${merged.length} no total`}.
           {' '}{classificados} classificado(s).
         </p>
       )}
@@ -246,6 +251,7 @@ function SnapshotsTab({ isAdmin }) {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [filterLider, setFilterLider] = useState('');
 
   useEffect(() => {
     fetchSnapshots();
@@ -355,6 +361,13 @@ function SnapshotsTab({ isAdmin }) {
           ))}
         </select>
 
+        <select value={filterLider} onChange={e => setFilterLider(e.target.value)} style={selectStyle}>
+          <option value="">Todos os líderes</option>
+          {[...new Set(snapshots.map(s => s.lider || s.leader_name).filter(Boolean))].sort().map(l => (
+            <option key={l} value={l}>{l}</option>
+          ))}
+        </select>
+
         {isAdmin && (
           <button
             onClick={handleGenerate}
@@ -439,7 +452,11 @@ function SnapshotsTab({ isAdmin }) {
       )}
 
       {/* Tabela */}
-      {!loading && (
+      {!loading && (() => {
+        const filteredSnaps = filterLider
+          ? snapshots.filter(s => (s.lider || s.leader_name) === filterLider)
+          : snapshots;
+        return (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
             <thead>
@@ -462,7 +479,7 @@ function SnapshotsTab({ isAdmin }) {
               </tr>
             </thead>
             <tbody>
-              {snapshots.length === 0 && (
+              {filteredSnaps.length === 0 && (
                 <tr>
                   <td
                     colSpan={6}
@@ -472,7 +489,7 @@ function SnapshotsTab({ isAdmin }) {
                   </td>
                 </tr>
               )}
-              {snapshots.map((s, i) => (
+              {filteredSnaps.map((s, i) => (
                 <tr
                   key={i}
                   style={{ borderBottom: '1px solid #f0f0f0' }}
@@ -507,11 +524,15 @@ function SnapshotsTab({ isAdmin }) {
             </tbody>
           </table>
         </div>
-      )}
+        );
+      })()}
 
       {!loading && snapshots.length > 0 && (
         <p style={{ marginTop: '0.75rem', fontSize: '10px', color: '#737373' }}>
-          {snapshots.length} registro(s) no snapshot.
+          {filterLider
+            ? `${snapshots.filter(s => (s.lider || s.leader_name) === filterLider).length} de ${snapshots.length} registro(s) (filtrado por ${filterLider}).`
+            : `${snapshots.length} registro(s) no snapshot.`
+          }
         </p>
       )}
     </>
@@ -526,6 +547,7 @@ function ClassificacaoClientesView() {
   const [clientes, setClientes] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [statusMap, setStatusMap] = useState(new Map());
+  const [liderMap, setLiderMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -535,6 +557,7 @@ function ClassificacaoClientesView() {
   const [importSuccess, setImportSuccess] = useState(null);
   const [filterStatus, setFilterStatus] = useState([]);
   const [filterClassificacao, setFilterClassificacao] = useState([]);
+  const [filterLider, setFilterLider] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -554,10 +577,15 @@ function ClassificacaoClientesView() {
       setCompanies(compRes.data?.data || []);
 
       const sMap = new Map();
+      const lMap = new Map();
       for (const item of (statusRes.data?.data || [])) {
         sMap.set(item.company_id, item.status_cliente);
+        if (item.lideres?.length > 0) {
+          lMap.set(item.company_id, item.lideres);
+        }
       }
       setStatusMap(sMap);
+      setLiderMap(lMap);
     } catch (err) {
       console.error('Erro ao buscar dados:', err);
       setError('Não foi possível carregar os dados. Tente novamente.');
@@ -862,6 +890,26 @@ function ClassificacaoClientesView() {
                 onToggle={v => toggleFilter(filterClassificacao, setFilterClassificacao, v)}
                 colorMap={{ ...CLASSIFICACAO_COLORS, 'Sem': '#737373' }}
               />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '10px', color: '#737373', fontWeight: 500 }}>Líder:</span>
+                <select
+                  value={filterLider}
+                  onChange={e => setFilterLider(e.target.value)}
+                  style={{
+                    padding: '0.15rem 0.5rem',
+                    fontSize: '10px',
+                    border: '1px solid #d4d4d4',
+                    borderRadius: '6px',
+                    color: '#1a1a1a',
+                    background: '#fff',
+                  }}
+                >
+                  <option value="">Todos</option>
+                  {[...new Set([...liderMap.values()].flat())].sort().map(l => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -889,8 +937,10 @@ function ClassificacaoClientesView() {
               isAdmin={isAdmin}
               search={search}
               statusMap={statusMap}
+              liderMap={liderMap}
               filterStatus={filterStatus}
               filterClassificacao={filterClassificacao}
+              filterLider={filterLider}
               onSaveClassificacao={handleSaveClassificacao}
             />
           )}
