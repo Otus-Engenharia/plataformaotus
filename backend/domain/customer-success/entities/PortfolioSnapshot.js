@@ -14,8 +14,8 @@ class PortfolioSnapshot {
   #snapshotDate;
   #companyId;
   #cliente;
-  #projetoCodigo;
-  #projetoNome;
+  #projectCode;
+  #projectName;
   #status;
   #statusProjeto;
   #statusCliente;
@@ -32,8 +32,8 @@ class PortfolioSnapshot {
     snapshotDate,
     companyId = null,
     cliente,
-    projetoCodigo = null,
-    projetoNome = null,
+    projectCode = null,
+    projectName = null,
     status = null,
     statusProjeto,
     statusCliente,
@@ -57,15 +57,15 @@ class PortfolioSnapshot {
     this.#snapshotDate = snapshotDate instanceof Date ? snapshotDate : new Date(snapshotDate);
     this.#companyId = companyId || null;
     this.#cliente = String(cliente).trim();
-    this.#projetoCodigo = projetoCodigo || null;
-    this.#projetoNome = projetoNome || null;
+    this.#projectCode = projectCode || null;
+    this.#projectName = projectName || null;
     this.#status = status || null;
-    this.#statusProjeto = statusProjeto instanceof StatusProjeto
-      ? statusProjeto
-      : new StatusProjeto(statusProjeto);
-    this.#statusCliente = statusCliente instanceof StatusCliente
-      ? statusCliente
-      : new StatusCliente(statusCliente);
+    this.#statusProjeto = statusProjeto
+      ? (statusProjeto instanceof StatusProjeto ? statusProjeto : new StatusProjeto(statusProjeto))
+      : null;
+    this.#statusCliente = statusCliente
+      ? (statusCliente instanceof StatusCliente ? statusCliente : new StatusCliente(statusCliente))
+      : null;
     this.#classificacao = classificacao
       ? (classificacao instanceof Classificacao ? classificacao : new Classificacao(classificacao))
       : null;
@@ -81,8 +81,8 @@ class PortfolioSnapshot {
   get snapshotDate() { return this.#snapshotDate; }
   get companyId() { return this.#companyId; }
   get cliente() { return this.#cliente; }
-  get projetoCodigo() { return this.#projetoCodigo; }
-  get projetoNome() { return this.#projetoNome; }
+  get projectCode() { return this.#projectCode; }
+  get projectName() { return this.#projectName; }
   get status() { return this.#status; }
   get statusProjeto() { return this.#statusProjeto; }
   get statusCliente() { return this.#statusCliente; }
@@ -94,10 +94,10 @@ class PortfolioSnapshot {
   get time() { return this.#time; }
   get createdAt() { return this.#createdAt; }
 
-  get isChurn() { return this.#statusCliente.value === 'CHURN'; }
-  get isAtivo() { return this.#statusProjeto.value === 'ATIVO'; }
-  get isEncerrado() { return this.#statusProjeto.value === 'ENCERRADO'; }
-  get isInativo() { return this.#statusProjeto.value === 'INATIVO'; }
+  get isChurn() { return this.#statusCliente?.value === 'CHURN'; }
+  get isAtivo() { return this.#statusProjeto?.value === 'ATIVO'; }
+  get isEncerrado() { return this.#statusProjeto?.value === 'ENCERRADO'; }
+  get isInativo() { return this.#statusProjeto?.value === 'INATIVO'; }
 
   toPersistence() {
     return {
@@ -105,11 +105,11 @@ class PortfolioSnapshot {
       snapshot_date: this.#snapshotDate.toISOString().split('T')[0],
       company_id: this.#companyId,
       cliente: this.#cliente,
-      projeto_codigo: this.#projetoCodigo,
-      projeto_nome: this.#projetoNome,
+      project_code: this.#projectCode,
+      project_name: this.#projectName,
       status: this.#status,
-      status_projeto: this.#statusProjeto.value,
-      status_cliente: this.#statusCliente.value,
+      status_projeto: this.#statusProjeto?.value ?? null,
+      status_cliente: this.#statusCliente?.value ?? null,
       classificacao: this.#classificacao?.value ?? null,
       data_venda: this.#dataVenda ? this.#dataVenda.toISOString().split('T')[0] : null,
       data_termino: this.#dataTermino ? this.#dataTermino.toISOString().split('T')[0] : null,
@@ -126,11 +126,11 @@ class PortfolioSnapshot {
       snapshot_date: this.#snapshotDate.toISOString().split('T')[0],
       company_id: this.#companyId,
       cliente: this.#cliente,
-      projeto_codigo: this.#projetoCodigo,
-      projeto_nome: this.#projetoNome,
+      project_code: this.#projectCode,
+      project_name: this.#projectName,
       status: this.#status,
-      status_projeto: this.#statusProjeto.value,
-      status_cliente: this.#statusCliente.value,
+      status_projeto: this.#statusProjeto?.value ?? null,
+      status_cliente: this.#statusCliente?.value ?? null,
       classificacao: this.#classificacao?.value ?? null,
       classificacao_label: this.#classificacao?.label ?? null,
       data_venda: this.#dataVenda ? this.#dataVenda.toISOString().split('T')[0] : null,
@@ -153,8 +153,8 @@ class PortfolioSnapshot {
       snapshotDate: data.snapshot_date,
       companyId: data.company_id || null,
       cliente: data.cliente,
-      projetoCodigo: data.projeto_codigo,
-      projetoNome: data.projeto_nome,
+      projectCode: data.project_code,
+      projectName: data.project_name,
       status: data.status,
       statusProjeto: data.status_projeto,
       statusCliente: data.status_cliente,
@@ -172,8 +172,8 @@ class PortfolioSnapshot {
     snapshotDate,
     companyId,
     cliente,
-    projetoCodigo,
-    projetoNome,
+    projectCode,
+    projectName,
     status,
     statusProjeto,
     statusCliente,
@@ -188,8 +188,8 @@ class PortfolioSnapshot {
       snapshotDate,
       companyId,
       cliente,
-      projetoCodigo,
-      projetoNome,
+      projectCode,
+      projectName,
       status,
       statusProjeto,
       statusCliente,

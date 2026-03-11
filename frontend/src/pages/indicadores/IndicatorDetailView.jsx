@@ -552,14 +552,15 @@ export default function IndicatorDetailView() {
 
     setSubmittingComment(true);
     try {
-      // API call would go here
-      // For now, just add locally
-      setComments(prev => [...prev, {
-        id: Date.now(),
-        texto: newComment,
-        user_name: user?.name || 'Você',
-        created_at: new Date().toISOString()
-      }]);
+      const res = await fetch(`${API_URL}/api/ind/indicators/${id}/comments`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto: newComment }),
+      });
+      if (!res.ok) throw new Error('Erro ao salvar comentário');
+      const result = await res.json();
+      setComments(prev => [...prev, result.data]);
       setNewComment('');
     } catch (err) {
       console.error('Erro ao comentar:', err);

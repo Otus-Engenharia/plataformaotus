@@ -12,6 +12,11 @@ const CLASSIFICACAO_COLORS = {
   D: '#dc2626',
 };
 
+const STATUS_COLORS = {
+  ATIVO: '#15803d',
+  CHURN: '#dc2626',
+};
+
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('pt-BR', {
@@ -67,8 +72,59 @@ function ClassificacaoSelect({ companyId, clienteNome, valor, onSave }) {
   );
 }
 
+/* ─── Filter Chips ─── */
+function FilterChips({ label, options, selected, onToggle, colorMap }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: '10px', color: '#737373', fontWeight: 500 }}>{label}:</span>
+      {options.map(opt => {
+        const isActive = selected.includes(opt);
+        const color = colorMap?.[opt] || '#444444';
+        return (
+          <button
+            key={opt}
+            onClick={() => onToggle(opt)}
+            style={{
+              padding: '0.15rem 0.5rem',
+              fontSize: '10px',
+              fontWeight: 600,
+              border: `1px solid ${isActive ? color : '#d4d4d4'}`,
+              borderRadius: '12px',
+              background: isActive ? `${color}12` : 'transparent',
+              color: isActive ? color : '#737373',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── Status Badge ─── */
+function StatusBadge({ status }) {
+  if (!status) return <span style={{ color: '#737373' }}>—</span>;
+  const color = STATUS_COLORS[status] || '#737373';
+  return (
+    <span style={{
+      padding: '0.1rem 0.45rem',
+      borderRadius: '4px',
+      fontSize: '10px',
+      fontWeight: 600,
+      color,
+      background: `${color}10`,
+      border: `1px solid ${color}25`,
+    }}>
+      {status}
+    </span>
+  );
+}
+
 /* ─── Tab: Classificação ─── */
-function ClassificacaoTab({ companies, clientes, isAdmin, search, onSaveClassificacao }) {
+function ClassificacaoTab({ companies, clientes, isAdmin, search, statusMap, filterStatus, filterClassificacao, onSaveClassificacao }) {
   const merged = useMemo(() => {
     const classMap = new Map(clientes.map(c => [c.company_id, c]));
     return companies.map(comp => ({
@@ -77,12 +133,18 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, onSaveClassifi
       classificacao: classMap.get(comp.id)?.classificacao || null,
       updated_by_name: classMap.get(comp.id)?.updated_by_name || null,
       updated_at: classMap.get(comp.id)?.updated_at || null,
+      status_cliente: statusMap.get(comp.id) || null,
     }));
-  }, [companies, clientes]);
+  }, [companies, clientes, statusMap]);
 
-  const filtered = merged.filter(c =>
-    c.cliente?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    return merged.filter(c => {
+      if (search && !c.cliente?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filterStatus.length > 0 && !filterStatus.includes(c.status_cliente || 'Sem')) return false;
+      if (filterClassificacao.length > 0 && !filterClassificacao.includes(c.classificacao || 'Sem')) return false;
+      return true;
+    });
+  }, [merged, search, filterStatus, filterClassificacao]);
 
   const classificados = merged.filter(c => c.classificacao).length;
 
@@ -92,7 +154,7 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, onSaveClassifi
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
           <thead>
             <tr>
-              {['Cliente', 'Classificação', 'Atualizado por', 'Atualizado em'].map(col => (
+              {['Cliente', 'Status', 'Classificação', 'Atualizado por', 'Atualizado em'].map(col => (
                 <th
                   key={col}
                   style={{
@@ -113,7 +175,7 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, onSaveClassifi
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   style={{ padding: '1.5rem 0.6rem', color: '#737373', textAlign: 'center' }}
                 >
                   {search ? 'Nenhum cliente encontrado para esta busca.' : 'Nenhum cliente cadastrado.'}
@@ -129,6 +191,9 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, onSaveClassifi
               >
                 <td style={{ padding: '0.45rem 0.6rem', color: '#1a1a1a', fontWeight: 500 }}>
                   {c.cliente}
+                </td>
+                <td style={{ padding: '0.45rem 0.6rem' }}>
+                  <StatusBadge status={c.status_cliente} />
                 </td>
                 <td style={{ padding: '0.45rem 0.6rem' }}>
                   {isAdmin ? (
@@ -162,7 +227,7 @@ function ClassificacaoTab({ companies, clientes, isAdmin, search, onSaveClassifi
       {filtered.length > 0 && (
         <p style={{ marginTop: '0.75rem', fontSize: '10px', color: '#737373' }}>
           {filtered.length} cliente(s) exibido(s)
-          {search && ` de ${merged.length} no total`}.
+          {(search || filterStatus.length > 0 || filterClassificacao.length > 0) && ` de ${merged.length} no total`}.
           {' '}{classificados} classificado(s).
         </p>
       )}
@@ -190,7 +255,7 @@ function SnapshotsTab({ isAdmin }) {
     setLoading(true);
     setError(null);
     try {
-      const [snapRes, statsRes] = await Promise.all([
+      const [snapResult, statsResult] = await Promise.allSettled([
         axios.get(`${API_URL}/api/cs/classificacoes/snapshots`, {
           params: { month, year },
           withCredentials: true,
@@ -200,11 +265,22 @@ function SnapshotsTab({ isAdmin }) {
           withCredentials: true,
         }),
       ]);
-      setSnapshots(snapRes.data?.data || []);
-      setStats(statsRes.data?.data || null);
+
+      if (snapResult.status === 'fulfilled') {
+        setSnapshots(snapResult.value.data?.data || []);
+      } else {
+        console.error('Erro ao buscar snapshots:', snapResult.reason);
+        setError('Não foi possível carregar os snapshots.');
+      }
+
+      if (statsResult.status === 'fulfilled') {
+        setStats(statsResult.value.data?.data || null);
+      } else {
+        console.error('Erro ao buscar stats:', statsResult.reason);
+      }
     } catch (err) {
-      console.error('Erro ao buscar snapshots:', err);
-      setError('Não foi possível carregar os snapshots.');
+      console.error('Erro inesperado ao buscar snapshots:', err);
+      setError('Erro inesperado ao carregar dados.');
     } finally {
       setLoading(false);
     }
@@ -329,7 +405,7 @@ function SnapshotsTab({ isAdmin }) {
         </div>
       )}
 
-      {/* Stats resumo */}
+      {/* Stats resumo — métricas reais de churn */}
       {stats && (
         <div style={{
           display: 'flex',
@@ -337,18 +413,21 @@ function SnapshotsTab({ isAdmin }) {
           marginBottom: '1rem',
           flexWrap: 'wrap',
         }}>
-          {CLASSIFICACOES.map(cls => (
-            <div key={cls} style={{
+          {[
+            { label: 'Clientes Ativos', value: stats.clientesAtivos, color: '#15803d' },
+            { label: 'Churns', value: stats.churns, color: '#dc2626' },
+            { label: 'Projetos Ativos', value: stats.projetosAtivos, color: '#0369a1' },
+            { label: 'Retenção', value: `${stats.taxaRetencao}%`, color: '#d97706' },
+          ].map(item => (
+            <div key={item.label} style={{
               padding: '0.5rem 1rem',
               borderRadius: '6px',
-              border: `1px solid ${CLASSIFICACAO_COLORS[cls]}20`,
-              background: `${CLASSIFICACAO_COLORS[cls]}08`,
+              border: `1px solid ${item.color}20`,
+              background: `${item.color}08`,
               fontSize: '10px',
             }}>
-              <span style={{ fontWeight: 700, color: CLASSIFICACAO_COLORS[cls] }}>{cls}</span>
-              <span style={{ color: '#444444', marginLeft: '0.35rem' }}>
-                {stats[cls] || 0}
-              </span>
+              <span style={{ color: '#737373' }}>{item.label} </span>
+              <span style={{ fontWeight: 700, color: item.color }}>{item.value ?? 0}</span>
             </div>
           ))}
         </div>
@@ -446,6 +525,7 @@ function ClassificacaoClientesView() {
 
   const [clientes, setClientes] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [statusMap, setStatusMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -453,6 +533,8 @@ function ClassificacaoClientesView() {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState(null);
   const [importSuccess, setImportSuccess] = useState(null);
+  const [filterStatus, setFilterStatus] = useState([]);
+  const [filterClassificacao, setFilterClassificacao] = useState([]);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -463,12 +545,19 @@ function ClassificacaoClientesView() {
     setLoading(true);
     setError(null);
     try {
-      const [classRes, compRes] = await Promise.all([
+      const [classRes, compRes, statusRes] = await Promise.all([
         axios.get(`${API_URL}/api/cs/classificacoes`, { withCredentials: true }),
         axios.get(`${API_URL}/api/cs/classificacoes/companies`, { withCredentials: true }),
+        axios.get(`${API_URL}/api/cs/classificacoes/status-clientes`, { withCredentials: true }),
       ]);
       setClientes(classRes.data?.data || []);
       setCompanies(compRes.data?.data || []);
+
+      const sMap = new Map();
+      for (const item of (statusRes.data?.data || [])) {
+        sMap.set(item.company_id, item.status_cliente);
+      }
+      setStatusMap(sMap);
     } catch (err) {
       console.error('Erro ao buscar dados:', err);
       setError('Não foi possível carregar os dados. Tente novamente.');
@@ -525,8 +614,13 @@ function ClassificacaoClientesView() {
       ? header.indexOf('classificacao')
       : header.indexOf('classificação');
 
+    // Mode: name-matching (sem company_id)
+    if (companyIdIdx === -1 && clienteIdx !== -1 && classIdx !== -1) {
+      return handleNameMatchImport(lines, clienteIdx, classIdx);
+    }
+
     if (companyIdIdx === -1 || clienteIdx === -1 || classIdx === -1) {
-      setImportError('CSV deve ter colunas "company_id", "cliente" e "classificacao".');
+      setImportError('CSV deve ter colunas "company_id", "cliente" e "classificacao" — ou "cliente" e "classificacao" para match por nome.');
       return;
     }
 
@@ -544,6 +638,65 @@ function ClassificacaoClientesView() {
       return;
     }
 
+    await doImport(items);
+  }
+
+  async function handleNameMatchImport(lines, clienteIdx, classIdx) {
+    // Build name → company lookup (case-insensitive)
+    const nameToCompany = new Map();
+    for (const comp of companies) {
+      nameToCompany.set(comp.name.toLowerCase().trim(), comp);
+    }
+
+    const matched = [];
+    const unmatched = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      const rawNome = cols[clienteIdx] || '';
+      let rawClass = (cols[classIdx] || '').toUpperCase().trim();
+
+      // Strip "CLIENTE " prefix: "Cliente A" → "A"
+      if (rawClass.startsWith('CLIENTE ')) {
+        rawClass = rawClass.replace(/^CLIENTE\s+/, '');
+      }
+
+      if (!rawNome || !CLASSIFICACOES.includes(rawClass)) continue;
+
+      const comp = nameToCompany.get(rawNome.toLowerCase().trim());
+      if (comp) {
+        matched.push({
+          company_id: comp.id,
+          cliente: comp.name,
+          classificacao: rawClass,
+        });
+      } else {
+        unmatched.push(rawNome);
+      }
+    }
+
+    // Deduplicate by company_id (keep last)
+    const deduped = new Map();
+    for (const item of matched) {
+      deduped.set(item.company_id, item);
+    }
+    const items = Array.from(deduped.values());
+
+    if (items.length === 0) {
+      setImportError(`Nenhum cliente encontrado pelo nome. ${unmatched.length} não reconhecido(s): ${unmatched.slice(0, 5).join(', ')}${unmatched.length > 5 ? '...' : ''}`);
+      return;
+    }
+
+    await doImport(items);
+
+    if (unmatched.length > 0) {
+      setImportSuccess(prev =>
+        `${prev || ''} Atenção: ${unmatched.length} nome(s) não encontrado(s): ${unmatched.slice(0, 5).join(', ')}${unmatched.length > 5 ? '...' : ''}`
+      );
+    }
+  }
+
+  async function doImport(items) {
     setImporting(true);
     setImportError(null);
     setImportSuccess(null);
@@ -562,6 +715,10 @@ function ClassificacaoClientesView() {
     } finally {
       setImporting(false);
     }
+  }
+
+  function toggleFilter(arr, setArr, value) {
+    setArr(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
   }
 
   const tabStyle = (tab) => ({
@@ -673,8 +830,8 @@ function ClassificacaoClientesView() {
       {/* Tab Content */}
       {activeTab === 'classificacao' && (
         <>
-          {/* Search */}
-          <div style={{ marginBottom: '1rem' }}>
+          {/* Search + Filters */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
             <input
               type="text"
               placeholder="Buscar cliente..."
@@ -690,6 +847,22 @@ function ClassificacaoClientesView() {
                 background: '#fff',
               }}
             />
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <FilterChips
+                label="Status"
+                options={['ATIVO', 'CHURN', 'Sem']}
+                selected={filterStatus}
+                onToggle={v => toggleFilter(filterStatus, setFilterStatus, v)}
+                colorMap={{ ATIVO: '#15803d', CHURN: '#dc2626', 'Sem': '#737373' }}
+              />
+              <FilterChips
+                label="Classificação"
+                options={['A', 'B', 'C', 'D', 'Sem']}
+                selected={filterClassificacao}
+                onToggle={v => toggleFilter(filterClassificacao, setFilterClassificacao, v)}
+                colorMap={{ ...CLASSIFICACAO_COLORS, 'Sem': '#737373' }}
+              />
+            </div>
           </div>
 
           {loading && (
@@ -715,6 +888,9 @@ function ClassificacaoClientesView() {
               clientes={clientes}
               isAdmin={isAdmin}
               search={search}
+              statusMap={statusMap}
+              filterStatus={filterStatus}
+              filterClassificacao={filterClassificacao}
               onSaveClassificacao={handleSaveClassificacao}
             />
           )}

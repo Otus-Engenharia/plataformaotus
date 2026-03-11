@@ -13,6 +13,7 @@ import {
   ListSnapshots,
   GetClienteChurnStats,
   ImportHistoricalSnapshots,
+  GetClienteStatusMap,
 } from '../application/use-cases/customer-success/index.js';
 import { Classificacao } from '../domain/customer-success/value-objects/Classificacao.js';
 import { ClassificacaoCliente } from '../domain/customer-success/entities/ClassificacaoCliente.js';
@@ -60,6 +61,20 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
     } catch (error) {
       console.error('Erro ao listar companies:', error);
       res.status(500).json({ success: false, error: error.message || 'Erro ao listar companies' });
+    }
+  });
+
+  /**
+   * GET /api/customer-success/status-clientes
+   * Retorna status (ATIVO/CHURN) de cada cliente baseado nos projetos
+   */
+  router.get('/status-clientes', requireAuth, async (req, res) => {
+    try {
+      const data = await new GetClienteStatusMap(repository, { queryPortfolio }).execute();
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Erro ao buscar status dos clientes:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao buscar status dos clientes' });
     }
   });
 
@@ -192,22 +207,6 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   });
 
   /**
-   * GET /api/customer-success/snapshots
-   * Lista snapshots com filtros opcionais
-   * Query params: month, year, cliente, statusProjeto
-   */
-  router.get('/snapshots', requireAuth, async (req, res) => {
-    try {
-      const { month, year, cliente, statusProjeto } = req.query;
-      const data = await new ListSnapshots(repository).execute({ month, year, cliente, statusProjeto });
-      res.json({ success: true, data });
-    } catch (error) {
-      console.error('Erro ao listar snapshots:', error);
-      res.status(500).json({ success: false, error: error.message || 'Erro ao listar snapshots' });
-    }
-  });
-
-  /**
    * GET /api/customer-success/snapshots/stats
    * Retorna indicadores de churn por mês/ano
    * Query params: month, year
@@ -250,6 +249,22 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
     } catch (error) {
       console.error('Erro ao importar snapshots históricos:', error);
       res.status(500).json({ success: false, error: error.message || 'Erro ao importar snapshots históricos' });
+    }
+  });
+
+  /**
+   * GET /api/customer-success/snapshots
+   * Lista snapshots com filtros opcionais
+   * Query params: month, year, cliente, statusProjeto
+   */
+  router.get('/snapshots', requireAuth, async (req, res) => {
+    try {
+      const { month, year, cliente, statusProjeto } = req.query;
+      const data = await new ListSnapshots(repository).execute({ month, year, cliente, statusProjeto });
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Erro ao listar snapshots:', error);
+      res.status(500).json({ success: false, error: error.message || 'Erro ao listar snapshots' });
     }
   });
 
