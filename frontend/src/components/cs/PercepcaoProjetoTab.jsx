@@ -27,7 +27,7 @@ const MESES = [
 
 function PercepcaoProjetoTab({ selectedProjectId, portfolio }) {
   const { effectiveUser, hasFullAccess } = useAuth();
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);  // stable across renders
 
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [ano, setAno] = useState(now.getFullYear());
