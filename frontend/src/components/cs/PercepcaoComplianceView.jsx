@@ -1,5 +1,24 @@
 import React from 'react';
 
+function TeamGroupList({ grouped, tagClass }) {
+  const teams = Object.keys(grouped).sort((a, b) => {
+    if (a === 'Sem time') return 1;
+    if (b === 'Sem time') return -1;
+    return a.localeCompare(b, 'pt-BR');
+  });
+
+  return teams.map(team => (
+    <div key={team} className="percepcao-compliance-team-group">
+      <div className="percepcao-compliance-team-label">{team} ({grouped[team].length})</div>
+      <div className="percepcao-compliance-grid">
+        {grouped[team].map(p => (
+          <span key={p} className={`percepcao-compliance-tag ${tagClass}`}>{p}</span>
+        ))}
+      </div>
+    </div>
+  ));
+}
+
 function PercepcaoComplianceView({ compliance, loading }) {
   if (loading) {
     return <p className="percepcao-empty">Carregando compliance...</p>;
@@ -45,29 +64,21 @@ function PercepcaoComplianceView({ compliance, loading }) {
       </div>
 
       <div className="percepcao-compliance-lists">
-        {pendentes.length > 0 && (
+        {total_pendentes > 0 && (
           <div className="percepcao-section">
             <h3 className="percepcao-section-title" style={{ color: '#dc2626' }}>
-              Pendentes ({pendentes.length})
+              Pendentes ({total_pendentes})
             </h3>
-            <div className="percepcao-compliance-grid">
-              {pendentes.map(p => (
-                <span key={p} className="percepcao-compliance-tag percepcao-compliance-tag-pending">{p}</span>
-              ))}
-            </div>
+            <TeamGroupList grouped={pendentes} tagClass="percepcao-compliance-tag-pending" />
           </div>
         )}
 
-        {preenchidos.length > 0 && (
+        {total_preenchidos > 0 && (
           <div className="percepcao-section">
             <h3 className="percepcao-section-title" style={{ color: '#15803d' }}>
-              Preenchidos ({preenchidos.length})
+              Preenchidos ({total_preenchidos})
             </h3>
-            <div className="percepcao-compliance-grid">
-              {preenchidos.map(p => (
-                <span key={p} className="percepcao-compliance-tag percepcao-compliance-tag-done">{p}</span>
-              ))}
-            </div>
+            <TeamGroupList grouped={preenchidos} tagClass="percepcao-compliance-tag-done" />
           </div>
         )}
       </div>

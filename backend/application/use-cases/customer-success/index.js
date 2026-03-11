@@ -8,3 +8,4 @@ export { GenerateSnapshot } from './GenerateSnapshot.js';
 export { ListSnapshots } from './ListSnapshots.js';
 export { GetClienteChurnStats } from './GetClienteChurnStats.js';
 export { ImportHistoricalSnapshots } from './ImportHistoricalSnapshots.js';
+export { GetClienteStatusMap } from './GetClienteStatusMap.js';

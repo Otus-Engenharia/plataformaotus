@@ -175,7 +175,8 @@ class SupabaseCustomerSuccessRepository extends CustomerSuccessRepository {
     const { data, error } = await query;
 
     if (error) {
-      throw new Error(`Erro ao buscar snapshots: ${error.message}`);
+      console.warn(`Aviso ao buscar snapshots: ${error.message}`);
+      return [];
     }
 
     return (data || []).map(row => PortfolioSnapshot.fromPersistence(row));
@@ -221,7 +222,8 @@ class SupabaseCustomerSuccessRepository extends CustomerSuccessRepository {
       .like('snapshot_date', `${prefix}%`);
 
     if (error) {
-      throw new Error(`Erro ao buscar estatísticas de snapshots: ${error.message}`);
+      console.warn(`Aviso ao buscar estatísticas de snapshots: ${error.message}`);
+      return { clientesAtivos: 0, churns: 0, projetosAtivos: 0, projetosInativos: 0, projetosEncerrados: 0 };
     }
 
     const rows = data || [];

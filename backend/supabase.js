@@ -1545,6 +1545,76 @@ export async function deleteInitiativeComment(commentId) {
 }
 
 // ============================================
+// Indicator Comments (Comentários de Indicadores)
+// ============================================
+
+const INDICATOR_COMMENTS_TABLE = 'indicadores_comments';
+
+/**
+ * Busca comentários de um indicador
+ * @param {string} indicadorId - ID do indicador
+ * @returns {Promise<Array>}
+ */
+export async function fetchIndicatorComments(indicadorId) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from(INDICATOR_COMMENTS_TABLE)
+    .select('*')
+    .eq('indicador_id', indicadorId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`Erro ao buscar comentários do indicador: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Cria um novo comentário de indicador
+ * @param {Object} commentData - Dados do comentário
+ * @returns {Promise<Object>}
+ */
+export async function createIndicatorComment(commentData) {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from(INDICATOR_COMMENTS_TABLE)
+    .insert({
+      ...commentData,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao criar comentário do indicador: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deleta um comentário de indicador
+ * @param {string} commentId - ID do comentário
+ * @returns {Promise<void>}
+ */
+export async function deleteIndicatorComment(commentId) {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase
+    .from(INDICATOR_COMMENTS_TABLE)
+    .delete()
+    .eq('id', commentId);
+
+  if (error) {
+    throw new Error(`Erro ao deletar comentário do indicador: ${error.message}`);
+  }
+}
+
+// ============================================
 // Indicadores
 // ============================================
 
@@ -2086,16 +2156,19 @@ export async function getIndicadorById(indicadorId) {
     }
   }
 
-  // Busca check-ins do indicador
-  const checkIns = await fetchCheckIns(indicadorId);
-  // Busca planos de recuperação
-  const recoveryPlans = await fetchRecoveryPlans(indicadorId);
+  // Busca check-ins, planos de recuperação e comentários
+  const [checkIns, recoveryPlans, comments] = await Promise.all([
+    fetchCheckIns(indicadorId),
+    fetchRecoveryPlans(indicadorId),
+    fetchIndicatorComments(indicadorId),
+  ]);
 
   return {
     ...data,
     pessoa,
     check_ins: checkIns,
     recovery_plans: recoveryPlans,
+    comments,
   };
 }
 
@@ -2608,20 +2681,27 @@ async function updateIndicadorConsolidatedValue(indicadorId) {
     .eq('id', indicadorId)
     .single();
 
-  if (indError) return;
+  if (indError) {
+    console.error('Erro ao buscar indicador para consolidação:', indError);
+    throw new Error(`Erro ao buscar indicador para consolidação: ${indError.message}`);
+  }
 
   // Busca todos os check-ins
   const checkIns = await fetchCheckIns(indicadorId);
 
   // Se não há check-ins, reseta para valor inicial
   if (checkIns.length === 0) {
-    await supabase
+    const { error: resetError } = await supabase
       .from(INDICADORES_TABLE)
       .update({
         valor: indicador.valor_inicial || 0,
         updated_at: new Date().toISOString()
       })
       .eq('id', indicadorId);
+    if (resetError) {
+      console.error('Erro ao resetar valor do indicador:', resetError);
+      throw new Error(`Erro ao atualizar valor: ${resetError.message}`);
+    }
     return;
   }
 
@@ -2642,13 +2722,17 @@ async function updateIndicadorConsolidatedValue(indicadorId) {
   }
 
   // Atualiza o indicador
-  await supabase
+  const { error: updateError } = await supabase
     .from(INDICADORES_TABLE)
     .update({
       valor: valorConsolidado,
       updated_at: new Date().toISOString()
     })
     .eq('id', indicadorId);
+  if (updateError) {
+    console.error('Erro ao consolidar valor do indicador:', updateError);
+    throw new Error(`Erro ao atualizar valor consolidado: ${updateError.message}`);
+  }
 }
 
 // --- PLANOS DE RECUPERAÇÃO ---
