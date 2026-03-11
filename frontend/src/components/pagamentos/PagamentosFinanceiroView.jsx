@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import ParcelasProjetoPanel from './ParcelasProjetoPanel';
 import ParcelaFormDialog from './ParcelaFormDialog';
 import CronogramaFisicoFinanceiroPanel from './CronogramaFisicoFinanceiroPanel';
-import SpotsHistoricoView from '../../pages/pagamentos/SpotsHistoricoView';
+import CalendarioPagamentosView from './CalendarioPagamentosView';
 import { useNavigate } from 'react-router-dom';
 import './PagamentosFinanceiroView.css';
 
@@ -241,10 +241,10 @@ export default function PagamentosFinanceiroView() {
           Cronograma
         </button>
         <button
-          className={`pagamentos-fin-tab ${activeTab === 'historico' ? 'pagamentos-fin-tab-active' : ''}`}
-          onClick={() => setActiveTab('historico')}
+          className={`pagamentos-fin-tab ${activeTab === 'calendario' ? 'pagamentos-fin-tab-active' : ''}`}
+          onClick={() => setActiveTab('calendario')}
         >
-          Historico
+          Calendário
         </button>
       </div>
 
@@ -429,7 +429,7 @@ export default function PagamentosFinanceiroView() {
           showStatusColumn={true}
         />
       ) : (
-        <SpotsHistoricoView />
+        <CalendarioPagamentosView />
       )}
 
       {/* Aditivo Quick Dialog */}
