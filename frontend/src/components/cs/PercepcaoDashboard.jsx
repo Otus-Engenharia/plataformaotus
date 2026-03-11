@@ -53,8 +53,8 @@ function PercepcaoDashboard({ stats }) {
                 {porProjeto
                   .sort((a, b) => b.avg_isp - a.avg_isp)
                   .map(p => (
-                    <tr key={p.projeto_codigo}>
-                      <td className="percepcao-td-projeto">{p.projeto_codigo}</td>
+                    <tr key={p.project_code}>
+                      <td className="percepcao-td-projeto">{p.project_code}</td>
                       <td>{p.respostas}</td>
                       <td><RankValue v={p.avg_isp} /></td>
                       <td><RankValue v={p.avg_ip} /></td>

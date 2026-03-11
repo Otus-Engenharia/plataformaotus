@@ -54,7 +54,7 @@ function PercepcaoTable({ data = [], onDelete, isAdmin = false }) {
           {data.map(row => (
             <tr key={row.id}>
               <td>{row.periodo_label}</td>
-              <td className="percepcao-td-projeto">{row.projeto_codigo}</td>
+              <td className="percepcao-td-projeto">{row.project_code}</td>
               <td title={row.respondente_email}>{row.respondente_nome || row.respondente_email}</td>
               <td><DimensaoCell value={row.cronograma} /></td>
               <td><DimensaoCell value={row.qualidade} /></td>

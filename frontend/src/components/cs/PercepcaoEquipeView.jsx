@@ -49,7 +49,7 @@ function PercepcaoEquipeView() {
       setStats(statsRes.data?.data || null);
 
       // Extrair projetos únicos para filtro
-      const uniqueProjs = [...new Set(items.map(r => r.projeto_codigo))].sort();
+      const uniqueProjs = [...new Set(items.map(r => r.project_code))].sort();
       setProjetos(prev => {
         const merged = [...new Set([...prev, ...uniqueProjs])].sort();
         return merged;
@@ -93,9 +93,9 @@ function PercepcaoEquipeView() {
       const rAno = String(r.ano);
       return rMes === String(filters.mes) && rAno === String(filters.ano);
     });
-    const respondedNames = new Set(monthPercepcoes.map(r => r.projeto_codigo));
+    const respondedNames = new Set(monthPercepcoes.map(r => r.project_code));
 
-    // Compare using project_name (full name matches projeto_codigo)
+    // Compare using project_name (full name matches project_code)
     const preenchidosMap = {};
     const pendentesMap = {};
 
