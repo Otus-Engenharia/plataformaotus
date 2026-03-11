@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const DIMENSOES = [
   { key: 'cronograma', label: 'Cronograma', required: false, hint: 'Deixe vazio para projetos de compatibilização' },
@@ -62,10 +62,14 @@ const MESES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
-function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submitting = false, fixedProjeto = null }) {
+function PercepcaoFormDialog({
+  open, onClose, onSubmit, projetos = [], submitting = false,
+  fixedProjeto = null, percepcoes = [], portfolioMap = null,
+  userRespondedCodes = null,
+}) {
   const now = new Date();
+  const [selectedCodes, setSelectedCodes] = useState(fixedProjeto ? [fixedProjeto] : []);
   const [form, setForm] = useState({
-    project_code: fixedProjeto || '',
     mes_referencia: now.getMonth() + 1,
     ano_referencia: now.getFullYear(),
     cronograma: '',
@@ -81,17 +85,46 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
 
   if (!open) return null;
 
+  const isMultiMode = !fixedProjeto;
+
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
     setError('');
   };
 
+  const toggleProject = (code) => {
+    setSelectedCodes(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    );
+    setError('');
+  };
+
+  const selectAll = () => {
+    const selectable = projetos.filter(p => !userRespondedCodes?.has(p));
+    setSelectedCodes(selectable);
+  };
+  const clearSelection = () => setSelectedCodes([]);
+
+  // Revenda auto-disable logic
+  const revendaDisabled = useMemo(() => {
+    if (!portfolioMap || selectedCodes.length === 0 || !percepcoes.length) return false;
+    const selectedClients = new Set(
+      selectedCodes.map(code => portfolioMap.get(code)?.client).filter(Boolean)
+    );
+    if (selectedClients.size === 0) return false;
+    return percepcoes.some(p =>
+      p.oportunidade_revenda != null &&
+      !selectedCodes.includes(p.project_code) &&
+      selectedClients.has(portfolioMap.get(p.project_code)?.client)
+    );
+  }, [selectedCodes, percepcoes, portfolioMap]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
 
-    if (!form.project_code) {
-      setError('Selecione um projeto');
+    if (selectedCodes.length === 0) {
+      setError('Selecione pelo menos um projeto');
       return;
     }
 
@@ -103,7 +136,7 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
     }
 
     const payload = {
-      project_code: form.project_code,
+      project_codes: selectedCodes,
       mes_referencia: Number(form.mes_referencia),
       ano_referencia: Number(form.ano_referencia),
       cronograma: form.cronograma ? Number(form.cronograma) : null,
@@ -112,7 +145,7 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
       custos: Number(form.custos),
       parceria: Number(form.parceria),
       confianca: Number(form.confianca),
-      oportunidade_revenda: form.oportunidade_revenda === '' ? null : form.oportunidade_revenda === 'true',
+      oportunidade_revenda: revendaDisabled ? null : (form.oportunidade_revenda === '' ? null : form.oportunidade_revenda === 'true'),
       comentarios: form.comentarios || null,
     };
 
@@ -124,6 +157,12 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
 
   const filledCount = DIMENSOES.filter(d => d.required ? form[d.key] !== '' : true).filter(d => d.required).length;
   const requiredCount = DIMENSOES.filter(d => d.required).length;
+
+  const submitLabel = submitting
+    ? 'Salvando...'
+    : selectedCodes.length > 1
+      ? `Salvar para ${selectedCodes.length} projetos`
+      : 'Salvar Percepção';
 
   return (
     <div className="percepcao-dialog-overlay" onClick={onClose}>
@@ -156,29 +195,51 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
             <legend className="percepcao-section-legend-v2">Projeto e Período</legend>
 
             <div className="percepcao-field-v2">
-              <label htmlFor="perc-projeto" className="percepcao-label-v2">
-                Projeto <span className="percepcao-required-v2">*</span>
+              <label className="percepcao-label-v2">
+                {isMultiMode ? 'Projetos' : 'Projeto'} <span className="percepcao-required-v2">*</span>
               </label>
               {fixedProjeto ? (
                 <input
-                  id="perc-projeto"
                   type="text"
                   value={fixedProjeto}
                   disabled
                   className="percepcao-input-v2"
                 />
               ) : (
-                <select
-                  id="perc-projeto"
-                  value={form.project_code}
-                  onChange={e => handleChange('project_code', e.target.value)}
-                  className="percepcao-input-v2"
-                >
-                  <option value="">Selecione o projeto...</option>
-                  {projetos.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
+                <>
+                  <div className="percepcao-multiselect-actions">
+                    <button type="button" className="percepcao-link-btn" onClick={selectAll}>
+                      Selecionar todos
+                    </button>
+                    <span className="percepcao-multiselect-sep">|</span>
+                    <button type="button" className="percepcao-link-btn" onClick={clearSelection}>
+                      Limpar
+                    </button>
+                    <span className="percepcao-multiselect-count">
+                      {selectedCodes.length} de {projetos.length} selecionados
+                    </span>
+                  </div>
+                  <div className="percepcao-checkbox-list">
+                    {projetos.map(p => {
+                      const alreadyFilled = userRespondedCodes?.has(p);
+                      return (
+                        <label key={p} className={`percepcao-checkbox-item ${alreadyFilled ? 'percepcao-checkbox-disabled' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedCodes.includes(p)}
+                            onChange={() => toggleProject(p)}
+                            disabled={alreadyFilled}
+                          />
+                          <span className="percepcao-checkbox-label">{p}</span>
+                          {alreadyFilled && <span className="percepcao-checkbox-filled-note">Já preenchido</span>}
+                        </label>
+                      );
+                    })}
+                    {projetos.length === 0 && (
+                      <span className="percepcao-checkbox-empty">Nenhum projeto disponível</span>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 
@@ -285,11 +346,20 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
 
             <div className="percepcao-field-v2">
               <label htmlFor="perc-revenda" className="percepcao-label-v2">Oportunidade de Revenda</label>
+              <span className="percepcao-dim-hint-v2">
+                Preencha apenas em 1 projeto por cliente por mês
+              </span>
+              {revendaDisabled && (
+                <div className="percepcao-revenda-disabled-msg">
+                  Já preenchido em outro projeto deste cliente neste mês
+                </div>
+              )}
               <select
                 id="perc-revenda"
-                value={form.oportunidade_revenda}
+                value={revendaDisabled ? '' : form.oportunidade_revenda}
                 onChange={e => handleChange('oportunidade_revenda', e.target.value)}
                 className="percepcao-input-v2"
+                disabled={revendaDisabled}
               >
                 <option value="">Não informado</option>
                 <option value="true">Sim</option>
@@ -322,7 +392,7 @@ function PercepcaoFormDialog({ open, onClose, onSubmit, projetos = [], submittin
                   Salvando...
                 </>
               ) : (
-                'Salvar Percepção'
+                submitLabel
               )}
             </button>
           </div>
