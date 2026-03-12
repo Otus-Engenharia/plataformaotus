@@ -5534,6 +5534,68 @@ export async function createTeam({ teamName }) {
 /**
  * Adiciona uma disciplina/equipe a um projeto
  */
+/**
+ * Adiciona múltiplas disciplinas/equipe em batch (produto cartesiano)
+ * Verifica duplicatas antes de inserir.
+ */
+export async function createProjectDisciplinesBatch(projectId, records) {
+  const supabase = getSupabaseClient();
+
+  // Buscar registros ativos existentes para checar duplicatas
+  const { data: existing } = await supabase
+    .from('project_disciplines')
+    .select('discipline_id, company_id, contact_id')
+    .eq('project_id', projectId)
+    .eq('status', 'ativo');
+
+  const existingSet = new Set(
+    (existing || []).map(e =>
+      `${e.discipline_id}|${e.company_id || ''}|${e.contact_id || ''}`
+    )
+  );
+
+  const toInsert = [];
+  let skipped = 0;
+
+  for (const rec of records) {
+    const key = `${rec.discipline_id}|${rec.company_id || ''}|${rec.contact_id || ''}`;
+    if (existingSet.has(key)) {
+      skipped++;
+    } else {
+      toInsert.push({
+        project_id: projectId,
+        discipline_id: rec.discipline_id,
+        company_id: rec.company_id || null,
+        contact_id: rec.contact_id || null,
+        discipline_detail: rec.discipline_detail || null,
+        status: 'ativo',
+      });
+      existingSet.add(key); // evitar duplicatas dentro do próprio batch
+    }
+  }
+
+  if (toInsert.length === 0) {
+    return { created: [], skipped };
+  }
+
+  const { data, error } = await supabase
+    .from('project_disciplines')
+    .insert(toInsert)
+    .select(`
+      id, project_id, discipline_id, company_id, contact_id,
+      discipline_detail, status, created_at,
+      discipline:discipline_id(id, discipline_name, short_name),
+      company:company_id(id, name, status),
+      contact:contact_id(id, name, email, phone, position)
+    `);
+
+  if (error) {
+    throw new Error(`Erro ao adicionar equipe em batch: ${error.message}`);
+  }
+
+  return { created: data || [], skipped };
+}
+
 export async function createProjectDiscipline(disciplineData) {
   const supabase = getSupabaseClient();
 
