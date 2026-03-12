@@ -1,17 +1,21 @@
 /**
  * Marcos Lider View - Gestao de Marcos pelo Lider do Projeto
  *
- * Secoes:
- * 1. Painel de Atividades (notificacoes de edicao + solicitacoes de baseline)
- * 2. Tabela de Marcos (enriched com dados do Smartsheet)
- * 3. Modal de vinculacao de tarefa do cronograma
- * 4. CRUD completo de marcos
+ * Modos:
+ * - Overview: mostra marcos de TODOS os projetos agrupados (batch fetch)
+ * - Single-project: CRUD completo + activity panel para um projeto
+ *
+ * Filtros (header):
+ * - Time (todos)
+ * - Lider (admin+ only)
+ * - Projeto (drill-down para single-project mode)
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
 import { usePortfolio } from '../../contexts/PortfolioContext';
+import { useAuth } from '../../contexts/AuthContext';
 import './MarcosLiderView.css';
 
 /* ---- Constants ---- */
@@ -83,7 +87,12 @@ function getLogText(entry) {
 
 
 function MarcosLiderView() {
-  const { data: portfolioData, loading: portfolioLoading } = usePortfolio();
+  const { data: portfolioData, loading: portfolioLoading, uniqueTimes, uniqueLiders } = usePortfolio();
+  const { hasFullAccess } = useAuth();
+
+  /* ---- Filters ---- */
+  const [localTimeFilter, setLocalTimeFilter] = useState('');
+  const [localLiderFilter, setLocalLiderFilter] = useState('');
 
   /* ---- Project selection ---- */
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -95,6 +104,19 @@ function MarcosLiderView() {
       .sort((a, b) => (a.project_name || '').localeCompare(b.project_name || ''));
   }, [portfolioData]);
 
+  const filteredProjects = useMemo(() => {
+    let result = sortedProjects;
+    if (localTimeFilter) {
+      result = result.filter(p => p.nome_time === localTimeFilter);
+    }
+    if (localLiderFilter) {
+      result = result.filter(p => p.lider === localLiderFilter);
+    }
+    return result;
+  }, [sortedProjects, localTimeFilter, localLiderFilter]);
+
+  const isOverviewMode = !selectedProjectId;
+
   const selectedProject = useMemo(() => {
     if (!selectedProjectId || !sortedProjects.length) return null;
     return sortedProjects.find(p => p.project_code_norm === selectedProjectId) || null;
@@ -103,6 +125,21 @@ function MarcosLiderView() {
   const projectCode = selectedProject?.project_code_norm || '';
   const smartsheetId = selectedProject?.smartsheet_id || '';
   const projectName = selectedProject?.project_name || selectedProject?.project_code_norm || '';
+
+  // Reset project selection when filters change
+  const handleTimeFilterChange = (val) => {
+    setLocalTimeFilter(val);
+    setSelectedProjectId('');
+  };
+  const handleLiderFilterChange = (val) => {
+    setLocalLiderFilter(val);
+    setSelectedProjectId('');
+  };
+
+  /* ---- Overview Mode State ---- */
+  const [allMarcosMap, setAllMarcosMap] = useState({});
+  const [allMarcosLoading, setAllMarcosLoading] = useState(false);
+  const [expandedProjects, setExpandedProjects] = useState({});
 
   /* ---- Section 1: Activity Panel State ---- */
   const [editLogs, setEditLogs] = useState([]);
@@ -123,6 +160,7 @@ function MarcosLiderView() {
   /* ---- Section 3: Link Modal State ---- */
   const [linkingMarcoId, setLinkingMarcoId] = useState(null);
   const [linkingMarcoNome, setLinkingMarcoNome] = useState('');
+  const [linkingProject, setLinkingProject] = useState(null);
   const [cronogramaTasks, setCronogramaTasks] = useState([]);
   const [cronogramaLoading, setCronogramaLoading] = useState(false);
   const [linkSearch, setLinkSearch] = useState('');
@@ -139,7 +177,39 @@ function MarcosLiderView() {
      DATA FETCHING
      ================================================================ */
 
-  // Fetch enriched marcos
+  // Overview: batch fetch marcos for all filtered projects
+  const fetchAllMarcos = useCallback(async () => {
+    if (filteredProjects.length === 0) { setAllMarcosMap({}); return; }
+    setAllMarcosLoading(true);
+    try {
+      const body = {
+        projects: filteredProjects.map(p => ({
+          projectCode: p.project_code_norm,
+          smartsheetId: p.smartsheet_id || null,
+          projectName: p.project_name || p.project_code_norm,
+        })),
+      };
+      const res = await axios.post(`${API_URL}/api/marcos-projeto/enriched-batch`, body, {
+        withCredentials: true,
+      });
+      if (res.data?.success) {
+        setAllMarcosMap(res.data.data || {});
+      }
+    } catch (err) {
+      console.error('Erro ao buscar marcos batch:', err);
+    } finally {
+      setAllMarcosLoading(false);
+    }
+  }, [filteredProjects]);
+
+  // Fetch overview when in overview mode
+  useEffect(() => {
+    if (isOverviewMode) {
+      fetchAllMarcos();
+    }
+  }, [isOverviewMode, fetchAllMarcos]);
+
+  // Single-project: fetch enriched marcos
   const fetchMarcos = useCallback(async () => {
     if (!projectCode) { setMarcos([]); return; }
     setMarcosLoading(true);
@@ -198,12 +268,55 @@ function MarcosLiderView() {
     }
   }, [projectCode]);
 
-  // Fetch all when project changes
+  // Fetch single-project data when project changes
   useEffect(() => {
-    fetchMarcos();
-    fetchEditLogs();
-    fetchBaselineRequests();
-  }, [fetchMarcos, fetchEditLogs, fetchBaselineRequests]);
+    if (!isOverviewMode) {
+      fetchMarcos();
+      fetchEditLogs();
+      fetchBaselineRequests();
+    }
+  }, [isOverviewMode, fetchMarcos, fetchEditLogs, fetchBaselineRequests]);
+
+  /* ================================================================
+     OVERVIEW: COMPUTED
+     ================================================================ */
+
+  const overviewKpis = useMemo(() => {
+    let total = 0, comDesvio = 0, naoVinculados = 0, concluidos = 0;
+    for (const pc of Object.keys(allMarcosMap)) {
+      const { marcos: projectMarcos } = allMarcosMap[pc] || {};
+      if (!projectMarcos) continue;
+      for (const m of projectMarcos) {
+        total++;
+        if (m.variacao_dias != null && m.variacao_dias > 0) comDesvio++;
+        if (!m.smartsheet_row_id) naoVinculados++;
+        if (m.status === 'feito') concluidos++;
+      }
+    }
+    return { total, comDesvio, naoVinculados, concluidos };
+  }, [allMarcosMap]);
+
+  // Projects that have marcos (sorted, with counts)
+  const overviewProjects = useMemo(() => {
+    return filteredProjects
+      .map(p => {
+        const entry = allMarcosMap[p.project_code_norm];
+        const projectMarcos = entry?.marcos || [];
+        const pendingCount = entry?.pendingCount || 0;
+        return { ...p, marcosCount: projectMarcos.length, pendingCount };
+      })
+      .filter(p => p.marcosCount > 0)
+      .sort((a, b) => {
+        // Pending first, then alphabetical
+        if (a.pendingCount > 0 && b.pendingCount === 0) return -1;
+        if (b.pendingCount > 0 && a.pendingCount === 0) return 1;
+        return (a.project_name || '').localeCompare(b.project_name || '');
+      });
+  }, [filteredProjects, allMarcosMap]);
+
+  const toggleProjectExpand = (code) => {
+    setExpandedProjects(prev => ({ ...prev, [code]: !prev[code] }));
+  };
 
   /* ================================================================
      SECTION 1: ACTIVITY PANEL HANDLERS
@@ -353,13 +466,16 @@ function MarcosLiderView() {
      SECTION 3: LINK TO SMARTSHEET HANDLERS
      ================================================================ */
 
-  const openLinkModal = async (marcoId, marcoNome) => {
+  const openLinkModal = async (marcoId, marcoNome, project) => {
+    const ssId = project?.smartsheet_id || smartsheetId;
+    const pName = project?.project_name || projectName;
     setLinkingMarcoId(marcoId);
     setLinkingMarcoNome(marcoNome);
+    setLinkingProject(project || selectedProject);
     setLinkSearch('');
     setLinkBaseline(false);
 
-    if (!smartsheetId && !projectName) {
+    if (!ssId && !pName) {
       alert('Este projeto nao possui Smartsheet vinculado.');
       return;
     }
@@ -368,7 +484,7 @@ function MarcosLiderView() {
     setCronogramaTasks([]);
     try {
       const res = await axios.get(`${API_URL}/api/projetos/cronograma`, {
-        params: { smartsheetId, projectName },
+        params: { smartsheetId: ssId, projectName: pName },
         withCredentials: true,
       });
       setCronogramaTasks(res.data?.data || []);
@@ -383,6 +499,7 @@ function MarcosLiderView() {
   const closeLinkModal = () => {
     setLinkingMarcoId(null);
     setLinkingMarcoNome('');
+    setLinkingProject(null);
     setCronogramaTasks([]);
     setLinkSearch('');
     setLinkBaseline(false);
@@ -403,7 +520,12 @@ function MarcosLiderView() {
         { withCredentials: true }
       );
       closeLinkModal();
-      await fetchMarcos();
+      // Refresh appropriate data
+      if (isOverviewMode) {
+        await fetchAllMarcos();
+      } else {
+        await fetchMarcos();
+      }
     } catch (err) {
       console.error('Erro ao vincular tarefa:', err);
       alert('Erro ao vincular: ' + (err.response?.data?.error || err.message));
@@ -420,7 +542,7 @@ function MarcosLiderView() {
   }, [cronogramaTasks, linkSearch]);
 
   /* ================================================================
-     COMPUTED
+     COMPUTED (single-project mode)
      ================================================================ */
 
   const activityCount = editLogs.length + baselineRequests.length;
@@ -438,6 +560,35 @@ function MarcosLiderView() {
           <h1 className="mlv-page-title">Marcos do Projeto</h1>
         </div>
         <div className="mlv-header-controls">
+          {/* Time filter */}
+          <select
+            value={localTimeFilter}
+            onChange={e => handleTimeFilterChange(e.target.value)}
+            className="mlv-filter-select"
+            disabled={portfolioLoading}
+          >
+            <option value="">Todos os Times</option>
+            {uniqueTimes.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+
+          {/* Leader filter (admin+ only) */}
+          {hasFullAccess && (
+            <select
+              value={localLiderFilter}
+              onChange={e => handleLiderFilterChange(e.target.value)}
+              className="mlv-filter-select"
+              disabled={portfolioLoading}
+            >
+              <option value="">Todos os Lideres</option>
+              {uniqueLiders.map(l => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Project selector */}
           <select
             value={selectedProjectId}
             onChange={e => setSelectedProjectId(e.target.value)}
@@ -445,9 +596,9 @@ function MarcosLiderView() {
             disabled={portfolioLoading}
           >
             <option value="">
-              {portfolioLoading ? 'Carregando projetos...' : 'Selecione um projeto'}
+              {portfolioLoading ? 'Carregando...' : `Todos os projetos (${filteredProjects.length})`}
             </option>
-            {sortedProjects.map(p => (
+            {filteredProjects.map(p => (
               <option key={p.project_code_norm} value={p.project_code_norm}>
                 {p.project_name || p.project_code_norm}
               </option>
@@ -456,369 +607,519 @@ function MarcosLiderView() {
         </div>
       </div>
 
-      {/* ---- Section 1: Activity Panel ---- */}
-      {projectCode && hasActivity && (
-        <div className="mlv-activity-panel">
-          <div className="mlv-activity-header">
-            <div className="mlv-activity-header-left">
-              <span className="mlv-activity-icon">{'\u26A0'}</span>
-              <h2 className="mlv-activity-title">Atividades Recentes</h2>
-              {activityCount > 0 && (
-                <span className="mlv-activity-badge">{activityCount}</span>
-              )}
-            </div>
-          </div>
-
-          <div className="mlv-activity-body">
-            {/* 1a. Edit Logs */}
-            {editLogsLoading ? (
-              <div className="mlv-loading">Carregando notificacoes...</div>
-            ) : editLogs.length > 0 ? (
-              <div className="mlv-edit-log-section">
-                <div className="mlv-subsection-header">
-                  <span className="mlv-subsection-title">Alteracoes nao vistas</span>
-                  <button
-                    className="mlv-mark-seen-btn"
-                    onClick={handleMarkSeen}
-                    disabled={markingSeenLoading}
-                  >
-                    {markingSeenLoading ? 'Marcando...' : 'Marcar como visto'}
-                  </button>
-                </div>
-                <div className="mlv-log-list">
-                  {editLogs.map((entry, idx) => (
-                    <div key={entry.id || idx} className={`mlv-log-item ${getLogItemClass(entry)}`}>
-                      <span className="mlv-log-icon">{getLogIcon(entry)}</span>
-                      <span className="mlv-log-text">{getLogText(entry)}</span>
-                      <span className="mlv-log-date">{formatDateTimestamp(entry.created_at)}</span>
-                    </div>
-                  ))}
-                </div>
+      {/* ================================================================
+         OVERVIEW MODE
+         ================================================================ */}
+      {isOverviewMode && (
+        <>
+          {/* KPI strip */}
+          {!allMarcosLoading && overviewKpis.total > 0 && (
+            <div className="mlv-kpi-strip">
+              <div className="mlv-kpi-card">
+                <span className="mlv-kpi-value">{overviewKpis.total}</span>
+                <span className="mlv-kpi-label">Total</span>
               </div>
-            ) : null}
+              <div className="mlv-kpi-card mlv-kpi-danger">
+                <span className="mlv-kpi-value">{overviewKpis.comDesvio}</span>
+                <span className="mlv-kpi-label">Com Desvio</span>
+              </div>
+              <div className="mlv-kpi-card mlv-kpi-warning">
+                <span className="mlv-kpi-value">{overviewKpis.naoVinculados}</span>
+                <span className="mlv-kpi-label">Nao Vinculados</span>
+              </div>
+              <div className="mlv-kpi-card mlv-kpi-success">
+                <span className="mlv-kpi-value">{overviewKpis.concluidos}</span>
+                <span className="mlv-kpi-label">Concluidos</span>
+              </div>
+            </div>
+          )}
 
-            {/* 1b. Baseline Requests */}
-            {baselineLoading ? (
-              <div className="mlv-loading">Carregando solicitacoes de baseline...</div>
-            ) : baselineRequests.length > 0 ? (
-              <div className="mlv-baseline-section">
-                <div className="mlv-subsection-header">
-                  <span className="mlv-subsection-title">Solicitacoes de Baseline Pendentes</span>
-                </div>
-                {baselineRequests.map(req => (
-                  <div key={req.id} className="mlv-baseline-card">
-                    <div className="mlv-baseline-card-header">
-                      <span className="mlv-baseline-requester">
-                        {req.requested_by_name || req.requested_by_email || 'Solicitante'}
-                      </span>
-                      <span className="mlv-baseline-date">
-                        {formatDateTimestamp(req.created_at)}
-                      </span>
-                    </div>
+          {/* Grouped projects */}
+          <div className="mlv-table-card">
+            {allMarcosLoading ? (
+              <div className="mlv-loading">Carregando marcos de todos os projetos...</div>
+            ) : overviewProjects.length === 0 ? (
+              <div className="mlv-empty">
+                {filteredProjects.length === 0
+                  ? 'Nenhum projeto encontrado com os filtros selecionados.'
+                  : 'Nenhum marco cadastrado nos projetos filtrados.'}
+              </div>
+            ) : (
+              <div className="mlv-project-groups">
+                {overviewProjects.map(proj => {
+                  const entry = allMarcosMap[proj.project_code_norm] || {};
+                  const projectMarcos = entry.marcos || [];
+                  const isExpanded = expandedProjects[proj.project_code_norm];
 
-                    {req.justificativa && (
-                      <div className="mlv-baseline-justificativa">
-                        <strong>Justificativa:</strong> {req.justificativa}
-                      </div>
-                    )}
-
-                    {/* Expandable Snapshot */}
-                    {req.marcos_snapshot && Array.isArray(req.marcos_snapshot) && req.marcos_snapshot.length > 0 && (
-                      <>
-                        <button
-                          className="mlv-snapshot-toggle"
-                          onClick={() => toggleSnapshot(req.id)}
-                        >
-                          <span className={`mlv-snapshot-arrow ${expandedSnapshots[req.id] ? 'open' : ''}`}>
-                            {'\u25B6'}
-                          </span>
-                          Ver marcos ({req.marcos_snapshot.length})
-                        </button>
-
-                        {expandedSnapshots[req.id] && (
-                          <div className="mlv-snapshot-list">
-                            {req.marcos_snapshot.map((snap, i) => (
-                              <div key={i} className="mlv-snapshot-item">
-                                <span className="mlv-snapshot-name">{snap.nome || snap.name || '-'}</span>
-                                <span className="mlv-snapshot-date">
-                                  Baseline: {formatDateDisplay(snap.prazo_baseline)}
-                                </span>
-                                <span className="mlv-snapshot-date">
-                                  Atual: {formatDateDisplay(snap.prazo_atual)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                  return (
+                    <div key={proj.project_code_norm} className="mlv-project-group">
+                      <div
+                        className="mlv-project-group-header"
+                        onClick={() => toggleProjectExpand(proj.project_code_norm)}
+                      >
+                        <span className={`mlv-project-group-arrow ${isExpanded ? 'open' : ''}`}>
+                          {'\u25B6'}
+                        </span>
+                        <span className="mlv-project-group-name">
+                          {proj.project_name || proj.project_code_norm}
+                        </span>
+                        <span className="mlv-project-group-count">{proj.marcosCount}</span>
+                        {proj.pendingCount > 0 && (
+                          <span className="mlv-project-group-pending">{proj.pendingCount}</span>
                         )}
-                      </>
-                    )}
+                        <button
+                          className="mlv-project-group-open-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProjectId(proj.project_code_norm);
+                          }}
+                          title="Abrir projeto (modo CRUD)"
+                        >
+                          Gerenciar
+                        </button>
+                      </div>
 
-                    {/* Actions */}
-                    <div className="mlv-baseline-actions">
-                      {rejectingId === req.id ? (
-                        <div className="mlv-reject-form">
-                          <textarea
-                            className="mlv-reject-input"
-                            value={rejectReason}
-                            onChange={e => setRejectReason(e.target.value)}
-                            placeholder="Justificativa da rejeicao (obrigatorio)..."
-                            rows={2}
-                            autoFocus
-                          />
-                          <div className="mlv-reject-form-btns">
-                            <button
-                              className="mlv-btn mlv-btn-cancel mlv-btn-sm"
-                              onClick={() => { setRejectingId(null); setRejectReason(''); }}
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              className="mlv-btn mlv-btn-reject mlv-btn-sm"
-                              onClick={() => handleRejectBaseline(req.id)}
-                              disabled={processingBaseline === req.id}
-                            >
-                              {processingBaseline === req.id ? 'Rejeitando...' : 'Confirmar Rejeicao'}
-                            </button>
-                          </div>
+                      {isExpanded && (
+                        <div className="mlv-project-group-body">
+                          <table className="mlv-table">
+                            <thead>
+                              <tr>
+                                <th>Nome</th>
+                                <th>Data Cliente</th>
+                                <th>Data Cronograma</th>
+                                <th>Variacao</th>
+                                <th>Tarefa Vinculada</th>
+                                <th>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {projectMarcos.map(m => {
+                                const statusOpt = STATUS_OPTIONS.find(s => s.value === m.status) || STATUS_OPTIONS[0];
+                                const variacao = m.variacao_dias;
+                                const hasLinkedTask = !!(m.smartsheet_task_name || m.smartsheet_row_id);
+
+                                return (
+                                  <tr key={m.id}>
+                                    <td className="mlv-td-nome">
+                                      <span className="mlv-nome">{m.nome}</span>
+                                      {m.descricao && (
+                                        <span className="mlv-descricao">{m.descricao}</span>
+                                      )}
+                                    </td>
+                                    <td>{formatDateDisplay(m.prazo_atual)}</td>
+                                    <td>{formatDateDisplay(m.data_cronograma || m.smartsheet_date)}</td>
+                                    <td>
+                                      {variacao != null && variacao !== 0 ? (
+                                        <span className={`mlv-variacao ${variacao > 0 ? 'atrasado' : 'adiantado'}`}>
+                                          {variacao > 0 ? '+' : ''}{variacao}d
+                                        </span>
+                                      ) : '-'}
+                                    </td>
+                                    <td>
+                                      {hasLinkedTask ? (
+                                        <span className="mlv-task-linked">
+                                          <span className="mlv-task-linked-icon">{'\u{1F517}'}</span>
+                                          {m.smartsheet_task_name || `Row ${m.smartsheet_row_id}`}
+                                        </span>
+                                      ) : (
+                                        <span className="mlv-task-unlinked">
+                                          <button
+                                            className="mlv-link-btn"
+                                            onClick={() => openLinkModal(m.id, m.nome, proj)}
+                                            title="Vincular a uma tarefa do cronograma"
+                                          >
+                                            Vincular
+                                          </button>
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      <span className={`mlv-status-badge ${statusOpt.className}`}>
+                                        {statusOpt.label}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
-                      ) : (
-                        <>
-                          <button
-                            className="mlv-btn mlv-btn-approve mlv-btn-sm"
-                            onClick={() => handleApproveBaseline(req.id)}
-                            disabled={processingBaseline === req.id}
-                          >
-                            {processingBaseline === req.id ? 'Aprovando...' : 'Aprovar'}
-                          </button>
-                          <button
-                            className="mlv-btn mlv-btn-reject-start mlv-btn-sm"
-                            onClick={() => setRejectingId(req.id)}
-                          >
-                            Rejeitar
-                          </button>
-                        </>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {/* Empty state when no activity */}
-            {!editLogsLoading && !baselineLoading && editLogs.length === 0 && baselineRequests.length === 0 && (
-              <div className="mlv-activity-empty">
-                Nenhuma atividade pendente para este projeto.
+                  );
+                })}
               </div>
             )}
           </div>
-        </div>
+        </>
       )}
 
-      {/* ---- Section 4: Actions Bar ---- */}
-      {projectCode && (
-        <div className="mlv-actions-bar">
-          <button
-            className="mlv-btn mlv-btn-primary"
-            onClick={() => { resetForm(); setShowForm(true); }}
-          >
-            + Novo Marco
-          </button>
-        </div>
-      )}
+      {/* ================================================================
+         SINGLE-PROJECT MODE (existing behavior)
+         ================================================================ */}
+      {!isOverviewMode && (
+        <>
+          {/* ---- Section 1: Activity Panel ---- */}
+          {projectCode && hasActivity && (
+            <div className="mlv-activity-panel">
+              <div className="mlv-activity-header">
+                <div className="mlv-activity-header-left">
+                  <span className="mlv-activity-icon">{'\u26A0'}</span>
+                  <h2 className="mlv-activity-title">Atividades Recentes</h2>
+                  {activityCount > 0 && (
+                    <span className="mlv-activity-badge">{activityCount}</span>
+                  )}
+                </div>
+              </div>
 
-      {/* ---- Create/Edit Form ---- */}
-      {showForm && (
-        <div className="mlv-form-card">
-          <h3>{editingId ? 'Editar Marco' : 'Novo Marco'}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="mlv-form-grid">
-              <div className="mlv-field">
-                <label>Nome *</label>
-                <input
-                  type="text"
-                  value={form.nome}
-                  onChange={e => setForm({ ...form, nome: e.target.value })}
-                  placeholder="Ex: Protocolo Prefeitura"
-                  required
-                />
-              </div>
-              <div className="mlv-field">
-                <label>Status</label>
-                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-                  {STATUS_OPTIONS.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="mlv-field">
-                <label>Prazo Baseline</label>
-                <input
-                  type="date"
-                  value={form.prazo_baseline}
-                  onChange={e => setForm({ ...form, prazo_baseline: e.target.value })}
-                />
-              </div>
-              <div className="mlv-field">
-                <label>Prazo Atual</label>
-                <input
-                  type="date"
-                  value={form.prazo_atual}
-                  onChange={e => setForm({ ...form, prazo_atual: e.target.value })}
-                />
-              </div>
-              <div className="mlv-field mlv-field-full">
-                <label>Descricao</label>
-                <textarea
-                  value={form.descricao}
-                  onChange={e => setForm({ ...form, descricao: e.target.value })}
-                  placeholder="Descricao do marco (opcional)"
-                  rows={2}
-                />
-              </div>
-            </div>
-            <div className="mlv-form-actions">
-              <button type="submit" className="mlv-btn mlv-btn-primary">
-                {editingId ? 'Salvar' : 'Criar'}
-              </button>
-              <button type="button" className="mlv-btn mlv-btn-ghost" onClick={resetForm}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+              <div className="mlv-activity-body">
+                {/* 1a. Edit Logs */}
+                {editLogsLoading ? (
+                  <div className="mlv-loading">Carregando notificacoes...</div>
+                ) : editLogs.length > 0 ? (
+                  <div className="mlv-edit-log-section">
+                    <div className="mlv-subsection-header">
+                      <span className="mlv-subsection-title">Alteracoes nao vistas</span>
+                      <button
+                        className="mlv-mark-seen-btn"
+                        onClick={handleMarkSeen}
+                        disabled={markingSeenLoading}
+                      >
+                        {markingSeenLoading ? 'Marcando...' : 'Marcar como visto'}
+                      </button>
+                    </div>
+                    <div className="mlv-log-list">
+                      {editLogs.map((entry, idx) => (
+                        <div key={entry.id || idx} className={`mlv-log-item ${getLogItemClass(entry)}`}>
+                          <span className="mlv-log-icon">{getLogIcon(entry)}</span>
+                          <span className="mlv-log-text">{getLogText(entry)}</span>
+                          <span className="mlv-log-date">{formatDateTimestamp(entry.created_at)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
-      {/* ---- Section 2: Marcos Table ---- */}
-      <div className="mlv-table-card">
-        {marcosLoading ? (
-          <div className="mlv-loading">Carregando marcos...</div>
-        ) : !projectCode ? (
-          <div className="mlv-empty">
-            Selecione um projeto para gerenciar marcos.
-          </div>
-        ) : marcos.length === 0 ? (
-          <div className="mlv-empty">
-            Nenhum marco cadastrado para este projeto.
-            <br />
-            <span className="mlv-empty-hint">
-              Use "+ Novo Marco" para criar marcos manualmente.
-            </span>
-          </div>
-        ) : (
-          <table className="mlv-table">
-            <thead>
-              <tr>
-                <th className="mlv-th-order">#</th>
-                <th>Nome</th>
-                <th>Data Cliente</th>
-                <th>Data Cronograma</th>
-                <th>Variacao</th>
-                <th>Tarefa Vinculada</th>
-                <th>Status</th>
-                <th className="mlv-th-actions">Acoes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {marcos.map((m, idx) => {
-                const statusOpt = STATUS_OPTIONS.find(s => s.value === m.status) || STATUS_OPTIONS[0];
-                const variacao = m.variacao_dias;
-                const hasLinkedTask = !!(m.smartsheet_task_name || m.smartsheet_row_id);
+                {/* 1b. Baseline Requests */}
+                {baselineLoading ? (
+                  <div className="mlv-loading">Carregando solicitacoes de baseline...</div>
+                ) : baselineRequests.length > 0 ? (
+                  <div className="mlv-baseline-section">
+                    <div className="mlv-subsection-header">
+                      <span className="mlv-subsection-title">Solicitacoes de Baseline Pendentes</span>
+                    </div>
+                    {baselineRequests.map(req => (
+                      <div key={req.id} className="mlv-baseline-card">
+                        <div className="mlv-baseline-card-header">
+                          <span className="mlv-baseline-requester">
+                            {req.requested_by_name || req.requested_by_email || 'Solicitante'}
+                          </span>
+                          <span className="mlv-baseline-date">
+                            {formatDateTimestamp(req.created_at)}
+                          </span>
+                        </div>
 
-                return (
-                  <tr key={m.id}>
-                    {/* Order */}
-                    <td className="mlv-td-order">
-                      <div className="mlv-order-btns">
-                        <button
-                          className="mlv-order-btn"
-                          onClick={() => handleMove(idx, -1)}
-                          disabled={idx === 0}
-                          title="Mover para cima"
-                        >{'\u25B2'}</button>
-                        <button
-                          className="mlv-order-btn"
-                          onClick={() => handleMove(idx, 1)}
-                          disabled={idx === marcos.length - 1}
-                          title="Mover para baixo"
-                        >{'\u25BC'}</button>
+                        {req.justificativa && (
+                          <div className="mlv-baseline-justificativa">
+                            <strong>Justificativa:</strong> {req.justificativa}
+                          </div>
+                        )}
+
+                        {/* Expandable Snapshot */}
+                        {req.marcos_snapshot && Array.isArray(req.marcos_snapshot) && req.marcos_snapshot.length > 0 && (
+                          <>
+                            <button
+                              className="mlv-snapshot-toggle"
+                              onClick={() => toggleSnapshot(req.id)}
+                            >
+                              <span className={`mlv-snapshot-arrow ${expandedSnapshots[req.id] ? 'open' : ''}`}>
+                                {'\u25B6'}
+                              </span>
+                              Ver marcos ({req.marcos_snapshot.length})
+                            </button>
+
+                            {expandedSnapshots[req.id] && (
+                              <div className="mlv-snapshot-list">
+                                {req.marcos_snapshot.map((snap, i) => (
+                                  <div key={i} className="mlv-snapshot-item">
+                                    <span className="mlv-snapshot-name">{snap.nome || snap.name || '-'}</span>
+                                    <span className="mlv-snapshot-date">
+                                      Baseline: {formatDateDisplay(snap.prazo_baseline)}
+                                    </span>
+                                    <span className="mlv-snapshot-date">
+                                      Atual: {formatDateDisplay(snap.prazo_atual)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Actions */}
+                        <div className="mlv-baseline-actions">
+                          {rejectingId === req.id ? (
+                            <div className="mlv-reject-form">
+                              <textarea
+                                className="mlv-reject-input"
+                                value={rejectReason}
+                                onChange={e => setRejectReason(e.target.value)}
+                                placeholder="Justificativa da rejeicao (obrigatorio)..."
+                                rows={2}
+                                autoFocus
+                              />
+                              <div className="mlv-reject-form-btns">
+                                <button
+                                  className="mlv-btn mlv-btn-cancel mlv-btn-sm"
+                                  onClick={() => { setRejectingId(null); setRejectReason(''); }}
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  className="mlv-btn mlv-btn-reject mlv-btn-sm"
+                                  onClick={() => handleRejectBaseline(req.id)}
+                                  disabled={processingBaseline === req.id}
+                                >
+                                  {processingBaseline === req.id ? 'Rejeitando...' : 'Confirmar Rejeicao'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                className="mlv-btn mlv-btn-approve mlv-btn-sm"
+                                onClick={() => handleApproveBaseline(req.id)}
+                                disabled={processingBaseline === req.id}
+                              >
+                                {processingBaseline === req.id ? 'Aprovando...' : 'Aprovar'}
+                              </button>
+                              <button
+                                className="mlv-btn mlv-btn-reject-start mlv-btn-sm"
+                                onClick={() => setRejectingId(req.id)}
+                              >
+                                Rejeitar
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </td>
+                    ))}
+                  </div>
+                ) : null}
 
-                    {/* Nome */}
-                    <td className="mlv-td-nome">
-                      <span className="mlv-nome">{m.nome}</span>
-                      {m.descricao && (
-                        <span className="mlv-descricao">{m.descricao}</span>
-                      )}
-                    </td>
+                {/* Empty state when no activity */}
+                {!editLogsLoading && !baselineLoading && editLogs.length === 0 && baselineRequests.length === 0 && (
+                  <div className="mlv-activity-empty">
+                    Nenhuma atividade pendente para este projeto.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-                    {/* Data Cliente (prazo_atual do marco) */}
-                    <td>{formatDateDisplay(m.prazo_atual)}</td>
+          {/* ---- Section 4: Actions Bar ---- */}
+          {projectCode && (
+            <div className="mlv-actions-bar">
+              <button
+                className="mlv-btn mlv-btn-primary"
+                onClick={() => { resetForm(); setShowForm(true); }}
+              >
+                + Novo Marco
+              </button>
+            </div>
+          )}
 
-                    {/* Data Cronograma (from enriched smartsheet data) */}
-                    <td>{formatDateDisplay(m.data_cronograma || m.smartsheet_date)}</td>
+          {/* ---- Create/Edit Form ---- */}
+          {showForm && (
+            <div className="mlv-form-card">
+              <h3>{editingId ? 'Editar Marco' : 'Novo Marco'}</h3>
+              <form onSubmit={handleSubmit}>
+                <div className="mlv-form-grid">
+                  <div className="mlv-field">
+                    <label>Nome *</label>
+                    <input
+                      type="text"
+                      value={form.nome}
+                      onChange={e => setForm({ ...form, nome: e.target.value })}
+                      placeholder="Ex: Protocolo Prefeitura"
+                      required
+                    />
+                  </div>
+                  <div className="mlv-field">
+                    <label>Status</label>
+                    <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                      {STATUS_OPTIONS.map(s => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mlv-field">
+                    <label>Prazo Baseline</label>
+                    <input
+                      type="date"
+                      value={form.prazo_baseline}
+                      onChange={e => setForm({ ...form, prazo_baseline: e.target.value })}
+                    />
+                  </div>
+                  <div className="mlv-field">
+                    <label>Prazo Atual</label>
+                    <input
+                      type="date"
+                      value={form.prazo_atual}
+                      onChange={e => setForm({ ...form, prazo_atual: e.target.value })}
+                    />
+                  </div>
+                  <div className="mlv-field mlv-field-full">
+                    <label>Descricao</label>
+                    <textarea
+                      value={form.descricao}
+                      onChange={e => setForm({ ...form, descricao: e.target.value })}
+                      placeholder="Descricao do marco (opcional)"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+                <div className="mlv-form-actions">
+                  <button type="submit" className="mlv-btn mlv-btn-primary">
+                    {editingId ? 'Salvar' : 'Criar'}
+                  </button>
+                  <button type="button" className="mlv-btn mlv-btn-ghost" onClick={resetForm}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
-                    {/* Variacao */}
-                    <td>
-                      {variacao != null && variacao !== 0 ? (
-                        <span className={`mlv-variacao ${variacao > 0 ? 'atrasado' : 'adiantado'}`}>
-                          {variacao > 0 ? '+' : ''}{variacao}d
-                        </span>
-                      ) : '-'}
-                    </td>
-
-                    {/* Tarefa Vinculada */}
-                    <td>
-                      {hasLinkedTask ? (
-                        <span className="mlv-task-linked">
-                          <span className="mlv-task-linked-icon">{'\u{1F517}'}</span>
-                          {m.smartsheet_task_name || `Row ${m.smartsheet_row_id}`}
-                        </span>
-                      ) : (
-                        <span className="mlv-task-unlinked">
-                          <button
-                            className="mlv-link-btn"
-                            onClick={() => openLinkModal(m.id, m.nome)}
-                            title="Vincular a uma tarefa do cronograma"
-                          >
-                            Vincular
-                          </button>
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Status */}
-                    <td>
-                      <span className={`mlv-status-badge ${statusOpt.className}`}>
-                        {statusOpt.label}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="mlv-td-actions">
-                      <button
-                        className="mlv-action-btn link"
-                        onClick={() => openLinkModal(m.id, m.nome)}
-                        title="Vincular tarefa"
-                      >{'\u{1F517}'}</button>
-                      <button
-                        className="mlv-action-btn edit"
-                        onClick={() => handleEdit(m)}
-                        title="Editar"
-                      >{'\u270E'}</button>
-                      <button
-                        className="mlv-action-btn delete"
-                        onClick={() => handleDelete(m.id, m.nome)}
-                        title="Remover"
-                      >{'\u2715'}</button>
-                    </td>
+          {/* ---- Section 2: Marcos Table ---- */}
+          <div className="mlv-table-card">
+            {marcosLoading ? (
+              <div className="mlv-loading">Carregando marcos...</div>
+            ) : marcos.length === 0 ? (
+              <div className="mlv-empty">
+                Nenhum marco cadastrado para este projeto.
+                <br />
+                <span className="mlv-empty-hint">
+                  Use "+ Novo Marco" para criar marcos manualmente.
+                </span>
+              </div>
+            ) : (
+              <table className="mlv-table">
+                <thead>
+                  <tr>
+                    <th className="mlv-th-order">#</th>
+                    <th>Nome</th>
+                    <th>Data Cliente</th>
+                    <th>Data Cronograma</th>
+                    <th>Variacao</th>
+                    <th>Tarefa Vinculada</th>
+                    <th>Status</th>
+                    <th className="mlv-th-actions">Acoes</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {marcos.map((m, idx) => {
+                    const statusOpt = STATUS_OPTIONS.find(s => s.value === m.status) || STATUS_OPTIONS[0];
+                    const variacao = m.variacao_dias;
+                    const hasLinkedTask = !!(m.smartsheet_task_name || m.smartsheet_row_id);
+
+                    return (
+                      <tr key={m.id}>
+                        {/* Order */}
+                        <td className="mlv-td-order">
+                          <div className="mlv-order-btns">
+                            <button
+                              className="mlv-order-btn"
+                              onClick={() => handleMove(idx, -1)}
+                              disabled={idx === 0}
+                              title="Mover para cima"
+                            >{'\u25B2'}</button>
+                            <button
+                              className="mlv-order-btn"
+                              onClick={() => handleMove(idx, 1)}
+                              disabled={idx === marcos.length - 1}
+                              title="Mover para baixo"
+                            >{'\u25BC'}</button>
+                          </div>
+                        </td>
+
+                        {/* Nome */}
+                        <td className="mlv-td-nome">
+                          <span className="mlv-nome">{m.nome}</span>
+                          {m.descricao && (
+                            <span className="mlv-descricao">{m.descricao}</span>
+                          )}
+                        </td>
+
+                        {/* Data Cliente (prazo_atual do marco) */}
+                        <td>{formatDateDisplay(m.prazo_atual)}</td>
+
+                        {/* Data Cronograma (from enriched smartsheet data) */}
+                        <td>{formatDateDisplay(m.data_cronograma || m.smartsheet_date)}</td>
+
+                        {/* Variacao */}
+                        <td>
+                          {variacao != null && variacao !== 0 ? (
+                            <span className={`mlv-variacao ${variacao > 0 ? 'atrasado' : 'adiantado'}`}>
+                              {variacao > 0 ? '+' : ''}{variacao}d
+                            </span>
+                          ) : '-'}
+                        </td>
+
+                        {/* Tarefa Vinculada */}
+                        <td>
+                          {hasLinkedTask ? (
+                            <span className="mlv-task-linked">
+                              <span className="mlv-task-linked-icon">{'\u{1F517}'}</span>
+                              {m.smartsheet_task_name || `Row ${m.smartsheet_row_id}`}
+                            </span>
+                          ) : (
+                            <span className="mlv-task-unlinked">
+                              <button
+                                className="mlv-link-btn"
+                                onClick={() => openLinkModal(m.id, m.nome)}
+                                title="Vincular a uma tarefa do cronograma"
+                              >
+                                Vincular
+                              </button>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td>
+                          <span className={`mlv-status-badge ${statusOpt.className}`}>
+                            {statusOpt.label}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="mlv-td-actions">
+                          <button
+                            className="mlv-action-btn link"
+                            onClick={() => openLinkModal(m.id, m.nome)}
+                            title="Vincular tarefa"
+                          >{'\u{1F517}'}</button>
+                          <button
+                            className="mlv-action-btn edit"
+                            onClick={() => handleEdit(m)}
+                            title="Editar"
+                          >{'\u270E'}</button>
+                          <button
+                            className="mlv-action-btn delete"
+                            onClick={() => handleDelete(m.id, m.nome)}
+                            title="Remover"
+                          >{'\u2715'}</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
 
       {/* ---- Section 3: Link to Smartsheet Modal ---- */}
       {linkingMarcoId && (
