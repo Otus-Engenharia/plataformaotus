@@ -490,3 +490,179 @@ html:has(.login-container) {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ========================================
+   DUAL LOGIN MODE
+   ======================================== */
+
+.login-mode-select,
+.login-team-mode,
+.login-client-mode {
+  width: 100%;
+  max-width: 400px;
+  animation: loginSlideIn 0.35s ease-out;
+}
+
+@keyframes loginSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.login-mode-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.login-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #ffffff;
+  text-align: center;
+}
+
+.login-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 221, 0, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.login-mode-icon {
+  width: 36px;
+  height: 36px;
+  opacity: 0.9;
+}
+
+.login-mode-label {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.login-mode-sublabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
+
+/* Client Form */
+.login-client-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.login-client-input {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.login-client-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.login-client-input:focus {
+  outline: none;
+  border-color: rgba(255, 221, 0, 0.6);
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.15);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.login-client-submit {
+  margin-top: 0.5rem;
+}
+
+.login-client-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Back Link */
+.login-back-link {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+
+.login-back-link:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Forgot Password Link */
+.login-forgot-link {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  color: rgba(255, 221, 0, 0.7);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+
+.login-forgot-link:hover {
+  color: rgba(255, 221, 0, 1);
+}
+
+/* Forgot Password Success */
+.login-forgot-success {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.login-forgot-success p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+/* Responsive for mode select */
+@media (max-width: 600px) {
+  .login-mode-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .login-mode-btn {
+    padding: 1.5rem 1rem;
+  }
+}

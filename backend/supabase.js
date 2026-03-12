@@ -5206,7 +5206,7 @@ export async function fetchProjectClientContacts(projectCode) {
   // 2. Buscar todos os contatos da empresa cliente
   const { data: contacts, error: contactsError } = await supabase
     .from('contacts')
-    .select('id, name, email, phone, position, company_id')
+    .select('id, name, email, phone, position, company_id, has_portal_access')
     .eq('company_id', companyId)
     .order('name');
 

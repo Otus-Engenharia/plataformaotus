@@ -1048,12 +1048,209 @@
 }
 
 /* ============================================================
+   FILTER SELECTS
+   ============================================================ */
+.mlv-filter-select {
+  padding: 7px 12px;
+  border: 1px solid var(--mlv-border);
+  border-radius: var(--mlv-radius-sm);
+  font-size: 13px;
+  font-family: var(--mlv-font-body);
+  color: var(--mlv-text-secondary);
+  background: var(--mlv-surface);
+  cursor: pointer;
+  outline: none;
+  min-width: 160px;
+  max-width: 240px;
+  transition: border-color 0.2s;
+}
+
+.mlv-filter-select:focus {
+  border-color: var(--mlv-accent);
+  box-shadow: 0 0 0 2px var(--mlv-accent-dim);
+}
+
+/* ============================================================
+   OVERVIEW: KPI STRIP
+   ============================================================ */
+.mlv-kpi-strip {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mlv-kpi-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 20px;
+  background: var(--mlv-surface);
+  border: 1px solid var(--mlv-border);
+  border-radius: var(--mlv-radius);
+  box-shadow: var(--mlv-shadow-card);
+  min-width: 100px;
+  flex: 1;
+}
+
+.mlv-kpi-value {
+  font-family: var(--mlv-font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--mlv-text-primary);
+}
+
+.mlv-kpi-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mlv-text-muted);
+}
+
+.mlv-kpi-danger .mlv-kpi-value { color: var(--mlv-danger); }
+.mlv-kpi-warning .mlv-kpi-value { color: var(--mlv-warning); }
+.mlv-kpi-success .mlv-kpi-value { color: var(--mlv-success); }
+
+/* ============================================================
+   OVERVIEW: PROJECT GROUPS
+   ============================================================ */
+.mlv-project-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.mlv-project-group {
+  border-bottom: 1px solid var(--mlv-border);
+}
+
+.mlv-project-group:last-child {
+  border-bottom: none;
+}
+
+.mlv-project-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+
+.mlv-project-group-header:hover {
+  background: rgba(245, 196, 0, 0.04);
+}
+
+.mlv-project-group-arrow {
+  font-size: 10px;
+  color: var(--mlv-text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.mlv-project-group-arrow.open {
+  transform: rotate(90deg);
+}
+
+.mlv-project-group-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mlv-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mlv-project-group-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--mlv-bg);
+  border: 1px solid var(--mlv-border);
+  color: var(--mlv-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.mlv-project-group-pending {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--mlv-accent);
+  color: var(--mlv-text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mlv-project-group-open-btn {
+  font-family: var(--mlv-font-body);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--mlv-radius-sm);
+  border: 1px solid var(--mlv-border);
+  background: var(--mlv-surface);
+  color: var(--mlv-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.mlv-project-group-open-btn:hover {
+  border-color: var(--mlv-accent);
+  color: var(--mlv-text-primary);
+  background: var(--mlv-accent-dim);
+}
+
+.mlv-project-group-body {
+  padding: 0 0 8px;
+  animation: mlvFadeInUp 0.2s ease-out;
+}
+
+.mlv-project-group-body .mlv-table {
+  font-size: 12px;
+}
+
+.mlv-project-group-body .mlv-table th {
+  padding: 6px 12px;
+  font-size: 10px;
+}
+
+.mlv-project-group-body .mlv-table td {
+  padding: 8px 12px;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 900px) {
   .mlv-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .mlv-header-controls {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .mlv-filter-select,
+  .mlv-project-select {
+    min-width: 0;
+    flex: 1 1 140px;
   }
 
   .mlv-form-grid {
@@ -1073,6 +1270,15 @@
     width: 95%;
     max-height: 90vh;
   }
+
+  .mlv-kpi-strip {
+    gap: 8px;
+  }
+
+  .mlv-kpi-card {
+    padding: 10px 12px;
+    min-width: 70px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1080,8 +1286,9 @@
     font-size: 1.2rem;
   }
 
-  .mlv-project-select {
-    min-width: 160px;
+  .mlv-project-select,
+  .mlv-filter-select {
+    min-width: 100%;
     max-width: 100%;
   }
 
