@@ -132,6 +132,12 @@ const TimeSavingsDashboardView = lazy(() => import('./pages/time-savings/TimeSav
 // Portal do Cliente
 const ClientProjectsView = lazy(() => import('./pages/portal/ClientProjectsView'));
 const ClientDashboardView = lazy(() => import('./pages/portal/ClientDashboardView'));
+const ClientApontamentosView = lazy(() => import('./pages/portal/ClientApontamentosView'));
+const ClientPendenciasView = lazy(() => import('./pages/portal/ClientPendenciasView'));
+const ClientMarcosView = lazy(() => import('./pages/portal/ClientMarcosView'));
+const ClientRelatosView = lazy(() => import('./pages/portal/ClientRelatosView'));
+const ClientAlteracoesView = lazy(() => import('./pages/portal/ClientAlteracoesView'));
+const ClientFeedbacksNpsView = lazy(() => import('./pages/portal/ClientFeedbacksNpsView'));
 const ClientLayout = lazy(() => import('./layouts/ClientLayout'));
 
 const icons = {
@@ -1562,7 +1568,14 @@ function AppContent() {
               </ClientProtectedRoute>
             }>
               <Route index element={<ClientProjectsView />} />
-              <Route path="projeto/:projectCode" element={<ClientDashboardView />} />
+              <Route path="projeto/:projectCode" element={<Navigate to="inicio" replace />} />
+              <Route path="projeto/:projectCode/inicio" element={<ClientDashboardView />} />
+              <Route path="projeto/:projectCode/apontamentos" element={<ClientApontamentosView />} />
+              <Route path="projeto/:projectCode/pendencias" element={<ClientPendenciasView />} />
+              <Route path="projeto/:projectCode/marcos" element={<ClientMarcosView />} />
+              <Route path="projeto/:projectCode/relatos" element={<ClientRelatosView />} />
+              <Route path="projeto/:projectCode/alteracoes" element={<ClientAlteracoesView />} />
+              <Route path="projeto/:projectCode/feedbacks-nps" element={<ClientFeedbacksNpsView />} />
             </Route>
           </Routes>
         </Suspense>
