@@ -295,6 +295,36 @@
   color: var(--vc-text-muted, #a8a29e);
 }
 
+/* ---- Inline date editing ---- */
+.vcm-td-date-editable {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.vcm-td-date-editable:hover {
+  background: var(--vc-accent-dim, rgba(245,196,0,0.1));
+}
+
+.vcm-date-placeholder {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--vc-text-muted, #a8a29e);
+}
+
+.vcm-inline-date-input {
+  font-family: var(--vc-font-body, 'DM Sans', system-ui);
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid var(--vc-accent, #f5c400);
+  border-radius: var(--vc-radius-sm, 6px);
+  background: var(--vc-bg, #fafaf8);
+  color: var(--vc-text-primary, #1c1917);
+  width: 140px;
+  outline: none;
+}
+
 /* ---- Awaiting Link label ---- */
 .vcm-awaiting-link {
   font-size: 12px;
@@ -670,5 +700,9 @@
 
   .vcm-td-descricao {
     max-width: 160px;
+  }
+
+  .vcm-inline-date-input {
+    width: 120px;
   }
 }

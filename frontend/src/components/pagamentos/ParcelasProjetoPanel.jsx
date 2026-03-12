@@ -44,6 +44,8 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
   const [error, setError] = useState(null);
   const [aditivoFormOpen, setAditivoFormOpen] = useState(false);
   const [updatedParcelaIds, setUpdatedParcelaIds] = useState(new Set());
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [batchEditOpen, setBatchEditOpen] = useState(false);
 
   const fetchParcelas = useCallback(async () => {
     if (!projectCode) return;
@@ -97,6 +99,12 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
   const handleUpdateParcela = async (formData) => {
     await axios.put(`/api/pagamentos/parcelas/${editingParcela.id}`, formData);
     fetchParcelas();
+  };
+
+  const handleUpdateParcelasBatch = async (parcelasData) => {
+    await axios.put('/api/pagamentos/parcelas/batch', { parcelas: parcelasData });
+    fetchParcelas();
+    setSelectedIds(new Set());
   };
 
   const handleDeleteParcela = async (id) => {
@@ -205,6 +213,24 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
 
   const totalValor = visibleParcelas.reduce((sum, p) => sum + (Number(p.valor) || 0), 0);
 
+  const toggleSelectId = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === visibleParcelas.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleParcelas.map(p => p.id)));
+    }
+  };
+
+  const selectedParcelas = visibleParcelas.filter(p => selectedIds.has(p.id));
+
   return (
     <div className="parcelas-panel">
       <div className="parcelas-panel-header">
@@ -221,6 +247,11 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
               </svg>
             </button>
           </span>
+          {isFinanceiro && selectedIds.size > 0 && (
+            <button className="parcela-btn-batch-edit" onClick={() => setBatchEditOpen(true)}>
+              Editar Selecionados ({selectedIds.size})
+            </button>
+          )}
           {isFinanceiro && tipoPagamento === 'mrr' && (
             <span className="tooltip-wrapper" data-tooltip="Cadastrar parcela de aditivo SPOT para este projeto MRR">
               <button className="parcela-btn-aditivo" onClick={() => setAditivoFormOpen(true)}>
@@ -260,6 +291,11 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
           <table className="parcelas-table">
             <thead>
               <tr>
+                {isFinanceiro && (
+                  <th className="parcelas-checkbox-col">
+                    <input type="checkbox" checked={visibleParcelas.length > 0 && selectedIds.size === visibleParcelas.length} onChange={toggleSelectAll} title="Selecionar todas" />
+                  </th>
+                )}
                 <th><span className="tooltip-wrapper" data-tooltip="Numero sequencial da parcela">#</span></th>
                 <th>Descricao</th>
                 <th>Valor</th>
@@ -284,6 +320,11 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
 
                 return (
                 <tr key={p.id} className={`${isFaturado ? 'parcela-row-pago' : ''} ${isNaoVinculada ? 'parcela-row-nao-vinculada' : ''} ${p.alerta_cronograma ? 'parcela-row-alerta' : ''} ${updatedParcelaIds.has(p.id) ? 'parcela-row-atualizado' : ''}`}>
+                  {isFinanceiro && (
+                    <td className="parcelas-checkbox-col">
+                      <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelectId(p.id)} />
+                    </td>
+                  )}
                   {/* # — com tooltip da origem */}
                   <td>
                     <span className="tooltip-wrapper" data-tooltip={p.origem || ''}>
@@ -484,6 +525,15 @@ export default function ParcelasProjetoPanel({ projectCode, companyId, smartshee
         companyId={companyId}
         isAditivo={true}
         nextParcelaNumero={nextParcelaNumero}
+      />
+
+      <ParcelaFormDialog
+        open={batchEditOpen}
+        onClose={() => { setBatchEditOpen(false); setSelectedIds(new Set()); }}
+        onSaveBatchEdit={handleUpdateParcelasBatch}
+        parcelasToEdit={selectedParcelas}
+        projectCode={projectCode}
+        companyId={companyId}
       />
 
       <VincularParcelaDialog

@@ -54,6 +54,8 @@ const FechamentosFaseView = lazy(() => import('./pages/cs/FechamentosFaseView'))
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ClientAuthProvider } from './contexts/ClientAuthContext';
+import ClientProtectedRoute from './components/ClientProtectedRoute';
 import AuthLoading from './components/AuthLoading';
 import OracleChat from './components/OracleChat';
 import BugReportFAB from './components/BugReportFAB';
@@ -126,6 +128,11 @@ const PesquisasLiderView = lazy(() => import('./pages/lideres/PesquisasLiderView
 
 // Economia de Horas
 const TimeSavingsDashboardView = lazy(() => import('./pages/time-savings/TimeSavingsDashboardView'));
+
+// Portal do Cliente
+const ClientProjectsView = lazy(() => import('./pages/portal/ClientProjectsView'));
+const ClientDashboardView = lazy(() => import('./pages/portal/ClientDashboardView'));
+const ClientLayout = lazy(() => import('./layouts/ClientLayout'));
 
 const icons = {
   indicadoresLideranca: (
@@ -1540,6 +1547,27 @@ function AppContent() {
   // 1. Verificando auth: só loading minimalista, sem revelar estrutura do app
   if (loading) {
     return <AuthLoading />;
+  }
+
+  // Portal routes bypass internal auth entirely
+  const isPortalRoute = location.pathname.startsWith('/portal');
+  if (isPortalRoute) {
+    return (
+      <ClientAuthProvider>
+        <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+          <Routes>
+            <Route path="/portal" element={
+              <ClientProtectedRoute>
+                <ClientLayout />
+              </ClientProtectedRoute>
+            }>
+              <Route index element={<ClientProjectsView />} />
+              <Route path="projeto/:projectCode" element={<ClientDashboardView />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </ClientAuthProvider>
+    );
   }
 
   // 2. Não autenticado: login ou redirect para login (nunca mostrar shell)

@@ -342,6 +342,34 @@
   background: #bfdbfe;
 }
 
+.parcela-btn-batch-edit {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.parcela-btn-batch-edit:hover {
+  background: #fde68a;
+}
+
+.parcelas-checkbox-col {
+  width: 32px;
+  text-align: center;
+}
+
+.parcelas-checkbox-col input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: #ffdd00;
+}
+
 /* ===== TIPO SERVICO BADGE ===== */
 .parcela-tipo-servico-badge {
   display: inline-block;

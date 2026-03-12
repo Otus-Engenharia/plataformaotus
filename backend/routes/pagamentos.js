@@ -161,6 +161,50 @@ function createRoutes(requireAuth, isPrivileged, canManagePagamentos, logAction,
     }
   });
 
+  // PUT /parcelas/batch - Update multiple parcelas at once
+  router.put('/parcelas/batch', requireAuth, async (req, res) => {
+    try {
+      if (!canManagePagamentos(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      const { parcelas } = req.body;
+
+      if (!Array.isArray(parcelas) || parcelas.length === 0) {
+        return res.status(400).json({ success: false, error: 'Array parcelas e obrigatorio' });
+      }
+
+      if (parcelas.length > 50) {
+        return res.status(400).json({ success: false, error: 'Maximo de 50 parcelas por vez' });
+      }
+
+      const updateParcela = new UpdateParcela(repository);
+      const results = [];
+
+      for (const item of parcelas) {
+        if (!item.id) continue;
+        const result = await updateParcela.execute({
+          id: item.id,
+          descricao: item.descricao,
+          valor: item.valor,
+          origem: item.origem,
+          tipoServico: item.tipo_servico,
+          parcelaSemCronograma: item.parcela_sem_cronograma,
+        });
+        results.push(result);
+
+        if (logAction) {
+          await logAction(req, 'update', 'parcela', item.id, 'Parcela atualizada (batch)');
+        }
+      }
+
+      res.json({ success: true, data: results, count: results.length });
+    } catch (error) {
+      console.error('Erro ao atualizar parcelas em batch:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // GET /parcelas - List by project
   router.get('/parcelas', requireAuth, async (req, res) => {
     try {
