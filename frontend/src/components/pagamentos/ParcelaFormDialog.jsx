@@ -9,8 +9,9 @@ const TIPOS_SERVICO = [
   { value: 'modelagem', label: 'Modelagem' },
 ];
 
-export default function ParcelaFormDialog({ open, onClose, onSave, onSaveBatch, parcela, projectCode, companyId, isAditivo = false, nextParcelaNumero = 1 }) {
+export default function ParcelaFormDialog({ open, onClose, onSave, onSaveBatch, onSaveBatchEdit, parcela, parcelasToEdit, projectCode, companyId, isAditivo = false, nextParcelaNumero = 1 }) {
   const isEdit = !!parcela;
+  const isBatchEdit = Array.isArray(parcelasToEdit) && parcelasToEdit.length > 0;
 
   // Single edit form state
   const [form, setForm] = useState({
@@ -27,6 +28,9 @@ export default function ParcelaFormDialog({ open, onClose, onSave, onSaveBatch, 
   const [batchRows, setBatchRows] = useState([]);
   const [saving, setSaving] = useState(false);
 
+  // Batch edit state
+  const [batchEditRows, setBatchEditRows] = useState([]);
+
   // Initialize batch rows
   useEffect(() => {
     if (!open || isEdit) return;
@@ -40,6 +44,20 @@ export default function ParcelaFormDialog({ open, onClose, onSave, onSaveBatch, 
     }));
     setBatchRows(rows);
   }, [quantidade, open, isEdit, nextParcelaNumero, isAditivo]);
+
+  // Initialize batch edit rows
+  useEffect(() => {
+    if (!open || !isBatchEdit) return;
+    setBatchEditRows(parcelasToEdit.map(p => ({
+      id: p.id,
+      parcela_numero: p.parcela_numero || '',
+      descricao: p.descricao || '',
+      valor: p.valor || '',
+      origem: p.origem || 'Contrato',
+      tipo_servico: p.tipo_servico || 'coordenacao',
+      parcela_sem_cronograma: p.parcela_sem_cronograma || false,
+    })));
+  }, [open, isBatchEdit, parcelasToEdit]);
 
   // Initialize edit form
   useEffect(() => {
@@ -71,6 +89,34 @@ export default function ParcelaFormDialog({ open, onClose, onSave, onSaveBatch, 
   const handleQuantidadeChange = (val) => {
     const n = Math.max(1, Math.min(20, Number(val) || 1));
     setQuantidade(n);
+  };
+
+  const handleBatchEditRowChange = (index, field, value) => {
+    setBatchEditRows(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+  };
+
+  // Batch edit submit
+  const handleSubmitBatchEdit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const parcelas = batchEditRows.map(row => ({
+        id: row.id,
+        descricao: row.descricao || null,
+        valor: row.valor ? Number(row.valor) : null,
+        origem: row.origem,
+        tipo_servico: row.tipo_servico,
+        parcela_sem_cronograma: row.parcela_sem_cronograma,
+      }));
+      if (onSaveBatchEdit) {
+        await onSaveBatchEdit(parcelas);
+      }
+      onClose();
+    } catch (err) {
+      console.error('Erro ao editar parcelas em lote:', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Edit mode submit
@@ -121,6 +167,56 @@ export default function ParcelaFormDialog({ open, onClose, onSave, onSaveBatch, 
       setSaving(false);
     }
   };
+
+  // ===== BATCH EDIT MODE =====
+  if (isBatchEdit) {
+    return (
+      <div className="parcela-dialog-overlay" onClick={onClose}>
+        <div className="parcela-dialog parcela-dialog--batch" onClick={e => e.stopPropagation()}>
+          <div className="parcela-dialog-header">
+            <h3>Editar {batchEditRows.length} Parcela{batchEditRows.length !== 1 ? 's' : ''}</h3>
+            <button className="parcela-dialog-close" onClick={onClose}>&times;</button>
+          </div>
+          <form onSubmit={handleSubmitBatchEdit} className="parcela-dialog-form">
+            <div className="parcela-batch-header">
+              <span>#</span>
+              <span>Descricao</span>
+              <span>Valor (R$)</span>
+              <span>Origem</span>
+              <span>Tipo Servico</span>
+              <span>Sem Crono</span>
+            </div>
+
+            <div className="parcela-batch-rows">
+              {batchEditRows.map((row, i) => (
+                <div key={row.id} className="parcela-batch-row">
+                  <input type="number" value={row.parcela_numero} disabled className="parcela-batch-num" />
+                  <input type="text" value={row.descricao} onChange={e => handleBatchEditRowChange(i, 'descricao', e.target.value)} placeholder="Descricao..." />
+                  <input type="number" step="0.01" min="0" value={row.valor} onChange={e => handleBatchEditRowChange(i, 'valor', e.target.value)} placeholder="0.00" />
+                  <select value={row.origem} onChange={e => handleBatchEditRowChange(i, 'origem', e.target.value)}>
+                    {ORIGENS.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <select value={row.tipo_servico} onChange={e => handleBatchEditRowChange(i, 'tipo_servico', e.target.value)}>
+                    {TIPOS_SERVICO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  <label className="parcela-batch-checkbox">
+                    <input type="checkbox" checked={row.parcela_sem_cronograma} onChange={e => handleBatchEditRowChange(i, 'parcela_sem_cronograma', e.target.checked)} />
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div className="parcela-dialog-actions">
+              <button type="button" className="parcela-btn-secondary" onClick={onClose}>Cancelar</button>
+              <button type="submit" className="parcela-btn-primary" disabled={saving}>
+                {saving ? 'Salvando...' : `Salvar ${batchEditRows.length} Parcela${batchEditRows.length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   // ===== EDIT MODE =====
   if (isEdit) {
