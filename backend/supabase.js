@@ -4963,6 +4963,7 @@ export async function fetchDisciplineMappings(projectId) {
       standard_discipline_id,
       target_name,
       is_client_owned,
+      is_ignored,
       created_at,
       updated_at,
       created_by,
@@ -4981,7 +4982,7 @@ export async function fetchDisciplineMappings(projectId) {
 /**
  * Cria ou atualiza um mapeamento de disciplina (upsert)
  */
-export async function createOrUpdateDisciplineMapping({ projectId, externalSource, externalDisciplineName, standardDisciplineId, targetName, isClientOwned, createdBy }) {
+export async function createOrUpdateDisciplineMapping({ projectId, externalSource, externalDisciplineName, standardDisciplineId, targetName, isClientOwned, isIgnored, createdBy }) {
   const supabase = getSupabaseServiceClient();
 
   const upsertData = {
@@ -4991,6 +4992,7 @@ export async function createOrUpdateDisciplineMapping({ projectId, externalSourc
     standard_discipline_id: standardDisciplineId || null,
     target_name: targetName || null,
     is_client_owned: isClientOwned || false,
+    is_ignored: isIgnored || false,
     created_by: createdBy,
     updated_at: new Date().toISOString()
   };
@@ -5343,7 +5345,7 @@ export async function fetchDisciplineMappingsBatch(projectIds) {
     .from('discipline_mappings')
     .select(`
       id, project_id, external_source, external_discipline_name,
-      standard_discipline_id, target_name, is_client_owned,
+      standard_discipline_id, target_name, is_client_owned, is_ignored,
       standard_discipline:standard_discipline_id(id, discipline_name, short_name)
     `)
     .in('project_id', projectIds);

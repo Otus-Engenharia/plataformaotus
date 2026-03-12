@@ -64,6 +64,21 @@ const SearchIcon = () => (
   </svg>
 );
 
+const EyeOffIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
+const UndoIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="1 4 1 10 7 10" />
+    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+  </svg>
+);
+
 const UserIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -226,12 +241,14 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
   const [selectedDisciplineId, setSelectedDisciplineId] = useState('');
   const [savingMapping, setSavingMapping] = useState(false);
   const [savingClient, setSavingClient] = useState(null);
+  const [savingIgnored, setSavingIgnored] = useState(null);
   const [editingRegularizado, setEditingRegularizado] = useState(null);
 
   // Refs for scroll-to
   const cadastrarRef = useRef(null);
   const faltaCadastrarRef = useRef(null);
   const faltaAlocarRef = useRef(null);
+  const desconsideradasRef = useRef(null);
   const naoAlocadasRef = useRef(null);
   const regularizadoRef = useRef(null);
 
@@ -313,6 +330,45 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
     }
   };
 
+  // Mark as ignored (desconsiderada)
+  const handleMarkAsIgnored = async (d) => {
+    if (!projectId) return;
+    setSavingIgnored(d.normKey);
+    try {
+      const source = d.inConstruflow ? 'construflow' : 'smartsheet';
+      const sources = [];
+      if (d.inSmartsheet) sources.push('smartsheet');
+      if (d.inConstruflow) sources.push('construflow');
+
+      await axios.post(`${API_URL}/api/projetos/equipe/mapeamentos-disciplinas`, {
+        construflowId: projectId,
+        externalSource: source,
+        externalDisciplineName: d.name,
+        isIgnored: true,
+        sources: sources.length > 1 ? sources : undefined,
+      }, { withCredentials: true });
+      if (onMappingChange) onMappingChange();
+    } catch (error) {
+      console.error('Erro ao marcar como ignorada:', error);
+    } finally {
+      setSavingIgnored(null);
+    }
+  };
+
+  // Restore ignored discipline (remove all mappings)
+  const handleRestoreIgnored = async (d) => {
+    const ids = d.allMappingIds || (d.mappingId ? [d.mappingId] : []);
+    if (ids.length === 0) return;
+    try {
+      for (const id of ids) {
+        await axios.delete(`${API_URL}/api/projetos/equipe/mapeamentos-disciplinas/${id}`, { withCredentials: true });
+      }
+      if (onMappingChange) onMappingChange();
+    } catch (error) {
+      console.error('Erro ao restaurar disciplina:', error);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -373,6 +429,7 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
   const naoAlocadas = g.onlyOtus || [];
 
   const regularizado = g.completeInAll3 || [];
+  const ignoradas = g.ignored || [];
 
   // Render inline mapping form (standard only, no free text)
   const renderMappingForm = (discipline) => (
@@ -458,6 +515,21 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
     );
   };
 
+  // Ignore button
+  const renderIgnoreButton = (d) => {
+    if (d.isClientOwned || d.hasCustomMapping) return null;
+    return (
+      <button
+        className="dcov-btn-ignore"
+        onClick={() => handleMarkAsIgnored(d)}
+        disabled={savingIgnored === d.normKey}
+        aria-label={`Desconsiderar ${d.name}`}
+      >
+        <EyeOffIcon /> {savingIgnored === d.normKey ? '...' : 'Ignorar'}
+      </button>
+    );
+  };
+
   // Render a discipline card for "Cadastrar" section
   const renderCadastrarCard = (d) => {
     const isExpanded = expandedMapping === d.normKey;
@@ -497,6 +569,7 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
               </button>
             )}
             {renderClientButton(d)}
+            {renderIgnoreButton(d)}
           </div>
         </div>
         {isExpanded && renderMappingForm(d)}
@@ -546,6 +619,7 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
               </button>
             )}
             {renderClientButton(d)}
+            {renderIgnoreButton(d)}
           </div>
         </div>
         {isExpanded && renderMappingForm(d)}
@@ -762,6 +836,34 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
                 </React.Fragment>
               );
             })}
+          </CollapsibleSection>
+        )}
+
+        {/* G2: Desconsideradas (ignored disciplines) */}
+        {ignoradas.length > 0 && (
+          <CollapsibleSection
+            title="Desconsideradas"
+            count={ignoradas.length}
+            variant="gray"
+            defaultOpen={false}
+            sectionRef={desconsideradasRef}
+          >
+            {ignoradas.map(d => (
+              <div key={d.normKey} className="dcov-card dcov-card--ignored">
+                <div className="dcov-card-info">
+                  <div className="dcov-card-name">{d.name}</div>
+                </div>
+                <div className="dcov-card-actions">
+                  <button
+                    className="dcov-btn-secondary"
+                    onClick={() => handleRestoreIgnored(d)}
+                    aria-label={`Restaurar ${d.name}`}
+                  >
+                    <UndoIcon /> Restaurar
+                  </button>
+                </div>
+              </div>
+            ))}
           </CollapsibleSection>
         )}
 
