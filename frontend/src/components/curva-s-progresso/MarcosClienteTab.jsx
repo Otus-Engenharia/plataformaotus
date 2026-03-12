@@ -19,7 +19,7 @@ function formatDate(dateStr) {
 }
 
 function calcDesvio(marco) {
-  const cronograma = marco.smartsheet_data_termino || marco.prazo_atual;
+  const cronograma = marco.baseline_data_termino || marco.prazo_baseline || marco.prazo_atual;
   const expectativa = marco.cliente_expectativa_data;
   if (!cronograma || !expectativa) return null;
   const dC = new Date(cronograma), dE = new Date(expectativa);
@@ -54,9 +54,9 @@ function MarcosClienteTab({ selectedProjectId, portfolio }) {
       if (selected?.nome_time) {
         return allValid.filter(p => p.nome_time === selected.nome_time);
       }
-      // Se nome_time é null, mostrar apenas o projeto selecionado
+      // Se nome_time é null, mostrar todos os projetos (sem filtro de time)
       if (selected) {
-        return [selected];
+        return allValid;
       }
     }
     return allValid;
@@ -298,7 +298,7 @@ function MarcosClienteTab({ selectedProjectId, portfolio }) {
                           <tr key={m.id}>
                             <td className="mct-td-nome">{m.nome}</td>
                             <td>{formatDate(m.cliente_expectativa_data)}</td>
-                            <td>{formatDate(m.smartsheet_data_termino || m.prazo_atual)}</td>
+                            <td>{formatDate(m.baseline_data_termino || m.prazo_baseline || m.prazo_atual)}</td>
                             <td>
                               {desvio !== null ? (
                                 <span className={`mct-desvio ${desvio > 0 ? 'atrasado' : desvio < 0 ? 'adiantado' : ''}`}>
