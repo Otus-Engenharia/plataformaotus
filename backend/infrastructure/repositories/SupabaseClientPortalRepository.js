@@ -37,7 +37,7 @@ export class SupabaseClientPortalRepository {
     // Then get project details from the projects table
     const { data: projects, error: projError } = await supabase
       .from('projects')
-      .select('project_code, nome, empresa_cliente, status')
+      .select('project_code, name, status, company_id, companies(name)')
       .in('project_code', projectCodes);
 
     if (projError) throw new Error(`Erro ao buscar detalhes dos projetos: ${projError.message}`);
@@ -47,8 +47,8 @@ export class SupabaseClientPortalRepository {
       const assignment = assignments.find(a => a.project_code === p.project_code);
       return {
         projectCode: p.project_code,
-        nome: p.nome,
-        empresaCliente: p.empresa_cliente,
+        nome: p.name,
+        empresaCliente: p.companies?.name || null,
         status: p.status,
         role: assignment?.role || null,
       };
