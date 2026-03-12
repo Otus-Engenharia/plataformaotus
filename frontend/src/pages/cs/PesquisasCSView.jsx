@@ -4,9 +4,10 @@
  * Inclui formulário modal para registrar novas pesquisas.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
+import SearchableDropdown from '../../components/SearchableDropdown';
 import './PesquisasCSView.css';
 
 function formatDate(dateStr) {
@@ -48,12 +49,12 @@ function ScoreLegend({ score }) {
 
 const INITIAL_FORM = {
   project_code: '', client_company: '', project_name: '',
-  interviewed_person: '', decision_level: '', contact_id: null,
+  selectedContacts: [], decision_level: '',
   nps_score: null, csat_score: null, ces_score: null,
   feedback_text: '',
 };
 
-function PesquisasCSView() {
+const PesquisasCSView = forwardRef(function PesquisasCSView({ embedded = false }, ref) {
   const [responses, setResponses] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -74,8 +75,6 @@ function PesquisasCSView() {
   // Contact selector state
   const [clientContacts, setClientContacts] = useState([]);
   const [contactsLoading, setContactsLoading] = useState(false);
-  const [contactSearch, setContactSearch] = useState('');
-  const [showContactDropdown, setShowContactDropdown] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -129,10 +128,8 @@ function PesquisasCSView() {
       project_code: projectCode,
       project_name: proj?.project_name || '',
       client_company: proj?.client || '',
-      interviewed_person: '',
-      contact_id: null,
+      selectedContacts: [],
     }));
-    setContactSearch('');
     setClientContacts([]);
 
     // Fetch client contacts for this project
@@ -157,25 +154,22 @@ function PesquisasCSView() {
     }
   };
 
-  const handleContactSelect = (contact) => {
-    setFormData(prev => ({
-      ...prev,
-      interviewed_person: contact.name,
-      contact_id: contact.id,
-    }));
-    setContactSearch('');
-    setShowContactDropdown(false);
+  const handleContactSelect = (contactId) => {
+    const contact = clientContacts.find(c => String(c.id) === contactId);
+    if (contact && !formData.selectedContacts.some(sc => sc.id === contact.id)) {
+      setFormData(prev => ({
+        ...prev,
+        selectedContacts: [...prev.selectedContacts, { id: contact.id, name: contact.name, position: contact.position }],
+      }));
+    }
   };
 
-  const filteredContacts = useMemo(() => {
-    if (!contactSearch) return clientContacts;
-    const q = contactSearch.toLowerCase();
-    return clientContacts.filter(c =>
-      c.name?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.position?.toLowerCase().includes(q)
-    );
-  }, [clientContacts, contactSearch]);
+  const removeContact = (contactId) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedContacts: prev.selectedContacts.filter(c => c.id !== contactId),
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -183,7 +177,7 @@ function PesquisasCSView() {
 
     // Validation
     if (!formData.project_code) { setFormError('Selecione um projeto.'); return; }
-    if (!formData.interviewed_person.trim()) { setFormError('Informe a pessoa entrevistada.'); return; }
+    if (formData.selectedContacts.length === 0) { setFormError('Selecione ao menos uma pessoa entrevistada.'); return; }
     if (!formData.decision_level) { setFormError('Selecione o nível do entrevistado.'); return; }
     if (formData.nps_score === null) { setFormError('Selecione a nota NPS.'); return; }
     if (formData.csat_score === null) { setFormError('Selecione a nota CSAT.'); return; }
@@ -191,7 +185,15 @@ function PesquisasCSView() {
 
     setSubmitting(true);
     try {
-      await axios.post(`${API_URL}/api/nps`, formData, { withCredentials: true });
+      const { selectedContacts, ...baseData } = formData;
+      const submissions = selectedContacts.map(contact =>
+        axios.post(`${API_URL}/api/nps`, {
+          ...baseData,
+          interviewed_person: contact.name,
+          contact_id: contact.id,
+        }, { withCredentials: true })
+      );
+      await Promise.all(submissions);
       setFormSuccess(true);
       setTimeout(() => {
         setShowForm(false);
@@ -212,12 +214,14 @@ function PesquisasCSView() {
     setFormError(null);
     setFormSuccess(false);
     setClientContacts([]);
-    setContactSearch('');
-    setShowContactDropdown(false);
   };
 
+  useImperativeHandle(ref, () => ({
+    openForm: () => setShowForm(true),
+  }));
+
   return (
-    <div className="pesquisas-cs-view">
+    <div className={`pesquisas-cs-view${embedded ? ' pesquisas-embedded' : ''}`}>
       <div className="pesquisas-header">
         <div>
           <h1>Pesquisas de Fechamento de Fase</h1>
@@ -349,26 +353,19 @@ function PesquisasCSView() {
                   <legend>Projeto</legend>
                   <div className="pesquisas-form-group">
                     <label>Projeto *</label>
-                    <select
-                      className="pesquisas-project-select"
+                    <SearchableDropdown
                       value={formData.project_code}
-                      onChange={e => {
-                        if (e.target.value) {
-                          handleProjectSelect(e.target.value);
+                      onChange={val => {
+                        if (val) {
+                          handleProjectSelect(val);
                         } else {
-                          setFormData(prev => ({ ...prev, project_code: '', project_name: '', client_company: '', interviewed_person: '', contact_id: null }));
+                          setFormData(prev => ({ ...prev, project_code: '', project_name: '', client_company: '', selectedContacts: [] }));
                           setClientContacts([]);
-                          setContactSearch('');
                         }
                       }}
-                    >
-                      <option value="">Selecione um projeto...</option>
-                      {portfolioProjects.map(p => (
-                        <option key={p.project_code_norm} value={p.project_code_norm}>
-                          {p.project_code_norm} — {p.project_name} ({p.client})
-                        </option>
-                      ))}
-                    </select>
+                      options={portfolioProjects.map(p => ({ value: p.project_code_norm, label: `${p.project_code_norm} — ${p.project_name} (${p.client})` }))}
+                      placeholder="Buscar projeto..."
+                    />
                   </div>
 
                   <div className="pesquisas-form-group">
@@ -390,64 +387,37 @@ function PesquisasCSView() {
                 <fieldset className="pesquisas-form-section">
                   <legend>Entrevistado</legend>
 
-                  {/* Pessoa entrevistada — combobox with contacts */}
+                  {/* Pessoa entrevistada — seleção múltipla de contatos */}
                   <div className="pesquisas-form-group">
-                    <label>Pessoa entrevistada *</label>
-                    {formData.interviewed_person && !showContactDropdown ? (
-                      <div className="pesquisas-selected-contact">
-                        <span>{formData.interviewed_person}</span>
-                        {formData.contact_id && <span className="pesquisas-contact-badge">Equipe</span>}
-                        <button type="button" onClick={() => { setFormData(prev => ({ ...prev, interviewed_person: '', contact_id: null })); setContactSearch(''); setShowContactDropdown(true); }}>
-                          &times;
-                        </button>
+                    <label>Pessoas entrevistadas *</label>
+                    {!formData.project_code ? (
+                      <div className="pesquisas-contact-hint">Selecione um projeto primeiro</div>
+                    ) : contactsLoading ? (
+                      <div className="pesquisas-contact-hint">Carregando contatos...</div>
+                    ) : clientContacts.length === 0 ? (
+                      <div className="pesquisas-contact-hint">
+                        Nenhum contato cadastrado para este projeto
                       </div>
                     ) : (
-                      <div className="pesquisas-contact-search">
-                        <input
-                          type="text"
-                          placeholder={contactsLoading ? 'Carregando contatos...' : clientContacts.length > 0 ? 'Buscar contato ou digitar nome...' : 'Nome da pessoa entrevistada'}
-                          value={contactSearch || formData.interviewed_person}
-                          onChange={e => {
-                            setContactSearch(e.target.value);
-                            setFormData(prev => ({ ...prev, interviewed_person: e.target.value, contact_id: null }));
-                            setShowContactDropdown(true);
-                          }}
-                          onFocus={() => clientContacts.length > 0 && setShowContactDropdown(true)}
-                          disabled={contactsLoading}
-                        />
-                        {contactsLoading && <span className="pesquisas-contact-loading">⏳</span>}
-                        {showContactDropdown && !contactsLoading && clientContacts.length > 0 && (
-                          <div className="pesquisas-contact-dropdown">
-                            {filteredContacts.length > 0 ? (
-                              filteredContacts.map(c => (
-                                <div
-                                  key={c.id}
-                                  className="pesquisas-contact-option"
-                                  onClick={() => handleContactSelect(c)}
-                                >
-                                  <div className="pesquisas-contact-info">
-                                    <strong>{c.name}</strong>
-                                    {c.position && <span className="pesquisas-contact-position">{c.position}</span>}
-                                  </div>
-                                  {c.assigned && <span className="pesquisas-contact-badge">Equipe</span>}
-                                </div>
-                              ))
-                            ) : (
-                              <div className="pesquisas-contact-empty">Nenhum contato encontrado</div>
-                            )}
-                            <div
-                              className="pesquisas-contact-option pesquisas-contact-manual"
-                              onClick={() => setShowContactDropdown(false)}
+                      <div className="pesquisas-contacts-list">
+                        {clientContacts.map(c => {
+                          const isSelected = formData.selectedContacts.some(sc => sc.id === c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className={`pesquisas-contact-item${isSelected ? ' selected' : ''}${c.assigned ? ' assigned' : ''}`}
+                              onClick={() => isSelected ? removeContact(c.id) : handleContactSelect(String(c.id))}
                             >
-                              Digitar manualmente
-                            </div>
-                          </div>
-                        )}
-                        {showContactDropdown && !contactsLoading && clientContacts.length === 0 && formData.project_code && (
-                          <div className="pesquisas-contact-hint">
-                            Nenhum contato cadastrado para este projeto
-                          </div>
-                        )}
+                              <span className="pesquisas-contact-check">{isSelected ? '✓' : ''}</span>
+                              <span className="pesquisas-contact-item-info">
+                                <span className="pesquisas-contact-item-name">{c.name}</span>
+                                {c.position && <span className="pesquisas-contact-item-position">{c.position}</span>}
+                              </span>
+                              {c.assigned && <span className="pesquisas-contact-badge">Equipe</span>}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -569,6 +539,6 @@ function PesquisasCSView() {
       )}
     </div>
   );
-}
+});
 
 export default PesquisasCSView;

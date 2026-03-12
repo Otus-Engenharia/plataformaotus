@@ -82,7 +82,31 @@
 
 /* Table */
 .pesquisas-table-container {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #d3af00 #f3f4f6;
+}
+
+.pesquisas-table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pesquisas-table-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.pesquisas-table-container::-webkit-scrollbar-thumb {
+  background: #d3af00;
+  border-radius: 4px;
+}
+
+.pesquisas-table-container::-webkit-scrollbar-thumb:hover {
+  background: #b89600;
 }
 
 .pesquisas-table {
@@ -495,6 +519,103 @@
   color: #737373;
   margin-top: 4px;
   font-style: italic;
+}
+
+/* Clickable contacts list */
+.pesquisas-contacts-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #d3af00 #f3f4f6;
+}
+
+.pesquisas-contacts-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pesquisas-contacts-list::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+.pesquisas-contacts-list::-webkit-scrollbar-thumb {
+  background: #d3af00;
+  border-radius: 3px;
+}
+
+.pesquisas-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid #f3f4f6;
+  background: #fafafa;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1a1a1a;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.pesquisas-contact-item:last-child {
+  border-bottom: none;
+}
+
+.pesquisas-contact-item:hover {
+  background: #f3f4f6;
+}
+
+.pesquisas-contact-item.selected {
+  background: #fffef0;
+  border-color: #ffdd00;
+}
+
+.pesquisas-contact-item.selected:hover {
+  background: #fff9d6;
+}
+
+.pesquisas-contact-check {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  font-size: 12px;
+  font-weight: 700;
+  color: transparent;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+
+.pesquisas-contact-item.selected .pesquisas-contact-check {
+  background: #15803d;
+  border-color: #15803d;
+  color: #fff;
+}
+
+.pesquisas-contact-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pesquisas-contact-item-name {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.pesquisas-contact-item-position {
+  font-size: 11px;
+  color: #737373;
 }
 
 .pesquisas-selected-contact {
