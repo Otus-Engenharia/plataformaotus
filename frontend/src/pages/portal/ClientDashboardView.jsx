@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../../api';
 import { useClientAuth } from '../../contexts/ClientAuthContext';
@@ -10,29 +10,25 @@ import ChangeLogPanel from '../../components/curva-s-progresso/ChangeLogPanel';
 import '../../styles/VistaClienteView.css';
 import '../../styles/ClientPortal.css';
 
-function getHealthLevel(idp) {
-  if (idp == null) return 'warning';
-  if (idp >= 1.0) return 'good';
-  if (idp >= 0.8) return 'warning';
-  return 'danger';
-}
-
 function ClientDashboardView() {
   const { projectCode } = useParams();
+  const { currentProject, setProjectIdp } = useOutletContext();
   const { getClientToken } = useClientAuth();
 
+  // Project metadata (from BigQuery portfolio)
+  const [projectMeta, setProjectMeta] = useState(null);
+
+  // Progress
   const [progress, setProgress] = useState(null);
   const [progressLoading, setProgressLoading] = useState(false);
+
+  // Timeseries (chart)
   const [timeseries, setTimeseries] = useState([]);
   const [snapshotCurves, setSnapshotCurves] = useState([]);
   const [baselineCurve, setBaselineCurve] = useState(null);
   const [baselineCurves, setBaselineCurves] = useState([]);
   const [prazos, setPrazos] = useState(null);
   const [timeseriesLoading, setTimeseriesLoading] = useState(false);
-  const [changeLog, setChangeLog] = useState(null);
-  const [changeLogLoading, setChangeLogLoading] = useState(false);
-  const [marcos, setMarcos] = useState([]);
-  const [marcosLoading, setMarcosLoading] = useState(false);
 
   // Chart filter toggles
   const [showExecutado, setShowExecutado] = useState(true);
@@ -42,20 +38,79 @@ function ClientDashboardView() {
   const [showBarExecutado, setShowBarExecutado] = useState(true);
   const [visibleBaselineBars, setVisibleBaselineBars] = useState(new Set());
 
+  // Changelog
+  const [changeLog, setChangeLog] = useState(null);
+  const [changeLogLoading, setChangeLogLoading] = useState(false);
+
+  // Marcos
+  const [marcos, setMarcos] = useState([]);
+  const [marcosLoading, setMarcosLoading] = useState(false);
+
+  // Apontamentos count
+  const [apontamentosCount, setApontamentosCount] = useState({ total: 0 });
+
   const clientAxios = useCallback(() => {
     const token = getClientToken();
-    return {
-      headers: { Authorization: `Bearer ${token}` },
-    };
+    return { headers: { Authorization: `Bearer ${token}` } };
   }, [getClientToken]);
+
+  // IDP for health dot
+  const idp = progress?.idp_baseline != null ? progress.idp_baseline : progress?.idp;
+
+  // Fetch project metadata from BigQuery
+  const fetchMetadata = useCallback(async () => {
+    if (!projectCode) return;
+    try {
+      const res = await axios.get(
+        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/metadata`,
+        clientAxios()
+      );
+      if (res.data.success && res.data.data) {
+        setProjectMeta(res.data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar metadata:', err);
+    }
+  }, [projectCode, clientAxios]);
+
+  // Fetch apontamentos count
+  const fetchApontamentosCount = useCallback(async () => {
+    const construflowId = currentProject?.construflowId;
+    if (!projectCode || !construflowId) {
+      setApontamentosCount({ total: 0 });
+      return;
+    }
+    try {
+      const res = await axios.get(
+        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/apontamentos-count?construflowId=${encodeURIComponent(construflowId)}`,
+        clientAxios()
+      );
+      if (res.data.success) {
+        setApontamentosCount(res.data.data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar apontamentos count:', err);
+      setApontamentosCount({ total: 0 });
+    }
+  }, [projectCode, currentProject?.construflowId, clientAxios]);
+
+  // Build query params for endpoints that need project identifiers
+  const buildProjectParams = useCallback((includeProjectId = true) => {
+    const params = new URLSearchParams();
+    if (currentProject?.smartsheetId) params.set('smartsheetId', currentProject.smartsheetId);
+    if (currentProject?.nome) params.set('projectName', currentProject.nome);
+    if (includeProjectId && projectMeta?.id) params.set('projectId', projectMeta.id);
+    return params;
+  }, [currentProject?.smartsheetId, currentProject?.nome, projectMeta?.id]);
 
   // Fetch progress
   const fetchProgress = useCallback(async () => {
-    if (!projectCode) return;
+    if (!projectCode || (!currentProject?.smartsheetId && !currentProject?.nome)) return;
     setProgressLoading(true);
     try {
+      const params = buildProjectParams();
       const res = await axios.get(
-        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/progress`,
+        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/progress?${params}`,
         clientAxios()
       );
       if (res.data.success) {
@@ -66,15 +121,16 @@ function ClientDashboardView() {
     } finally {
       setProgressLoading(false);
     }
-  }, [projectCode, clientAxios]);
+  }, [projectCode, currentProject?.smartsheetId, currentProject?.nome, clientAxios, buildProjectParams]);
 
   // Fetch timeseries
   const fetchTimeseries = useCallback(async () => {
-    if (!projectCode) return;
+    if (!projectCode || (!currentProject?.smartsheetId && !currentProject?.nome)) return;
     setTimeseriesLoading(true);
     try {
+      const params = buildProjectParams();
       const res = await axios.get(
-        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/timeseries`,
+        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/timeseries?${params}`,
         clientAxios()
       );
       if (res.data.success) {
@@ -93,15 +149,16 @@ function ClientDashboardView() {
     } finally {
       setTimeseriesLoading(false);
     }
-  }, [projectCode, clientAxios]);
+  }, [projectCode, currentProject?.smartsheetId, currentProject?.nome, clientAxios, buildProjectParams]);
 
   // Fetch changelog
   const fetchChangeLog = useCallback(async () => {
-    if (!projectCode) return;
+    if (!projectCode || (!currentProject?.smartsheetId && !currentProject?.nome)) return;
     setChangeLogLoading(true);
     try {
+      const params = buildProjectParams(false); // changelog doesn't need projectId
       const res = await axios.get(
-        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/changelog`,
+        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/changelog?${params}`,
         clientAxios()
       );
       if (res.data.success) setChangeLog(res.data.data);
@@ -110,15 +167,16 @@ function ClientDashboardView() {
     } finally {
       setChangeLogLoading(false);
     }
-  }, [projectCode, clientAxios]);
+  }, [projectCode, currentProject?.smartsheetId, currentProject?.nome, clientAxios, buildProjectParams]);
 
-  // Fetch marcos
+  // Fetch marcos (enriched)
   const fetchMarcos = useCallback(async () => {
     if (!projectCode) return;
     setMarcosLoading(true);
     try {
+      const params = buildProjectParams(false); // marcos doesn't need projectId
       const res = await axios.get(
-        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/marcos`,
+        `${API_URL}/api/client/projects/${encodeURIComponent(projectCode)}/marcos?${params}`,
         clientAxios()
       );
       const rawMarcos = res.data?.data || [];
@@ -143,7 +201,7 @@ function ClientDashboardView() {
           prazoAtual: cronogramaDate,
           prazoBase: m.prazo_baseline || null,
           variacaoDias: desvio,
-          alteradoRecente: updatedAt && updatedAt > oneMonthAgo,
+          alteradoRecente: updatedAt && updatedAt >= oneMonthAgo,
         };
       });
 
@@ -153,32 +211,97 @@ function ClientDashboardView() {
     } finally {
       setMarcosLoading(false);
     }
-  }, [projectCode, clientAxios]);
+  }, [projectCode, clientAxios, buildProjectParams]);
 
-  // Fetch all on project change
+  // Group 1: Fetch metadata (no dependency on currentProject)
   useEffect(() => {
     if (projectCode) {
+      fetchMetadata();
+    }
+  }, [projectCode, fetchMetadata]);
+
+  // Group 2: Fetch data that depends on currentProject (but not projectMeta)
+  useEffect(() => {
+    if (projectCode && currentProject) {
+      fetchMarcos();
+      fetchApontamentosCount();
+    }
+  }, [projectCode, currentProject, fetchMarcos, fetchApontamentosCount]);
+
+  // Group 3: Fetch data that depends on currentProject AND projectMeta
+  useEffect(() => {
+    if (projectCode && currentProject && projectMeta) {
       fetchProgress();
       fetchTimeseries();
       fetchChangeLog();
-      fetchMarcos();
     }
-  }, [projectCode, fetchProgress, fetchTimeseries, fetchChangeLog, fetchMarcos]);
+  }, [projectCode, currentProject, projectMeta, fetchProgress, fetchTimeseries, fetchChangeLog]);
 
-  const idp = progress?.idp_baseline != null ? progress.idp_baseline : progress?.idp;
+  // Initialize baseline bars
+  useEffect(() => {
+    const allBl = baselineCurves.length > 0 ? baselineCurves : (baselineCurve ? [baselineCurve] : []);
+    if (allBl.length > 0) {
+      const last = allBl[allBl.length - 1];
+      setVisibleBaselineBars(new Set([last.id ?? last.label]));
+    } else {
+      setVisibleBaselineBars(new Set());
+    }
+  }, [baselineCurves, baselineCurve]);
+
+  // Reset changelog on project change
+  useEffect(() => { setChangeLog(null); }, [projectCode]);
+
+  // Communicate IDP to layout for health dot
+  useEffect(() => {
+    if (setProjectIdp) setProjectIdp(idp);
+  }, [idp, setProjectIdp]);
+
+  // Chart toggle handlers
+  const toggleSnapshot = (date) => {
+    setVisibleSnapshots(prev => {
+      const current = prev || new Set(snapshotCurves.map(sc => sc.snapshot_date));
+      const next = new Set(current);
+      next.has(date) ? next.delete(date) : next.add(date);
+      return next;
+    });
+  };
+
+  const toggleBaselineBar = (key) => {
+    setVisibleBaselineBars(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const handleToggleBaseline2 = (key) => {
+    setVisibleBaselines(prev => {
+      if (!prev) {
+        const allKeys = new Set(
+          (baselineCurves.length > 0 ? baselineCurves : (baselineCurve ? [baselineCurve] : []))
+            .map(b => b.id ?? b.label)
+        );
+        allKeys.delete(key);
+        return allKeys;
+      }
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
 
   return (
-    <div className="vista-cliente-page client-dashboard-page">
+    <div className="vista-cliente-container">
       <VistaClienteKpiStrip
         progress={progress}
-        project={{}}
-        apontamentosCount={{ total: 0 }}
+        project={projectMeta || {}}
+        apontamentosCount={apontamentosCount}
         prazos={prazos}
         loading={progressLoading}
       />
 
-      <div className="vista-cliente-body">
-        <div className="vista-cliente-chart-area">
+      <div className="vc-main-grid">
+        <div className="vc-chart-col">
           <ChartSection
             timeseries={timeseries}
             snapshotCurves={snapshotCurves}
@@ -186,46 +309,27 @@ function ClientDashboardView() {
             baselineCurves={baselineCurves}
             timeseriesLoading={timeseriesLoading}
             showExecutado={showExecutado}
-            onToggleExecutado={() => setShowExecutado(v => !v)}
+            onToggleExecutado={() => setShowExecutado(prev => !prev)}
             showBaseline={showBaseline}
-            onToggleBaseline={() => setShowBaseline(v => !v)}
+            onToggleBaseline={() => setShowBaseline(prev => !prev)}
             visibleBaselines={visibleBaselines}
-            onToggleBaseline2={(name) => {
-              setVisibleBaselines(prev => {
-                const s = new Set(prev || baselineCurves.map(b => b.name));
-                if (s.has(name)) s.delete(name);
-                else s.add(name);
-                return s;
-              });
-            }}
+            onToggleBaseline2={handleToggleBaseline2}
             visibleSnapshots={visibleSnapshots}
-            onToggleSnapshot={(label) => {
-              setVisibleSnapshots(prev => {
-                const s = new Set(prev || snapshotCurves.map(c => c.label));
-                if (s.has(label)) s.delete(label);
-                else s.add(label);
-                return s;
-              });
-            }}
-            onSelectAllSnapshots={() => setVisibleSnapshots(new Set(snapshotCurves.map(c => c.label)))}
+            onToggleSnapshot={toggleSnapshot}
+            onSelectAllSnapshots={() => setVisibleSnapshots(null)}
             onClearAllSnapshots={() => setVisibleSnapshots(new Set())}
             showBarExecutado={showBarExecutado}
-            onToggleBarExecutado={() => setShowBarExecutado(v => !v)}
+            onToggleBarExecutado={() => setShowBarExecutado(prev => !prev)}
             visibleBaselineBars={visibleBaselineBars}
-            onToggleBaselineBar={(name) => {
-              setVisibleBaselineBars(prev => {
-                const s = new Set(prev);
-                if (s.has(name)) s.delete(name);
-                else s.add(name);
-                return s;
-              });
-            }}
+            onToggleBaselineBar={toggleBaselineBar}
           />
         </div>
 
-        <div className="vista-cliente-sidebar">
+        <div className="vc-sidebar-col">
           <MarcosProjetoSection marcos={marcos} loading={marcosLoading} />
-          <ChangeLogPanel changeLog={changeLog} loading={changeLogLoading} />
+          <div className="vc-changelog-wrapper">
+            <ChangeLogPanel changeLog={changeLog} loading={changeLogLoading} />
+          </div>
         </div>
       </div>
     </div>
