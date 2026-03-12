@@ -47,8 +47,16 @@ function MarcosClienteTab({ selectedProjectId, portfolio }) {
 
   const projects = useMemo(() => {
     if (!portfolio || !Array.isArray(portfolio)) return [];
-    return portfolio.filter(p => p.project_code_norm);
-  }, [portfolio]);
+    const allValid = portfolio.filter(p => p.project_code_norm);
+    // Filtra apenas projetos do mesmo time do projeto selecionado
+    if (selectedProjectId) {
+      const selected = allValid.find(p => String(p.project_code_norm) === String(selectedProjectId));
+      if (selected?.nome_time) {
+        return allValid.filter(p => p.nome_time === selected.nome_time);
+      }
+    }
+    return allValid;
+  }, [portfolio, selectedProjectId]);
 
   // Fetch all marcos
   const fetchAllMarcos = useCallback(async () => {
