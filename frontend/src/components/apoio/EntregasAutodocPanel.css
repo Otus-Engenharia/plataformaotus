@@ -253,19 +253,64 @@
   gap: 1.5rem;
 }
 
+.adoc-histogram-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  padding: 20px 24px 16px;
+}
+
 .adoc-histogram-title {
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
-  margin: 0 0 8px;
+  margin: 0 0 12px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.adoc-histogram-scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.adoc-histogram-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.adoc-histogram-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.adoc-histogram-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
 }
 
 .adoc-histogram-wrapper {
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 16px;
-  background: #fff;
-  min-height: 300px;
+  position: relative;
+}
+
+.adoc-histogram-wrapper--main {
+  height: 370px;
+}
+
+.adoc-histogram-wrapper--secondary {
+  height: 220px;
+}
+
+@media (max-width: 768px) {
+  .adoc-histogram-card {
+    padding: 14px 16px 12px;
+  }
+
+  .adoc-histogram-wrapper--main {
+    height: 300px;
+  }
+
+  .adoc-histogram-wrapper--secondary {
+    height: 180px;
+  }
 }
 
 /* -- Table -- */

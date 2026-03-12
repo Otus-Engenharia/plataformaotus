@@ -155,9 +155,13 @@ function EntregasHistogram({ dailyStats, projectNames, loading }) {
     });
 
     const datasets = topCodes.map((code, i) => ({
-      label: projectNames[code] || code,
+      label: (projectNames[code] || code).length > 30
+        ? (projectNames[code] || code).slice(0, 28) + '…'
+        : (projectNames[code] || code),
       data: dailyStats.map(d => d.byProject[code] || 0),
       backgroundColor: PALETTE[i % PALETTE.length],
+      borderColor: '#fff',
+      borderWidth: 1,
       borderRadius: 3,
     }));
 
@@ -168,7 +172,9 @@ function EntregasHistogram({ dailyStats, projectNames, loading }) {
         data: dailyStats.map(d =>
           otherCodes.reduce((sum, code) => sum + (d.byProject[code] || 0), 0)
         ),
-        backgroundColor: '#9ca3af',
+        backgroundColor: '#d1d5db',
+        borderColor: '#fff',
+        borderWidth: 1,
         borderRadius: 3,
       });
     }
@@ -192,7 +198,9 @@ function EntregasHistogram({ dailyStats, projectNames, loading }) {
         label: 'Projetos',
         data,
         backgroundColor: '#ffdd00',
-        borderRadius: 3,
+        borderColor: '#d3af00',
+        borderWidth: 1,
+        borderRadius: 4,
       }],
     };
   }, [dailyStats]);
@@ -222,6 +230,21 @@ function EntregasHistogram({ dailyStats, projectNames, loading }) {
     },
   }), []);
 
+  const tooltipStyle = useMemo(() => ({
+    backgroundColor: 'rgba(26, 26, 26, 0.92)',
+    titleColor: '#fff',
+    bodyColor: '#e5e7eb',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    padding: 12,
+    cornerRadius: 8,
+    titleFont: { size: 13, weight: '600', family: "'Inter', Verdana, sans-serif" },
+    bodyFont: { size: 12, family: "'Inter', Verdana, sans-serif" },
+    boxPadding: 4,
+    usePointStyle: true,
+    pointStyle: 'rectRounded',
+  }), []);
+
   const entregasOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
@@ -229,38 +252,53 @@ function EntregasHistogram({ dailyStats, projectNames, loading }) {
       legend: {
         position: 'bottom',
         labels: {
-          boxWidth: 12,
-          padding: 12,
+          boxWidth: 10,
+          boxHeight: 10,
+          padding: 14,
+          usePointStyle: true,
+          pointStyle: 'rectRounded',
           font: { size: 11, family: "'Inter', Verdana, sans-serif" },
+          color: '#6b7280',
         },
       },
       tooltip: {
+        ...tooltipStyle,
         callbacks: {
           title: (items) => items[0]?.label || '',
+          label: (item) => ` ${item.dataset.label}: ${item.raw}`,
         },
+        filter: (item) => item.raw > 0,
       },
     },
     scales: {
       x: {
         stacked: true,
         grid: { display: false },
-        ticks: { font: { size: 11 } },
+        ticks: {
+          font: { size: 10, family: "'Inter', Verdana, sans-serif" },
+          color: '#9ca3af',
+        },
+        border: { display: false },
       },
       y: {
         stacked: true,
         beginAtZero: true,
         ticks: {
           stepSize: 1,
-          font: { size: 11 },
+          font: { size: 10, family: "'Inter', Verdana, sans-serif" },
+          color: '#9ca3af',
         },
+        grid: { color: 'rgba(0, 0, 0, 0.04)' },
+        border: { display: false },
         title: {
           display: true,
           text: 'Entregas',
-          font: { size: 12, weight: '600' },
+          font: { size: 11, weight: '600', family: "'Inter', Verdana, sans-serif" },
+          color: '#6b7280',
         },
       },
     },
-  }), []);
+  }), [tooltipStyle]);
 
   const projetosOptions = useMemo(() => ({
     responsive: true,
@@ -268,30 +306,40 @@ function EntregasHistogram({ dailyStats, projectNames, loading }) {
     plugins: {
       legend: { display: false },
       tooltip: {
+        ...tooltipStyle,
         callbacks: {
           title: (items) => items[0]?.label || '',
+          label: (item) => ` ${item.raw} projeto${item.raw !== 1 ? 's' : ''}`,
         },
       },
     },
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { size: 11 } },
+        ticks: {
+          font: { size: 10, family: "'Inter', Verdana, sans-serif" },
+          color: '#9ca3af',
+        },
+        border: { display: false },
       },
       y: {
         beginAtZero: true,
         ticks: {
           stepSize: 1,
-          font: { size: 11 },
+          font: { size: 10, family: "'Inter', Verdana, sans-serif" },
+          color: '#9ca3af',
         },
+        grid: { color: 'rgba(0, 0, 0, 0.04)' },
+        border: { display: false },
         title: {
           display: true,
           text: 'Projetos',
-          font: { size: 12, weight: '600' },
+          font: { size: 11, weight: '600', family: "'Inter', Verdana, sans-serif" },
+          color: '#6b7280',
         },
       },
     },
-  }), []);
+  }), [tooltipStyle]);
 
   if (loading) {
     return (
@@ -311,18 +359,25 @@ function EntregasHistogram({ dailyStats, projectNames, loading }) {
     );
   }
 
+  const numDates = entregasChartData?.labels?.length || 0;
+  const chartMinWidth = Math.max(600, numDates * 48);
+
   return (
     <div className="adoc-histogram-section">
-      <div>
+      <div className="adoc-histogram-card">
         <h4 className="adoc-histogram-title">Entregas por Dia</h4>
-        <div className="adoc-histogram-wrapper">
-          <Bar data={entregasChartData} options={entregasOptions} plugins={[stackedTotalPlugin]} height={350} />
+        <div className="adoc-histogram-scroll">
+          <div className="adoc-histogram-wrapper adoc-histogram-wrapper--main" style={{ minWidth: chartMinWidth }}>
+            <Bar data={entregasChartData} options={entregasOptions} plugins={[stackedTotalPlugin]} />
+          </div>
         </div>
       </div>
-      <div>
+      <div className="adoc-histogram-card">
         <h4 className="adoc-histogram-title">Projetos por Dia</h4>
-        <div className="adoc-histogram-wrapper">
-          <Bar data={projetosChartData} options={projetosOptions} height={250} />
+        <div className="adoc-histogram-scroll">
+          <div className="adoc-histogram-wrapper adoc-histogram-wrapper--secondary" style={{ minWidth: chartMinWidth }}>
+            <Bar data={projetosChartData} options={projetosOptions} />
+          </div>
         </div>
       </div>
     </div>
