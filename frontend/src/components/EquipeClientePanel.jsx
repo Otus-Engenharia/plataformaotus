@@ -28,6 +28,10 @@ function EquipeClientePanel({
   const [savingContact, setSavingContact] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(null);
 
+  // --- Estado toggle portal ---
+  const [togglingPortal, setTogglingPortal] = useState(null); // contactId being toggled
+  const [portalStatus, setPortalStatus] = useState({}); // { contactId: boolean }
+
   // Busca contatos do cliente
   const fetchClientContacts = useCallback(async () => {
     if (!projectCode) return;
@@ -134,6 +138,52 @@ function EquipeClientePanel({
       alert('Erro ao salvar. Tente novamente.');
     } finally {
       setSavingContact(false);
+    }
+  };
+
+  // Sync portal status from contact data
+  useEffect(() => {
+    if (uniqueContacts.length > 0) {
+      const status = {};
+      for (const c of uniqueContacts) {
+        if (c.has_portal_access !== undefined) {
+          status[c.id] = c.has_portal_access;
+        }
+      }
+      setPortalStatus(status);
+    }
+  }, [uniqueContacts]);
+
+  // Toggle acesso ao portal do cliente
+  const handleTogglePortal = async (contact) => {
+    if (!contact.email) {
+      alert('Contato precisa ter email para acessar o portal.');
+      return;
+    }
+
+    const currentlyEnabled = portalStatus[contact.id] || false;
+    const action = currentlyEnabled ? 'desativar' : 'ativar';
+    const confirmMsg = currentlyEnabled
+      ? `Desativar acesso ao portal para ${contact.name}?`
+      : `Criar login no portal para ${contact.email}?\nSenha padrão: 1234`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    setTogglingPortal(contact.id);
+    try {
+      await axios.post(`${API_URL}/api/admin/client-portal/toggle`, {
+        contactId: contact.id,
+        enable: !currentlyEnabled,
+      }, { withCredentials: true });
+
+      setPortalStatus(prev => ({ ...prev, [contact.id]: !currentlyEnabled }));
+      setRequestSuccess(`Portal ${!currentlyEnabled ? 'ativado' : 'desativado'} para ${contact.name}`);
+      setTimeout(() => setRequestSuccess(null), 4000);
+    } catch (err) {
+      console.error(`Erro ao ${action} portal:`, err);
+      alert(err.response?.data?.error || `Erro ao ${action} portal`);
+    } finally {
+      setTogglingPortal(null);
     }
   };
 
@@ -247,6 +297,22 @@ function EquipeClientePanel({
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
+                        {hasFullAccess && contact.email && (
+                          <button
+                            className={`ecli-portal-btn ${portalStatus[contact.id] ? 'ecli-portal-btn--active' : ''}`}
+                            onClick={() => handleTogglePortal(contact)}
+                            title={portalStatus[contact.id] ? 'Desativar acesso ao portal' : 'Ativar acesso ao portal'}
+                            disabled={togglingPortal === contact.id}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="11" width="18" height="11" rx="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            {togglingPortal === contact.id && (
+                              <span className="ecli-portal-spinner" />
+                            )}
+                          </button>
+                        )}
                         <button
                           className={`ecli-toggle-btn ${isAssigned ? 'ecli-toggle-btn--active' : ''}`}
                           onClick={() => handleToggleContact(contact)}

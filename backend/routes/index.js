@@ -28,6 +28,8 @@ import { createRoutes as createNotificacaoRoutes } from './notificacoes.js';
 import { createRoutes as createPesquisasCSRoutes } from './pesquisas-cs.js';
 import { createRoutes as createCustomerSuccessRoutes } from './customer-success.js';
 import { createRoutes as createNpsRoutes } from './nps.js';
+import { createClientRoutes, createAdminClientPortalRoutes } from './client-portal.js';
+import requireClientAuth from '../middleware/requireClientAuth.js';
 
 /**
  * Configura todas as rotas DDD na aplicação
@@ -136,5 +138,13 @@ export function setupDDDRoutes(app, { requireAuth, isPrivileged, canManageDemand
   const npsRoutes = createNpsRoutes(requireAuth, isPrivileged, logAction);
   app.use('/api/nps', npsRoutes);
 
-  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/autodoc-entregas, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto, /api/pagamentos, /api/cs/percepcao-equipe, /api/cs/classificacoes, /api/nps');
+  // Rotas do Portal do Cliente (DDD)
+  const clientRoutes = createClientRoutes(requireClientAuth);
+  app.use('/api/client', clientRoutes);
+
+  // Rotas Admin do Portal do Cliente (DDD)
+  const adminClientPortalRoutes = createAdminClientPortalRoutes(requireAuth);
+  app.use('/api/admin/client-portal', adminClientPortalRoutes);
+
+  console.log('Rotas DDD configuradas: /api/feedbacks, /api/demandas, /api/estudos-custos, /api/projetos, /api/agenda/tasks, /api/curva-s-progresso, /api/baselines, /api/relatos, /api/baseline-requests, /api/todos, /api/user-preferences, /api/oracle, /api/weekly-reports, /api/time-savings, /api/ifc-changelog, /api/autodoc-entregas, /api/contact-requests, /api/nomenclatura, /api/marcos-projeto, /api/pagamentos, /api/cs/percepcao-equipe, /api/cs/classificacoes, /api/nps, /api/client, /api/admin/client-portal');
 }
