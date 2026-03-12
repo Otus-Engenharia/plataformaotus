@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../api';
@@ -12,6 +12,9 @@ function Login() {
   const [selectedRole, setSelectedRole] = useState('dev');
   const [devLoading, setDevLoading] = useState(false);
   const [mode, setMode] = useState('select'); // 'select' | 'team' | 'client'
+  const [displayMode, setDisplayMode] = useState('select');
+  const [transitionDir, setTransitionDir] = useState('forward');
+  const [transitioning, setTransitioning] = useState(false);
 
   // Client login state
   const [clientEmail, setClientEmail] = useState('');
@@ -35,8 +38,20 @@ function Login() {
     const fromPortal = searchParams.get('from');
     if (fromPortal === 'portal') {
       setMode('client');
+      setDisplayMode('client');
     }
   }, [searchParams]);
+
+  const switchMode = useCallback((newMode, direction = 'forward') => {
+    if (transitioning) return;
+    setTransitionDir(direction);
+    setTransitioning(true);
+    setTimeout(() => {
+      setMode(newMode);
+      setDisplayMode(newMode);
+      setTransitioning(false);
+    }, 250);
+  }, [transitioning]);
 
   const handleGoogleLogin = () => {
     window.location.href = `${API_URL}/api/auth/google`;
@@ -91,9 +106,22 @@ function Login() {
     }
   };
 
+  const panelClass = [
+    transitioning ? 'login-panel-exit' : 'login-panel-enter',
+    transitionDir === 'forward' ? 'login-dir-forward' : 'login-dir-back',
+  ].join(' ');
+
   if (loading) {
     return (
       <div className="login-container">
+        <div className="login-orbs" aria-hidden="true">
+          <div className="login-orb login-orb-1" />
+          <div className="login-orb login-orb-2" />
+          <div className="login-orb login-orb-3" />
+          <div className="login-orb login-orb-4" />
+          <div className="login-orb login-orb-5" />
+          <div className="login-orb login-orb-6" />
+        </div>
         <div className="login-content-wrapper">
           <div className="login-loading">Carregando...</div>
         </div>
@@ -103,6 +131,14 @@ function Login() {
 
   return (
     <div className="login-container">
+      <div className="login-orbs" aria-hidden="true">
+        <div className="login-orb login-orb-1" />
+        <div className="login-orb login-orb-2" />
+        <div className="login-orb login-orb-3" />
+        <div className="login-orb login-orb-4" />
+        <div className="login-orb login-orb-5" />
+        <div className="login-orb login-orb-6" />
+      </div>
       <div className="login-content-wrapper">
         <div className="login-logo-section">
           <img src="/Otus-logo-300x300.png" alt="Otus Engenharia" className="login-logo" />
@@ -111,11 +147,11 @@ function Login() {
         <h1 className="login-title">Plataforma Otus</h1>
 
         {/* Mode: Select */}
-        {mode === 'select' && (
-          <div className="login-mode-select" key="select">
+        {displayMode === 'select' && (
+          <div className={`login-mode-select ${panelClass}`} key="select">
             <p className="login-subtitle">Como deseja acessar?</p>
             <div className="login-mode-buttons">
-              <button className="login-mode-btn" onClick={() => setMode('team')}>
+              <button className="login-mode-btn login-stagger-1" onClick={() => switchMode('team', 'forward')}>
                 <svg className="login-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M18 21a8 8 0 0 0-16 0" />
                   <circle cx="10" cy="8" r="5" />
@@ -125,7 +161,7 @@ function Login() {
                 <span className="login-mode-label">Equipe Otus</span>
                 <span className="login-mode-sublabel">Login com Google</span>
               </button>
-              <button className="login-mode-btn" onClick={() => setMode('client')}>
+              <button className="login-mode-btn login-stagger-2" onClick={() => switchMode('client', 'forward')}>
                 <svg className="login-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="3" y="11" width="18" height="11" rx="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -139,8 +175,8 @@ function Login() {
         )}
 
         {/* Mode: Team (Google OAuth) */}
-        {mode === 'team' && (
-          <div className="login-team-mode" key="team">
+        {displayMode === 'team' && (
+          <div className={`login-team-mode ${panelClass}`} key="team">
             <p className="login-subtitle">Acesso da equipe interna</p>
 
             {error && (
@@ -155,7 +191,7 @@ function Login() {
               </div>
             )}
 
-            <button onClick={handleGoogleLogin} className="login-button" type="button">
+            <button onClick={handleGoogleLogin} className="login-button login-shimmer" type="button">
               <svg className="login-google-icon" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -165,7 +201,7 @@ function Login() {
               <span className="login-button-text">Continuar com Google</span>
             </button>
 
-            <button className="login-back-link" onClick={() => setMode('select')}>
+            <button className="login-back-link" onClick={() => switchMode('select', 'back')}>
               &larr; Voltar
             </button>
 
@@ -189,8 +225,8 @@ function Login() {
         )}
 
         {/* Mode: Client (Email/Password) */}
-        {mode === 'client' && !showForgotPassword && (
-          <div className="login-client-mode" key="client">
+        {displayMode === 'client' && !showForgotPassword && (
+          <div className={`login-client-mode ${panelClass}`} key="client">
             <p className="login-subtitle">Acesse com seu email e senha</p>
 
             {clientError && (
@@ -202,7 +238,7 @@ function Login() {
             <form className="login-client-form" onSubmit={handleClientLogin}>
               <input
                 type="email"
-                className="login-client-input"
+                className="login-client-input login-input-stagger-1"
                 placeholder="Email"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
@@ -211,7 +247,7 @@ function Login() {
               />
               <input
                 type="password"
-                className="login-client-input"
+                className="login-client-input login-input-stagger-2"
                 placeholder="Senha"
                 value={clientPassword}
                 onChange={(e) => setClientPassword(e.target.value)}
@@ -220,7 +256,7 @@ function Login() {
               />
               <button
                 type="submit"
-                className="login-button login-client-submit"
+                className="login-button login-client-submit login-shimmer login-input-stagger-3"
                 disabled={clientLoading}
               >
                 <span className="login-button-text">
@@ -236,15 +272,15 @@ function Login() {
               Esqueci minha senha
             </button>
 
-            <button className="login-back-link" onClick={() => setMode('select')}>
+            <button className="login-back-link" onClick={() => switchMode('select', 'back')}>
               &larr; Voltar
             </button>
           </div>
         )}
 
         {/* Forgot Password */}
-        {mode === 'client' && showForgotPassword && (
-          <div className="login-client-mode" key="forgot">
+        {displayMode === 'client' && showForgotPassword && (
+          <div className={`login-client-mode ${panelClass}`} key="forgot">
             <p className="login-subtitle">Recuperar senha</p>
 
             {forgotSent ? (
@@ -258,14 +294,14 @@ function Login() {
               <form className="login-client-form" onSubmit={handleForgotPassword}>
                 <input
                   type="email"
-                  className="login-client-input"
+                  className="login-client-input login-input-stagger-1"
                   placeholder="Seu email"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   required
                   autoComplete="email"
                 />
-                <button type="submit" className="login-button login-client-submit">
+                <button type="submit" className="login-button login-client-submit login-shimmer">
                   <span className="login-button-text">Enviar link de recuperação</span>
                 </button>
               </form>

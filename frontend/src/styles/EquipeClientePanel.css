@@ -891,3 +891,117 @@
 @keyframes ecli-spin {
   to { transform: rotate(360deg); }
 }
+
+/* === Bulk Add: Projetista Slots === */
+.ecli-projetista-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ecli-projetista-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ecli-projetista-slot select {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.ecli-projetista-slot select:focus {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251,191,36,0.15);
+}
+
+.ecli-projetista-slot select:disabled {
+  background: #F9FAFB;
+  color: #9CA3AF;
+}
+
+.ecli-slot-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: #F3F4F6;
+  color: #6B7280;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ecli-slot-remove {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.ecli-slot-remove:hover {
+  color: #EF4444;
+  background: #FEF2F2;
+}
+
+.ecli-add-slot-btn {
+  background: none;
+  border: none;
+  color: #0369a1;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: left;
+  transition: text-decoration 0.2s;
+}
+
+.ecli-add-slot-btn:hover {
+  text-decoration: underline;
+}
+
+/* Record count badge in footer button */
+.ecli-record-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.1);
+  color: inherit;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  margin-left: 6px;
+}
+
+/* Save button loading state */
+.ecli-btn-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Bulk error message */
+.ecli-bulk-error {
+  padding: 8px 12px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #DC2626;
+}
