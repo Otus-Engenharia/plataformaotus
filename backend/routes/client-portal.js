@@ -200,6 +200,15 @@ export function createClientRoutes(requireClientAuth) {
   router.get('/projects', requireClientAuth, async (req, res) => {
     try {
       const projects = await repo.getClientProjects(req.clientUser.id);
+
+      // Fire-and-forget audit log
+      repo.logAuditAction({
+        contactId: req.clientUser.id,
+        action: 'view_projects',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      }).catch(console.error);
+
       res.json({ success: true, data: projects });
     } catch (err) {
       console.error('Error listing client projects:', err);
@@ -244,6 +253,15 @@ export function createClientRoutes(requireClientAuth) {
         projectId,
       });
 
+      // Fire-and-forget audit log
+      repo.logAuditAction({
+        contactId: req.clientUser.id,
+        action: 'view_progress',
+        projectCode: req.clientProjectCode,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      }).catch(console.error);
+
       res.json({ success: true, data: result });
     } catch (err) {
       console.error('Client progress error:', err);
@@ -273,6 +291,15 @@ export function createClientRoutes(requireClientAuth) {
         endDate,
       });
 
+      // Fire-and-forget audit log
+      repo.logAuditAction({
+        contactId: req.clientUser.id,
+        action: 'view_timeseries',
+        projectCode: req.clientProjectCode,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      }).catch(console.error);
+
       res.json({ success: true, data: result });
     } catch (err) {
       console.error('Client timeseries error:', err);
@@ -291,6 +318,15 @@ export function createClientRoutes(requireClientAuth) {
         smartsheetId,
         projectName,
       });
+
+      // Fire-and-forget audit log
+      repo.logAuditAction({
+        contactId: req.clientUser.id,
+        action: 'view_changelog',
+        projectCode: req.clientProjectCode,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      }).catch(console.error);
 
       res.json({ success: true, data });
     } catch (err) {
@@ -313,6 +349,15 @@ export function createClientRoutes(requireClientAuth) {
 
       if (error) throw error;
 
+      // Fire-and-forget audit log
+      repo.logAuditAction({
+        contactId: req.clientUser.id,
+        action: 'view_marcos',
+        projectCode: req.clientProjectCode,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      }).catch(console.error);
+
       res.json({ success: true, data: marcosData || [] });
     } catch (err) {
       console.error('Client marcos error:', err);
@@ -331,6 +376,15 @@ export function createClientRoutes(requireClientAuth) {
         tipo,
         prioridade,
       });
+
+      // Fire-and-forget audit log
+      repo.logAuditAction({
+        contactId: req.clientUser.id,
+        action: 'view_relatos',
+        projectCode: req.clientProjectCode,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      }).catch(console.error);
 
       res.json({ success: true, data: relatos });
     } catch (err) {
@@ -377,6 +431,126 @@ export function createClientRoutes(requireClientAuth) {
 export function createAdminClientPortalRoutes(requireAuth) {
   const router = express.Router();
   const repo = getClientPortalRepository();
+
+  // GET /api/admin/client-portal/analytics
+  router.get('/analytics', requireAuth, async (req, res) => {
+    try {
+      const userRole = req.user?.role;
+      if (!['dev', 'director', 'admin'].includes(userRole)) {
+        return res.status(403).json({ success: false, error: 'Sem permissão' });
+      }
+
+      const days = Math.min(parseInt(req.query.days) || 30, 90);
+      const supabase = getSupabaseServiceClient();
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      // Run queries in parallel
+      const [logsResult, todayResult] = await Promise.all([
+        // All logs in period
+        supabase
+          .from('client_portal_audit_log')
+          .select('id, contact_id, action, project_code, ip_address, created_at')
+          .gte('created_at', sinceDate)
+          .order('created_at', { ascending: false }),
+        // Active today
+        supabase
+          .from('client_portal_audit_log')
+          .select('contact_id')
+          .eq('action', 'login')
+          .gte('created_at', todayStart.toISOString()),
+      ]);
+
+      if (logsResult.error) throw logsResult.error;
+
+      const logs = logsResult.data || [];
+      const todayLogins = todayResult.data || [];
+
+      // Compute summary
+      const loginLogs = logs.filter(l => l.action === 'login');
+      const pageViewActions = ['view_projects', 'view_progress', 'view_timeseries', 'view_changelog', 'view_marcos', 'view_relatos', 'view_apontamentos'];
+      const pageViewLogs = logs.filter(l => pageViewActions.includes(l.action));
+      const uniqueUsersToday = new Set(todayLogins.map(l => l.contact_id));
+
+      const summary = {
+        totalLogins: loginLogs.length,
+        uniqueUsers: new Set(loginLogs.map(l => l.contact_id)).size,
+        totalPageViews: pageViewLogs.length,
+        activeToday: uniqueUsersToday.size,
+      };
+
+      // Logins by day
+      const loginsByDayMap = {};
+      loginLogs.forEach(l => {
+        const date = l.created_at.substring(0, 10);
+        loginsByDayMap[date] = (loginsByDayMap[date] || 0) + 1;
+      });
+      const loginsByDay = Object.entries(loginsByDayMap)
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      // Top pages
+      const pageCountMap = {};
+      pageViewLogs.forEach(l => {
+        pageCountMap[l.action] = (pageCountMap[l.action] || 0) + 1;
+      });
+      const topPages = Object.entries(pageCountMap)
+        .map(([action, count]) => ({ action, count }))
+        .sort((a, b) => b.count - a.count);
+
+      // Top users - get contact details
+      const userStatsMap = {};
+      logs.forEach(l => {
+        if (!userStatsMap[l.contact_id]) {
+          userStatsMap[l.contact_id] = { contactId: l.contact_id, loginCount: 0, lastAccess: l.created_at };
+        }
+        if (l.action === 'login') userStatsMap[l.contact_id].loginCount++;
+        if (l.created_at > userStatsMap[l.contact_id].lastAccess) {
+          userStatsMap[l.contact_id].lastAccess = l.created_at;
+        }
+      });
+
+      const contactIds = Object.keys(userStatsMap).map(Number).filter(Boolean);
+      let contactsMap = {};
+      if (contactIds.length > 0) {
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('id, name, companies(name)')
+          .in('id', contactIds);
+        (contacts || []).forEach(c => {
+          contactsMap[c.id] = { name: c.name, company: c.companies?.name || '' };
+        });
+      }
+
+      const topUsers = Object.values(userStatsMap)
+        .map(u => ({
+          ...u,
+          name: contactsMap[u.contactId]?.name || `Contato #${u.contactId}`,
+          company: contactsMap[u.contactId]?.company || '',
+        }))
+        .sort((a, b) => b.loginCount - a.loginCount)
+        .slice(0, 20);
+
+      // Recent actions (last 100) with contact names
+      const recentActions = logs.slice(0, 100).map(l => ({
+        id: l.id,
+        contactName: contactsMap[l.contact_id]?.name || `Contato #${l.contact_id}`,
+        action: l.action,
+        projectCode: l.project_code,
+        createdAt: l.created_at,
+        ipAddress: l.ip_address,
+      }));
+
+      res.json({
+        success: true,
+        data: { summary, loginsByDay, topPages, topUsers, recentActions },
+      });
+    } catch (err) {
+      console.error('Client portal analytics error:', err);
+      res.status(500).json({ success: false, error: 'Erro ao buscar analytics' });
+    }
+  });
 
   // POST /api/admin/client-portal/toggle
   router.post('/toggle', requireAuth, async (req, res) => {
