@@ -22,11 +22,18 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
 
   // --- Documentos ---
 
+  // Calcula inicio do dia UTC N dias atras (meia-noite UTC, nao sliding window)
+  #startOfDayUTC(daysAgo) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - daysAgo);
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
+  }
+
   async findRecentDocuments(options = {}) {
     const { days = 7, projectCode, classification, page = 1, limit = 50 } = options;
 
-    const since = new Date();
-    since.setDate(since.getDate() - days);
+    const since = this.#startOfDayUTC(days);
 
     let query = this.#supabase
       .from(DOCUMENTS_TABLE)
@@ -183,8 +190,7 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
   async getSummary(options = {}) {
     const { days = 7 } = options;
 
-    const since = new Date();
-    since.setDate(since.getDate() - days);
+    const since = this.#startOfDayUTC(days);
 
     const { data, error } = await this.#supabase
       .from(DOCUMENTS_TABLE)
@@ -225,8 +231,7 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
   async getDailyStats(options = {}) {
     const { days = 7 } = options;
 
-    const since = new Date();
-    since.setDate(since.getDate() - days);
+    const since = this.#startOfDayUTC(days);
 
     const { data, error } = await this.#supabase
       .from(DOCUMENTS_TABLE)
