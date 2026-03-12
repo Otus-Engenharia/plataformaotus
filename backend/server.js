@@ -173,6 +173,21 @@ function invalidatePortfolioCache() {
   }
 }
 
+/**
+ * Invalida cache de disciplinas-cruzadas para um projeto específico.
+ * Se construflowId fornecido, invalida apenas para esse projeto; senão, invalida todas.
+ */
+function invalidateDisciplinasCruzadasCache(construflowId) {
+  const allKeys = bqCache.keys();
+  const matching = allKeys.filter(k =>
+    k.includes('disciplinas-cruzadas') && (!construflowId || k.includes(construflowId))
+  );
+  if (matching.length > 0) {
+    bqCache.del(matching);
+    console.log(`🗑️ Cache disciplinas-cruzadas invalidado${construflowId ? ` para ${construflowId}` : ''}: ${matching.length} chave(s)`);
+  }
+}
+
 // Configuração de sessão
 const isProduction = process.env.NODE_ENV === 'production';
 const isDevMode = process.env.DEV_MODE === 'true';
@@ -1266,7 +1281,8 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       targetName: m.target_name || null,
       mappingId: m.id,
       standardDisciplineId: m.standard_discipline_id,
-      isClientOwned: m.is_client_owned || false
+      isClientOwned: m.is_client_owned || false,
+      isIgnored: m.is_ignored || false
     });
   });
 
@@ -1316,13 +1332,27 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
     onlyConstruflow: [],
     onlyOtus: [],
     missingConstruflow: [],
-    missingSmartsheet: []
+    missingSmartsheet: [],
+    ignored: []
   };
 
   for (const normKey of allExternalNormalized) {
     const inSmartsheet = normalizedSmartsheet.has(normKey);
     const inConstruflow = normalizedConstruflow.has(normKey);
     const originalName = normalizedSmartsheet.get(normKey) || normalizedConstruflow.get(normKey);
+
+    // Check if ignored in any source
+    const smMapping = customMap.get(`smartsheet:${normKey}`);
+    const cfMapping = customMap.get(`construflow:${normKey}`);
+    if (smMapping?.isIgnored || cfMapping?.isIgnored) {
+      groups.ignored.push({
+        name: originalName, normKey, inSmartsheet, inConstruflow,
+        isIgnored: true,
+        mappingId: smMapping?.mappingId || cfMapping?.mappingId,
+        allMappingIds: [smMapping?.mappingId, cfMapping?.mappingId].filter(Boolean),
+      });
+      continue;
+    }
 
     let inOtus = false;
     let mapping = null;
@@ -1380,7 +1410,8 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
 
   Object.values(groups).forEach(sort);
 
-  const totalAll = new Set([...allExternalNormalized, ...normalizedOtus.keys()]).size;
+  const ignoredCount = groups.ignored.length;
+  const totalAll = new Set([...allExternalNormalized, ...normalizedOtus.keys()]).size - ignoredCount;
   const pendingCount = totalAll - groups.completeInAll3.length;
   const completionPercentage = totalAll > 0
     ? Math.round((groups.completeInAll3.length / totalAll) * 1000) / 10
@@ -1393,6 +1424,7 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       completeInAll3: groups.completeInAll3.length,
       pendingCount,
       completionPercentage,
+      ignoredCount: groups.ignored.length,
       hasCustomMappings: customMappings.length > 0,
       // Contagens por sistema
       smartsheetCount: normalizedSmartsheet.size,
@@ -8159,15 +8191,15 @@ app.get('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req,
  */
 app.post('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req, res) => {
   try {
-    const { construflowId, externalSource, externalDisciplineName, standardDisciplineId, targetName, isClientOwned, sources } = req.body;
+    const { construflowId, externalSource, externalDisciplineName, standardDisciplineId, targetName, isClientOwned, isIgnored, sources } = req.body;
     if (!construflowId || !externalSource || !externalDisciplineName) {
       return res.status(400).json({
         success: false,
         error: 'Campos obrigatórios: construflowId, externalSource, externalDisciplineName'
       });
     }
-    // Se isClientOwned, não exige standardDisciplineId nem targetName
-    if (!isClientOwned && !standardDisciplineId && !targetName) {
+    // Se isClientOwned ou isIgnored, não exige standardDisciplineId nem targetName
+    if (!isClientOwned && !isIgnored && !standardDisciplineId && !targetName) {
       return res.status(400).json({
         success: false,
         error: 'Informe standardDisciplineId ou targetName para o mapeamento'
@@ -8189,9 +8221,11 @@ app.post('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req
         standardDisciplineId: standardDisciplineId || null,
         targetName: targetName || null,
         isClientOwned: isClientOwned || false,
+        isIgnored: isIgnored || false,
         createdBy: req.user?.email || 'unknown'
       });
     }
+    invalidateDisciplinasCruzadasCache(construflowId);
     res.json({ success: true, data: lastData });
   } catch (error) {
     console.error('Erro ao salvar mapeamento:', error);
@@ -8206,6 +8240,7 @@ app.post('/api/projetos/equipe/mapeamentos-disciplinas', requireAuth, async (req
 app.delete('/api/projetos/equipe/mapeamentos-disciplinas/:id', requireAuth, async (req, res) => {
   try {
     await deleteDisciplineMapping(req.params.id);
+    invalidateDisciplinasCruzadasCache(); // sem construflowId — invalida todas
     res.json({ success: true });
   } catch (error) {
     console.error('Erro ao deletar mapeamento:', error);

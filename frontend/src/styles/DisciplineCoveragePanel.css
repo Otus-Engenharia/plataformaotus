@@ -331,6 +331,11 @@
 .dcov-section--green .dcov-section-body { border-top-color: #bbf7d0; }
 .dcov-section--blue .dcov-section-body { border-top-color: #93c5fd; }
 
+.dcov-section--gray { border-color: #d1d5db; }
+.dcov-section--gray .dcov-section-header { background: #f9fafb; color: #6b7280; }
+.dcov-section--gray .dcov-section-header-dot { background: #9ca3af; }
+.dcov-section--gray .dcov-section-body { border-top-color: #d1d5db; }
+
 /* ===== Discipline Cards ===== */
 .dcov-card {
   display: flex;
@@ -723,6 +728,38 @@
 .dcov-btn-client svg {
   width: 12px;
   height: 12px;
+}
+
+.dcov-btn-ignore {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dcov-btn-ignore:hover:not(:disabled) {
+  border-color: #9ca3af;
+  color: #6b7280;
+  background: #f3f4f6;
+}
+.dcov-btn-ignore:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dcov-btn-ignore svg {
+  width: 12px;
+  height: 12px;
+}
+
+.dcov-card--ignored {
+  opacity: 0.7;
 }
 
 /* ===== Auto/Client Badges (Regularizado) ===== */
