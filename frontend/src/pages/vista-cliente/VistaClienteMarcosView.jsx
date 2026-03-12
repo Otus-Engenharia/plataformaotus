@@ -76,6 +76,7 @@ function VistaClienteMarcosView() {
   // Form state (create/edit)
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [inlineDateEditId, setInlineDateEditId] = useState(null);
   const [form, setForm] = useState({
     nome: '', descricao: '', cliente_expectativa_data: '',
   });
@@ -202,6 +203,31 @@ function VistaClienteMarcosView() {
       cliente_expectativa_data: formatDateInput(marco.cliente_expectativa_data),
     });
     setShowForm(true);
+  };
+
+  // --- Inline date save ---
+  const handleInlineDateSave = async (marcoId, newDateValue) => {
+    setInlineDateEditId(null);
+    const marco = marcos.find(m => m.id === marcoId);
+    const oldValue = formatDateInput(marco?.cliente_expectativa_data);
+    if (newDateValue === oldValue) return;
+
+    // Optimistic update
+    setMarcos(prev => prev.map(m =>
+      m.id === marcoId ? { ...m, cliente_expectativa_data: newDateValue || null } : m
+    ));
+
+    try {
+      await axios.put(
+        `${API_URL}/api/marcos-projeto/${marcoId}`,
+        { cliente_expectativa_data: newDateValue || null },
+        { withCredentials: true }
+      );
+    } catch (err) {
+      console.error('Erro ao salvar data:', err);
+      alert('Erro ao salvar data: ' + (err.response?.data?.error || err.message));
+      await fetchMarcos();
+    }
   };
 
   // --- Baseline Request ---
@@ -403,7 +429,31 @@ function VistaClienteMarcosView() {
                           <span className="vcm-text-muted">-</span>
                         )}
                       </td>
-                      <td>{formatDateDisplay(m.cliente_expectativa_data)}</td>
+                      <td>
+                        {inlineDateEditId === m.id ? (
+                          <input
+                            type="date"
+                            className="vcm-inline-date-input"
+                            defaultValue={formatDateInput(m.cliente_expectativa_data)}
+                            autoFocus
+                            onBlur={e => handleInlineDateSave(m.id, e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') e.target.blur();
+                              if (e.key === 'Escape') setInlineDateEditId(null);
+                            }}
+                          />
+                        ) : (
+                          <span
+                            className="vcm-td-date-editable"
+                            onClick={() => setInlineDateEditId(m.id)}
+                          >
+                            {m.cliente_expectativa_data
+                              ? formatDateDisplay(m.cliente_expectativa_data)
+                              : <span className="vcm-date-placeholder">Definir data</span>
+                            }
+                          </span>
+                        )}
+                      </td>
                       <td>
                         {isLinked ? (
                           <span className={`vcm-status-badge ${statusClass}`}>
