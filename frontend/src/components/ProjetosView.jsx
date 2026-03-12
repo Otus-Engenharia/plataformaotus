@@ -452,6 +452,7 @@ function ProjetosView() {
             <SubviewComponent
               selectedProjectId={selectedProjectId}
               portfolio={portfolio}
+              filteredProjects={sortedProjects}
             />
           ) : activeSubview === 'relatos' ? (
             <SubviewComponent

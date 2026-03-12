@@ -1,6 +1,6 @@
 /**
- * Estilos da página de Login - Design Minimalista Estilo Steve Jobs
- * Princípios: Simplicidade, Espaço, Tipografia Elegante, Foco
+ * Estilos da página de Login - Design Minimalista com Animações Profissionais
+ * Princípios: Simplicidade, Espaço, Tipografia Elegante, Foco, Fluidez
  */
 
 /* Garantir que o body tenha fundo suave na página de login */
@@ -66,7 +66,128 @@ html:has(.login-container) {
   50% { background-position: 100% 50%; }
 }
 
-/* Wrapper centralizado com muito espaço e glassmorphism */
+/* ========================================
+   FLOATING ORBS (Background particles)
+   ======================================== */
+
+.login-orbs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.login-orb {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 221, 0, 0.12), transparent 70%);
+  filter: blur(40px);
+  will-change: transform;
+}
+
+.login-orb-1 {
+  width: 300px;
+  height: 300px;
+  top: -5%;
+  left: -5%;
+  animation: orbFloat1 22s ease-in-out infinite;
+}
+
+.login-orb-2 {
+  width: 200px;
+  height: 200px;
+  top: 60%;
+  right: -3%;
+  background: radial-gradient(circle, rgba(255, 221, 0, 0.09), transparent 70%);
+  animation: orbFloat2 18s ease-in-out infinite;
+  animation-delay: -4s;
+}
+
+.login-orb-3 {
+  width: 250px;
+  height: 250px;
+  bottom: -8%;
+  left: 30%;
+  background: radial-gradient(circle, rgba(255, 221, 0, 0.07), transparent 70%);
+  animation: orbFloat3 25s ease-in-out infinite;
+  animation-delay: -8s;
+}
+
+.login-orb-4 {
+  width: 150px;
+  height: 150px;
+  top: 20%;
+  right: 20%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.05), transparent 70%);
+  animation: orbFloat4 20s ease-in-out infinite;
+  animation-delay: -12s;
+}
+
+.login-orb-5 {
+  width: 180px;
+  height: 180px;
+  top: 40%;
+  left: 10%;
+  background: radial-gradient(circle, rgba(255, 221, 0, 0.06), transparent 70%);
+  animation: orbFloat5 28s ease-in-out infinite;
+  animation-delay: -6s;
+}
+
+.login-orb-6 {
+  width: 120px;
+  height: 120px;
+  bottom: 20%;
+  right: 15%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.04), transparent 70%);
+  animation: orbFloat6 24s ease-in-out infinite;
+  animation-delay: -15s;
+}
+
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(60px, 40px) scale(1.1); }
+  50% { transform: translate(30px, 80px) scale(0.95); }
+  75% { transform: translate(-20px, 50px) scale(1.05); }
+}
+
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-50px, -30px) scale(1.08); }
+  66% { transform: translate(-20px, 40px) scale(0.92); }
+}
+
+@keyframes orbFloat3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(40px, -40px) scale(1.05); }
+  50% { transform: translate(-30px, -20px) scale(1.1); }
+  75% { transform: translate(20px, 30px) scale(0.95); }
+}
+
+@keyframes orbFloat4 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-40px, 50px); }
+}
+
+@keyframes orbFloat5 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -60px) scale(1.1); }
+  66% { transform: translate(-40px, 20px) scale(0.9); }
+}
+
+@keyframes orbFloat6 {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-30px, -20px); }
+  75% { transform: translate(20px, 30px); }
+}
+
+/* ========================================
+   CONTENT WRAPPER
+   ======================================== */
+
 .login-content-wrapper {
   position: relative;
   z-index: 1;
@@ -84,7 +205,7 @@ html:has(.login-container) {
   -webkit-backdrop-filter: blur(40px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 32px;
-  box-shadow: 
+  box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     inset 0 -1px 0 rgba(0, 0, 0, 0.1);
@@ -101,7 +222,10 @@ html:has(.login-container) {
   }
 }
 
-/* Logo grande e elegante */
+/* ========================================
+   LOGO WITH BREATHING PULSE
+   ======================================== */
+
 .login-logo-section {
   margin-bottom: 4rem;
   animation: logoFadeIn 1.2s ease-out;
@@ -124,13 +248,20 @@ html:has(.login-container) {
   object-fit: contain;
   filter: drop-shadow(0 0 30px rgba(255, 221, 0, 0.3));
   transition: transform 0.3s ease;
+  animation: logoPulse 4s ease-in-out infinite;
+}
+
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
 }
 
 .login-logo:hover {
   transform: scale(1.05);
+  animation-play-state: paused;
 }
 
-/* Slogan - Destaque acima do título */
+/* Slogan */
 .login-slogan {
   font-size: 0.95rem;
   font-weight: 600;
@@ -143,7 +274,7 @@ html:has(.login-container) {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
-/* Título - Grande, elegante, espaçado - Legível */
+/* Título */
 .login-title {
   font-size: 2.5rem;
   font-weight: 300;
@@ -168,7 +299,7 @@ html:has(.login-container) {
   }
 }
 
-/* Subtítulo - Sutil e elegante - Legível */
+/* Subtítulo */
 .login-subtitle {
   font-size: 1rem;
   font-weight: 400;
@@ -176,22 +307,10 @@ html:has(.login-container) {
   margin: 0 0 4rem 0;
   letter-spacing: 0.3px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Verdana', sans-serif;
-  animation: subtitleFadeIn 1s ease-out 0.4s both;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
-@keyframes subtitleFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Mensagem de erro - Minimalista com glass */
+/* Error */
 .login-error {
   margin-bottom: 2rem;
   padding: 1rem 1.5rem;
@@ -201,7 +320,7 @@ html:has(.login-container) {
   border: 1px solid rgba(255, 59, 48, 0.35);
   border-radius: 12px;
   animation: errorFadeIn 0.5s ease-out;
-  box-shadow: 
+  box-shadow:
     0 4px 16px rgba(255, 59, 48, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -227,7 +346,189 @@ html:has(.login-container) {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* Botão principal - Grande, simples, elegante - Mais glass */
+/* ========================================
+   PANEL TRANSITIONS (bidirectional)
+   ======================================== */
+
+.login-mode-select,
+.login-team-mode,
+.login-client-mode {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Enter animations */
+.login-panel-enter.login-dir-forward {
+  animation: panelSlideInRight 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.login-panel-enter.login-dir-back {
+  animation: panelSlideInLeft 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Exit animations */
+.login-panel-exit.login-dir-forward {
+  animation: panelSlideOutLeft 0.25s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+.login-panel-exit.login-dir-back {
+  animation: panelSlideOutRight 0.25s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@keyframes panelSlideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes panelSlideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes panelSlideOutLeft {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+
+@keyframes panelSlideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
+/* ========================================
+   MODE SELECT CARDS with micro-interactions
+   ======================================== */
+
+.login-mode-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* Staggered card entrance */
+.login-stagger-1 {
+  animation: cardStaggerIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+}
+
+.login-stagger-2 {
+  animation: cardStaggerIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+
+@keyframes cardStaggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.login-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #ffffff;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ripple effect on click */
+.login-mode-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 221, 0, 0.15);
+  transform: translate(-50%, -50%);
+  transition: width 0.5s ease, height 0.5s ease, opacity 0.5s ease;
+  opacity: 0;
+}
+
+.login-mode-btn:active::after {
+  width: 300px;
+  height: 300px;
+  opacity: 1;
+  transition: width 0s, height 0s, opacity 0s;
+}
+
+.login-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 221, 0, 0.5);
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 221, 0, 0.2);
+}
+
+.login-mode-icon {
+  width: 36px;
+  height: 36px;
+  opacity: 0.9;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-mode-btn:hover .login-mode-icon {
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 8px rgba(255, 221, 0, 0.5));
+  opacity: 1;
+}
+
+.login-mode-label {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.login-mode-sublabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
 .login-button {
   display: flex;
   align-items: center;
@@ -248,41 +549,34 @@ html:has(.login-container) {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Verdana', sans-serif;
   letter-spacing: 0.3px;
-  animation: buttonFadeIn 1s ease-out 0.6s both;
   position: relative;
   overflow: hidden;
-  box-shadow: 
+  box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-@keyframes buttonFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Efeito hover sutil e elegante */
-.login-button::before {
+/* Shimmer effect */
+.login-shimmer::before {
   content: '';
   position: absolute;
   top: 0;
   left: -100%;
-  width: 100%;
+  width: 60%;
   height: 100%;
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.08),
     transparent
   );
-  transition: left 0.6s ease;
+  animation: shimmer 4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { left: -100%; }
+  50% { left: 140%; }
 }
 
 .login-button:hover {
@@ -291,14 +585,10 @@ html:has(.login-container) {
   -webkit-backdrop-filter: blur(35px);
   border-color: rgba(255, 255, 255, 0.35);
   transform: translateY(-2px);
-  box-shadow: 
+  box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 221, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-
-.login-button:hover::before {
-  left: 100%;
 }
 
 .login-button:active {
@@ -322,7 +612,130 @@ html:has(.login-container) {
   letter-spacing: 0.3px;
 }
 
-/* Loading state - Minimalista */
+/* ========================================
+   CLIENT FORM with staggered inputs
+   ======================================== */
+
+.login-client-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.login-input-stagger-1 {
+  animation: inputStaggerIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+.login-input-stagger-2 {
+  animation: inputStaggerIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.login-input-stagger-3 {
+  animation: inputStaggerIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+@keyframes inputStaggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-client-input {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.login-client-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.login-client-input:focus {
+  outline: none;
+  border-color: rgba(255, 221, 0, 0.6);
+  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.15);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.login-client-submit {
+  margin-top: 0.5rem;
+}
+
+.login-client-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   BACK / FORGOT LINKS
+   ======================================== */
+
+.login-back-link {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+
+.login-back-link:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.login-forgot-link {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  color: rgba(255, 221, 0, 0.7);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+
+.login-forgot-link:hover {
+  color: rgba(255, 221, 0, 1);
+}
+
+.login-forgot-success {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.login-forgot-success p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+/* ========================================
+   LOADING
+   ======================================== */
+
 .login-loading {
   padding: 4rem 2rem;
   color: #ffffff;
@@ -351,48 +764,8 @@ html:has(.login-container) {
   to { transform: rotate(360deg); }
 }
 
-/* Responsividade - Mantendo elegância */
-@media (max-width: 600px) {
-  .login-content-wrapper {
-    padding: 3rem 1.5rem;
-  }
-
-  .login-logo {
-    width: 100px;
-    height: 100px;
-  }
-
-  .login-logo-section {
-    margin-bottom: 3rem;
-  }
-
-  .login-slogan {
-    font-size: 0.8rem;
-    letter-spacing: 1px;
-  }
-
-  .login-title {
-    font-size: 2rem;
-  }
-
-  .login-subtitle {
-    font-size: 0.9rem;
-    margin-bottom: 3rem;
-  }
-
-  .login-button {
-    padding: 1.1rem 1.5rem;
-    font-size: 1rem;
-  }
-}
-
-/* Animações muito sutis para elementos que aparecem */
-.login-content-wrapper > * {
-  will-change: transform, opacity;
-}
-
 /* ========================================
-   SEÇÃO DEV MODE
+   DEV MODE
    ======================================== */
 
 .login-dev-section {
@@ -492,172 +865,42 @@ html:has(.login-container) {
 }
 
 /* ========================================
-   DUAL LOGIN MODE
+   RESPONSIVO
    ======================================== */
 
-.login-mode-select,
-.login-team-mode,
-.login-client-mode {
-  width: 100%;
-  max-width: 400px;
-  animation: loginSlideIn 0.35s ease-out;
-}
-
-@keyframes loginSlideIn {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.login-mode-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.login-mode-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 2rem 1rem;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: #ffffff;
-  text-align: center;
-}
-
-.login-mode-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 221, 0, 0.4);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.login-mode-icon {
-  width: 36px;
-  height: 36px;
-  opacity: 0.9;
-}
-
-.login-mode-label {
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-}
-
-.login-mode-sublabel {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 400;
-}
-
-/* Client Form */
-.login-client-form {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.login-client-input {
-  width: 100%;
-  padding: 1rem 1.25rem;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  color: #ffffff;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: all 0.2s;
-  box-sizing: border-box;
-}
-
-.login-client-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.login-client-input:focus {
-  outline: none;
-  border-color: rgba(255, 221, 0, 0.6);
-  box-shadow: 0 0 0 3px rgba(255, 221, 0, 0.15);
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.login-client-submit {
-  margin-top: 0.5rem;
-}
-
-.login-client-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Back Link */
-.login-back-link {
-  display: inline-block;
-  margin-top: 1.5rem;
-  padding: 0.5rem 1rem;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: color 0.2s;
-  font-family: inherit;
-}
-
-.login-back-link:hover {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* Forgot Password Link */
-.login-forgot-link {
-  display: inline-block;
-  margin-top: 1rem;
-  padding: 0.25rem;
-  background: none;
-  border: none;
-  color: rgba(255, 221, 0, 0.7);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: color 0.2s;
-  font-family: inherit;
-}
-
-.login-forgot-link:hover {
-  color: rgba(255, 221, 0, 1);
-}
-
-/* Forgot Password Success */
-.login-forgot-success {
-  text-align: center;
-  margin-top: 1rem;
-}
-
-.login-forgot-success p {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.9rem;
-  line-height: 1.5;
-  margin-bottom: 1rem;
-}
-
-/* Responsive for mode select */
 @media (max-width: 600px) {
+  .login-content-wrapper {
+    padding: 3rem 1.5rem;
+  }
+
+  .login-logo {
+    width: 100px;
+    height: 100px;
+  }
+
+  .login-logo-section {
+    margin-bottom: 3rem;
+  }
+
+  .login-slogan {
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+  }
+
+  .login-title {
+    font-size: 2rem;
+  }
+
+  .login-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 3rem;
+  }
+
+  .login-button {
+    padding: 1.1rem 1.5rem;
+    font-size: 1rem;
+  }
+
   .login-mode-buttons {
     grid-template-columns: 1fr;
   }
@@ -665,4 +908,17 @@ html:has(.login-container) {
   .login-mode-btn {
     padding: 1.5rem 1rem;
   }
+
+  /* Reduce orb sizes on mobile */
+  .login-orb-1 { width: 200px; height: 200px; }
+  .login-orb-2 { width: 150px; height: 150px; }
+  .login-orb-3 { width: 180px; height: 180px; }
+  .login-orb-4 { width: 100px; height: 100px; }
+  .login-orb-5 { width: 120px; height: 120px; }
+  .login-orb-6 { width: 80px; height: 80px; }
+}
+
+/* Performance hint */
+.login-content-wrapper > * {
+  will-change: transform, opacity;
 }

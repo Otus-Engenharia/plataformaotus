@@ -21,7 +21,7 @@ import PhaseDurationChart from './curva-s-progresso/PhaseDurationChart';
 import MarcosClienteTab from './curva-s-progresso/MarcosClienteTab';
 import '../styles/CurvaSProgressoView.css';
 
-function CurvaSProgressoView({ selectedProjectId, portfolio }) {
+function CurvaSProgressoView({ selectedProjectId, portfolio, filteredProjects }) {
   const { user, isCoordinator, isPrivileged } = useAuth();
   const [weights, setWeights] = useState(null);
   const [progress, setProgress] = useState(null);
@@ -485,7 +485,7 @@ function CurvaSProgressoView({ selectedProjectId, portfolio }) {
         {activeTab === 'marcos_cliente' && (
           <MarcosClienteTab
             selectedProjectId={selectedProjectId}
-            portfolio={portfolio}
+            portfolio={filteredProjects || portfolio}
           />
         )}
 

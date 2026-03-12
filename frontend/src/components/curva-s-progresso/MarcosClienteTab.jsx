@@ -54,6 +54,10 @@ function MarcosClienteTab({ selectedProjectId, portfolio }) {
       if (selected?.nome_time) {
         return allValid.filter(p => p.nome_time === selected.nome_time);
       }
+      // Se nome_time é null, mostrar apenas o projeto selecionado
+      if (selected) {
+        return [selected];
+      }
     }
     return allValid;
   }, [portfolio, selectedProjectId]);

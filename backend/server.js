@@ -64,7 +64,7 @@ import {
   // Equipe do projeto
   fetchProjectDisciplines, fetchStandardDisciplines, fetchCompanies, fetchContacts,
   createContact, updateContact,
-  createProjectDiscipline, updateProjectDiscipline, deleteProjectDiscipline,
+  createProjectDiscipline, createProjectDisciplinesBatch, updateProjectDiscipline, deleteProjectDiscipline,
   dismissProjectDiscipline, reactivateProjectDiscipline,
   getProjectIdByConstruflow, getOrCreateProjectIdForEquipe,
   // Mapeamentos de disciplinas
@@ -8285,6 +8285,57 @@ app.post('/api/projetos/equipe', requireAuth, async (req, res) => {
     res.json({ success: true, data });
   } catch (error) {
     console.error('❌ Erro ao adicionar equipe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: POST /api/projetos/equipe/batch
+ * Adiciona múltiplas disciplinas + projetistas (produto cartesiano)
+ */
+app.post('/api/projetos/equipe/batch', requireAuth, async (req, res) => {
+  try {
+    const { construflow_id, project_code, discipline_ids, projetistas, discipline_detail } = req.body;
+
+    if (!construflow_id || !Array.isArray(discipline_ids) || discipline_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'construflow_id e pelo menos 1 discipline_id são obrigatórios'
+      });
+    }
+
+    const projectId = await getOrCreateProjectIdForEquipe(construflow_id, project_code);
+    if (!projectId) {
+      return res.status(404).json({
+        success: false,
+        error: 'Projeto não encontrado no sistema. Contate o administrador.'
+      });
+    }
+
+    // Gerar produto cartesiano: disciplinas × projetistas
+    const filledProjetistas = (projetistas || []).filter(p => p.company_id || p.contact_id);
+    const records = [];
+
+    for (const discId of discipline_ids) {
+      if (filledProjetistas.length === 0) {
+        // Disciplinas sem projetista
+        records.push({ discipline_id: discId, discipline_detail });
+      } else {
+        for (const proj of filledProjetistas) {
+          records.push({
+            discipline_id: discId,
+            company_id: proj.company_id || null,
+            contact_id: proj.contact_id || null,
+            discipline_detail,
+          });
+        }
+      }
+    }
+
+    const result = await createProjectDisciplinesBatch(projectId, records);
+    res.json({ success: true, created: result.created, skipped: result.skipped });
+  } catch (error) {
+    console.error('❌ Erro ao adicionar equipe em batch:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

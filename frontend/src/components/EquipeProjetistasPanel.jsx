@@ -12,6 +12,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
+import MultiSelectDropdown from './formulario-passagem/MultiSelectDropdown';
 import '../styles/EquipeClientePanel.css';
 import { formatPhoneDisplay, stripNonDigits } from '../utils/phone-utils';
 
@@ -72,6 +73,13 @@ function EquipeProjetistasPanel({
   });
   const [savingRequest, setSavingRequest] = useState(false);
 
+  // --- Estado bulk add (modo Adicionar) ---
+  const [bulkDisciplineIds, setBulkDisciplineIds] = useState([]);
+  const [projetistaSlots, setProjetistaSlots] = useState([{ company_id: '', contact_id: '' }]);
+  const [bulkDetail, setBulkDetail] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkError, setBulkError] = useState('');
+
   // --- Estado busca ---
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -125,6 +133,10 @@ function EquipeProjetistasPanel({
       discipline_id: '', company_id: '', contact_id: '',
       discipline_detail: '', email: '', phone: '', position: ''
     });
+    setBulkDisciplineIds([]);
+    setProjetistaSlots([{ company_id: '', contact_id: '' }]);
+    setBulkDetail('');
+    setBulkError('');
     setShowModal(true);
   };
 
@@ -246,13 +258,64 @@ function EquipeProjetistasPanel({
     ).length <= 1;
   };
 
-  const getFilteredContacts = () => {
-    if (!formData.company_id) return [];
-    return contatos.filter(c => String(c.company_id) === String(formData.company_id));
+  const getFilteredContacts = (companyId) => {
+    const cid = companyId || formData.company_id;
+    if (!cid) return [];
+    return contatos.filter(c => String(c.company_id) === String(cid));
   };
 
   const getDisciplineName = (id) => disciplinas.find(d => d.id === id)?.discipline_name || '-';
   const getCompanyName = (id) => empresas.find(e => e.id === id)?.name || '-';
+
+  // --- Helpers para slots de projetista (bulk add) ---
+  const addSlot = () => setProjetistaSlots(prev => [...prev, { company_id: '', contact_id: '' }]);
+  const removeSlot = (idx) => setProjetistaSlots(prev => prev.filter((_, i) => i !== idx));
+  const updateSlot = (idx, field, value) => {
+    setProjetistaSlots(prev => prev.map((s, i) => {
+      if (i !== idx) return s;
+      if (field === 'company_id') return { ...s, company_id: value, contact_id: '' };
+      return { ...s, [field]: value };
+    }));
+  };
+
+  // Contagem dinâmica para o botão bulk
+  const bulkFilledProjetistas = projetistaSlots.filter(s => s.company_id || s.contact_id);
+  const bulkRecordCount = bulkDisciplineIds.length * Math.max(bulkFilledProjetistas.length, 1);
+  const bulkButtonLabel = bulkFilledProjetistas.length === 0
+    ? `Adicionar ${bulkDisciplineIds.length} disciplina${bulkDisciplineIds.length !== 1 ? 's' : ''}`
+    : `Adicionar ${bulkRecordCount} registro${bulkRecordCount !== 1 ? 's' : ''}`;
+
+  const handleBulkSave = async () => {
+    if (bulkDisciplineIds.length === 0) return;
+    setBulkSaving(true);
+    setBulkError('');
+    try {
+      const res = await axios.post(`${API_URL}/api/projetos/equipe/batch`, {
+        construflow_id: construflowId,
+        project_code: projectCode,
+        discipline_ids: bulkDisciplineIds,
+        projetistas: bulkFilledProjetistas,
+        discipline_detail: bulkDetail || undefined,
+      }, { withCredentials: true });
+
+      const { created, skipped } = res.data;
+      setShowModal(false);
+      if (onEquipeChange) onEquipeChange();
+      if (onCrossRefChange) onCrossRefChange();
+
+      if (skipped > 0) {
+        setRequestSuccess(`${created.length} adicionado(s), ${skipped} duplicata(s) ignorada(s)`);
+      } else {
+        setRequestSuccess(`${created.length} registro(s) adicionado(s)`);
+      }
+      setTimeout(() => setRequestSuccess(null), 4000);
+    } catch (err) {
+      console.error('Erro ao salvar batch:', err);
+      setBulkError(err.response?.data?.error || err.message || 'Erro ao salvar.');
+    } finally {
+      setBulkSaving(false);
+    }
+  };
 
   // === FUNÇÕES DE SOLICITAÇÃO UNIFICADA (para leaders) ===
 
@@ -785,10 +848,10 @@ function EquipeProjetistasPanel({
       {/* === MODAL DE DISCIPLINA (admin) === */}
       {showModal && (
         <div className="ecli-modal-overlay">
-          <div className="ecli-modal">
+          <div className={`ecli-modal ${!editingItem ? 'ecli-modal--wide' : ''}`}>
             <div className="ecli-modal-header">
-              <h3>{editingItem ? 'Editar Membro' : 'Adicionar Membro'}</h3>
-              <button className="ecli-modal-close" onClick={() => setShowModal(false)} aria-label="Fechar">
+              <h3>{editingItem ? 'Editar Membro' : 'Adicionar Membros'}</h3>
+              <button className="ecli-modal-close" onClick={() => setShowModal(false)} aria-label="Fechar modal">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -797,76 +860,149 @@ function EquipeProjetistasPanel({
             </div>
 
             <div className="ecli-modal-body">
-              <div className="ecli-form-group">
-                <label>Disciplina {!editingItem && <span className="ecli-required">*</span>}</label>
-                {editingItem ? (
-                  <div className="ecli-readonly">{getDisciplineName(formData.discipline_id)}</div>
-                ) : (
-                  <select value={formData.discipline_id} onChange={e => setFormData({ ...formData, discipline_id: e.target.value })}>
-                    <option value="">Selecione...</option>
-                    {disciplinas.map(d => <option key={d.id} value={d.id}>{d.discipline_name}</option>)}
-                  </select>
-                )}
-              </div>
+              {editingItem ? (
+                /* === MODO EDITAR (single-item, inalterado) === */
+                <>
+                  <div className="ecli-form-group">
+                    <label>Disciplina</label>
+                    <div className="ecli-readonly">{getDisciplineName(formData.discipline_id)}</div>
+                  </div>
+                  <div className="ecli-form-group">
+                    <label>Empresa</label>
+                    <div className="ecli-readonly">{getCompanyName(formData.company_id)}</div>
+                  </div>
+                  <div className="ecli-form-group">
+                    <label>Contato</label>
+                    <select value={formData.contact_id} onChange={e => handleContactChange(e.target.value)} disabled={!formData.company_id}>
+                      <option value="">{formData.company_id ? 'Selecione...' : 'Selecione empresa primeiro'}</option>
+                      {getFilteredContacts().map(c => (
+                        <option key={c.id} value={c.id}>{c.name} {c.email ? `(${c.email})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ecli-form-row">
+                    <div className="ecli-form-group">
+                      <label>Email</label>
+                      <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" />
+                    </div>
+                    <div className="ecli-form-group">
+                      <label>Telefone</label>
+                      <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: stripNonDigits(e.target.value) })} placeholder="00 00000-0000" />
+                    </div>
+                  </div>
+                  <div className="ecli-form-group">
+                    <label>Cargo</label>
+                    <input type="text" value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} placeholder="Cargo ou função" />
+                  </div>
+                  <div className="ecli-form-group">
+                    <label>Detalhes da Disciplina</label>
+                    <textarea value={formData.discipline_detail} onChange={e => setFormData({ ...formData, discipline_detail: e.target.value })} placeholder="Informações adicionais..." rows={3} />
+                  </div>
+                </>
+              ) : (
+                /* === MODO BULK ADD (multi-select) === */
+                <>
+                  {/* Seção 1: Disciplinas (multi-select) */}
+                  <div className="ecli-form-group">
+                    <label>Disciplinas <span className="ecli-required">*</span></label>
+                    <MultiSelectDropdown
+                      options={disciplinas.map(d => ({ value: d.id, label: d.discipline_name }))}
+                      selectedValues={bulkDisciplineIds}
+                      onChange={setBulkDisciplineIds}
+                      placeholder="Selecione disciplinas..."
+                      emptyMessage="Nenhuma disciplina disponível"
+                    />
+                  </div>
 
-              <div className="ecli-form-group">
-                <label>Empresa</label>
-                {editingItem ? (
-                  <div className="ecli-readonly">{getCompanyName(formData.company_id)}</div>
-                ) : (
-                  <select
-                    value={formData.company_id}
-                    onChange={e => setFormData({ ...formData, company_id: e.target.value, contact_id: '', email: '', phone: '', position: '' })}
-                  >
-                    <option value="">Selecione...</option>
-                    {empresas.map(emp => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name} {emp.status === 'pendente' ? '(pendente)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+                  {/* Seção 2: Projetistas (slots repetíveis) */}
+                  <div className="ecli-form-group">
+                    <label>Projetistas</label>
+                    <div className="ecli-projetista-slots">
+                      {projetistaSlots.map((slot, idx) => (
+                        <div key={idx} className="ecli-projetista-slot">
+                          <span className="ecli-slot-number">#{idx + 1}</span>
+                          <select
+                            value={slot.company_id}
+                            onChange={e => updateSlot(idx, 'company_id', e.target.value)}
+                          >
+                            <option value="">Empresa...</option>
+                            {empresas.map(emp => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.name} {emp.status === 'pendente' ? '(pendente)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={slot.contact_id}
+                            onChange={e => updateSlot(idx, 'contact_id', e.target.value)}
+                            disabled={!slot.company_id}
+                          >
+                            <option value="">{slot.company_id ? 'Contato...' : 'Empresa primeiro'}</option>
+                            {getFilteredContacts(slot.company_id).map(c => (
+                              <option key={c.id} value={c.id}>{c.name} {c.email ? `(${c.email})` : ''}</option>
+                            ))}
+                          </select>
+                          {projetistaSlots.length > 1 && (
+                            <button
+                              type="button"
+                              className="ecli-slot-remove"
+                              onClick={() => removeSlot(idx)}
+                              aria-label={`Remover projetista #${idx + 1}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button type="button" className="ecli-add-slot-btn" onClick={addSlot}>
+                        + Adicionar projetista
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="ecli-form-group">
-                <label>Contato</label>
-                <select
-                  value={formData.contact_id}
-                  onChange={e => handleContactChange(e.target.value)}
-                  disabled={!formData.company_id}
-                >
-                  <option value="">{formData.company_id ? 'Selecione...' : 'Selecione empresa primeiro'}</option>
-                  {getFilteredContacts().map(c => (
-                    <option key={c.id} value={c.id}>{c.name} {c.email ? `(${c.email})` : ''}</option>
-                  ))}
-                </select>
-              </div>
+                  {/* Seção 3: Detalhes (opcional) */}
+                  <div className="ecli-form-group">
+                    <label>Detalhes da Disciplina</label>
+                    <textarea
+                      value={bulkDetail}
+                      onChange={e => setBulkDetail(e.target.value)}
+                      placeholder="Informações adicionais (compartilhado para todos os registros)..."
+                      rows={2}
+                    />
+                  </div>
 
-              <div className="ecli-form-row">
-                <div className="ecli-form-group">
-                  <label>Email</label>
-                  <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" />
-                </div>
-                <div className="ecli-form-group">
-                  <label>Telefone</label>
-                  <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: stripNonDigits(e.target.value) })} placeholder="00 00000-0000" title="Digite apenas os n\u00fameros, sem par\u00eanteses ou tra\u00e7os" />
-                </div>
-              </div>
-
-              <div className="ecli-form-group">
-                <label>Cargo</label>
-                <input type="text" value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} placeholder="Cargo ou fun\u00e7\u00e3o" />
-              </div>
-
-              <div className="ecli-form-group">
-                <label>Detalhes da Disciplina</label>
-                <textarea value={formData.discipline_detail} onChange={e => setFormData({ ...formData, discipline_detail: e.target.value })} placeholder="Informa\u00e7\u00f5es adicionais..." rows={3} />
-              </div>
+                  {bulkError && (
+                    <div className="ecli-bulk-error" role="alert">{bulkError}</div>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="ecli-modal-footer">
               <button className="ecli-btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
-              <button className="ecli-btn-save" onClick={handleSave}>{editingItem ? 'Salvar' : 'Adicionar'}</button>
+              {editingItem ? (
+                <button className="ecli-btn-save" onClick={handleSave}>Salvar</button>
+              ) : (
+                <button
+                  className="ecli-btn-save"
+                  onClick={handleBulkSave}
+                  disabled={bulkDisciplineIds.length === 0 || bulkSaving}
+                >
+                  {bulkSaving ? (
+                    <span className="ecli-btn-loading">
+                      <span className="ecli-portal-spinner" /> Salvando...
+                    </span>
+                  ) : (
+                    <>
+                      {bulkButtonLabel}
+                      {bulkRecordCount > 1 && <span className="ecli-record-count">{bulkRecordCount}</span>}
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
