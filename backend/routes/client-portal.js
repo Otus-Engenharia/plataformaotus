@@ -1315,7 +1315,7 @@ export function createAdminClientPortalRoutes(requireAuth) {
         // Create Supabase Auth user with default password
         const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
           email: contact.email,
-          password: '1234',
+          password: '123456',
           email_confirm: true,
         });
 
@@ -1351,8 +1351,10 @@ export function createAdminClientPortalRoutes(requireAuth) {
             }
 
             if (existingUserId) {
+              // Reset password to default for existing users
+              await supabase.auth.admin.updateUserById(existingUserId, { password: '123456' });
               await repo.enablePortalAccess(contactId, existingUserId);
-              return res.json({ success: true, message: 'Portal ativado (usuário existente)' });
+              return res.json({ success: true, message: 'Portal ativado (usuário existente, senha resetada)' });
             }
           }
           return res.status(400).json({ success: false, error: `Erro ao criar usuário: ${authError.message}` });
@@ -1390,6 +1392,47 @@ export function createAdminClientPortalRoutes(requireAuth) {
     } catch (err) {
       console.error('Toggle portal error:', err);
       res.status(500).json({ success: false, error: 'Erro ao alterar acesso ao portal' });
+    }
+  });
+
+  // POST /api/admin/client-portal/reset-all-passwords - Reset all portal users to default password
+  router.post('/reset-all-passwords', requireAuth, async (req, res) => {
+    try {
+      const userRole = req.user?.role;
+      if (!['dev', 'director'].includes(userRole)) {
+        return res.status(403).json({ success: false, error: 'Sem permissão' });
+      }
+
+      const supabaseService = getSupabaseServiceClient();
+      const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+      const { data: contacts, error } = await supabaseService
+        .from('contacts')
+        .select('id, name, email, supabase_auth_id')
+        .eq('has_portal_access', true)
+        .not('supabase_auth_id', 'is', null);
+
+      if (error) throw error;
+
+      const results = [];
+      for (const contact of contacts || []) {
+        try {
+          await supabaseAdmin.auth.admin.updateUserById(contact.supabase_auth_id, { password: '123456' });
+          results.push({ email: contact.email, success: true });
+        } catch (err) {
+          results.push({ email: contact.email, success: false, error: err.message });
+        }
+      }
+
+      res.json({
+        success: true,
+        total: results.length,
+        reset: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success),
+      });
+    } catch (err) {
+      console.error('Reset all passwords error:', err);
+      res.status(500).json({ success: false, error: 'Erro ao resetar senhas' });
     }
   });
 
