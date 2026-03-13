@@ -833,7 +833,7 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
       for (const task of categories.a_iniciar) {
         const startDate = getField(task, 'Data Inicio', 'Data de Inicio', 'Data de Início', 'Start Date');
         const endDate = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
-        const dateStr = formatStartEndRange(startDate, endDate);
+        const dateStr = formatStartEndRange(startDate, endDate) || 's/ data';
         const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
 
@@ -849,7 +849,7 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
     if (categories.programadas.length) {
       html += `<p style="margin:14px 0 8px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1px;">\u25CF Entregas Programadas</p>`;
       for (const task of categories.programadas) {
-        const dateStr = formatDateShort(getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date'));
+        const dateStr = formatDateShort(getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date')) || 's/ data';
         const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
 
@@ -867,7 +867,7 @@ function _generateCronogramaClientSection(schedule, ganttUrl, disciplinaUrl, sch
       for (const task of categories.em_andamento) {
         const startDate = getField(task, 'Data Inicio', 'Data de Inicio', 'Data de Início', 'Start Date');
         const endDate = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
-        const dateStr = formatStartEndRange(startDate, endDate);
+        const dateStr = formatStartEndRange(startDate, endDate) || 's/ data';
         const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
         const overdueBadge = task._overdue ? '<span style="font-family:\'Montserrat\',sans-serif;font-size:9px;font-weight:700;color:#fff;background:#DC2626;padding:2px 6px;border-radius:3px;margin-right:6px;">ATRASADA</span>' : '';
@@ -904,7 +904,7 @@ function _generateCronogramaTeamSection(schedule) {
       for (const task of categories.a_iniciar) {
         const startDate = getField(task, 'Data Inicio', 'Data de Inicio', 'Data de Início', 'Start Date');
         const endDate = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
-        const dateStr = formatStartEndRange(startDate, endDate);
+        const dateStr = formatStartEndRange(startDate, endDate) || 's/ data';
         const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
 
@@ -920,7 +920,7 @@ function _generateCronogramaTeamSection(schedule) {
     if (categories.programadas && categories.programadas.length) {
       html += `<p style="margin:14px 0 8px;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1px;">\u25CF Entregas Programadas</p>`;
       for (const task of categories.programadas) {
-        const dateStr = formatDateShort(getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date'));
+        const dateStr = formatDateShort(getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date')) || 's/ data';
         const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
 
@@ -938,7 +938,7 @@ function _generateCronogramaTeamSection(schedule) {
       for (const task of categories.em_andamento) {
         const startDate = getField(task, 'Data Inicio', 'Data de Inicio', 'Data de Início', 'Start Date');
         const endDate = getField(task, 'Data Termino', 'Data Término', 'Data de Termino', 'Data de Término', 'End Date');
-        const dateStr = formatStartEndRange(startDate, endDate);
+        const dateStr = formatStartEndRange(startDate, endDate) || 's/ data';
         const name = getField(task, 'Nome da Tarefa', 'Task Name') || '';
         const observacaoOtus = getField(task, 'Observacao Otus', 'Observação Otus') || '';
         const overdueBadge = task._overdue ? '<span style="font-family:\'Montserrat\',sans-serif;font-size:9px;font-weight:700;color:#fff;background:#DC2626;padding:2px 6px;border-radius:3px;margin-right:6px;">ATRASADA</span>' : '';

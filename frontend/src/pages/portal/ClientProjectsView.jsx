@@ -3,19 +3,19 @@ import { useNavigate, useSearchParams, useOutletContext } from 'react-router-dom
 import axios from 'axios';
 import { API_URL } from '../../api';
 import { useClientAuth } from '../../contexts/ClientAuthContext';
+import { isAtivoStatus, isFinalizedStatus, isPausedStatus, isAIniciarStatus } from '../../utils/portfolio-utils';
 import '../../styles/ClientPortal.css';
 
 const statusColors = {
-  'Planejamento': '#0369a1',
-  'Fase 01': '#d97706',
-  'Fase 02': '#d97706',
-  'Fase 03': '#d97706',
-  'Fase 04': '#d97706',
-  'Finalizado': '#15803d',
-  'Pausado': '#737373',
+  'planejamento': '#0369a1',
+  'a iniciar': '#0369a1',
+  'fase 01': '#d97706',
+  'fase 02': '#d97706',
+  'fase 03': '#d97706',
+  'fase 04': '#d97706',
+  'finalizado': '#15803d',
+  'pausado': '#737373',
 };
-
-const ACTIVE_STATUSES = ['Planejamento', 'Fase 01', 'Fase 02', 'Fase 03', 'Fase 04'];
 
 function ProjectCardCover({ project, token }) {
   const [imgError, setImgError] = useState(false);
@@ -48,7 +48,7 @@ function ProjectCardCover({ project, token }) {
       )}
       <span
         className="client-project-status-badge"
-        style={{ background: statusColors[project.status] || '#737373' }}
+        style={{ background: statusColors[(project.status || '').toLowerCase()] || '#737373' }}
       >
         {project.status || 'N/A'}
       </span>
@@ -67,6 +67,7 @@ function ClientProjectsView() {
   const [showAtivos, setShowAtivos] = useState(true);
   const [showFinalizados, setShowFinalizados] = useState(false);
   const [showPausados, setShowPausados] = useState(false);
+  const [showAIniciar, setShowAIniciar] = useState(false);
 
   // Change password modal state
   const [showChangePassword, setShowChangePassword] = useState(
@@ -109,16 +110,16 @@ function ClientProjectsView() {
   };
 
   // Filter logic
-  const anyChipActive = showAtivos || showFinalizados || showPausados;
+  const anyChipActive = showAtivos || showFinalizados || showPausados || showAIniciar;
   const filteredProjects = (projects || []).filter(p => {
     // Status filter
     if (anyChipActive) {
-      const isAtivo = ACTIVE_STATUSES.includes(p.status);
-      const isFinalizado = p.status === 'Finalizado';
-      const isPausado = p.status === 'Pausado';
-      if (!((showAtivos && isAtivo) || (showFinalizados && isFinalizado) || (showPausados && isPausado))) {
-        return false;
-      }
+      const match =
+        (showAtivos && isAtivoStatus(p.status)) ||
+        (showFinalizados && isFinalizedStatus(p.status)) ||
+        (showPausados && isPausedStatus(p.status)) ||
+        (showAIniciar && isAIniciarStatus(p.status));
+      if (!match) return false;
     }
     // Search filter
     if (searchTerm) {
@@ -131,9 +132,10 @@ function ClientProjectsView() {
   });
 
   // Count by category
-  const countAtivos = (projects || []).filter(p => ACTIVE_STATUSES.includes(p.status)).length;
-  const countFinalizados = (projects || []).filter(p => p.status === 'Finalizado').length;
-  const countPausados = (projects || []).filter(p => p.status === 'Pausado').length;
+  const countAtivos = (projects || []).filter(p => isAtivoStatus(p.status)).length;
+  const countFinalizados = (projects || []).filter(p => isFinalizedStatus(p.status)).length;
+  const countPausados = (projects || []).filter(p => isPausedStatus(p.status)).length;
+  const countAIniciar = (projects || []).filter(p => isAIniciarStatus(p.status)).length;
 
   if (projectsLoading) {
     return (
@@ -206,6 +208,12 @@ function ClientProjectsView() {
             onClick={() => setShowAtivos(!showAtivos)}
           >
             Ativos <span className="client-project-chip-count">{countAtivos}</span>
+          </button>
+          <button
+            className={`client-project-chip${showAIniciar ? ' active' : ''}`}
+            onClick={() => setShowAIniciar(!showAIniciar)}
+          >
+            A Iniciar <span className="client-project-chip-count">{countAIniciar}</span>
           </button>
           <button
             className={`client-project-chip${showFinalizados ? ' active' : ''}`}

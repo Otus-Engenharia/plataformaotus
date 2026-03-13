@@ -92,7 +92,7 @@ export default function VistaClienteSelectView() {
       }
     } catch (err) {
       console.error('Impersonation error:', err);
-      alert('Erro ao gerar token de impersonação');
+      alert('Erro ao gerar token de impersonacao');
     } finally {
       setImpersonating(null);
     }
@@ -137,9 +137,6 @@ export default function VistaClienteSelectView() {
           <h1 className="vc-select-title">Vista do Cliente</h1>
           <p className="vc-select-subtitle">
             Selecione uma empresa para visualizar o portal como o cliente veria.
-            <span className="vc-select-meta">
-              {companies.length} empresa{companies.length !== 1 ? 's' : ''}
-            </span>
           </p>
         </div>
         <div className="vc-select-search-wrapper">
@@ -158,10 +155,12 @@ export default function VistaClienteSelectView() {
       {filteredCompanies.length === 0 ? (
         <div className="vc-select-empty">
           <IconUsersEmpty />
-          <p>Nenhum resultado para &ldquo;{searchTerm}&rdquo;</p>
-          <button className="vc-select-clear-btn" onClick={() => setSearchTerm('')}>
-            Limpar busca
-          </button>
+          <p>{searchTerm ? `Nenhum resultado para "${searchTerm}"` : 'Nenhuma empresa encontrada'}</p>
+          {searchTerm && (
+            <button className="vc-select-clear-btn" onClick={() => setSearchTerm('')}>
+              Limpar busca
+            </button>
+          )}
         </div>
       ) : (
         <div className="vc-select-grid">
@@ -170,18 +169,24 @@ export default function VistaClienteSelectView() {
               key={company.companyId}
               className="vc-select-company"
               style={{ animationDelay: `${Math.min(idx * 0.04, 0.3)}s` }}
+              onClick={() => handleImpersonateCompany(company)}
             >
+              {/* Zone 1: Header — ícone + info */}
               <div className="vc-select-company-header">
                 <span className="vc-select-company-icon"><IconBuilding /></span>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="vc-select-company-info">
                   <span className="vc-select-company-name">{company.companyName}</span>
-                  <span className="vc-select-contact-count">
+                  <span className="vc-select-company-meta">
                     {company.projectCount} projeto{company.projectCount !== 1 ? 's' : ''}
                   </span>
                 </div>
+              </div>
+
+              {/* Zone 2: Footer — botão */}
+              <div className="vc-select-company-footer">
                 <button
                   className={`vc-select-btn ${impersonating === company.companyId ? 'loading' : ''}`}
-                  onClick={() => handleImpersonateCompany(company)}
+                  onClick={(e) => { e.stopPropagation(); handleImpersonateCompany(company); }}
                   disabled={impersonating === company.companyId}
                 >
                   {impersonating === company.companyId ? (

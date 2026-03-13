@@ -426,6 +426,52 @@ export function PortfolioProvider({ children }) {
     return { totalGrupo, totalGeral: totalGeralProjetos };
   }, [projetosFinalizadosPorFase, totalGeralProjetos]);
 
+  // Atualiza campo comercial (project_comercial_infos)
+  const updateComercialField = useCallback(async (projectCode, field, newValue, oldValue) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/portfolio/${projectCode}/comercial`,
+        { field, value: newValue, oldValue },
+        { withCredentials: true }
+      );
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Erro ao atualizar');
+      }
+      setSavedCell({ projectCode, field });
+      setTimeout(() => setSavedCell(null), 1500);
+      return true;
+    } catch (err) {
+      console.error('Erro ao atualizar campo comercial:', err);
+      const errorMsg = err.response?.data?.error || err.message || 'Erro ao atualizar';
+      setErrorCell({ projectCode, field, message: errorMsg });
+      setTimeout(() => setErrorCell(null), 3000);
+      return false;
+    }
+  }, []);
+
+  // Atualiza campo de ferramenta (project_features)
+  const updateToolField = useCallback(async (projectCode, field, newValue, oldValue) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/portfolio/${projectCode}/tools`,
+        { field, value: newValue, oldValue },
+        { withCredentials: true }
+      );
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Erro ao atualizar');
+      }
+      setSavedCell({ projectCode, field });
+      setTimeout(() => setSavedCell(null), 1500);
+      return true;
+    } catch (err) {
+      console.error('Erro ao atualizar campo ferramenta:', err);
+      const errorMsg = err.response?.data?.error || err.message || 'Erro ao atualizar';
+      setErrorCell({ projectCode, field, message: errorMsg });
+      setTimeout(() => setErrorCell(null), 3000);
+      return false;
+    }
+  }, []);
+
   const value = {
     // Dados brutos
     data,
@@ -451,6 +497,8 @@ export function PortfolioProvider({ children }) {
     editOptions,
     fetchEditOptions,
     updatePortfolioField,
+    updateComercialField,
+    updateToolField,
     savedCell,
     errorCell,
 

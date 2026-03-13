@@ -23,6 +23,7 @@ class SyncCustomerDocuments {
   async execute({ customerId, mappings, onProjectProgress, projectConcurrency = 1 }) {
     let totalDocuments = 0;
     let newDocuments = 0;
+    const projectResults = [];
 
     // Determinar se algum mapping desta conta usa API classica
     const anyClassic = mappings.some(m => m.use_classic_api === true);
@@ -44,18 +45,52 @@ class SyncCustomerDocuments {
 
     const tasks = mappings.map((mapping, idx) =>
       limit(async () => {
-        const result = await this.#syncOneProject({ customerId, mapping, statusMap, anyClassic });
-        completedCount++;
+        const startMs = Date.now();
+        const projectCode = mapping.portfolio_project_code;
+        try {
+          const result = await this.#syncOneProject({ customerId, mapping, statusMap, anyClassic });
+          completedCount++;
 
-        if (onProjectProgress) {
-          await onProjectProgress({
-            projectName: mapping.autodoc_project_name || mapping.portfolio_project_code,
-            index: completedCount,
-            total: mappings.length,
+          if (onProjectProgress) {
+            await onProjectProgress({
+              projectName: mapping.autodoc_project_name || projectCode,
+              index: completedCount,
+              total: mappings.length,
+            });
+          }
+
+          projectResults.push({
+            projectCode,
+            status: 'success',
+            totalDocuments: result.totalDocuments,
+            newDocuments: result.newDocuments,
+            durationMs: Date.now() - startMs,
           });
-        }
 
-        return result;
+          return result;
+        } catch (err) {
+          completedCount++;
+
+          if (onProjectProgress) {
+            await onProjectProgress({
+              projectName: mapping.autodoc_project_name || projectCode,
+              index: completedCount,
+              total: mappings.length,
+            });
+          }
+
+          projectResults.push({
+            projectCode,
+            status: 'error',
+            error: err.message,
+            totalDocuments: 0,
+            newDocuments: 0,
+            durationMs: Date.now() - startMs,
+          });
+
+          // Re-throw para allSettled capturar como rejected
+          throw err;
+        }
       })
     );
 
@@ -68,7 +103,7 @@ class SyncCustomerDocuments {
       }
     }
 
-    return { totalDocuments, newDocuments };
+    return { totalDocuments, newDocuments, projectResults };
   }
 
   async #syncOneProject({ customerId, mapping, statusMap, anyClassic }) {

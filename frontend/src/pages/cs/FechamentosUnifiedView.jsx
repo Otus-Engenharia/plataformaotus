@@ -3,7 +3,7 @@
  * Tabs: Calendário (timeline) | Pesquisas NPS (feedback pós-fechamento)
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import PesquisasCSView from './PesquisasCSView';
 import FechamentosFaseView from './FechamentosFaseView';
@@ -26,12 +26,19 @@ function FechamentosUnifiedView() {
     }
   }, []);
 
-  const handleCardClick = useCallback((projectCode) => {
+  const [pendingProject, setPendingProject] = useState(null);
+
+  const handleCardClick = useCallback((projectInfo) => {
     handleTabChange('pesquisas');
-    setTimeout(() => {
-      pesquisasRef.current?.openForm(projectCode);
-    }, 50);
+    setPendingProject(projectInfo);
   }, [handleTabChange]);
+
+  useEffect(() => {
+    if (pendingProject && activeTab === 'pesquisas') {
+      pesquisasRef.current?.openForm(pendingProject);
+      setPendingProject(null);
+    }
+  }, [pendingProject, activeTab]);
 
   return (
     <div className="fechamentos-unified">

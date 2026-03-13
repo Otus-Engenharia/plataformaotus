@@ -47,6 +47,50 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction, inval
   }
 
   /**
+   * GET /api/projetos/list-simple
+   * Lista leve de projetos (code, name, client) para dropdowns
+   */
+  router.get('/list-simple', requireAuth, async (req, res) => {
+    try {
+      const supabase = getSupabaseServiceClient();
+      const { data, error } = await supabase
+        .from('projects')
+        .select('project_code, name, companies:company_id(name)')
+        .not('project_code', 'is', null)
+        .order('name');
+
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      // Query 2: smartsheet_ids from project_features (separate table, no FK embed)
+      const codes = (data || []).map(p => p.project_code).filter(Boolean);
+      const { data: features } = codes.length
+        ? await supabase
+            .from('project_features')
+            .select('project_code, smartsheet_id')
+            .in('project_code', codes)
+        : { data: [] };
+
+      const featuresMap = Object.fromEntries(
+        (features || []).map(f => [f.project_code, f.smartsheet_id])
+      );
+
+      const projects = (data || []).map(p => ({
+        project_code_norm: p.project_code,
+        project_name: p.name,
+        client: p.companies?.name || '',
+        smartsheet_id: featuresMap[p.project_code] || null,
+      }));
+
+      res.json({ success: true, data: projects });
+    } catch (error) {
+      console.error('Erro ao buscar lista de projetos:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * GET /api/projetos/form/clients
    * Dropdown de clientes (companies com company_type='client')
    */

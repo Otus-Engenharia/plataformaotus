@@ -11,15 +11,11 @@ import { useViewAccess } from '../hooks/useViewAccess';
 
 // Mapeamento de paths para view IDs
 const PATH_TO_VIEW_ID = {
-  '/indicadores-lideranca': 'indicadores-lideranca',
-  '/horas': 'horas',
   '/indicadores': 'indicadores',
   '/okrs': 'okrs',
-  '/projetos': 'projetos',
-  '/cs': 'cs',
-  '/estudo-de-custos': 'estudo-de-custos',
-  '/contatos': 'contatos',
-  '/formulario-passagem': 'formulario-passagem',
+  '/proj/projetos': 'projetos',
+  '/proj/cs': 'cs',
+  '/proj/contatos': 'contatos',
   '/feedbacks': 'feedbacks',
 };
 
