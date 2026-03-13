@@ -5442,6 +5442,24 @@ export async function createContact({ name, email, phone, position, companyId })
 export async function updateContact(contactId, { name, email, phone, position }) {
   const supabase = getSupabaseClient();
 
+  // If email is changing, check if contact has portal access and sync with Supabase Auth
+  if (email !== undefined) {
+    const { data: existing } = await supabase
+      .from('contacts')
+      .select('email, supabase_auth_id')
+      .eq('id', contactId)
+      .single();
+
+    if (existing?.supabase_auth_id && email && email !== existing.email) {
+      try {
+        const serviceClient = getSupabaseServiceClient();
+        await serviceClient.auth.admin.updateUserById(existing.supabase_auth_id, { email });
+      } catch (authErr) {
+        console.error('Erro ao sincronizar email no Supabase Auth:', authErr);
+      }
+    }
+  }
+
   const updateData = {};
   if (name !== undefined) updateData.name = name;
   if (email !== undefined) updateData.email = email || null;

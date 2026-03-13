@@ -15,7 +15,7 @@ import OperacaoView from './OperacaoView';
 import ClientesView from './ClientesView';
 import DefaultWeightsAdmin from './curva-s-progresso/DefaultWeightsAdmin';
 import ConfigWeeklyReportsView from './ConfigWeeklyReportsView';
-import ClientPortalAnalyticsView from './ClientPortalAnalyticsView';
+import ClientPortalView from './ClientPortalAnalyticsView';
 import '../styles/ConfiguracoesView.css';
 
 function ConfiguracoesView() {
@@ -34,7 +34,7 @@ function ConfiguracoesView() {
       { id: 'clientes', label: 'Clientes', component: ClientesView },
       { id: 'pesos-padrao', label: 'Pesos Padrão', component: DefaultWeightsAdmin },
       { id: 'rel-semanais', label: 'Ind. Rel. Semanais', component: ConfigWeeklyReportsView },
-      { id: 'portal-cliente', label: 'Portal do Cliente', component: ClientPortalAnalyticsView },
+      { id: 'portal-cliente', label: 'Portal do Cliente', component: ClientPortalView },
     ];
     return baseTabs;
   }, []);

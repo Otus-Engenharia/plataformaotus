@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import InlineDilatacaoInput from './InlineDilatacaoInput';
 import InlineStatusDropdown from './InlineStatusDropdown';
+import ParcelasProjetoPanel from './ParcelasProjetoPanel';
 import { STATUS_FINANCEIRO_CONFIG } from './ParcelaStatusBadge';
 import './CronogramaFisicoFinanceiroPanel.css';
 
@@ -39,6 +40,7 @@ export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilt
   const [numMonths, setNumMonths] = useState(12);
   const [filterLider, setFilterLider] = useState('');
   const [ocultarFaturados, setOcultarFaturados] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -167,7 +169,14 @@ export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilt
                 const isAtrasado = !isFaturado && dateStr && new Date(dateStr) < new Date();
 
                 return (
-                  <tr key={p.id} className={isFaturado ? 'crono-fin-row-faturado' : ''}>
+                  <tr key={p.id} className={`crono-fin-row-clickable ${isFaturado ? 'crono-fin-row-faturado' : ''}`}
+                    onClick={() => setSelectedProject({
+                      projectCode: p.project_code,
+                      projectName: p.project_name,
+                      companyName: p.company_name,
+                      tipoPagamento: p.tipo_pagamento,
+                    })}
+                  >
                     <td className="crono-fin-sticky-col crono-fin-col-projeto">
                       <strong>{p.project_code}</strong>
                       {p.project_name && <span className="crono-fin-project-name">{p.project_name}</span>}
@@ -216,6 +225,26 @@ export default function CronogramaFisicoFinanceiroPanel({ leaders, showLiderFilt
               </tr>
             </tfoot>
           </table>
+        </div>
+      )}
+
+      {selectedProject && (
+        <div className="crono-fin-modal-overlay" onClick={() => { setSelectedProject(null); fetchData(); }}>
+          <div className="crono-fin-modal" onClick={e => e.stopPropagation()}>
+            <div className="crono-fin-modal-header">
+              <h3>{selectedProject.projectCode}{selectedProject.projectName ? ` - ${selectedProject.projectName}` : ''}</h3>
+              <button className="crono-fin-modal-close" onClick={() => { setSelectedProject(null); fetchData(); }}>&times;</button>
+            </div>
+            <div className="crono-fin-modal-body">
+              <ParcelasProjetoPanel
+                projectCode={selectedProject.projectCode}
+                companyId={selectedProject.companyName}
+                projectName={selectedProject.projectName}
+                mode="financeiro"
+                tipoPagamento={selectedProject.tipoPagamento}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

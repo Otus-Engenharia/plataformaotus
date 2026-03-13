@@ -72,6 +72,16 @@ export default function PagamentosFinanceiroView() {
   const [filterParcelas, setFilterParcelas] = useState('todas'); // 'todas' | 'com' | 'sem'
   const [filterTipo, setFilterTipo] = useState('todos'); // 'todos' | 'mrr' | 'spot'
 
+  // Sort
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
   // Aditivo quick dialog
   const [aditivoDialogOpen, setAditivoDialogOpen] = useState(false);
   const [aditivoStep, setAditivoStep] = useState(1);
@@ -142,6 +152,37 @@ export default function PagamentosFinanceiroView() {
       return true;
     });
   }, [projects, filterLider, filterCliente, filterBusca, filterStatus, filterParcelas, filterTipo]);
+
+  const sortedProjects = useMemo(() => {
+    if (!sortConfig.key) return filteredProjects;
+    return [...filteredProjects].sort((a, b) => {
+      let aVal, bVal;
+      switch (sortConfig.key) {
+        case 'project_code': aVal = a.project_code || ''; bVal = b.project_code || ''; break;
+        case 'project_name': aVal = a.project_name || ''; bVal = b.project_name || ''; break;
+        case 'tipo_pagamento': aVal = a.tipo_pagamento || 'spot'; bVal = b.tipo_pagamento || 'spot'; break;
+        case 'status': aVal = a.status || ''; bVal = b.status || ''; break;
+        case 'company_name': aVal = a.company_name || ''; bVal = b.company_name || ''; break;
+        case 'gerente_name': aVal = a.gerente_name || ''; bVal = b.gerente_name || ''; break;
+        case 'total_parcelas': aVal = a.total_parcelas || 0; bVal = b.total_parcelas || 0; break;
+        case 'vinculacao':
+          aVal = a.total_parcelas ? (a.total_parcelas - (a.parcelas_sem_vinculacao || 0)) / a.total_parcelas : -1;
+          bVal = b.total_parcelas ? (b.total_parcelas - (b.parcelas_sem_vinculacao || 0)) / b.total_parcelas : -1;
+          break;
+        case 'valor_total': aVal = a.valor_total || 0; bVal = b.valor_total || 0; break;
+        case 'proximo_pagamento':
+          aVal = a.proximo_pagamento ? new Date(a.proximo_pagamento).getTime() : Infinity;
+          bVal = b.proximo_pagamento ? new Date(b.proximo_pagamento).getTime() : Infinity;
+          break;
+        default: return 0;
+      }
+      if (typeof aVal === 'string') {
+        const cmp = aVal.localeCompare(bVal, 'pt-BR', { sensitivity: 'base' });
+        return sortConfig.direction === 'asc' ? cmp : -cmp;
+      }
+      return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  }, [filteredProjects, sortConfig]);
 
   const mrrProjects = useMemo(() =>
     projects.filter(p => (p.tipo_pagamento || 'spot') === 'mrr'),
@@ -336,20 +377,36 @@ export default function PagamentosFinanceiroView() {
                 <table className="pagamentos-fin-table">
                   <thead>
                     <tr>
-                      <th>Projeto</th>
-                      <th>Tipo</th>
-                      <th>Status</th>
-                      <th>Cliente</th>
-                      <th>Lider</th>
-                      <th>Parcelas</th>
-                      <th>Vinculacao</th>
-                      <th>Faturadas</th>
-                      <th>Valor Total</th>
-                      <th>Prox. Pagamento</th>
+                      {[
+                        { key: 'project_code', label: 'Projeto' },
+                        { key: 'tipo_pagamento', label: 'Tipo' },
+                        { key: 'status', label: 'Status' },
+                        { key: 'company_name', label: 'Cliente' },
+                        { key: 'gerente_name', label: 'Lider' },
+                        { key: 'total_parcelas', label: 'Parcelas' },
+                        { key: 'vinculacao', label: 'Vinculacao' },
+                        { key: null, label: 'Faturadas' },
+                        { key: 'valor_total', label: 'Valor Total' },
+                        { key: 'proximo_pagamento', label: 'Prox. Pagamento' },
+                      ].map(col => (
+                        <th
+                          key={col.label}
+                          onClick={col.key ? () => handleSort(col.key) : undefined}
+                          style={col.key ? { cursor: 'pointer', userSelect: 'none' } : undefined}
+                          className={col.key ? 'pagamentos-fin-th-sortable' : ''}
+                        >
+                          {col.label}
+                          {col.key && sortConfig.key === col.key && (
+                            <span className="pagamentos-fin-sort-indicator">
+                              {sortConfig.direction === 'asc' ? ' ▲' : ' ▼'}
+                            </span>
+                          )}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProjects.map(p => (
+                    {sortedProjects.map(p => (
                       <React.Fragment key={p.project_code}>
                         <tr
                           className={`${expandedProject === p.project_code ? 'row-expanded' : ''} ${p.total_parcelas === 0 ? 'row-no-parcelas' : ''} ${p.parcelas_sem_vinculacao > 0 ? 'row-warning' : ''}`}

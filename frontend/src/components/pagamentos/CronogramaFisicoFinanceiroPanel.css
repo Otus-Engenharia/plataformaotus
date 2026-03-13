@@ -233,6 +233,72 @@
   font-size: 11px;
 }
 
+/* Clickable rows */
+.crono-fin-row-clickable {
+  cursor: pointer;
+}
+
+/* Modal overlay + card */
+.crono-fin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.crono-fin-modal {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  width: 95vw;
+  max-width: 1200px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.crono-fin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e6e6e6;
+  flex-shrink: 0;
+}
+
+.crono-fin-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.crono-fin-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #737373;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.crono-fin-modal-close:hover {
+  color: #1a1a1a;
+}
+
+.crono-fin-modal-body {
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .crono-fin-controls {

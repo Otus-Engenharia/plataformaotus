@@ -1,18 +1,21 @@
 /**
- * ClientPortalAnalyticsView - Dashboard de uso do Portal do Cliente
+ * ClientPortalView - Portal do Cliente com sub-abas
  *
- * Exibe métricas de acesso, gráfico de logins por dia, páginas mais acessadas,
- * usuários mais ativos e log de ações recentes.
+ * Sub-abas:
+ * - Gerenciar Acessos (default): gestão de contatos com acesso ao portal
+ * - Analytics: dashboard de uso do portal
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../api';
+import ClientPortalAccessTab from './ClientPortalAccessTab';
 import '../styles/ClientPortalAnalyticsView.css';
 
 const ACTION_LABELS = {
   login: 'Login',
   password_change: 'Troca de Senha',
+  password_reset: 'Reset de Senha',
   portal_enabled: 'Portal Ativado',
   portal_disabled: 'Portal Desativado',
   view_projects: 'Lista de Projetos',
@@ -36,7 +39,7 @@ function formatDate(iso) {
   return `${d}/${m}`;
 }
 
-function ClientPortalAnalyticsView() {
+function ClientPortalAnalyticsTab() {
   const [days, setDays] = useState(30);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -237,4 +240,29 @@ function ClientPortalAnalyticsView() {
   );
 }
 
-export default ClientPortalAnalyticsView;
+function ClientPortalView() {
+  const [activeSubTab, setActiveSubTab] = useState('acessos');
+
+  return (
+    <div>
+      <div className="cpa-subtabs">
+        <button
+          className={`cpa-subtab-btn ${activeSubTab === 'acessos' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('acessos')}
+        >
+          Gerenciar Acessos
+        </button>
+        <button
+          className={`cpa-subtab-btn ${activeSubTab === 'analytics' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('analytics')}
+        >
+          Analytics
+        </button>
+      </div>
+
+      {activeSubTab === 'acessos' ? <ClientPortalAccessTab /> : <ClientPortalAnalyticsTab />}
+    </div>
+  );
+}
+
+export default ClientPortalView;
