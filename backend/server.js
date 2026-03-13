@@ -81,6 +81,8 @@ import {
   fetchProjectFeaturesForPortfolio, fetchComercialInfosForPortfolio, fetchProjectServicesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
   // Portfolio - Edicao inline
   fetchProjectsFromSupabase, fetchPortfolioEditOptions, updateProjectField, updateCsResponsavel,
+  // Portfolio - Detail
+  fetchFullProjectDetail, updateProjectComercialField,
   // OAuth tokens (Gmail Draft)
   getUserOAuthTokens, resolveRecipientEmails, resolveRecipientContacts,
   // Whiteboard
@@ -1114,7 +1116,12 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     const { field, value, oldValue } = req.body;
 
     // Campos permitidos: todos com canEditPortfolio podem editar todos os campos
-    const allowedFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider', 'service_type'];
+    const allowedFields = [
+      'comercial_name', 'status', 'client', 'nome_time', 'lider', 'service_type',
+      'description', 'address', 'area_construida', 'area_efetiva',
+      'numero_unidades', 'numero_torres', 'numero_pavimentos',
+      'tipologia_empreendimento', 'padrao_acabamento'
+    ];
 
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido` });
@@ -1242,6 +1249,153 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Erro ao atualizar ferramenta:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/portfolio/:projectCode/detail
+ * Retorna dados completos do projeto (3 tabelas Supabase + entregáveis)
+ */
+app.get('/api/portfolio/:projectCode/detail', requireAuth, async (req, res) => {
+  try {
+    const { projectCode } = req.params;
+
+    // Ownership check para líderes
+    if (!hasFullAccess(req.user)) {
+      const { leaderName } = getLeaderDataFilter(req);
+      if (leaderName) {
+        const supabase = getSupabaseClient();
+        const { data: project } = await supabase
+          .from('projects')
+          .select('project_manager_id')
+          .eq('project_code', projectCode)
+          .single();
+
+        const effectiveUser = req.session?.impersonating || req.user;
+        const isOwner = project && project.project_manager_id === effectiveUser.id;
+        const isUnassigned = !project || !project.project_manager_id;
+
+        if (!isUnassigned && !isOwner) {
+          return res.status(403).json({ success: false, error: 'Acesso negado' });
+        }
+      }
+    }
+
+    const detail = await fetchFullProjectDetail(projectCode);
+    if (!detail) {
+      return res.status(404).json({ success: false, error: 'Projeto nao encontrado no Supabase' });
+    }
+
+    res.json({ success: true, data: detail });
+  } catch (error) {
+    console.error('Erro ao buscar detalhe do projeto:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/portfolio/:projectCode/comercial
+ * Atualiza campo comercial de um projeto (project_comercial_infos)
+ * Body: { field, value, oldValue }
+ */
+app.put('/api/portfolio/:projectCode/comercial', requireAuth, async (req, res) => {
+  try {
+    if (!canEditPortfolio(req.user)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode } = req.params;
+    const { field, value, oldValue } = req.body;
+
+    // Ownership check para líderes
+    if (!hasFullAccess(req.user)) {
+      const { leaderName } = getLeaderDataFilter(req);
+      if (leaderName) {
+        const supabase = getSupabaseClient();
+        const { data: project } = await supabase
+          .from('projects')
+          .select('project_manager_id')
+          .eq('project_code', projectCode)
+          .single();
+
+        const effectiveUser = req.session?.impersonating || req.user;
+        const isOwner = project && project.project_manager_id === effectiveUser.id;
+        const isUnassigned = !project || !project.project_manager_id;
+
+        if (!isUnassigned && !isOwner) {
+          return res.status(403).json({ success: false, error: 'Voce so pode editar seus proprios projetos' });
+        }
+      }
+    }
+
+    const result = await updateProjectComercialField(projectCode, field, value);
+    invalidatePortfolioCache();
+    await logAction(req, 'update', 'portfolio-comercial', projectCode, field, { value, oldValue });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar campo comercial:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/projetos/detail/options
+ * Retorna opções dos Value Objects para dropdowns do Super Card
+ * Sem requireFormAccess — acessível por qualquer usuário autenticado
+ */
+app.get('/api/projetos/detail/options', requireAuth, async (req, res) => {
+  try {
+    // Import Value Objects dynamically to avoid circular deps
+    const { TipologiaEmpreendimento } = await import('./domain/projetos/value-objects/TipologiaEmpreendimento.js');
+    const { PadraoAcabamento } = await import('./domain/projetos/value-objects/PadraoAcabamento.js');
+    const { TipoPagamento } = await import('./domain/projetos/value-objects/TipoPagamento.js');
+    const { PlataformaComunicacao } = await import('./domain/projetos/value-objects/PlataformaComunicacao.js');
+    const { PlataformaACD } = await import('./domain/projetos/value-objects/PlataformaACD.js');
+
+    res.json({
+      success: true,
+      data: {
+        tipologia_empreendimento: TipologiaEmpreendimento.allOptions(),
+        padrao_acabamento: PadraoAcabamento.allOptions(),
+        tipo_pagamento: TipoPagamento.allOptions(),
+        plataforma_comunicacao: PlataformaComunicacao.allOptions(),
+        plataforma_acd: PlataformaACD.allOptions(),
+        responsavel_plataforma: [
+          { value: 'Cliente', label: 'Cliente' },
+          { value: 'Otus', label: 'Otus' },
+        ],
+        responsavel_acd: [
+          { value: 'Cliente', label: 'Cliente' },
+          { value: 'Otus', label: 'Otus' },
+        ],
+        fase_entrada: [
+          { value: 'Estudo Preliminar', label: 'Estudo Preliminar' },
+          { value: 'Anteprojeto', label: 'Anteprojeto' },
+          { value: 'Projeto Legal', label: 'Projeto Legal' },
+          { value: 'Projeto Executivo', label: 'Projeto Executivo' },
+          { value: 'Obra', label: 'Obra' },
+        ],
+        valor_cliente: [
+          { value: 'prazo', label: 'Prazo - Tem deadline rígido' },
+          { value: 'reducao_custo', label: 'Redução de custo de obra' },
+          { value: 'maximizar_vgv', label: 'Maximizar VGV' },
+          { value: 'qualidade_tecnica', label: 'Qualidade/sofisticação técnica' },
+          { value: 'evitar_retrabalho', label: 'Evitar retrabalho' },
+          { value: 'aprovacao_orgaos', label: 'Aprovação em órgãos' },
+          { value: 'industrializacao', label: 'Industrialização/replicação' },
+          { value: 'preco_servico', label: 'Preço do serviço' },
+        ],
+        service_type: [
+          { value: 'Coordenação', label: 'Coordenação' },
+          { value: 'Gerenciamento', label: 'Gerenciamento' },
+          { value: 'Coordenação + Gerenciamento', label: 'Coordenação + Gerenciamento' },
+        ],
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao buscar opções de detalhe:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
