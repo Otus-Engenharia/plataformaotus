@@ -217,7 +217,12 @@ const PesquisasCSView = forwardRef(function PesquisasCSView({ embedded = false }
   };
 
   useImperativeHandle(ref, () => ({
-    openForm: () => setShowForm(true),
+    openForm: (projectCode) => {
+      if (projectCode) {
+        handleProjectSelect(projectCode);
+      }
+      setShowForm(true);
+    },
   }));
 
   return (

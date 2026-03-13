@@ -36,7 +36,7 @@ function getStatusLabel(status) {
   return 'Pendente';
 }
 
-function FechamentosFaseView() {
+function FechamentosFaseView({ embedded = false, onCardClick }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterMonths, setFilterMonths] = useState(6);
@@ -96,7 +96,12 @@ function FechamentosFaseView() {
         if (fechamentos.length === 0) return null;
         return { ...project, fechamentos };
       })
-      .filter(Boolean);
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aMin = Math.min(...a.fechamentos.map(f => parseDate(f.end_date)?.getTime() || Infinity));
+        const bMin = Math.min(...b.fechamentos.map(f => parseDate(f.end_date)?.getTime() || Infinity));
+        return aMin - bMin;
+      });
   }, [data, filterMonths, filterStatus]);
 
   // Map fechamentos to month columns
@@ -116,7 +121,7 @@ function FechamentosFaseView() {
   const totalPendentes = totalFechamentos - totalConcluidos;
 
   return (
-    <div className="fechamentos-view">
+    <div className={`fechamentos-view${embedded ? ' fechamentos-embedded' : ''}`}>
       <h1>Calendário de Fechamentos de Fase</h1>
       <p className="fechamentos-subtitle">
         Próximos fechamentos de fase dos projetos, baseado no cronograma Smartsheet.
@@ -182,7 +187,12 @@ function FechamentosFaseView() {
                     return (
                       <td key={m.key} className="fechamentos-month-cell">
                         {items.map((f, j) => (
-                          <div key={j} className={`fechamentos-card ${getStatusClass(f.status)}`} title={f.task_name}>
+                          <div
+                            key={j}
+                            className={`fechamentos-card ${getStatusClass(f.status)}${onCardClick && project.project_code ? ' clickable' : ''}`}
+                            title={f.task_name}
+                            onClick={() => onCardClick && project.project_code && onCardClick(project.project_code)}
+                          >
                             <span className="fechamentos-card-name">{f.task_name.replace(/fechamento\s*de?\s*fase\s*/i, 'Fase ')}</span>
                             <span className="fechamentos-card-date">{formatDateShort(f.end_date)}</span>
                             <span className="fechamentos-card-status">{getStatusLabel(f.status)}</span>
