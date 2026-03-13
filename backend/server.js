@@ -1552,6 +1552,10 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       mappedToName: normalizedOtus.get(otusNormKey),
       isFreeMapping: false,
       isAutoOtus: false, isAutoClient: false, isClientOwned: false,
+      sourceNames: {
+        smartsheet: [...smKeys].map(k => normalizedSmartsheet.get(k)).filter(Boolean),
+        construflow: [...cfKeys].map(k => normalizedConstruflow.get(k)).filter(Boolean),
+      },
     });
 
     for (const k of [...smKeys, ...cfKeys]) mergedNormKeys.add(k);
@@ -1625,7 +1629,11 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       isFreeMapping: !!(mapping?.targetName && !mapping?.standardName),
       isAutoOtus: autoOtus,
       isAutoClient: autoClient,
-      isClientOwned
+      isClientOwned,
+      sourceNames: {
+        smartsheet: inSmartsheet ? [normalizedSmartsheet.get(normKey)].filter(Boolean) : [],
+        construflow: inConstruflow ? [normalizedConstruflow.get(normKey)].filter(Boolean) : [],
+      },
     };
 
     if (inSmartsheet && inConstruflow && inOtus) groups.completeInAll3.push(entry);

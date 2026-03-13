@@ -771,6 +771,20 @@ function DisciplineCoveragePanel({ data, loading, onQuickAdd, standardDiscipline
                         <LinkIcon /> {d.mappedToName}
                       </span>
                     )}
+                    {d.sourceNames && (
+                      <>
+                        {d.sourceNames.smartsheet?.filter(sn => sn !== d.name).map(sn => (
+                          <span key={`sm-${sn}`} className="dcov-source-badge dcov-source-badge--sm" title={`Smartsheet: ${sn}`}>
+                            SM: {sn}
+                          </span>
+                        ))}
+                        {d.sourceNames.construflow?.filter(cn => cn !== d.name).map(cn => (
+                          <span key={`cf-${cn}`} className="dcov-source-badge dcov-source-badge--cf" title={`ConstruFlow: ${cn}`}>
+                            CF: {cn}
+                          </span>
+                        ))}
+                      </>
+                    )}
                     <div className="dcov-completed-checks">
                       {d.isAutoOtus && (
                         <span className="dcov-auto-badge" title="Detectado automaticamente como Otus">Auto (Otus)</span>
