@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation, NavLink } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../api';
 import { useClientAuth } from '../contexts/ClientAuthContext';
+import ClientBugReportFAB from '../components/ClientBugReportFAB';
 import '../styles/ClientPortal.css';
 import '../styles/VistaClienteView.css';
 
@@ -95,12 +96,52 @@ function ClientLayout() {
 
   return (
     <div className="cp-shell">
-      {/* Sidebar */}
-      <aside className={`cp-sidebar ${collapsed ? 'cp-sidebar-collapsed' : ''}`}>
-        {/* Logo */}
-        <div className="cp-sidebar-header">
-          <img src="/Otus-logo-300x300.png" alt="Otus" className="cp-sidebar-logo" />
-          {!collapsed && <span className="cp-sidebar-brand">Portal do Cliente</span>}
+      {/* Topbar - always visible */}
+      <header className="cp-topbar">
+        <div className="cp-topbar-left">
+          <img src="/Otus-logo-300x300.png" alt="Otus" className="cp-topbar-logo" />
+          <div>
+            <h1 className="cp-topbar-title">Portal do Cliente</h1>
+            <span className="cp-topbar-mission">Acompanhe seus projetos</span>
+          </div>
+          {isProjectView && currentProject && (
+            <>
+              <span className={`vc-health-dot ${getHealthLevel(projectIdp)}`} />
+              <span className="cp-topbar-project-name">
+                {currentProject.nome || currentProject.projectCode}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="cp-topbar-right">
+          <span className="cp-topbar-user-name">
+            {clientUser?.name || clientUser?.email}
+          </span>
+          {isProjectView && (
+            <select
+              className="cp-topbar-select"
+              value={projectCode || ''}
+              onChange={handleProjectChange}
+            >
+              <option value="">Selecione um projeto</option>
+              {projects.map(p => (
+                <option key={p.projectCode} value={p.projectCode}>
+                  {p.nome || p.projectCode}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className="cp-topbar-logout" onClick={handleLogout} title="Sair">
+            Sair
+          </button>
+        </div>
+      </header>
+
+      {/* Body: sidebar + content */}
+      <div className="cp-body">
+        {/* Sidebar */}
+        <aside className={`cp-sidebar ${collapsed ? 'cp-sidebar-collapsed' : ''}`}>
+          {/* Toggle button - circular on edge */}
           <button
             className="cp-sidebar-toggle"
             onClick={() => setCollapsed(v => !v)}
@@ -108,94 +149,62 @@ function ClientLayout() {
           >
             {collapsed ? '▶' : '◀'}
           </button>
-        </div>
 
-        {/* Navigation */}
-        {isProjectView && (
-          <nav className="cp-sidebar-nav">
-            {NAV_ITEMS.map(item => (
-              <NavLink
-                key={item.path}
-                to={`/portal/projeto/${encodeURIComponent(projectCode)}/${item.path}`}
-                className={({ isActive }) =>
-                  `cp-nav-link ${isActive ? 'cp-nav-link-active' : ''}`
-                }
-              >
-                <span className="cp-nav-icon">{item.icon}</span>
-                {!collapsed && <span className="cp-nav-text">{item.label}</span>}
-              </NavLink>
-            ))}
-          </nav>
-        )}
-
-        {/* Back to projects */}
-        {isProjectView && (
-          <button
-            className="cp-nav-link cp-back-link"
-            onClick={() => navigate('/portal')}
-          >
-            <span className="cp-nav-icon">←</span>
-            {!collapsed && <span className="cp-nav-text">Todos os Projetos</span>}
-          </button>
-        )}
-
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-
-        {/* User footer */}
-        <div className="cp-sidebar-footer">
-          {!collapsed && (
-            <div className="cp-sidebar-user-info">
-              <span className="cp-sidebar-user-name">
-                {clientUser?.name || clientUser?.email}
-              </span>
-              <span className="cp-sidebar-user-role">Cliente</span>
-            </div>
+          {/* Navigation */}
+          {isProjectView && (
+            <nav className="cp-sidebar-nav">
+              {NAV_ITEMS.map(item => (
+                <NavLink
+                  key={item.path}
+                  to={`/portal/projeto/${encodeURIComponent(projectCode)}/${item.path}`}
+                  className={({ isActive }) =>
+                    `cp-nav-link ${isActive ? 'cp-nav-link-active' : ''}`
+                  }
+                >
+                  <span className="cp-nav-icon">{item.icon}</span>
+                  {!collapsed && <span className="cp-nav-text">{item.label}</span>}
+                </NavLink>
+              ))}
+            </nav>
           )}
-          <button className="cp-logout-btn" onClick={handleLogout} title="Sair">
-            {collapsed ? '⏻' : 'Sair'}
-          </button>
-        </div>
-      </aside>
 
-      {/* Main content area */}
-      <div className="cp-main-area">
-        {/* Top bar */}
-        {isProjectView && (
-          <header className="cp-topbar">
-            <div className="cp-topbar-left">
-              <h1 className="cp-topbar-title">Vista do Cliente</h1>
-              {currentProject && (
-                <>
-                  <span className={`vc-health-dot ${getHealthLevel(projectIdp)}`} />
-                  <span className="cp-topbar-project-name">
-                    {currentProject.nome || currentProject.projectCode}
-                  </span>
-                </>
-              )}
-            </div>
-            <div className="cp-topbar-right">
-              <select
-                className="cp-topbar-select"
-                value={projectCode || ''}
-                onChange={handleProjectChange}
-              >
-                <option value="">Selecione um projeto</option>
-                {projects.map(p => (
-                  <option key={p.projectCode} value={p.projectCode}>
-                    {p.nome || p.projectCode}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </header>
-        )}
+          {/* Back to projects */}
+          {isProjectView && (
+            <button
+              className="cp-nav-link cp-back-link"
+              onClick={() => navigate('/portal')}
+            >
+              <span className="cp-nav-icon">&larr;</span>
+              {!collapsed && <span className="cp-nav-text">Todos os Projetos</span>}
+            </button>
+          )}
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* User footer */}
+          <div className="cp-sidebar-footer">
+            {!collapsed && (
+              <div className="cp-sidebar-user-info">
+                <span className="cp-sidebar-user-name">
+                  {clientUser?.name || clientUser?.email}
+                </span>
+                <span className="cp-sidebar-user-role">Cliente</span>
+              </div>
+            )}
+            <button className="cp-logout-btn" onClick={handleLogout} title="Sair">
+              {collapsed ? '⏻' : 'Sair'}
+            </button>
+          </div>
+        </aside>
 
         {/* Content */}
-        <main className={`cp-content ${isProjectView ? 'cp-content-with-topbar' : ''}`}>
+        <main className="cp-content">
           <Outlet context={{ projects, currentProject, projectsLoading, setProjectIdp }} />
         </main>
       </div>
+
+      <ClientBugReportFAB />
     </div>
   );
 }

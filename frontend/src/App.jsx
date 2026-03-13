@@ -51,6 +51,7 @@ const PercepcaoEquipeView = lazy(() => import('./pages/cs/PercepcaoEquipeView'))
 const ClassificacaoClientesView = lazy(() => import('./pages/cs/ClassificacaoClientesView'));
 const PesquisasCSView = lazy(() => import('./pages/cs/PesquisasCSView'));
 const FechamentosFaseView = lazy(() => import('./pages/cs/FechamentosFaseView'));
+const FechamentosUnifiedView = lazy(() => import('./pages/cs/FechamentosUnifiedView'));
 import AlocacaoTimesView from './components/AlocacaoTimesView';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -115,6 +116,7 @@ const HistoryOKRs = lazy(() => import('./pages/okrs/HistoryOKRs'));
 const WhiteboardView = lazy(() => import('./pages/whiteboard/WhiteboardView'));
 
 // Vista do Cliente
+const VistaClienteSelectView = lazy(() => import('./pages/vista-cliente/VistaClienteSelectView'));
 const VistaClienteInicioView = lazy(() => import('./pages/vista-cliente/VistaClienteInicioView'));
 const VistaClienteApontamentosView = lazy(() => import('./pages/vista-cliente/VistaClienteApontamentosView'));
 const VistaClienteMarcosView = lazy(() => import('./pages/vista-cliente/VistaClienteMarcosView'));
@@ -830,18 +832,6 @@ function Sidebar({ collapsed, onToggle, area }) {
         <span className="nav-text">Classificação</span>
       </Link>
       <Link
-        to="/cs-area/pesquisas"
-        className={`nav-link nav-link-modern ${location.pathname === '/cs-area/pesquisas' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Pesquisas de Fechamento')}
-      >
-        <span className="nav-icon">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-          </svg>
-        </span>
-        <span className="nav-text">Pesquisas</span>
-      </Link>
-      <Link
         to="/cs-area/fechamentos"
         className={`nav-link nav-link-modern ${location.pathname === '/cs-area/fechamentos' ? 'nav-link-active' : ''}`}
         title={linkTitle('Fechamentos de Fase')}
@@ -851,7 +841,7 @@ function Sidebar({ collapsed, onToggle, area }) {
             <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </span>
-        <span className="nav-text">Fechamentos</span>
+        <span className="nav-text">Fechamentos de Fase</span>
       </Link>
       <Link
         to="/cs-area/quadro"
@@ -1026,12 +1016,12 @@ function Sidebar({ collapsed, onToggle, area }) {
   const vistaClienteLinks = (
     <>
       <Link
-        to="/vista-cliente/inicio"
-        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/inicio' || location.pathname === '/vista-cliente' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Início')}
+        to="/vista-cliente"
+        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Selecionar Cliente')}
       >
         <span className="nav-icon">{icons.vistaCliente}</span>
-        <span className="nav-text">Início</span>
+        <span className="nav-text">Selecionar Cliente</span>
       </Link>
       <Link
         to="/vista-cliente/apontamentos"
@@ -1804,8 +1794,8 @@ function AppContent() {
                   <ClassificacaoClientesView />
                 </Suspense>
               } />
-              <Route path="pesquisas" element={<PesquisasCSView />} />
-              <Route path="fechamentos" element={<FechamentosFaseView />} />
+              <Route path="pesquisas" element={<Navigate to="/cs-area/fechamentos?tab=pesquisas" replace />} />
+              <Route path="fechamentos" element={<FechamentosUnifiedView />} />
             </Route>
             {/* Área Apoio de Projetos - rotas aninhadas */}
             <Route
@@ -1902,7 +1892,7 @@ function AppContent() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="inicio" replace />} />
+              <Route index element={<VistaClienteSelectView />} />
               <Route path="inicio" element={<VistaClienteInicioView />} />
               <Route path="apontamentos" element={<VistaClienteApontamentosView />} />
               <Route path="marcos" element={<VistaClienteMarcosView />} />

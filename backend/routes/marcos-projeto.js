@@ -1165,5 +1165,5 @@ function normalizeStatus(status, variacaoDias) {
   return 'pendente';
 }
 
-export { createRoutes };
+export { createRoutes, sanitizeDate, normalizeStatus };
 export default router;

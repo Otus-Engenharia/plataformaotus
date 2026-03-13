@@ -42,6 +42,14 @@ export class SupabaseClientPortalRepository {
 
     if (projError) throw new Error(`Erro ao buscar detalhes dos projetos: ${projError.message}`);
 
+    // Fetch cover image URLs from project_features
+    const { data: features } = await supabase
+      .from('project_features')
+      .select('project_code, capa_email_url')
+      .in('project_code', projectCodes);
+
+    const featureMap = new Map((features || []).map(f => [f.project_code, f.capa_email_url]));
+
     // Merge assignment data with project data
     return (projects || []).map(p => {
       const assignment = assignments.find(a => a.project_code === p.project_code);
@@ -51,8 +59,51 @@ export class SupabaseClientPortalRepository {
         empresaCliente: p.companies?.name || null,
         status: p.status,
         role: assignment?.role || null,
+        capaUrl: featureMap.get(p.project_code) || null,
       };
     });
+  }
+
+  async getCompanyProjectCodes(companyId) {
+    const supabase = this.#getClient();
+    const { data, error } = await supabase
+      .from('project_client_contacts')
+      .select('project_code, contacts!inner(company_id)')
+      .eq('contacts.company_id', companyId)
+      .eq('is_active', true);
+
+    if (error) throw new Error(`Erro ao buscar projetos da empresa: ${error.message}`);
+    return [...new Set((data || []).map(d => d.project_code))];
+  }
+
+  async getCompanyProjects(companyId) {
+    const codes = await this.getCompanyProjectCodes(companyId);
+    if (!codes.length) return [];
+
+    const supabase = this.#getClient();
+
+    const { data: projects, error: projError } = await supabase
+      .from('projects')
+      .select('project_code, name, status, company_id, companies(name)')
+      .in('project_code', codes);
+
+    if (projError) throw new Error(`Erro ao buscar detalhes dos projetos: ${projError.message}`);
+
+    const { data: features } = await supabase
+      .from('project_features')
+      .select('project_code, capa_email_url')
+      .in('project_code', codes);
+
+    const featureMap = new Map((features || []).map(f => [f.project_code, f.capa_email_url]));
+
+    return (projects || []).map(p => ({
+      projectCode: p.project_code,
+      nome: p.name,
+      empresaCliente: p.companies?.name || null,
+      status: p.status,
+      role: null,
+      capaUrl: featureMap.get(p.project_code) || null,
+    }));
   }
 
   async getContactById(contactId) {
