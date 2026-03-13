@@ -812,18 +812,27 @@
   flex: 1;
   max-height: calc(100vh - 280px);
   min-height: 400px;
+  background:
+    linear-gradient(to right, white 30%, rgba(255,255,255,0)),
+    linear-gradient(to left, white 30%, rgba(255,255,255,0)),
+    linear-gradient(to right, rgba(0,0,0,0.08), rgba(0,0,0,0)),
+    linear-gradient(to left, rgba(0,0,0,0.08), rgba(0,0,0,0));
+  background-position: left center, right center, left center, right center;
+  background-repeat: no-repeat;
+  background-size: 40px 100%, 40px 100%, 15px 100%, 15px 100%;
+  background-attachment: local, local, scroll, scroll;
 }
 
 .table-scroll-container::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
+  height: 10px;
 }
 .table-scroll-container::-webkit-scrollbar-track {
   background: #f3f4f6;
   border-radius: 4px;
 }
 .table-scroll-container::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #b0b0b0;
   border-radius: 4px;
 }
 .table-scroll-container::-webkit-scrollbar-thumb:hover {
@@ -836,6 +845,7 @@
   font-size: 11px;
   min-width: 100%;
   font-family: Verdana, sans-serif;
+  table-layout: fixed;
 }
 
 .portfolio-table thead {
@@ -857,7 +867,7 @@
   user-select: none;
   transition: background-color 0.15s, color 0.15s;
   position: relative;
-  white-space: nowrap;
+  white-space: normal;
   line-height: 1.4;
   min-width: 70px;
   box-sizing: border-box;
@@ -887,11 +897,10 @@
 }
 
 .th-content span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   line-height: 1.4;
   min-width: 0;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .sort-indicator {
@@ -935,26 +944,80 @@
   border-bottom: none;
 }
 
+/* Padding compacto para colunas numéricas e de data na vista prazos */
+.portfolio-table td.cell-number,
+.portfolio-table td.cell-date,
+.portfolio-table th.th-numeric,
+.portfolio-table td.column-qtd-pausas,
+.portfolio-table td.column-quantidade-ciclos,
+.portfolio-table td.column-diferenca-cronograma-contrato,
+.portfolio-table td.column-duracao-contrato-total-meses,
+.portfolio-table td.column-duracao-aditivo-total-meses,
+.portfolio-table td.column-duracao-total-meses,
+.portfolio-table td.column-total-dias-pausa {
+  padding: 10px 6px;
+}
+
 /* Larguras específicas */
 .portfolio-table th.column-project-order,
 .portfolio-table td.column-project-order {
   width: 60px !important;
   min-width: 60px !important;
   max-width: 60px !important;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #ffffff;
 }
 
 .portfolio-table th.column-project-code-norm,
 .portfolio-table td.column-project-code-norm {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  position: sticky;
+  left: 60px;
+  z-index: 2;
+  background: #ffffff;
 }
 
 .portfolio-table th.column-project-name,
 .portfolio-table td.column-project-name {
-  width: 180px !important;
-  min-width: 180px !important;
-  max-width: 180px !important;
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
+  position: sticky;
+  left: 140px;
+  z-index: 2;
+  background: #ffffff;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+}
+
+/* Sticky header cells need higher z-index (above sticky body + sticky thead) */
+.portfolio-table thead th.column-project-order,
+.portfolio-table thead th.column-project-code-norm,
+.portfolio-table thead th.column-project-name {
+  z-index: 12;
+  background: #f7f8fa;
+}
+
+/* Ensure even/odd/hover rows have correct background on sticky columns */
+.portfolio-table tbody tr:nth-child(even) td.column-project-order,
+.portfolio-table tbody tr:nth-child(even) td.column-project-code-norm,
+.portfolio-table tbody tr:nth-child(even) td.column-project-name {
+  background: #ffffff;
+}
+
+.portfolio-table tbody tr:nth-child(odd) td.column-project-order,
+.portfolio-table tbody tr:nth-child(odd) td.column-project-code-norm,
+.portfolio-table tbody tr:nth-child(odd) td.column-project-name {
+  background: #ffffff;
+}
+
+.portfolio-table tbody tr:hover td.column-project-order,
+.portfolio-table tbody tr:hover td.column-project-code-norm,
+.portfolio-table tbody tr:hover td.column-project-name {
+  background: #f9fafb;
 }
 
 .portfolio-table th.column-status,
@@ -966,9 +1029,9 @@
 
 .portfolio-table th.column-nome-time,
 .portfolio-table td.column-nome-time {
-  width: 110px !important;
-  min-width: 110px !important;
-  max-width: 110px !important;
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 90px !important;
 }
 
 .portfolio-table th.column-client,
@@ -987,58 +1050,58 @@
 
 .portfolio-table th.column-data-inicio-cronograma,
 .portfolio-table td.column-data-inicio-cronograma {
-  width: 100px !important;
-  min-width: 100px !important;
-  max-width: 100px !important;
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 90px !important;
 }
 
 .portfolio-table th.column-data-termino-cronograma,
 .portfolio-table td.column-data-termino-cronograma {
-  width: 100px !important;
-  min-width: 100px !important;
-  max-width: 100px !important;
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 90px !important;
 }
 
 .portfolio-table th.column-duracao-contrato-total-meses,
 .portfolio-table td.column-duracao-contrato-total-meses {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
-}
-
-.portfolio-table th.column-duracao-aditivo-total-meses,
-.portfolio-table td.column-duracao-aditivo-total-meses {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
-}
-
-.portfolio-table th.column-duracao-total-meses,
-.portfolio-table td.column-duracao-total-meses {
   width: 85px !important;
   min-width: 85px !important;
   max-width: 85px !important;
 }
 
+.portfolio-table th.column-duracao-aditivo-total-meses,
+.portfolio-table td.column-duracao-aditivo-total-meses {
+  width: 85px !important;
+  min-width: 85px !important;
+  max-width: 85px !important;
+}
+
+.portfolio-table th.column-duracao-total-meses,
+.portfolio-table td.column-duracao-total-meses {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+}
+
 .portfolio-table th.column-data-termino-contrato,
 .portfolio-table td.column-data-termino-contrato {
-  width: 100px !important;
-  min-width: 100px !important;
-  max-width: 100px !important;
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 90px !important;
 }
 
 .portfolio-table th.column-qtd-pausas,
 .portfolio-table td.column-qtd-pausas {
-  width: 80px !important;
-  min-width: 80px !important;
-  max-width: 80px !important;
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
 }
 
 .portfolio-table th.column-total-dias-pausa,
 .portfolio-table td.column-total-dias-pausa {
-  width: 80px !important;
-  min-width: 80px !important;
-  max-width: 80px !important;
+  width: 85px !important;
+  min-width: 85px !important;
+  max-width: 85px !important;
 }
 
 .portfolio-table th.column-data-termino-contrato-com-pausas,
@@ -1050,9 +1113,9 @@
 
 .portfolio-table th.column-diferenca-cronograma-contrato,
 .portfolio-table td.column-diferenca-cronograma-contrato {
-  width: 100px !important;
-  min-width: 100px !important;
-  max-width: 100px !important;
+  width: 85px !important;
+  min-width: 85px !important;
+  max-width: 85px !important;
 }
 
 .portfolio-table th.column-valor-contrato-total,
@@ -1081,6 +1144,13 @@
   width: 85px !important;
   min-width: 85px !important;
   max-width: 85px !important;
+}
+
+.portfolio-table th.column-quantidade-ciclos,
+.portfolio-table td.column-quantidade-ciclos {
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
 }
 
 .portfolio-table th.th-numeric {
@@ -1156,7 +1226,22 @@
 }
 
 .portfolio-table th.contract-info-column {
-  background: #2a2a2a !important;
+  background: #f5efd8 !important;
+  color: #5c4d1e !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-size: 11px !important;
+}
+
+.portfolio-table th.contract-info-column:hover {
+  background: #ece3c4 !important;
+  color: #3d3520 !important;
+}
+
+.portfolio-table th.contract-info-column.sort-asc,
+.portfolio-table th.contract-info-column.sort-desc {
+  background: #ece3c4 !important;
+  color: #3d3520 !important;
 }
 
 .portfolio-table th.contract-info-first {
@@ -1538,7 +1623,7 @@
 .multi-select-dropdown::-webkit-scrollbar,
 .multi-select-options::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
+  height: 10px;
 }
 
 .table-scroll-container::-webkit-scrollbar-track,
@@ -1550,14 +1635,14 @@
 .table-scroll-container::-webkit-scrollbar-thumb,
 .multi-select-dropdown::-webkit-scrollbar-thumb,
 .multi-select-options::-webkit-scrollbar-thumb {
-  background: #d8d8d8;
+  background: #b0b0b0;
   border-radius: 4px;
 }
 
 .table-scroll-container::-webkit-scrollbar-thumb:hover,
 .multi-select-dropdown::-webkit-scrollbar-thumb:hover,
 .multi-select-options::-webkit-scrollbar-thumb:hover {
-  background: #b3b3b3;
+  background: #9ca3af;
 }
 
 /* ===== RESPONSIVIDADE ===== */
