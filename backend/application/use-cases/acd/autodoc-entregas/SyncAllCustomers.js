@@ -83,6 +83,7 @@ class SyncAllCustomers {
           projectsScanned: customerMappings.length,
           documentsFound: result.totalDocuments,
           newDocuments: result.newDocuments,
+          projectResults: result.projectResults || null,
         });
 
         results.push({

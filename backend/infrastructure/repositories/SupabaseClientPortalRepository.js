@@ -1,5 +1,14 @@
 import { getSupabaseServiceClient } from '../../supabase.js';
 
+const ACTIVE_STATUSES = ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'];
+
+function isPortalVisible(portalClienteStatus, projectStatus) {
+  if (portalClienteStatus === 'ativo') return true;
+  if (portalClienteStatus === 'desativado') return false;
+  // null → default based on project status
+  return ACTIVE_STATUSES.includes((projectStatus || '').toLowerCase());
+}
+
 export class SupabaseClientPortalRepository {
   #getClient;
 
@@ -16,7 +25,25 @@ export class SupabaseClientPortalRepository {
       .eq('is_active', true);
 
     if (error) throw new Error(`Erro ao buscar projetos do cliente: ${error.message}`);
-    return (data || []).map(d => d.project_code);
+    const projectCodes = (data || []).map(d => d.project_code);
+    if (projectCodes.length === 0) return [];
+
+    // Fetch portal status and project status to filter
+    const { data: projects } = await supabase
+      .from('projects')
+      .select('project_code, status')
+      .in('project_code', projectCodes);
+
+    const { data: features } = await supabase
+      .from('project_features')
+      .select('portal_cliente_status, projects!inner(project_code)')
+      .in('projects.project_code', projectCodes);
+
+    const featureMap = new Map((features || []).map(f => [f.projects?.project_code, f.portal_cliente_status]));
+
+    return (projects || [])
+      .filter(p => isPortalVisible(featureMap.get(p.project_code), p.status))
+      .map(p => p.project_code);
   }
 
   async getClientProjects(contactId) {
@@ -42,68 +69,91 @@ export class SupabaseClientPortalRepository {
 
     if (projError) throw new Error(`Erro ao buscar detalhes dos projetos: ${projError.message}`);
 
-    // Fetch cover image URLs from project_features
+    // Fetch cover image URLs and portal status from project_features
     const { data: features } = await supabase
       .from('project_features')
-      .select('project_code, capa_email_url')
-      .in('project_code', projectCodes);
+      .select('capa_email_url, portal_cliente_status, projects!inner(project_code)')
+      .in('projects.project_code', projectCodes);
 
-    const featureMap = new Map((features || []).map(f => [f.project_code, f.capa_email_url]));
+    const featureMap = new Map((features || []).map(f => [f.projects?.project_code, {
+      capaUrl: f.capa_email_url,
+      portalStatus: f.portal_cliente_status,
+    }]));
 
-    // Merge assignment data with project data
-    return (projects || []).map(p => {
-      const assignment = assignments.find(a => a.project_code === p.project_code);
-      return {
-        projectCode: p.project_code,
-        nome: p.name,
-        empresaCliente: p.companies?.name || null,
-        status: p.status,
-        role: assignment?.role || null,
-        capaUrl: featureMap.get(p.project_code) || null,
-      };
-    });
+    // Merge assignment data with project data, filtering by portal visibility
+    return (projects || [])
+      .filter(p => isPortalVisible(featureMap.get(p.project_code)?.portalStatus, p.status))
+      .map(p => {
+        const assignment = assignments.find(a => a.project_code === p.project_code);
+        return {
+          projectCode: p.project_code,
+          nome: p.name,
+          empresaCliente: p.companies?.name || null,
+          status: p.status,
+          role: assignment?.role || null,
+          capaUrl: featureMap.get(p.project_code)?.capaUrl || null,
+        };
+      });
   }
 
   async getCompanyProjectCodes(companyId) {
     const supabase = this.#getClient();
     const { data, error } = await supabase
-      .from('project_client_contacts')
-      .select('project_code, contacts!inner(company_id)')
-      .eq('contacts.company_id', companyId)
-      .eq('is_active', true);
+      .from('projects')
+      .select('project_code, status')
+      .eq('company_id', companyId);
 
     if (error) throw new Error(`Erro ao buscar projetos da empresa: ${error.message}`);
-    return [...new Set((data || []).map(d => d.project_code))];
+    const projects = data || [];
+    if (projects.length === 0) return [];
+
+    const projectCodes = projects.map(p => p.project_code);
+
+    const { data: features } = await supabase
+      .from('project_features')
+      .select('portal_cliente_status, projects!inner(project_code)')
+      .in('projects.project_code', projectCodes);
+
+    const featureMap = new Map((features || []).map(f => [f.projects?.project_code, f.portal_cliente_status]));
+
+    return projects
+      .filter(p => isPortalVisible(featureMap.get(p.project_code), p.status))
+      .map(p => p.project_code);
   }
 
   async getCompanyProjects(companyId) {
-    const codes = await this.getCompanyProjectCodes(companyId);
-    if (!codes.length) return [];
-
     const supabase = this.#getClient();
 
     const { data: projects, error: projError } = await supabase
       .from('projects')
       .select('project_code, name, status, company_id, companies(name)')
-      .in('project_code', codes);
+      .eq('company_id', companyId);
 
     if (projError) throw new Error(`Erro ao buscar detalhes dos projetos: ${projError.message}`);
+    if (!projects || projects.length === 0) return [];
+
+    const projectCodes = projects.map(p => p.project_code);
 
     const { data: features } = await supabase
       .from('project_features')
-      .select('project_code, capa_email_url')
-      .in('project_code', codes);
+      .select('capa_email_url, portal_cliente_status, projects!inner(project_code)')
+      .in('projects.project_code', projectCodes);
 
-    const featureMap = new Map((features || []).map(f => [f.project_code, f.capa_email_url]));
+    const featureMap = new Map((features || []).map(f => [f.projects?.project_code, {
+      capaUrl: f.capa_email_url,
+      portalStatus: f.portal_cliente_status,
+    }]));
 
-    return (projects || []).map(p => ({
-      projectCode: p.project_code,
-      nome: p.name,
-      empresaCliente: p.companies?.name || null,
-      status: p.status,
-      role: null,
-      capaUrl: featureMap.get(p.project_code) || null,
-    }));
+    return projects
+      .filter(p => isPortalVisible(featureMap.get(p.project_code)?.portalStatus, p.status))
+      .map(p => ({
+        projectCode: p.project_code,
+        nome: p.name,
+        empresaCliente: p.companies?.name || null,
+        status: p.status,
+        role: null,
+        capaUrl: featureMap.get(p.project_code)?.capaUrl || null,
+      }));
   }
 
   async getContactById(contactId) {

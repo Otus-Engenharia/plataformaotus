@@ -11,7 +11,7 @@
 
 const CLASSIC_BASE = 'https://projetos3.autodoc.com.br';
 
-const EMPTY_FOLDER_TTL = 24 * 60 * 60 * 1000; // 24h
+const EMPTY_FOLDER_TTL = 4 * 60 * 60 * 1000; // 4h (reduzido de 24h para evitar cache de falsos-vazios)
 
 class AutodocHttpClient {
   #idToken;
@@ -390,8 +390,7 @@ class AutodocHttpClient {
    */
   async #classicCrawlDocuments(customerId, customerName, classicInstanceId, projectFolderId) {
     if (!classicInstanceId) {
-      console.warn(`[AutodocHttpClient] Classic crawl: classicInstanceId ausente para ${customerName}`);
-      return [];
+      throw new Error(`classicInstanceId ausente para ${customerName}`);
     }
 
     const MAX_DEPTH = 10;
@@ -404,8 +403,7 @@ class AutodocHttpClient {
     // Reutilizar sessao existente para mesmo classicInstanceId (cache 5min)
     const session = await this.#getOrCreateClassicSession(customerId, customerName, classicInstanceId);
     if (!session) {
-      console.warn(`[AutodocHttpClient] Classic crawl: falha ao obter sessao para empresa ${classicInstanceId}`);
-      return [];
+      throw new Error(`Falha ao criar sessao Classic para empresa ${classicInstanceId} (${customerName})`);
     }
 
     const documents = [];
@@ -471,9 +469,7 @@ class AutodocHttpClient {
       if (result.error) {
         consecutiveErrors++;
         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-          console.warn(`[AutodocHttpClient] Classic crawl ${customerName}: ${MAX_CONSECUTIVE_ERRORS} erros consecutivos, abortando`);
-          aborted = true;
-          return;
+          throw new Error(`Classic crawl abortado para ${customerName}: ${MAX_CONSECUTIVE_ERRORS} erros consecutivos (${documents.length} docs parciais)`);
         }
         return;
       }

@@ -464,23 +464,34 @@ git push origin main
 git push origin --tags
 ```
 
-### Passo 5: Deploy no VPS
+### Passo 5: Deploy na VPS (via SSH)
 
-Informar ao usuário:
+**Pré-requisito**: SSH alias `vps` configurado (`root@72.60.60.117`), chave SSH ativa.
 
-> **Para atualizar a VPS, execute:**
-> ```
-> PowerShell -ExecutionPolicy Bypass -File "scripts\deploy-para-vps.ps1"
-> ```
-> Ou via SSH manual:
-> ```bash
-> ssh root@72.60.60.117
-> cd /docker/plataformaotus
-> git pull origin main
-> docker compose down
-> docker compose build --no-cache
-> docker compose up -d
-> ```
+```bash
+# 5A: Pull do código
+ssh vps "cd /docker/plataformaotus && git pull origin main"
+
+# 5B: Rebuild do container (2-5 min, usar timeout de 10 min)
+ssh vps "cd /docker/plataformaotus && docker compose build --no-cache"
+
+# 5C: Subir containers atualizados
+ssh vps "cd /docker/plataformaotus && docker compose up -d"
+
+# 5D: Verificar saúde
+ssh vps "docker ps | grep plataformaotus"
+ssh vps "curl -s http://localhost:3001/api/health"
+```
+
+**Verificação obrigatória:**
+- `docker ps` mostra container "Up"
+- `curl /api/health` retorna `{"status":"OK"}`
+- Se health check falhar, verificar logs: `ssh vps "docker logs plataformaotus-app --tail 30"`
+
+**Se o deploy falhar:**
+1. Verificar logs com `ssh vps "docker logs plataformaotus-app --tail 50"`
+2. Se erro de build: verificar se o código local compila (`npm run build` no frontend)
+3. Se SSH falhar: informar ao usuário para verificar conectividade/chave
 
 ### Passo 6: Sincronizar develop com main
 
@@ -532,7 +543,7 @@ echo "=== Deploy concluído com sucesso ==="
    ```bash
    gh pr create --base main --head hotfix/NOME --title "fix: descrição"
    ```
-5. Após merge em main, deploy imediato (Fluxo 6, passos 4-5)
+5. Após merge em main, deploy imediato (Fluxo 6, passos 4-5 — push + SSH deploy na VPS)
 6. Merge hotfix para develop:
    ```bash
    git checkout develop
@@ -600,7 +611,9 @@ echo "=== Deploy concluído com sucesso ==="
 - [ ] Tag criada (recomendado)
 
 **Após deploy:**
-- [ ] VPS atualizada
+- [ ] VPS atualizada (via SSH, Passo 5)
+- [ ] Health check OK: `ssh vps "curl -s http://localhost:3001/api/health"` retorna `{"status":"OK"}`
+- [ ] Container rodando: `ssh vps "docker ps | grep plataformaotus"` mostra "Up"
 - [ ] develop sincronizado com main
 
 ---

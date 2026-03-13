@@ -48,19 +48,24 @@ class GenerateWeeklyReport {
    * @param {string} params.options.disciplinaUrl - URL relatório disciplinas
    * @returns {Promise<Object>} relatório gerado
    */
-  async execute({ projectCode, projectName, construflowId, smartsheetId, generatedBy, userId, options = {} }) {
+  async execute({ projectCode, projectName, construflowId, smartsheetId, generatedBy, userId, options = {}, force = false }) {
     // Calcula semana ISO atual
     const now = new Date();
     const { weekNumber, weekYear } = GenerateWeeklyReport.#getISOWeek(now);
 
     // Previne duplicatas: se já existe report para este projeto/semana, retorna o existente
+    // Com force=true, marca o existente como substituído e prossegue com nova geração
     const alreadyExists = await this.#reportRepository.existsForProjectWeek(
       projectCode, weekYear, weekNumber
     );
     if (alreadyExists) {
       const existing = await this.#reportRepository.findByWeek(weekYear, weekNumber);
       const match = existing.find(r => r.projectCode === projectCode);
-      if (match) return match.toResponse();
+      if (match) {
+        if (!force) return match.toResponse();
+        match.markReplaced();
+        await this.#reportRepository.update(match);
+      }
     }
 
     // Cria registro no banco
@@ -102,6 +107,8 @@ class GenerateWeeklyReport {
   }
 
   async #executePipeline(reportId, config) {
+    const warnings = [];
+
     const {
       construflowId,
       smartsheetId,
@@ -135,6 +142,11 @@ class GenerateWeeklyReport {
       projectCode,
     });
     await this.#addLog(reportId, `Dados recebidos: ${rawData?.tasks?.length ?? 0} tarefas, ${rawData?.issues?.length ?? 0} issues`);
+    if (rawData.usedSnapshotFallback) {
+      const snapshotMsg = `Dados do cronograma são do snapshot de ${rawData.snapshotDate || 'data desconhecida'} — Smartsheet pode estar desatualizado`;
+      await this.#addLog(reportId, `AVISO: ${snapshotMsg}`);
+      warnings.push(snapshotMsg);
+    }
 
     // Step 2: Processar dados
     await this.#updateStep(reportId, PipelineStepEnum.PROCESSING);
@@ -220,10 +232,14 @@ class GenerateWeeklyReport {
     let clientDraftUrl = null;
     let teamDraftUrl = null;
     if (clientEmails.length === 0) {
-      await this.#addLog(reportId, 'Sem emails de cliente cadastrados — rascunho do cliente nao sera criado. Cadastre contatos na aba Equipe do projeto.');
+      const msg = 'Sem emails de cliente cadastrados — rascunho do cliente não será criado. Cadastre contatos na aba Equipe do projeto.';
+      await this.#addLog(reportId, msg);
+      warnings.push(msg);
     }
     if (teamEmails.length === 0) {
-      await this.#addLog(reportId, 'Sem emails de projetistas cadastrados — rascunho da equipe nao sera criado.');
+      const msg = 'Sem emails de projetistas cadastrados — rascunho da equipe não será criado.';
+      await this.#addLog(reportId, msg);
+      warnings.push(msg);
     }
     if (clientEmails.length > 0 || teamEmails.length > 0) {
       await this.#updateStep(reportId, PipelineStepEnum.CREATING_DRAFTS);
@@ -261,6 +277,7 @@ class GenerateWeeklyReport {
         clientDisciplines,
         scheduleDays,
         duration: durationMs,
+        warnings,
       },
     });
     await this.#reportRepository.update(report);

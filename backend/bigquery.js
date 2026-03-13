@@ -3049,6 +3049,8 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
   let issues = [];
   let tasks = [];
   let disciplines = [];
+  let usedSnapshotFallback = false;
+  let snapshotDate = null;
 
   // 1. Busca issues do Construflow com disciplinas
   if (construflowId) {
@@ -3124,6 +3126,8 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
       console.warn(`[queryWeeklyReportData] Tabela principal vazia para smartsheet ${smartsheetId}, tentando snapshot...`);
       const fallback = await querySnapshotFallbackForCronograma(smartsheetId, null, projectCode);
       if (fallback.rows.length > 0) {
+        usedSnapshotFallback = true;
+        snapshotDate = fallback.snapshotDate;
         console.log(`[queryWeeklyReportData] Fallback: ${fallback.rows.length} tarefas do snapshot ${fallback.snapshotDate}`);
         // Mapear colunas do snapshot para o formato esperado pelo relatório (Level 5 apenas)
         tasks = fallback.rows
@@ -3149,7 +3153,7 @@ export async function queryWeeklyReportData(construflowId, smartsheetId, options
   // 3. Busca snapshots de baseline da plataforma (para exibição nos cards de atraso)
   const baselines = projectCode ? await queryBaselineSnapshots(projectCode) : {};
 
-  return { issues, tasks, disciplines, baselines };
+  return { issues, tasks, disciplines, baselines, usedSnapshotFallback, snapshotDate };
 }
 
 /**

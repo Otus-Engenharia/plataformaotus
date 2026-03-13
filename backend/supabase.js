@@ -4951,7 +4951,7 @@ export async function fetchStandardDisciplines() {
  */
 export async function fetchDisciplineMappings(projectId) {
   if (!projectId) return [];
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
 
   const { data, error } = await supabase
     .from('discipline_mappings')
@@ -5468,7 +5468,7 @@ export async function updateContact(contactId, { name, email, phone, position })
 /**
  * Cria uma nova empresa no banco
  */
-export async function createCompany({ name, companyType }) {
+export async function createCompany({ name, companyType, status }) {
   const supabase = getSupabaseClient();
 
   const { data, error } = await supabase
@@ -5476,7 +5476,7 @@ export async function createCompany({ name, companyType }) {
     .insert({
       name,
       company_type: companyType || null,
-      status: 'pendente',
+      status: status || 'validado',
     })
     .select('id, name, company_type, status')
     .single();
@@ -5486,6 +5486,18 @@ export async function createCompany({ name, companyType }) {
   }
 
   return data;
+}
+
+/**
+ * Atualiza o status de uma empresa existente
+ */
+export async function updateCompanyStatus(companyId, status) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('companies')
+    .update({ status })
+    .eq('id', companyId);
+  if (error) throw new Error(`Erro ao atualizar status da empresa: ${error.message}`);
 }
 
 /**
@@ -6097,12 +6109,21 @@ export async function updateProjectField(projectCode, field, value) {
     'service_type': 'service_type',
     'client': 'company_id',
     'nome_time': 'team_id',
-    'lider': 'project_manager_id'
+    'lider': 'project_manager_id',
+    'description': 'description',
+    'address': 'address',
+    'area_construida': 'area_construida',
+    'area_efetiva': 'area_efetiva',
+    'numero_unidades': 'numero_unidades',
+    'numero_torres': 'numero_torres',
+    'numero_pavimentos': 'numero_pavimentos',
+    'tipologia_empreendimento': 'tipologia_empreendimento',
+    'padrao_acabamento': 'padrao_acabamento'
   };
 
   const dbField = fieldMap[field];
   if (!dbField) {
-    throw new Error(`Campo '${field}' nao mapeado`);
+    throw new Error(`Campo '${field}' nao é editável na tabela projects`);
   }
 
   // Converter valor vazio para null
@@ -6267,6 +6288,120 @@ export async function fetchProjectServicesForPortfolio() {
   });
 
   return map;
+}
+
+/**
+ * Busca dados completos de um projeto (projects + project_comercial_infos + project_features + entregáveis)
+ * @param {string} projectCode - Codigo do projeto
+ * @returns {Promise<Object|null>}
+ */
+export async function fetchFullProjectDetail(projectCode) {
+  const supabase = getSupabaseClient();
+
+  const { data: project, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      project_comercial_infos(*),
+      project_features(*),
+      companies:company_id(id, name),
+      teams:team_id(id, team_name),
+      project_manager:project_manager_id(id, name),
+      cs_responsavel:cs_responsavel_id(id, name, avatar_url)
+    `)
+    .eq('project_code', projectCode)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Erro ao buscar detalhe do projeto: ${error.message}`);
+  }
+
+  if (!project) return null;
+
+  // Buscar entregáveis (project_services)
+  const { data: services } = await supabase
+    .from('project_services')
+    .select('services(name)')
+    .eq('project_id', project.id)
+    .eq('status', 'ativo');
+
+  // Flatten: merge project_comercial_infos e project_features no root
+  const comercial = Array.isArray(project.project_comercial_infos)
+    ? project.project_comercial_infos[0] || {}
+    : project.project_comercial_infos || {};
+  const features = Array.isArray(project.project_features)
+    ? project.project_features[0] || {}
+    : project.project_features || {};
+
+  const { project_comercial_infos, project_features, ...base } = project;
+
+  return {
+    ...base,
+    // Comercial info fields (prefix-free, flat)
+    ...comercial,
+    // Feature fields (prefix-free, flat)
+    ...features,
+    // Resolved FKs
+    company_name: project.companies?.name || null,
+    team_name: project.teams?.team_name || null,
+    project_manager_name: project.project_manager?.name || null,
+    cs_responsavel_name: project.cs_responsavel?.name || null,
+    cs_responsavel_avatar: project.cs_responsavel?.avatar_url || null,
+    // Entregáveis
+    entregaveis_otus: (services || []).map(s => s.services?.name).filter(Boolean),
+  };
+}
+
+/**
+ * Atualiza um campo comercial em project_comercial_infos
+ * Lookup project_id pelo project_code → upsert
+ * @param {string} projectCode - Codigo do projeto
+ * @param {string} field - Campo a atualizar
+ * @param {any} value - Novo valor
+ */
+export async function updateProjectComercialField(projectCode, field, value) {
+  const supabase = getSupabaseClient();
+
+  const allowedFields = [
+    'data_venda', 'complexidade', 'complexidade_projetista', 'complexidade_tecnica',
+    'tipo_pagamento', 'responsavel_plataforma_comunicacao', 'responsavel_acd',
+    'link_contrato_ger', 'link_escopo_descritivo', 'link_proposta_ger',
+    'fase_entrada', 'vgv_empreendimento', 'visao_empresa', 'visao_projeto_riscos',
+    'principais_dores', 'valor_cliente', 'coordenacao_externa',
+    'info_contrato', 'info_adicional_confidencial'
+  ];
+
+  if (!allowedFields.includes(field)) {
+    throw new Error(`Campo '${field}' nao permitido em project_comercial_infos`);
+  }
+
+  // Lookup project_id
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('project_code', projectCode)
+    .single();
+
+  if (projectError || !project) {
+    throw new Error(`Projeto nao encontrado: ${projectCode}`);
+  }
+
+  const dbValue = value === '' || value === undefined ? null : value;
+
+  const { data, error } = await supabase
+    .from('project_comercial_infos')
+    .upsert(
+      { project_id: project.id, [field]: dbValue },
+      { onConflict: 'project_id' }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Erro ao atualizar campo comercial: ${error.message}`);
+  }
+
+  return data;
 }
 
 /**

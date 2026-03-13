@@ -788,6 +788,30 @@
   border: 1px solid #d1d5db;
 }
 
+/* ===== Source Name Badges (SM/CF) ===== */
+.dcov-source-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-left: 0.25rem;
+}
+
+.dcov-source-badge--sm {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.dcov-source-badge--cf {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
 /* ===== Edit Button (Regularizado) ===== */
 .dcov-btn-edit {
   display: inline-flex;

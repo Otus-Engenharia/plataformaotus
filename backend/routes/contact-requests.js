@@ -7,7 +7,7 @@
 import express from 'express';
 import { hasFullAccess } from '../auth-config.js';
 import { SupabaseContactChangeRequestRepository } from '../infrastructure/repositories/SupabaseContactChangeRequestRepository.js';
-import { createContact, updateContact, createCompany, createStandardDiscipline, createProjectDiscipline, getProjectIdByCode } from '../supabase.js';
+import { createContact, updateContact, createCompany, updateCompanyStatus, createStandardDiscipline, createProjectDiscipline, getProjectIdByCode } from '../supabase.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function safeUuid(value) {
@@ -37,6 +37,7 @@ const contactService = {
   createContact,
   updateContact,
   createCompany,
+  updateCompanyStatus,
   createStandardDiscipline,
   createProjectDiscipline,
   getProjectIdByCode,

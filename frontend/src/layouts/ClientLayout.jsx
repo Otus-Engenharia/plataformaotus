@@ -99,10 +99,21 @@ function ClientLayout() {
       {/* Topbar - always visible */}
       <header className="cp-topbar">
         <div className="cp-topbar-left">
+          {(clientUser?.isImpersonation || clientUser?.isCompanyImpersonation) && (
+            <button
+              onClick={() => navigate('/home')}
+              className="topbar-home-button"
+              title="Voltar ao início"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <path d="M9 22V12h6v10" />
+              </svg>
+            </button>
+          )}
           <img src="/Otus-logo-300x300.png" alt="Otus" className="cp-topbar-logo" />
           <div>
             <h1 className="cp-topbar-title">Portal do Cliente</h1>
-            <span className="cp-topbar-mission">Acompanhe seus projetos</span>
           </div>
           {isProjectView && currentProject && (
             <>
@@ -114,6 +125,7 @@ function ClientLayout() {
           )}
         </div>
         <div className="cp-topbar-right">
+          <span className="topbar-mission">Elevando o padrão de se construir</span>
           <span className="cp-topbar-user-name">
             {clientUser?.name || clientUser?.email}
           </span>
@@ -139,19 +151,18 @@ function ClientLayout() {
 
       {/* Body: sidebar + content */}
       <div className="cp-body">
-        {/* Sidebar */}
-        <aside className={`cp-sidebar ${collapsed ? 'cp-sidebar-collapsed' : ''}`}>
-          {/* Toggle button - circular on edge */}
-          <button
-            className="cp-sidebar-toggle"
-            onClick={() => setCollapsed(v => !v)}
-            title={collapsed ? 'Expandir' : 'Recolher'}
-          >
-            {collapsed ? '▶' : '◀'}
-          </button>
+        {/* Sidebar — only in project view */}
+        {isProjectView && (
+          <aside className={`cp-sidebar ${collapsed ? 'cp-sidebar-collapsed' : ''}`}>
+            {/* Toggle button - circular on edge */}
+            <button
+              className="cp-sidebar-toggle"
+              onClick={() => setCollapsed(v => !v)}
+              title={collapsed ? 'Expandir' : 'Recolher'}
+            >
+              {collapsed ? '▶' : '◀'}
+            </button>
 
-          {/* Navigation */}
-          {isProjectView && (
             <nav className="cp-sidebar-nav">
               {NAV_ITEMS.map(item => (
                 <NavLink
@@ -166,10 +177,7 @@ function ClientLayout() {
                 </NavLink>
               ))}
             </nav>
-          )}
 
-          {/* Back to projects */}
-          {isProjectView && (
             <button
               className="cp-nav-link cp-back-link"
               onClick={() => navigate('/portal')}
@@ -177,26 +185,26 @@ function ClientLayout() {
               <span className="cp-nav-icon">&larr;</span>
               {!collapsed && <span className="cp-nav-text">Todos os Projetos</span>}
             </button>
-          )}
 
-          {/* Spacer */}
-          <div style={{ flex: 1 }} />
+            {/* Spacer */}
+            <div style={{ flex: 1 }} />
 
-          {/* User footer */}
-          <div className="cp-sidebar-footer">
-            {!collapsed && (
-              <div className="cp-sidebar-user-info">
-                <span className="cp-sidebar-user-name">
-                  {clientUser?.name || clientUser?.email}
-                </span>
-                <span className="cp-sidebar-user-role">Cliente</span>
-              </div>
-            )}
-            <button className="cp-logout-btn" onClick={handleLogout} title="Sair">
-              {collapsed ? '⏻' : 'Sair'}
-            </button>
-          </div>
-        </aside>
+            {/* User footer */}
+            <div className="cp-sidebar-footer">
+              {!collapsed && (
+                <div className="cp-sidebar-user-info">
+                  <span className="cp-sidebar-user-name">
+                    {clientUser?.name || clientUser?.email}
+                  </span>
+                  <span className="cp-sidebar-user-role">Cliente</span>
+                </div>
+              )}
+              <button className="cp-logout-btn" onClick={handleLogout} title="Sair">
+                {collapsed ? '⏻' : 'Sair'}
+              </button>
+            </div>
+          </aside>
+        )}
 
         {/* Content */}
         <main className="cp-content">

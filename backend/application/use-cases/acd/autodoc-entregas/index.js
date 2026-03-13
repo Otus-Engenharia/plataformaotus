@@ -5,3 +5,4 @@ export { GetEntregasSummary } from './GetEntregasSummary.js';
 export { ManageProjectMappings } from './ManageProjectMappings.js';
 export { DiscoverAutodocProjects } from './DiscoverAutodocProjects.js';
 export { GetDailyStats } from './GetDailyStats.js';
+export { GetSyncDiagnostics } from './GetSyncDiagnostics.js';

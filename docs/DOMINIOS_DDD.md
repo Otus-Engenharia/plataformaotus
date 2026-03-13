@@ -6,16 +6,39 @@ Mapeamento dos domínios da Plataforma Otus seguindo a metodologia de Domain Dri
 
 ## Visão Geral
 
-| Domínio | Descrição | Status | DDD |
-|---------|-----------|--------|-----|
-| Gestão de Projetos | Ciclo de vida dos projetos de engenharia | Parcial | ❌ |
-| Controle de Cronograma | Planejamento e controle temporal | Parcial | ❌ |
-| Equipes e Stakeholders | Empresas e pessoas envolvidas | Implementado | ❌ |
-| Indicadores Individuais | Métricas de desempenho por cargo | Implementado | ❌ |
-| OKRs | Objetivos e Resultados-Chave | Implementado | ❌ |
-| Workspace | Tarefas e projetos internos | Implementado | ❌ |
-| **Feedbacks** | Registro de feedbacks internos | **Implementado** | **✅** |
-| Customer Success | Satisfação e relacionamento com clientes | Parcial | ❌ |
+### Domínios com DDD Completo (19)
+
+| Domínio | Descrição | Use Cases | DDD |
+|---------|-----------|-----------|-----|
+| **Feedbacks** | Registro de feedbacks internos | 9 | ✅ |
+| **Projetos** | Formulário de passagem e gestão | 7 | ✅ |
+| **Customer Success** | Classificações e snapshots CS | 8 | ✅ |
+| **Agenda** | Tarefas agendadas | 11 | ✅ |
+| **Demandas** | Solicitações e demandas | 9 | ✅ |
+| **Estudos Custos** | Estudos de custos de projetos | 9 | ✅ |
+| **Baselines** | Controle de baselines | 7 | ✅ |
+| **Baseline Requests** | Solicitações de baseline | 5 | ✅ |
+| **Curva S Progresso** | Progresso curva S (híbrido BigQuery) | 11 | ✅ |
+| **Pagamentos** | Gestão de pagamentos | 16 | ✅ |
+| **NPS** | Feedbacks NPS do cliente | 4 | ✅ |
+| **Pesquisas CS** | Percepção de equipe | 6 | ✅ |
+| **Relatos** | Diário de projeto | 13 | ✅ |
+| **Todos** | Tarefas pessoais | 8 | ✅ |
+| **Time Savings** | Economia de horas | 6 | ✅ |
+| **Weekly Reports** | Relatórios semanais | 7 | ✅ |
+| **User Preferences** | Preferências do usuário | 8 | ✅ |
+| **ACD (Autodoc/IFC)** | Entregas + IFC changelog | 14 | ✅ |
+| **Contact Requests** | Solicitações de contato | 6 | ✅ |
+
+### Domínios Legado (5)
+
+| Domínio | Descrição | Localização | DDD |
+|---------|-----------|-------------|-----|
+| OKRs | Objetivos e Resultados-Chave | `supabase.js` | ❌ |
+| Indicadores Individuais | Métricas de desempenho por cargo | `supabase.js` | ❌ |
+| Workspace | Tarefas e projetos internos | `supabase.js` | ❌ |
+| Equipes e Stakeholders | Empresas e pessoas envolvidas | `auth-config.js` | ❌ |
+| Controle de Cronograma | Planejamento e controle temporal | BigQuery | ❌ |
 
 ---
 
@@ -231,3 +254,4 @@ Acompanhamento de satisfação, relacionamento e sucesso dos clientes da Otus.
 |------|-----------|
 | 2026-02-04 | Documento criado com mapeamento dos 8 domínios |
 | 2026-02-04 | Domínio Feedbacks atualizado com arquitetura DDD completa (Value Objects, Use Cases, Repository) |
+| 2026-03-13 | Atualizado com 19 domínios DDD migrados, 5 legado restantes |

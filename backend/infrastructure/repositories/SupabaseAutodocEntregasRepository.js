@@ -44,19 +44,20 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
   }
 
   async findRecentDocuments(options = {}) {
-    const { projectCode, classification, page = 1, limit = 50 } = options;
+    const { projectCode, classification, page = 1, limit = 50, filterBy = 'created' } = options;
 
     const { since, until } = this.#dateRangeFromOptions(options);
+    const dateColumn = filterBy === 'synced' ? 'synced_at' : 'autodoc_created_at';
 
     let query = this.#supabase
       .from(DOCUMENTS_TABLE)
       .select('*', { count: 'exact' })
-      .gte('autodoc_created_at', since)
+      .gte(dateColumn, since)
       .neq('project_code', '__DISMISSED__')
-      .order('autodoc_created_at', { ascending: false });
+      .order(dateColumn, { ascending: false });
 
     if (until) {
-      query = query.lte('autodoc_created_at', until);
+      query = query.lte(dateColumn, until);
     }
 
     if (projectCode) {
@@ -234,16 +235,18 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
   // --- Resumo ---
 
   async getSummary(options = {}) {
+    const { filterBy = 'created' } = options;
     const { since, until } = this.#dateRangeFromOptions(options);
+    const dateColumn = filterBy === 'synced' ? 'synced_at' : 'autodoc_created_at';
 
     let query = this.#supabase
       .from(DOCUMENTS_TABLE)
       .select('project_code, classification, document_name, raw_size, discipline_name')
-      .gte('autodoc_created_at', since)
+      .gte(dateColumn, since)
       .neq('project_code', '__DISMISSED__');
 
     if (until) {
-      query = query.lte('autodoc_created_at', until);
+      query = query.lte(dateColumn, until);
     }
 
     const { data, error } = await query;
@@ -279,16 +282,18 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
   // --- Estatísticas Diárias ---
 
   async getDailyStats(options = {}) {
+    const { filterBy = 'created' } = options;
     const { since, until } = this.#dateRangeFromOptions(options);
+    const dateColumn = filterBy === 'synced' ? 'synced_at' : 'autodoc_created_at';
 
     let query = this.#supabase
       .from(DOCUMENTS_TABLE)
-      .select('project_code, autodoc_created_at')
-      .gte('autodoc_created_at', since)
+      .select(`project_code, ${dateColumn}`)
+      .gte(dateColumn, since)
       .neq('project_code', '__DISMISSED__');
 
     if (until) {
-      query = query.lte('autodoc_created_at', until);
+      query = query.lte(dateColumn, until);
     }
 
     const { data, error } = await query;
@@ -301,7 +306,7 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
     const dayMap = {};
 
     for (const row of rows) {
-      const date = new Date(row.autodoc_created_at)
+      const date = new Date(row[dateColumn])
         .toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
       if (!dayMap[date]) dayMap[date] = {};
       dayMap[date][row.project_code] = (dayMap[date][row.project_code] || 0) + 1;
@@ -412,17 +417,124 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
     }
   }
 
-  async completeSyncRun(id, { projectsScanned = 0, documentsFound = 0, newDocuments = 0, error: runError = null, status = 'completed' }) {
+  // --- Diagnostics ---
+
+  async getDiagnostics() {
+    // 1. All mappings (active + inactive)
+    const { data: mappings, error: mappingsErr } = await this.#supabase
+      .from(MAPPINGS_TABLE)
+      .select('*')
+      .order('autodoc_customer_name', { ascending: true });
+
+    if (mappingsErr) throw new Error(`Erro ao buscar mappings: ${mappingsErr.message}`);
+
+    // 2. Recent sync runs (last 48h) with project_results
+    const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const { data: recentRuns, error: runsErr } = await this.#supabase
+      .from(SYNC_RUNS_TABLE)
+      .select('*')
+      .gte('started_at', since48h)
+      .order('started_at', { ascending: false });
+
+    if (runsErr) throw new Error(`Erro ao buscar sync runs: ${runsErr.message}`);
+
+    // 3. Doc counts per project_code (last 7d by autodoc_created_at)
+    const since7d = new Date();
+    since7d.setDate(since7d.getDate() - 7);
+    const since7dStr = since7d.toISOString();
+
+    const { data: recentByCreated, error: createdErr } = await this.#supabase
+      .from(DOCUMENTS_TABLE)
+      .select('project_code')
+      .gte('autodoc_created_at', since7dStr)
+      .neq('project_code', '__DISMISSED__');
+
+    if (createdErr) throw new Error(`Erro ao buscar docs by created: ${createdErr.message}`);
+
+    // 4. Doc counts per project_code (last 7d by synced_at)
+    const { data: recentBySynced, error: syncedErr } = await this.#supabase
+      .from(DOCUMENTS_TABLE)
+      .select('project_code')
+      .gte('synced_at', since7dStr)
+      .neq('project_code', '__DISMISSED__');
+
+    if (syncedErr) throw new Error(`Erro ao buscar docs by synced: ${syncedErr.message}`);
+
+    // Build counts
+    const countByCreated = {};
+    for (const row of (recentByCreated || [])) {
+      countByCreated[row.project_code] = (countByCreated[row.project_code] || 0) + 1;
+    }
+
+    const countBySynced = {};
+    for (const row of (recentBySynced || [])) {
+      countBySynced[row.project_code] = (countBySynced[row.project_code] || 0) + 1;
+    }
+
+    // 5. Aggregate project results from recent sync runs
+    const projectErrors = {};
+    for (const run of (recentRuns || [])) {
+      if (!run.project_results) continue;
+      for (const pr of run.project_results) {
+        if (pr.status === 'error') {
+          if (!projectErrors[pr.projectCode]) projectErrors[pr.projectCode] = [];
+          projectErrors[pr.projectCode].push({
+            error: pr.error,
+            runId: run.id,
+            startedAt: run.started_at,
+          });
+        }
+      }
+    }
+
+    // 6. Build per-mapping diagnostics
+    const mappingDiagnostics = (mappings || []).map(m => {
+      const code = m.portfolio_project_code;
+      return {
+        ...m,
+        docsLast7dByCreated: countByCreated[code] || 0,
+        docsLast7dBySynced: countBySynced[code] || 0,
+        recentErrors: projectErrors[code] || [],
+        suspect: m.active && (countBySynced[code] || 0) === 0,
+      };
+    });
+
+    const suspects = mappingDiagnostics.filter(m => m.suspect);
+    const gapProjects = mappingDiagnostics.filter(m =>
+      m.active && (countBySynced[m.portfolio_project_code] || 0) > (countByCreated[m.portfolio_project_code] || 0)
+    );
+
+    return {
+      mappings: mappingDiagnostics,
+      recentRuns: recentRuns || [],
+      suspects,
+      gapProjects,
+      totals: {
+        activeMappings: (mappings || []).filter(m => m.active).length,
+        totalMappings: (mappings || []).length,
+        projectsWithDocsCreated: Object.keys(countByCreated).length,
+        projectsWithDocsSynced: Object.keys(countBySynced).length,
+        suspectsCount: suspects.length,
+      },
+    };
+  }
+
+  async completeSyncRun(id, { projectsScanned = 0, documentsFound = 0, newDocuments = 0, error: runError = null, status = 'completed', projectResults = null }) {
+    const update = {
+      finished_at: new Date().toISOString(),
+      projects_scanned: projectsScanned,
+      documents_found: documentsFound,
+      new_documents: newDocuments,
+      error: runError,
+      status,
+    };
+    if (projectResults) {
+      update.project_results = projectResults;
+    }
+
     const { error } = await this.#supabase
       .from(SYNC_RUNS_TABLE)
-      .update({
-        finished_at: new Date().toISOString(),
-        projects_scanned: projectsScanned,
-        documents_found: documentsFound,
-        new_documents: newDocuments,
-        error: runError,
-        status,
-      })
+      .update(update)
       .eq('id', id);
 
     if (error) {

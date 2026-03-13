@@ -328,8 +328,8 @@ export function createClientRoutes(requireClientAuth) {
       const supabase = getSupabaseServiceClient();
       const { data } = await supabase
         .from('project_features')
-        .select('capa_email_url')
-        .eq('project_code', req.clientProjectCode)
+        .select('capa_email_url, projects!inner(project_code)')
+        .eq('projects.project_code', req.clientProjectCode)
         .single();
 
       const capaUrl = data?.capa_email_url;
@@ -1525,7 +1525,7 @@ export function createAdminClientPortalRoutes(requireAuth) {
     }
   });
 
-  // GET /api/admin/client-portal/companies - List all companies with active project assignments
+  // GET /api/admin/client-portal/companies - List all client companies
   router.get('/companies', requireAuth, async (req, res) => {
     try {
       const userRole = req.user?.role;
@@ -1535,29 +1535,51 @@ export function createAdminClientPortalRoutes(requireAuth) {
 
       const supabase = getSupabaseServiceClient();
 
-      // Get all active assignments with contact's company info
-      const { data: assignments, error: assignError } = await supabase
-        .from('project_client_contacts')
-        .select('project_code, contacts!inner(company_id, companies(id, name))')
-        .eq('is_active', true);
+      // Fetch ALL client companies
+      const { data: allCompanies, error: compError } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('company_type', 'client')
+        .order('name')
+        .limit(5000);
 
-      if (assignError) throw assignError;
+      if (compError) throw compError;
 
-      // Group by company, count distinct projects
-      const companiesMap = {};
-      (assignments || []).forEach(a => {
-        const companyId = a.contacts?.company_id;
-        const companyName = a.contacts?.companies?.name;
-        if (!companyId || !companyName) return;
-        if (!companiesMap[companyId]) {
-          companiesMap[companyId] = { companyId, companyName, projectCodes: new Set() };
-        }
-        companiesMap[companyId].projectCodes.add(a.project_code);
+      // Fetch project counts per company, filtering by portal visibility
+      const ACTIVE_STATUSES = ['planejamento', 'fase 01', 'fase 02', 'fase 03', 'fase 04'];
+
+      const { data: allProjects } = await supabase
+        .from('projects')
+        .select('project_code, company_id, status')
+        .not('company_id', 'is', null)
+        .limit(10000);
+
+      const allProjectCodes = (allProjects || []).map(p => p.project_code);
+      const { data: allFeatures } = allProjectCodes.length > 0
+        ? await supabase
+            .from('project_features')
+            .select('portal_cliente_status, projects!inner(project_code)')
+            .in('projects.project_code', allProjectCodes)
+        : { data: [] };
+
+      const portalStatusMap = new Map((allFeatures || []).map(f => [f.projects?.project_code, f.portal_cliente_status]));
+
+      const projectsByCompany = {};
+      (allProjects || []).forEach(p => {
+        if (!p.company_id) return;
+        const portalStatus = portalStatusMap.get(p.project_code);
+        const visible = portalStatus === 'ativo' || (portalStatus !== 'desativado' && portalStatus == null && ACTIVE_STATUSES.includes((p.status || '').toLowerCase()));
+        if (!visible) return;
+        if (!projectsByCompany[p.company_id]) projectsByCompany[p.company_id] = new Set();
+        projectsByCompany[p.company_id].add(p.project_code);
       });
 
-      const result = Object.values(companiesMap)
-        .map(c => ({ companyId: c.companyId, companyName: c.companyName, projectCount: c.projectCodes.size }))
-        .sort((a, b) => a.companyName.localeCompare(b.companyName));
+      const result = (allCompanies || []).map(c => ({
+        companyId: c.id,
+        companyName: c.name,
+        projectCount: projectsByCompany[c.id]?.size || 0,
+        hasPortal: true,
+      }));
 
       res.json({ success: true, data: result });
     } catch (err) {

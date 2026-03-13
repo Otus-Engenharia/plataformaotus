@@ -158,11 +158,13 @@ backend/
 
 #### Domínio de Referência: Feedbacks ✅
 
-O domínio de Feedbacks está 100% implementado em DDD e serve como modelo:
+O domínio de Feedbacks serve como modelo de referência para a estrutura DDD:
 - `backend/domain/feedbacks/` - Entidade, Value Objects, Interface
-- `backend/application/use-cases/feedbacks/` - 6 Use Cases
+- `backend/application/use-cases/feedbacks/` - 9 Use Cases
 - `backend/infrastructure/repositories/SupabaseFeedbackRepository.js`
 - `backend/routes/feedbacks.js`
+
+> **Nota:** 19 de ~24 domínios já seguem DDD. A migração Strangler Fig está ~80% completa.
 
 ### Backend (`backend/`)
 - **server.js**: Express server with all API routes, authentication middleware, session management, rate limiting, and serves static frontend in production
@@ -173,8 +175,11 @@ O domínio de Feedbacks está 100% implementado em DDD e serve como modelo:
 
 ### Frontend (`frontend/src/`)
 - **App.jsx**: Main router with navigation sidebar, route definitions, and layout
-- **contexts/AuthContext.jsx**: Authentication state management
-- **contexts/OracleContext.jsx**: Oracle chat assistant state
+- **contexts/AuthContext.jsx**: Authentication state management (Google OAuth + role-based permissions)
+- **contexts/OracleContext.jsx**: Oracle chat assistant com sessões persistentes
+- **contexts/PortfolioContext.jsx**: Estado e cache do portfolio
+- **contexts/VistaClienteProvider**: Portal do cliente (vista externa)
+- **contexts/ClientAuthProvider**: Autenticação do portal do cliente (separada do OAuth interno)
 - **components/**: View components (PortfolioView, CurvaSView, CronogramaView, CSView, etc.)
 
 ### Data Flow
@@ -184,8 +189,10 @@ O domínio de Feedbacks está 100% implementado em DDD e serve como modelo:
 4. BigQuery returns analytics data; Supabase returns real-time/operational data
 
 ### Authentication & Authorization
-- Google OAuth 2.0 with three roles: `director` (full access), `admin` (full access), `leader` (filtered to own projects)
-- Role mappings defined in `auth-config.js`
+- Google OAuth 2.0 with role hierarchy: `dev > ceo > director > admin > leader > user`
+- Role source: tabela `users_otus` no Supabase (fallback: `auth-config.js` para devs hardcoded)
+- Dev mode com impersonation no frontend (`DEV_MODE=true`)
+- Permissões granulares: `canAccessView`, `canAccessArea`, `canManageDemandas`, `canManageEstudosCustos`, `canAccessFormularioPassagem`, `canManagePagamentos`
 - Leader names must match exactly with BigQuery `lider` column values
 
 ## Design System / Brand Guidelines
@@ -249,13 +256,19 @@ Backend requires `.env` file with:
 
 ## Key API Routes
 
+### Rotas Legacy (BigQuery analytics — definidas em `server.js`)
+
 - `GET /api/health` - Health check
-- `GET /api/portfolio` - Portfolio data (filtered by user role)
-- `GET /api/curva-s` - S-Curve progress data
-- `GET /api/cronograma` - Project schedules
-- `GET /api/cs` - Customer Success / NPS data
-- `GET /api/auth/google` - Initiate Google OAuth
-- `GET /api/auth/google/callback` - OAuth callback
+- `GET /api/auth/google` / `GET /api/auth/google/callback` - Google OAuth
+- `GET /api/portfolio` (+ `/summary`, `/edit-options`, `/project-codes`, `/a-iniciar-count`)
+- `GET /api/curva-s` (+ `/colaboradores`, `/custos-por-cargo`, `/reconciliacao-custos`)
+- `GET /api/projetos/cronograma` - Cronograma de projetos
+- `GET /api/cs/nps`, `GET /api/cs/fechamentos-fase` - Customer Success (BigQuery)
+- `GET /api/apoio-projetos/portfolio` - Portfolio de apoio
+
+### Rotas DDD (19 domínios via `routes/index.js` → `setupDDDRoutes`)
+
+`/api/feedbacks`, `/api/demandas`, `/api/estudos-custos`, `/api/projetos`, `/api/agenda/tasks`, `/api/curva-s-progresso`, `/api/baselines`, `/api/relatos`, `/api/baseline-requests`, `/api/todos`, `/api/user-preferences`, `/api/oracle`, `/api/weekly-reports`, `/api/time-savings`, `/api/ifc-changelog`, `/api/autodoc-entregas`, `/api/contact-requests`, `/api/nomenclatura`, `/api/marcos-projeto`, `/api/pagamentos`, `/api/notificacoes`, `/api/nps`, `/api/cs/percepcao-equipe`, `/api/cs/classificacoes`, `/api/client`, `/api/admin/client-portal`
 
 ## Estratégia de Migração DDD
 
@@ -267,20 +280,36 @@ O projeto está em processo de migração gradual para DDD usando o padrão **St
 
 ### Domínios e Status DDD
 
-| Domínio | Status | Prioridade de Migração |
-|---------|--------|------------------------|
-| **Feedbacks** | ✅ DDD Completo | - |
-| OKRs | Legado | Alta (entidades bem definidas) |
-| Indicadores Individuais | Legado | Alta |
-| Workspace | Legado | Média |
-| Equipes/Stakeholders | Legado | Média |
-| Projetos | Legado | Baixa (complexo) |
-| Cronograma | Legado | Baixa (BigQuery) |
-| Customer Success | Legado | Baixa (BigQuery) |
+| Domínio | Status | Use Cases | Notas |
+|---------|--------|-----------|-------|
+| **Feedbacks** | ✅ DDD | 9 | Modelo de referência |
+| **Projetos** | ✅ DDD | 7 | Formulário de passagem |
+| **Customer Success** | ✅ DDD | 8 | Classificações + snapshots |
+| **Agenda** | ✅ DDD | 11 | Tarefas agendadas |
+| **Demandas** | ✅ DDD | 9 | |
+| **Estudos Custos** | ✅ DDD | 9 | |
+| **Baselines** | ✅ DDD | 7 | |
+| **Baseline Requests** | ✅ DDD | 5 | Solicitações de baseline |
+| **Curva S Progresso** | ✅ DDD | 11 | Híbrido c/ BigQuery |
+| **Pagamentos** | ✅ DDD | 16 | |
+| **NPS** | ✅ DDD | 4 | Feedbacks NPS do cliente |
+| **Pesquisas CS** | ✅ DDD | 6 | Percepção de equipe |
+| **Relatos** | ✅ DDD | 13 | Diário de projeto |
+| **Todos** | ✅ DDD | 8 | |
+| **Time Savings** | ✅ DDD | 6 | Economia de horas |
+| **Weekly Reports** | ✅ DDD | 7 | |
+| **User Preferences** | ✅ DDD | 8 | |
+| **ACD (Autodoc/IFC)** | ✅ DDD | 14 | Entregas + changelog |
+| **Contact Requests** | ✅ DDD | 6 | |
+| OKRs | Legado | — | Em `supabase.js` |
+| Indicadores | Legado | — | Em `supabase.js` |
+| Workspace | Legado | — | Em `supabase.js` |
+| Equipes/Stakeholders | Legado | — | Em `auth-config.js` |
+| Cronograma | Legado | — | BigQuery-driven |
 
 ### Ao Desenvolver Novas Funcionalidades
 
-1. **Novo domínio?** → Criar estrutura DDD completa
+1. **Novo domínio?** → Criar estrutura DDD completa (DDD é o padrão dominante)
 2. **Extensão de domínio existente com DDD?** → Seguir padrão existente
 3. **Extensão de domínio legado?** → Avaliar se vale migrar ou manter legado
 4. **Bug fix em código legado?** → Corrigir no local, não migrar

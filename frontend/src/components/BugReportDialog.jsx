@@ -31,9 +31,9 @@ function detectCurrentPage() {
   if (path.startsWith('/ind')) return { key: 'indicadores', label: 'Indicadores', area: 'indicadores' };
   if (path.startsWith('/okrs')) return { key: 'okrs', label: 'OKRs', area: 'okrs' };
   if (path.startsWith('/workspace')) return { key: 'gestao-tarefas', label: 'Gestão de Tarefas', area: 'workspace' };
-  if (path.startsWith('/configuracoes') || path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/quadro')) return { key: 'configuracoes', label: 'Configurações', area: 'configuracoes' };
+  if (path.startsWith('/conf')) return { key: 'configuracoes', label: 'Configurações', area: 'configuracoes' };
   if (path.startsWith('/feedbacks')) return { key: 'projetos', label: 'Projetos', area: 'projetos' };
-  if (path.startsWith('/horas') || path.startsWith('/projetos') || path.startsWith('/cs') || path.startsWith('/contatos') || path.startsWith('/demandas-apoio') || path.startsWith('/agenda') || path.startsWith('/todos')) return { key: 'projetos', label: 'Projetos', area: 'projetos' };
+  if (path.startsWith('/proj')) return { key: 'projetos', label: 'Projetos', area: 'projetos' };
   return { key: path, label: path, area: 'projetos' };
 }
 

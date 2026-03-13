@@ -81,6 +81,8 @@ import {
   fetchProjectFeaturesForPortfolio, fetchComercialInfosForPortfolio, fetchProjectServicesForPortfolio, updateControleApoio, updateLinkIfc, updatePlataformaAcd, updateProjectToolField,
   // Portfolio - Edicao inline
   fetchProjectsFromSupabase, fetchPortfolioEditOptions, updateProjectField, updateCsResponsavel,
+  // Portfolio - Detail
+  fetchFullProjectDetail, updateProjectComercialField,
   // OAuth tokens (Gmail Draft)
   getUserOAuthTokens, resolveRecipientEmails, resolveRecipientContacts,
   // Whiteboard
@@ -415,6 +417,23 @@ function getEffectiveUser(req) {
 }
 
 /**
+ * Verifica se o usuário pode editar o Super Card.
+ * Permite edição para quem tem canEditPortfolio OU acesso à área 'lideres' via módulos.
+ */
+async function canEditSuperCard(req) {
+  const effectiveUser = getEffectiveUser(req);
+  if (canEditPortfolio(effectiveUser)) return true;
+  try {
+    const userOtus = await getUserOtusByEmail(effectiveUser.email);
+    const accessLevel = getUserAccessLevel(getUserRole(effectiveUser));
+    const modules = await fetchModulesForUser(effectiveUser.email, accessLevel, userOtus?.setor_id);
+    return modules.some(m => m.area === 'lideres');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Middleware de logging
  * Registra ações dos usuários automaticamente
  */
@@ -637,7 +656,8 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
     const userOtus = await getUserOtusByEmail(req.user.email);
 
     // Sincroniza role e setor do banco para a sessão (caso tenha mudado no admin)
-    if (userOtus?.role && userOtus.role !== req.user.role) {
+    // NÃO sincronizar para sessões dev — preservar acesso total
+    if (userOtus?.role && userOtus.role !== req.user.role && !req.session.devUser) {
       req.user.role = userOtus.role;
     }
     if (userOtus?.setor?.name) {
@@ -1088,7 +1108,7 @@ app.get('/api/portfolio/summary', requireAuth, async (req, res) => {
  */
 app.get('/api/portfolio/edit-options', requireAuth, withBqCache(1800), async (req, res) => {
   try {
-    if (!canEditPortfolio(req.user)) {
+    if (!await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
     const data = await fetchPortfolioEditOptions();
@@ -1106,7 +1126,7 @@ app.get('/api/portfolio/edit-options', requireAuth, withBqCache(1800), async (re
  */
 app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
   try {
-    if (!canEditPortfolio(req.user)) {
+    if (!await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1114,7 +1134,12 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
     const { field, value, oldValue } = req.body;
 
     // Campos permitidos: todos com canEditPortfolio podem editar todos os campos
-    const allowedFields = ['comercial_name', 'status', 'client', 'nome_time', 'lider', 'service_type'];
+    const allowedFields = [
+      'comercial_name', 'status', 'client', 'nome_time', 'lider', 'service_type',
+      'description', 'address', 'area_construida', 'area_efetiva',
+      'numero_unidades', 'numero_torres', 'numero_pavimentos',
+      'tipologia_empreendimento', 'padrao_acabamento'
+    ];
 
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ success: false, error: `Campo '${field}' nao permitido` });
@@ -1185,7 +1210,7 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
  */
 app.put('/api/projetos/cs-responsavel', requireAuth, async (req, res) => {
   try {
-    if (!canEditPortfolio(req.user)) {
+    if (!await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1222,7 +1247,8 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
       'dod_id', 'escopo_entregas_id', 'smartsheet_id', 'discord_id',
       'capa_email_url', 'gantt_email_url', 'disciplina_email_url',
       'construflow_disciplinasclientes',
-      'plataforma_comunicacao', 'plataforma_acd'
+      'plataforma_comunicacao', 'plataforma_acd',
+      'portal_cliente_status'
     ];
 
     if (!allowedToolFields.includes(field)) {
@@ -1231,7 +1257,7 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
 
     // Campos que qualquer usuario autenticado pode editar
     const publicToolFields = ['plataforma_comunicacao', 'plataforma_acd'];
-    if (!publicToolFields.includes(field) && !canEditPortfolio(req.user)) {
+    if (!publicToolFields.includes(field) && !await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1242,6 +1268,153 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Erro ao atualizar ferramenta:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/portfolio/:projectCode/detail
+ * Retorna dados completos do projeto (3 tabelas Supabase + entregáveis)
+ */
+app.get('/api/portfolio/:projectCode/detail', requireAuth, async (req, res) => {
+  try {
+    const { projectCode } = req.params;
+
+    // Ownership check para líderes
+    if (!hasFullAccess(req.user)) {
+      const { leaderName } = getLeaderDataFilter(req);
+      if (leaderName) {
+        const supabase = getSupabaseClient();
+        const { data: project } = await supabase
+          .from('projects')
+          .select('project_manager_id')
+          .eq('project_code', projectCode)
+          .single();
+
+        const effectiveUser = req.session?.impersonating || req.user;
+        const isOwner = project && project.project_manager_id === effectiveUser.id;
+        const isUnassigned = !project || !project.project_manager_id;
+
+        if (!isUnassigned && !isOwner) {
+          return res.status(403).json({ success: false, error: 'Acesso negado' });
+        }
+      }
+    }
+
+    const detail = await fetchFullProjectDetail(projectCode);
+    if (!detail) {
+      return res.status(404).json({ success: false, error: 'Projeto nao encontrado no Supabase' });
+    }
+
+    res.json({ success: true, data: detail });
+  } catch (error) {
+    console.error('Erro ao buscar detalhe do projeto:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: PUT /api/portfolio/:projectCode/comercial
+ * Atualiza campo comercial de um projeto (project_comercial_infos)
+ * Body: { field, value, oldValue }
+ */
+app.put('/api/portfolio/:projectCode/comercial', requireAuth, async (req, res) => {
+  try {
+    if (!await canEditSuperCard(req)) {
+      return res.status(403).json({ success: false, error: 'Acesso negado' });
+    }
+
+    const { projectCode } = req.params;
+    const { field, value, oldValue } = req.body;
+
+    // Ownership check para líderes
+    if (!hasFullAccess(req.user)) {
+      const { leaderName } = getLeaderDataFilter(req);
+      if (leaderName) {
+        const supabase = getSupabaseClient();
+        const { data: project } = await supabase
+          .from('projects')
+          .select('project_manager_id')
+          .eq('project_code', projectCode)
+          .single();
+
+        const effectiveUser = req.session?.impersonating || req.user;
+        const isOwner = project && project.project_manager_id === effectiveUser.id;
+        const isUnassigned = !project || !project.project_manager_id;
+
+        if (!isUnassigned && !isOwner) {
+          return res.status(403).json({ success: false, error: 'Voce so pode editar seus proprios projetos' });
+        }
+      }
+    }
+
+    const result = await updateProjectComercialField(projectCode, field, value);
+    invalidatePortfolioCache();
+    await logAction(req, 'update', 'portfolio-comercial', projectCode, field, { value, oldValue });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Erro ao atualizar campo comercial:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Rota: GET /api/projetos/detail/options
+ * Retorna opções dos Value Objects para dropdowns do Super Card
+ * Sem requireFormAccess — acessível por qualquer usuário autenticado
+ */
+app.get('/api/projetos/detail/options', requireAuth, async (req, res) => {
+  try {
+    // Import Value Objects dynamically to avoid circular deps
+    const { TipologiaEmpreendimento } = await import('./domain/projetos/value-objects/TipologiaEmpreendimento.js');
+    const { PadraoAcabamento } = await import('./domain/projetos/value-objects/PadraoAcabamento.js');
+    const { TipoPagamento } = await import('./domain/projetos/value-objects/TipoPagamento.js');
+    const { PlataformaComunicacao } = await import('./domain/projetos/value-objects/PlataformaComunicacao.js');
+    const { PlataformaACD } = await import('./domain/projetos/value-objects/PlataformaACD.js');
+
+    res.json({
+      success: true,
+      data: {
+        tipologia_empreendimento: TipologiaEmpreendimento.allOptions(),
+        padrao_acabamento: PadraoAcabamento.allOptions(),
+        tipo_pagamento: TipoPagamento.allOptions(),
+        plataforma_comunicacao: PlataformaComunicacao.allOptions(),
+        plataforma_acd: PlataformaACD.allOptions(),
+        responsavel_plataforma: [
+          { value: 'Cliente', label: 'Cliente' },
+          { value: 'Otus', label: 'Otus' },
+        ],
+        responsavel_acd: [
+          { value: 'Cliente', label: 'Cliente' },
+          { value: 'Otus', label: 'Otus' },
+        ],
+        fase_entrada: [
+          { value: 'Estudo Preliminar', label: 'Estudo Preliminar' },
+          { value: 'Anteprojeto', label: 'Anteprojeto' },
+          { value: 'Projeto Legal', label: 'Projeto Legal' },
+          { value: 'Projeto Executivo', label: 'Projeto Executivo' },
+          { value: 'Obra', label: 'Obra' },
+        ],
+        valor_cliente: [
+          { value: 'prazo', label: 'Prazo - Tem deadline rígido' },
+          { value: 'reducao_custo', label: 'Redução de custo de obra' },
+          { value: 'maximizar_vgv', label: 'Maximizar VGV' },
+          { value: 'qualidade_tecnica', label: 'Qualidade/sofisticação técnica' },
+          { value: 'evitar_retrabalho', label: 'Evitar retrabalho' },
+          { value: 'aprovacao_orgaos', label: 'Aprovação em órgãos' },
+          { value: 'industrializacao', label: 'Industrialização/replicação' },
+          { value: 'preco_servico', label: 'Preço do serviço' },
+        ],
+        service_type: [
+          { value: 'Coordenação', label: 'Coordenação' },
+          { value: 'Gerenciamento', label: 'Gerenciamento' },
+          { value: 'Coordenação + Gerenciamento', label: 'Coordenação + Gerenciamento' },
+        ],
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao buscar opções de detalhe:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1325,8 +1498,74 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
 
   const allExternalNormalized = new Set([...normalizedSmartsheet.keys(), ...normalizedConstruflow.keys()]);
   const sort = arr => arr.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+  // Reverse map: otusNormKey → { smartsheet: Set<normKey>, construflow: Set<normKey>, mappings: [] }
+  const otusTargetToSources = new Map();
+  for (const [mapKey, mapVal] of customMap) {
+    if (mapVal.isIgnored || mapVal.isClientOwned) continue;
+    const colonIdx = mapKey.indexOf(':');
+    const source = mapKey.substring(0, colonIdx);
+    const extNormKey = mapKey.substring(colonIdx + 1);
+
+    let otusTargetNorm = null;
+    if (mapVal.standardName) otusTargetNorm = normalize(mapVal.standardName);
+    else if (mapVal.targetName) otusTargetNorm = normalize(mapVal.targetName);
+    if (!otusTargetNorm || !normalizedOtus.has(otusTargetNorm)) continue;
+
+    if (!otusTargetToSources.has(otusTargetNorm))
+      otusTargetToSources.set(otusTargetNorm, { smartsheet: new Set(), construflow: new Set(), mappings: [] });
+    const grp = otusTargetToSources.get(otusTargetNorm);
+    if (grp[source]) grp[source].add(extNormKey);
+    grp.mappings.push(mapVal);
+  }
+
+  // Detect cross-source merges: Otus targets mapped from BOTH sources → REGULARIZADO
+  const mergedNormKeys = new Set();
+  const mergedOtusKeys = new Set();
+  const mergedEntries = [];
+
+  for (const [otusNormKey, grp] of otusTargetToSources) {
+    const smKeys = new Set(grp.smartsheet);
+    const cfKeys = new Set(grp.construflow);
+    // Include natural matches (external name === Otus name)
+    if (normalizedSmartsheet.has(otusNormKey)) smKeys.add(otusNormKey);
+    if (normalizedConstruflow.has(otusNormKey)) cfKeys.add(otusNormKey);
+
+    if (!(smKeys.size > 0 && cfKeys.size > 0)) continue;
+
+    // Skip if any single normKey already covers both sources naturally
+    let alreadyComplete = false;
+    for (const k of new Set([...smKeys, ...cfKeys])) {
+      if (normalizedSmartsheet.has(k) && normalizedConstruflow.has(k)) {
+        alreadyComplete = true;
+        break;
+      }
+    }
+    if (alreadyComplete) continue;
+
+    const allMappingIds = grp.mappings.map(m => m.mappingId).filter(Boolean);
+    mergedEntries.push({
+      name: normalizedOtus.get(otusNormKey),
+      normKey: otusNormKey,
+      inSmartsheet: true, inConstruflow: true, inOtus: true,
+      hasCustomMapping: true,
+      mappingId: allMappingIds[0] || null,
+      allMappingIds,
+      mappedToName: normalizedOtus.get(otusNormKey),
+      isFreeMapping: false,
+      isAutoOtus: false, isAutoClient: false, isClientOwned: false,
+      sourceNames: {
+        smartsheet: [...smKeys].map(k => normalizedSmartsheet.get(k)).filter(Boolean),
+        construflow: [...cfKeys].map(k => normalizedConstruflow.get(k)).filter(Boolean),
+      },
+    });
+
+    for (const k of [...smKeys, ...cfKeys]) mergedNormKeys.add(k);
+    mergedOtusKeys.add(otusNormKey);
+  }
+
   const groups = {
-    completeInAll3: [],
+    completeInAll3: [...mergedEntries],
     notInOtus: [],
     onlySmartsheet: [],
     onlyConstruflow: [],
@@ -1337,6 +1576,7 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
   };
 
   for (const normKey of allExternalNormalized) {
+    if (mergedNormKeys.has(normKey)) continue;
     const inSmartsheet = normalizedSmartsheet.has(normKey);
     const inConstruflow = normalizedConstruflow.has(normKey);
     const originalName = normalizedSmartsheet.get(normKey) || normalizedConstruflow.get(normKey);
@@ -1391,7 +1631,11 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
       isFreeMapping: !!(mapping?.targetName && !mapping?.standardName),
       isAutoOtus: autoOtus,
       isAutoClient: autoClient,
-      isClientOwned
+      isClientOwned,
+      sourceNames: {
+        smartsheet: inSmartsheet ? [normalizedSmartsheet.get(normKey)].filter(Boolean) : [],
+        construflow: inConstruflow ? [normalizedConstruflow.get(normKey)].filter(Boolean) : [],
+      },
     };
 
     if (inSmartsheet && inConstruflow && inOtus) groups.completeInAll3.push(entry);
@@ -1403,7 +1647,7 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
   }
 
   for (const [normKey, original] of normalizedOtus) {
-    if (!allExternalNormalized.has(normKey)) {
+    if (!allExternalNormalized.has(normKey) && !mergedOtusKeys.has(normKey)) {
       groups.onlyOtus.push({ name: original, normKey, inSmartsheet: false, inConstruflow: false, inOtus: true });
     }
   }
@@ -1411,7 +1655,9 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
   Object.values(groups).forEach(sort);
 
   const ignoredCount = groups.ignored.length;
-  const totalAll = new Set([...allExternalNormalized, ...normalizedOtus.keys()]).size - ignoredCount;
+  const totalAll = Object.entries(groups)
+    .filter(([key]) => key !== 'ignored')
+    .reduce((sum, [, arr]) => sum + arr.length, 0);
   const pendingCount = totalAll - groups.completeInAll3.length;
   const completionPercentage = totalAll > 0
     ? Math.round((groups.completeInAll3.length / totalAll) * 1000) / 10
@@ -2696,6 +2942,7 @@ app.get('/api/cs/fechamentos-fase', requireAuth, withBqCache(3600), async (req, 
         byProject[key] = {
           project_code: row.project_code_norm || null,
           project_name: row.project_name || row.NomeDaPlanilha,
+          smartsheet_id: row.ID_Projeto || null,
           fechamentos: [],
         };
       }
@@ -8132,6 +8379,7 @@ app.get('/api/projetos/equipe/disciplinas-cruzadas', requireAuth, withBqCache(90
     // 3. Busca mapeamentos personalizados do projeto
     const projId = await getProjectIdByConstruflow(construflowId);
     const customMappings = projId ? await fetchDisciplineMappings(projId) : [];
+    console.log(`[disciplinas-cruzadas] projId=${projId}, mappings=${customMappings.length}`);
 
     // 4. Classifica usando helper compartilhado
     const { groups, analysis } = classifyDisciplines(external.smartsheet, external.construflow, otusNames, customMappings);
