@@ -66,7 +66,7 @@ function PercepcaoEquipeView() {
     (async () => {
       try {
         const res = await axios.get(`${API_URL}/api/portfolio`, { withCredentials: true });
-        setPortfolio(res.data || []);
+        setPortfolio(res.data?.data || []);
       } catch (err) {
         console.error('Erro ao buscar portfolio:', err);
       }
