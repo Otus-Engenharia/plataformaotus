@@ -63,10 +63,24 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction, inval
         return res.status(500).json({ success: false, error: error.message });
       }
 
+      // Query 2: smartsheet_ids from project_features (separate table, no FK embed)
+      const codes = (data || []).map(p => p.project_code).filter(Boolean);
+      const { data: features } = codes.length
+        ? await supabase
+            .from('project_features')
+            .select('project_code, smartsheet_id')
+            .in('project_code', codes)
+        : { data: [] };
+
+      const featuresMap = Object.fromEntries(
+        (features || []).map(f => [f.project_code, f.smartsheet_id])
+      );
+
       const projects = (data || []).map(p => ({
         project_code_norm: p.project_code,
         project_name: p.name,
         client: p.companies?.name || '',
+        smartsheet_id: featuresMap[p.project_code] || null,
       }));
 
       res.json({ success: true, data: projects });
