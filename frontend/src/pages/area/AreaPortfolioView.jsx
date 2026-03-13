@@ -8,7 +8,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
-import { getStatusColor } from '../../components/StatusDropdown';
+import StatusDropdown, { getStatusColor } from '../../components/StatusDropdown';
 import {
   VIEWS,
   COLUMN_NAMES_PT,
@@ -23,6 +23,8 @@ import {
 } from '../../utils/portfolio-utils';
 import { initSeenProjects, markProjectSeen, pruneSeenCodes } from '../../utils/projectSeenTracker';
 import '../../styles/AreaPortfolioView.css';
+
+const CS_EDITABLE_COLUMNS = ['comercial_name', 'status', 'client', 'nome_time', 'lider'];
 
 const VIEW_OPTIONS = [
   { key: 'info', label: 'Informações' },
@@ -69,10 +71,12 @@ export default function AreaPortfolioView() {
   const [showAIniciar, setShowAIniciar] = useState(true); // ON por padrao
   const [showAtivos, setShowAtivos] = useState(false);
 
-  // Edicao inline - Resp. CS
+  // Edicao inline
   const [editingCell, setEditingCell] = useState(null);   // { projectCode, field }
   const [csUsers, setCsUsers] = useState(null);           // [{ id, name, avatar_url }]
+  const [editOptions, setEditOptions] = useState(null);   // { teams, companies, leaders, csUsers }
   const [savedCell, setSavedCell] = useState(null);        // { projectCode, field }
+  const [errorCell, setErrorCell] = useState(null);        // { projectCode, field, message }
 
   // Vista ativa
   const [activeView, setActiveView] = useState('info');
@@ -111,11 +115,16 @@ export default function AreaPortfolioView() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Busca opcoes de edicao (csUsers) se usuario tem permissao
+  // Busca opcoes de edicao se usuario tem permissao
   useEffect(() => {
     if (!canEditPortfolio) return;
     axios.get(`${API_URL}/api/portfolio/edit-options`, { withCredentials: true })
-      .then(res => res.data?.success && setCsUsers(res.data.data.csUsers || []))
+      .then(res => {
+        if (res.data?.success) {
+          setEditOptions(res.data.data);
+          setCsUsers(res.data.data.csUsers || []);
+        }
+      })
       .catch(err => console.error('Erro ao buscar edit options:', err));
   }, [canEditPortfolio]);
 
@@ -147,6 +156,41 @@ export default function AreaPortfolioView() {
       setData(prev);
     }
   }, [data, csUsers]);
+
+  // Handler generico para editar campos do portfolio
+  const updatePortfolioField = useCallback(async (projectCode, field, newValue, oldValue, displayValue) => {
+    const idFieldMap = { client: '_company_id', nome_time: '_team_id', lider: '_project_manager_id' };
+    const fieldToUpdate = ['client', 'nome_time', 'lider'].includes(field)
+      ? { [field]: displayValue, [idFieldMap[field]]: newValue }
+      : { [field]: newValue };
+
+    setEditingCell(null);
+    const prev = data;
+    setData(d => d.map(row =>
+      row.project_code_norm === projectCode ? { ...row, ...fieldToUpdate } : row
+    ));
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/portfolio/${projectCode}`,
+        { field, value: newValue, oldValue },
+        { withCredentials: true }
+      );
+      if (!response.data?.success) throw new Error(response.data?.error || 'Erro ao atualizar');
+      setSavedCell({ projectCode, field });
+      setTimeout(() => setSavedCell(null), 1500);
+    } catch (err) {
+      const rollbackUpdate = ['client', 'nome_time', 'lider'].includes(field)
+        ? { [field]: oldValue, [idFieldMap[field]]: oldValue }
+        : { [field]: oldValue };
+      setData(prev.map(row =>
+        row.project_code_norm === projectCode ? { ...row, ...rollbackUpdate } : row
+      ));
+      const errorMsg = err.response?.data?.error || err.message || 'Erro ao atualizar';
+      setErrorCell({ projectCode, field, message: errorMsg });
+      setTimeout(() => setErrorCell(null), 3000);
+    }
+  }, [data]);
 
   // Valores unicos para filtros
   const uniqueTimes = useMemo(() => {
@@ -321,22 +365,168 @@ export default function AreaPortfolioView() {
       );
     }
 
+    // Colunas editaveis pelo CS/admin
+    const code = row.project_code_norm;
+    const canEditCol = canEditPortfolio && CS_EDITABLE_COLUMNS.includes(col);
+    const isEditing = editingCell?.projectCode === code && editingCell?.field === col;
+    const justSaved = savedCell?.projectCode === code && savedCell?.field === col;
+    const cellError = errorCell?.projectCode === code && errorCell?.field === col ? errorCell : null;
+
+    // Status
     if (col === 'status') {
+      if (isEditing && canEditCol) {
+        return (
+          <td key={col}>
+            <StatusDropdown
+              value={val}
+              onChange={(newValue) => {
+                updatePortfolioField(code, col, newValue, val);
+              }}
+              inline
+              defaultOpen
+            />
+          </td>
+        );
+      }
+      const statusColor = getStatusColor(val);
+      return (
+        <td key={col} className={justSaved ? 'area-pf-just-saved' : ''}>
+          <span
+            className={`area-pf-status-badge${canEditCol ? ' area-pf-editable-cell' : ''}${cellError ? ' area-pf-has-error' : ''}`}
+            style={{
+              backgroundColor: `${statusColor}15`,
+              color: statusColor,
+              borderColor: `${statusColor}40`,
+            }}
+            onClick={canEditCol ? () => setEditingCell({ projectCode: code, field: col }) : undefined}
+            title={canEditCol ? 'Clique para editar' : undefined}
+          >
+            <span className="area-pf-status-dot" style={{ backgroundColor: statusColor }} />
+            {val || '-'}
+            {justSaved && <span className="area-pf-save-check">&#10003;</span>}
+          </span>
+          {cellError && <span className="area-pf-error-tooltip">{cellError.message}</span>}
+        </td>
+      );
+    }
+
+    // Client - dropdown com companies
+    if (col === 'client' && isEditing && canEditCol) {
       return (
         <td key={col}>
-          {val ? (
-            <span
-              className="area-pf-status-badge"
-              style={{
-                backgroundColor: `${getStatusColor(val)}15`,
-                color: getStatusColor(val),
-                borderColor: `${getStatusColor(val)}40`,
-              }}
-            >
-              <span className="area-pf-status-dot" style={{ backgroundColor: getStatusColor(val) }} />
-              {val}
-            </span>
-          ) : '-'}
+          <select
+            className="area-pf-inline-select"
+            defaultValue={row._company_id || ''}
+            autoFocus
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              const selectedName = editOptions?.companies?.find(c => String(c.id) === String(selectedId))?.name;
+              updatePortfolioField(code, col, selectedId || null, row._company_id, selectedName || '');
+            }}
+            onBlur={() => setEditingCell(null)}
+            onKeyDown={(e) => e.key === 'Escape' && setEditingCell(null)}
+          >
+            <option value="">Selecionar...</option>
+            {editOptions?.companies?.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </td>
+      );
+    }
+
+    // Time - dropdown com teams
+    if (col === 'nome_time' && isEditing && canEditCol) {
+      return (
+        <td key={col}>
+          <select
+            className="area-pf-inline-select"
+            defaultValue={row._team_id || ''}
+            autoFocus
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              const team = editOptions?.teams?.find(t => String(t.id) === String(selectedId));
+              const selectedName = team?.team_name || '';
+              updatePortfolioField(code, col, selectedId || null, row._team_id, selectedName);
+            }}
+            onBlur={() => setEditingCell(null)}
+            onKeyDown={(e) => e.key === 'Escape' && setEditingCell(null)}
+          >
+            <option value="">Sem time</option>
+            {editOptions?.teams?.map(t => (
+              <option key={t.id} value={t.id}>
+                {t.team_number ? `Time ${t.team_number} - ${t.team_name}` : t.team_name}
+              </option>
+            ))}
+          </select>
+        </td>
+      );
+    }
+
+    // Lider - dropdown com leaders
+    if (col === 'lider' && isEditing && canEditCol) {
+      return (
+        <td key={col}>
+          <select
+            className="area-pf-inline-select"
+            defaultValue={row._project_manager_id || ''}
+            autoFocus
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              const selectedName = editOptions?.leaders?.find(l => String(l.id) === String(selectedId))?.name;
+              updatePortfolioField(code, col, selectedId || null, row._project_manager_id, selectedName || '');
+            }}
+            onBlur={() => setEditingCell(null)}
+            onKeyDown={(e) => e.key === 'Escape' && setEditingCell(null)}
+          >
+            <option value="">Sem lider</option>
+            {editOptions?.leaders?.map(l => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </td>
+      );
+    }
+
+    // Comercial name - input texto
+    if (col === 'comercial_name' && isEditing && canEditCol) {
+      return (
+        <td key={col}>
+          <input
+            type="text"
+            className="area-pf-inline-input"
+            defaultValue={val || ''}
+            autoFocus
+            onBlur={(e) => {
+              const newVal = e.target.value.trim();
+              if (newVal !== (val || '')) {
+                updatePortfolioField(code, col, newVal, val);
+              } else {
+                setEditingCell(null);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.target.blur();
+              if (e.key === 'Escape') setEditingCell(null);
+            }}
+          />
+        </td>
+      );
+    }
+
+    // Celula editavel em modo visualizacao
+    if (canEditCol) {
+      return (
+        <td key={col} className={justSaved ? 'area-pf-just-saved' : ''}>
+          <span
+            className={`area-pf-editable-cell${cellError ? ' area-pf-has-error' : ''}`}
+            onClick={() => setEditingCell({ projectCode: code, field: col })}
+            title="Clique para editar"
+          >
+            {val || <span style={{ color: '#c0c0c0' }}>-</span>}
+            {justSaved && <span className="area-pf-save-check">&#10003;</span>}
+          </span>
+          {cellError && <span className="area-pf-error-tooltip">{cellError.message}</span>}
         </td>
       );
     }

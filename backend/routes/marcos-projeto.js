@@ -600,24 +600,14 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
         }
       }
 
-      // 3. Enrich with BigQuery in parallel (only for projects with smartsheetId/projectName)
-      const enrichmentPromises = projects
-        .filter(p => p.projectCode && (p.smartsheetId || p.projectName) && bigqueryClient?.queryCronograma)
-        .map(async (p) => {
-          try {
-            const tasks = await bigqueryClient.queryCronograma(p.smartsheetId || null, p.projectName || null);
-            return { projectCode: p.projectCode, tasks };
-          } catch {
-            return { projectCode: p.projectCode, tasks: [] };
-          }
-        });
-
-      const enrichmentResults = await Promise.allSettled(enrichmentPromises);
-      const tasksByProject = {};
-      for (const r of enrichmentResults) {
-        if (r.status === 'fulfilled' && r.value) {
-          tasksByProject[r.value.projectCode] = r.value.tasks;
-        }
+      // 3. Enrich with baseline dates (1 Supabase + 1 BigQuery query instead of N queries)
+      let baselineDatesByProject = new Map();
+      try {
+        const { SupabaseBaselineRepository } = await import('../infrastructure/repositories/SupabaseBaselineRepository.js');
+        const baselineRepo = new SupabaseBaselineRepository();
+        baselineDatesByProject = await baselineRepo.getLatestBaselineTaskDates(projectCodes);
+      } catch (err) {
+        console.warn('Aviso: Erro ao buscar baseline dates para marcos:', err.message);
       }
 
       // 4. Build result for each project
@@ -626,24 +616,15 @@ function createRoutes(requireAuth, isPrivileged, logAction, withBqCache, bigquer
         if (!pc) continue;
 
         const marcos = marcosByProject[pc] || [];
-        const tasks = tasksByProject[pc] || [];
+        const dates = baselineDatesByProject.get(pc);
 
-        // Build task lookup by rowId
-        const tasksByRowId = new Map();
-        tasks.forEach(t => {
-          if (t.rowId) tasksByRowId.set(String(t.rowId), t);
-        });
-
-        // Enrich each marco
+        // Enrich each marco with baseline data_termino
         const enrichedMarcos = marcos.map(marco => {
           const enriched = { ...marco };
-          if (marco.smartsheet_row_id) {
-            const task = tasksByRowId.get(String(marco.smartsheet_row_id));
-            if (task) {
-              enriched.smartsheet_status = task.Status || null;
-              enriched.smartsheet_data_termino = task.DataDeTermino || null;
-              enriched.smartsheet_variancia = task.VarianciaBaselineOtus != null
-                ? Number(task.VarianciaBaselineOtus) : null;
+          if (marco.smartsheet_row_id && dates) {
+            const dt = dates.get(String(marco.smartsheet_row_id));
+            if (dt) {
+              enriched.baseline_data_termino = dt;
             }
           }
           return enriched;
@@ -1184,5 +1165,5 @@ function normalizeStatus(status, variacaoDias) {
   return 'pendente';
 }
 
-export { createRoutes };
+export { createRoutes, sanitizeDate, normalizeStatus };
 export default router;

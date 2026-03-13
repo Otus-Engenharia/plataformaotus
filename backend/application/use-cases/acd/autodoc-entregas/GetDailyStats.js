@@ -11,8 +11,8 @@ class GetDailyStats {
     this.#repository = repository;
   }
 
-  async execute({ days = 7 } = {}) {
-    const stats = await this.#repository.getDailyStats({ days });
+  async execute({ days = 7, startDate, endDate } = {}) {
+    const stats = await this.#repository.getDailyStats({ days, startDate, endDate });
     const nameMap = await this.#repository.getProjectNameMap();
 
     const projectNames = {};

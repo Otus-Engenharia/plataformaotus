@@ -1,4 +1,5 @@
 import { getSupabaseServiceClient } from '../supabase.js';
+import { impersonationTokens } from '../routes/client-portal.js';
 
 export default async function requireClientAuth(req, res, next) {
   try {
@@ -8,6 +9,22 @@ export default async function requireClientAuth(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1];
+
+    // Check impersonation tokens first
+    const impersonation = impersonationTokens.get(token);
+    if (impersonation) {
+      if (impersonation.expiresAt < Date.now()) {
+        impersonationTokens.delete(token);
+        return res.status(401).json({ success: false, error: 'Token de impersonação expirado' });
+      }
+      req.clientUser = {
+        ...impersonation.contact,
+        isImpersonation: true,
+        isCompanyImpersonation: !!impersonation.contact.isCompanyImpersonation,
+        impersonatedBy: impersonation.createdBy,
+      };
+      return next();
+    }
 
     // Validate JWT via Supabase (reuse singleton service client)
     const supabase = getSupabaseServiceClient();

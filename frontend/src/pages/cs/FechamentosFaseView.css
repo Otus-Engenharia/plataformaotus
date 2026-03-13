@@ -73,7 +73,31 @@
 
 /* Timeline Table */
 .fechamentos-timeline-container {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #d3af00 #f3f4f6;
+}
+
+.fechamentos-timeline-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.fechamentos-timeline-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.fechamentos-timeline-container::-webkit-scrollbar-thumb {
+  background: #d3af00;
+  border-radius: 4px;
+}
+
+.fechamentos-timeline-container::-webkit-scrollbar-thumb:hover {
+  background: #b89600;
 }
 
 .fechamentos-timeline {
@@ -196,6 +220,17 @@
 .status-pendente .fechamentos-card-status { color: #d97706; }
 .status-andamento .fechamentos-card-status { color: #0369a1; }
 .status-concluido .fechamentos-card-status { color: #15803d; }
+
+/* Clickable cards */
+.fechamentos-card.clickable {
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.fechamentos-card.clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
 
 /* Loading/Empty */
 .fechamentos-loading,

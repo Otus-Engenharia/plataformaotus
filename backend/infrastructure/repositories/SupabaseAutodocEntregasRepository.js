@@ -22,25 +22,42 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
 
   // --- Documentos ---
 
-  // Calcula inicio do dia UTC N dias atras (meia-noite UTC, nao sliding window)
-  #startOfDayUTC(daysAgo) {
+  // Resolve date range: startDate/endDate explicitos ou fallback para days
+  // Usa offset -03:00 (Brasilia) para meia-noite local
+  #dateRangeFromOptions(options) {
+    const { startDate, endDate, days = 7 } = options;
+    if (startDate && endDate) {
+      return {
+        since: `${startDate}T00:00:00-03:00`,
+        until: `${endDate}T23:59:59.999-03:00`,
+      };
+    }
     const d = new Date();
-    d.setUTCDate(d.getUTCDate() - daysAgo);
-    d.setUTCHours(0, 0, 0, 0);
-    return d;
+    d.setDate(d.getDate() - days);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return {
+      since: `${y}-${m}-${dd}T00:00:00-03:00`,
+      until: null,
+    };
   }
 
   async findRecentDocuments(options = {}) {
-    const { days = 7, projectCode, classification, page = 1, limit = 50 } = options;
+    const { projectCode, classification, page = 1, limit = 50 } = options;
 
-    const since = this.#startOfDayUTC(days);
+    const { since, until } = this.#dateRangeFromOptions(options);
 
     let query = this.#supabase
       .from(DOCUMENTS_TABLE)
       .select('*', { count: 'exact' })
-      .gte('autodoc_created_at', since.toISOString())
+      .gte('autodoc_created_at', since)
       .neq('project_code', '__DISMISSED__')
       .order('autodoc_created_at', { ascending: false });
+
+    if (until) {
+      query = query.lte('autodoc_created_at', until);
+    }
 
     if (projectCode) {
       query = query.eq('project_code', projectCode);
@@ -76,6 +93,35 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
     }
 
     return (data || []).map(row => AutodocDocument.fromPersistence(row));
+  }
+
+  async findByDocumentCodes(documentCodes) {
+    if (!documentCodes.length) return new Map();
+
+    const uniqueCodes = [...new Set(documentCodes)];
+    const CHUNK = 500;
+    const result = new Map(); // code -> AutodocDocument[]
+
+    for (let i = 0; i < uniqueCodes.length; i += CHUNK) {
+      const chunk = uniqueCodes.slice(i, i + CHUNK);
+      const { data, error } = await this.#supabase
+        .from(DOCUMENTS_TABLE)
+        .select('*')
+        .in('document_code', chunk)
+        .order('autodoc_created_at', { ascending: false });
+
+      if (error) {
+        throw new Error(`Erro ao buscar por document_codes em batch: ${error.message}`);
+      }
+
+      for (const row of (data || [])) {
+        const code = row.document_code;
+        if (!result.has(code)) result.set(code, []);
+        result.get(code).push(AutodocDocument.fromPersistence(row));
+      }
+    }
+
+    return result;
   }
 
   async findExistingDatesByDocIds(docIds) {
@@ -188,15 +234,19 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
   // --- Resumo ---
 
   async getSummary(options = {}) {
-    const { days = 7 } = options;
+    const { since, until } = this.#dateRangeFromOptions(options);
 
-    const since = this.#startOfDayUTC(days);
-
-    const { data, error } = await this.#supabase
+    let query = this.#supabase
       .from(DOCUMENTS_TABLE)
       .select('project_code, classification, document_name, raw_size, discipline_name')
-      .gte('autodoc_created_at', since.toISOString())
+      .gte('autodoc_created_at', since)
       .neq('project_code', '__DISMISSED__');
+
+    if (until) {
+      query = query.lte('autodoc_created_at', until);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(`Erro ao buscar resumo: ${error.message}`);
@@ -229,15 +279,19 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
   // --- Estatísticas Diárias ---
 
   async getDailyStats(options = {}) {
-    const { days = 7 } = options;
+    const { since, until } = this.#dateRangeFromOptions(options);
 
-    const since = this.#startOfDayUTC(days);
-
-    const { data, error } = await this.#supabase
+    let query = this.#supabase
       .from(DOCUMENTS_TABLE)
       .select('project_code, autodoc_created_at')
-      .gte('autodoc_created_at', since.toISOString())
+      .gte('autodoc_created_at', since)
       .neq('project_code', '__DISMISSED__');
+
+    if (until) {
+      query = query.lte('autodoc_created_at', until);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(`Erro ao buscar stats diárias: ${error.message}`);
@@ -247,7 +301,8 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
     const dayMap = {};
 
     for (const row of rows) {
-      const date = row.autodoc_created_at.substring(0, 10);
+      const date = new Date(row.autodoc_created_at)
+        .toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
       if (!dayMap[date]) dayMap[date] = {};
       dayMap[date][row.project_code] = (dayMap[date][row.project_code] || 0) + 1;
     }
