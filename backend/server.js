@@ -656,7 +656,8 @@ app.get('/api/auth/user', requireAuth, async (req, res) => {
     const userOtus = await getUserOtusByEmail(req.user.email);
 
     // Sincroniza role e setor do banco para a sessão (caso tenha mudado no admin)
-    if (userOtus?.role && userOtus.role !== req.user.role) {
+    // NÃO sincronizar para sessões dev — preservar acesso total
+    if (userOtus?.role && userOtus.role !== req.user.role && !req.session.devUser) {
       req.user.role = userOtus.role;
     }
     if (userOtus?.setor?.name) {

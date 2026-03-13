@@ -12,7 +12,6 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, us
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OracleProvider, useOracle } from './contexts/OracleContext';
 import { PortfolioProvider } from './contexts/PortfolioContext';
-import { VistaClienteProvider } from './contexts/VistaClienteContext';
 import axios from 'axios';
 import { getSeenFeedbackIds } from './utils/feedbackSeenTracker';
 import { getSeenProjectCodes, initSeenProjects } from './utils/projectSeenTracker';
@@ -117,15 +116,10 @@ const WhiteboardView = lazy(() => import('./pages/whiteboard/WhiteboardView'));
 
 // Vista do Cliente
 const VistaClienteSelectView = lazy(() => import('./pages/vista-cliente/VistaClienteSelectView'));
-const VistaClienteInicioView = lazy(() => import('./pages/vista-cliente/VistaClienteInicioView'));
-const VistaClienteApontamentosView = lazy(() => import('./pages/vista-cliente/VistaClienteApontamentosView'));
-const VistaClienteMarcosView = lazy(() => import('./pages/vista-cliente/VistaClienteMarcosView'));
-const VistaClienteRelatosView = lazy(() => import('./pages/vista-cliente/VistaClienteRelatosView'));
-const VistaClienteAlteracoesView = lazy(() => import('./pages/vista-cliente/VistaClienteAlteracoesView'));
-const NpsClienteView = lazy(() => import('./pages/nps/NpsClienteView'));
 
-// Lideres - Marcos + Pesquisas CS
+// Lideres - Marcos + Pesquisas CS + Super Card
 const MarcosLiderView = lazy(() => import('./pages/lideres-projeto/MarcosLiderView'));
+const SuperCardProjetoView = lazy(() => import('./pages/lideres-projeto/SuperCardProjetoView'));
 const PesquisasLiderView = lazy(() => import('./pages/lideres/PesquisasLiderView'));
 
 // Economia de Horas
@@ -286,6 +280,11 @@ const icons = {
   whiteboard: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M3 3h18v14H3V3zm2 2v10h14V5H5zm-2 14h18v2H3v-2z" />
+    </svg>
+  ),
+  ddd: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 3h7v7H3V3zm2 2v3h3V5H5zm9-2h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h7v7h-7v-7zm2 2v3h3v-3h-3z" />
     </svg>
   ),
   vistaCliente: (
@@ -461,7 +460,7 @@ function Sidebar({ collapsed, onToggle, area }) {
   // Atualizar last_seen e limpar badge quando acessar feedbacks
   useEffect(() => {
     if (!user?.id) return;
-    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/gerenciar-feedbacks' || location.pathname.startsWith('/bug-reports')) {
+    if (location.pathname.startsWith('/feedbacks') || location.pathname === '/conf/gerenciar-feedbacks' || location.pathname.startsWith('/conf/bug-reports')) {
       localStorage.setItem(`feedbacks_last_seen_${user.id}`, new Date().toISOString());
       setFeedbackUpdatesCount(0);
     }
@@ -605,48 +604,48 @@ function Sidebar({ collapsed, onToggle, area }) {
   const projetosLinks = (
     <>
       <Link
-        to="/agenda"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/agenda') ? 'nav-link-active' : ''}`}
+        to="/proj/agenda"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/proj/agenda') ? 'nav-link-active' : ''}`}
         title={linkTitle('Agenda')}
       >
         <span className="nav-icon">{icons.agenda}</span>
         <span className="nav-text">Agenda</span>
       </Link>
       <Link
-        to="/todos"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/todos') ? 'nav-link-active' : ''}`}
+        to="/proj/todos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/proj/todos') ? 'nav-link-active' : ''}`}
         title={linkTitle("ToDo's")}
       >
         <span className="nav-icon">{icons.todos}</span>
         <span className="nav-text">ToDo's</span>
       </Link>
       <Link
-        to="/minhas-horas"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/minhas-horas') ? 'nav-link-active' : ''}`}
+        to="/proj/minhas-horas"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/proj/minhas-horas') ? 'nav-link-active' : ''}`}
         title={linkTitle('Minhas Horas')}
       >
         <span className="nav-icon">{icons.horas}</span>
         <span className="nav-text">Minhas Horas</span>
       </Link>
       <Link
-        to="/projetos"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/projetos') ? 'nav-link-active' : ''}`}
+        to="/proj/projetos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/proj/projetos') ? 'nav-link-active' : ''}`}
         title={linkTitle('Projetos')}
       >
         <span className="nav-icon">{icons.projetos}</span>
         <span className="nav-text">Projetos</span>
       </Link>
       <Link
-        to="/cs"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/cs') ? 'nav-link-active' : ''}`}
+        to="/proj/cs"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/proj/cs') ? 'nav-link-active' : ''}`}
         title={linkTitle('CS')}
       >
         <span className="nav-icon">{icons.cs}</span>
         <span className="nav-text">CS</span>
       </Link>
       <Link
-        to="/contatos"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/contatos') ? 'nav-link-active' : ''}`}
+        to="/proj/contatos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/proj/contatos') ? 'nav-link-active' : ''}`}
         title={linkTitle('Contatos')}
       >
         <span className="nav-icon">{icons.contatos}</span>
@@ -656,8 +655,8 @@ function Sidebar({ collapsed, onToggle, area }) {
         )}
       </Link>
       <Link
-        to="/demandas-apoio"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/demandas-apoio') ? 'nav-link-active' : ''}`}
+        to="/proj/demandas-apoio"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/proj/demandas-apoio') ? 'nav-link-active' : ''}`}
         title={linkTitle('Demandas Apoio')}
       >
         <span className="nav-icon">{icons.demandas}</span>
@@ -665,8 +664,8 @@ function Sidebar({ collapsed, onToggle, area }) {
       </Link>
       <div className="nav-section-divider"></div>
       <Link
-        to="/configuracoes-usuario"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/configuracoes-usuario') ? 'nav-link-active' : ''}`}
+        to="/proj/configuracoes-usuario"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/proj/configuracoes-usuario') ? 'nav-link-active' : ''}`}
         title={linkTitle('Configurações')}
       >
         <span className="nav-icon">{icons.settings}</span>
@@ -693,6 +692,14 @@ function Sidebar({ collapsed, onToggle, area }) {
       >
         <span className="nav-icon">{icons.projetos}</span>
         <span className="nav-text">Portfolio</span>
+      </Link>
+      <Link
+        to="/lideres-projeto/projetos"
+        className={`nav-link nav-link-modern ${location.pathname === '/lideres-projeto/projetos' ? 'nav-link-active' : ''}`}
+        title={linkTitle('Projetos')}
+      >
+        <span className="nav-icon">{icons.projetos}</span>
+        <span className="nav-text">Projetos</span>
       </Link>
       <Link
         to="/lideres-projeto/curva-s"
@@ -1012,59 +1019,6 @@ function Sidebar({ collapsed, onToggle, area }) {
     </>
   );
 
-  // Links para área de VISTA DO CLIENTE
-  const vistaClienteLinks = (
-    <>
-      <Link
-        to="/vista-cliente"
-        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Selecionar Cliente')}
-      >
-        <span className="nav-icon">{icons.vistaCliente}</span>
-        <span className="nav-text">Selecionar Cliente</span>
-      </Link>
-      <Link
-        to="/vista-cliente/apontamentos"
-        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/apontamentos' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Apontamentos')}
-      >
-        <span className="nav-icon">{icons.demandas}</span>
-        <span className="nav-text">Apontamentos</span>
-      </Link>
-      <Link
-        to="/vista-cliente/marcos"
-        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/marcos' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Marcos')}
-      >
-        <span className="nav-icon">{icons.indicadores}</span>
-        <span className="nav-text">Marcos</span>
-      </Link>
-      <Link
-        to="/vista-cliente/relatos"
-        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/relatos' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Relatos')}
-      >
-        <span className="nav-icon">{icons.feedbacks}</span>
-        <span className="nav-text">Relatos</span>
-      </Link>
-      <Link
-        to="/vista-cliente/alteracoes"
-        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/alteracoes' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Alterações')}
-      >
-        <span className="nav-icon">{icons.history}</span>
-        <span className="nav-text">Alterações</span>
-      </Link>
-      <Link
-        to="/vista-cliente/feedbacks-nps"
-        className={`nav-link nav-link-modern ${location.pathname === '/vista-cliente/feedbacks-nps' ? 'nav-link-active' : ''}`}
-        title={linkTitle('Feedbacks NPS')}
-      >
-        <span className="nav-icon">{icons.star}</span>
-        <span className="nav-text">Feedbacks NPS</span>
-      </Link>
-    </>
-  );
 
   // Links para área de WORKSPACE (Gestão de Tarefas)
   // Navegação simplificada - setores são gerenciados pelo drawer no WorkspaceView
@@ -1124,24 +1078,24 @@ function Sidebar({ collapsed, onToggle, area }) {
   const configuracoesLinks = (
     <>
       <Link
-        to="/acessos"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/acessos') ? 'nav-link-active' : ''}`}
+        to="/conf/acessos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/conf/acessos') ? 'nav-link-active' : ''}`}
         title={linkTitle('Acessos')}
       >
         <span className="nav-icon">{icons.acessos}</span>
         <span className="nav-text">Acessos</span>
       </Link>
       <Link
-        to="/logs"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/logs') ? 'nav-link-active' : ''}`}
+        to="/conf/logs"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/conf/logs') ? 'nav-link-active' : ''}`}
         title={linkTitle('Logs')}
       >
         <span className="nav-icon">{icons.settings}</span>
         <span className="nav-text">Logs</span>
       </Link>
       <Link
-        to="/bug-reports"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/bug-reports') ? 'nav-link-active' : ''}`}
+        to="/conf/bug-reports"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/conf/bug-reports') ? 'nav-link-active' : ''}`}
         title={linkTitle('Bug Reports')}
       >
         <span className="nav-icon">{icons.bugs}</span>
@@ -1151,8 +1105,8 @@ function Sidebar({ collapsed, onToggle, area }) {
         )}
       </Link>
       <Link
-        to="/gerenciar-feedbacks"
-        className={`nav-link nav-link-modern ${location.pathname === '/gerenciar-feedbacks' ? 'nav-link-active' : ''}`}
+        to="/conf/gerenciar-feedbacks"
+        className={`nav-link nav-link-modern ${location.pathname === '/conf/gerenciar-feedbacks' ? 'nav-link-active' : ''}`}
         title={linkTitle('Gerenciar Feedbacks')}
       >
         <span className="nav-icon">{icons.feedbacks}</span>
@@ -1162,8 +1116,8 @@ function Sidebar({ collapsed, onToggle, area }) {
         )}
       </Link>
       <Link
-        to="/auditoria-custos"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/auditoria-custos') ? 'nav-link-active' : ''}`}
+        to="/conf/auditoria-custos"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/conf/auditoria-custos') ? 'nav-link-active' : ''}`}
         title={linkTitle('Auditoria Custos')}
       >
         <span className="nav-icon">{icons.auditoria}</span>
@@ -1172,16 +1126,16 @@ function Sidebar({ collapsed, onToggle, area }) {
       {(isDev || isAdmin || isDirector) && (
         <>
           <Link
-            to="/indicadores-uso"
-            className={`nav-link nav-link-modern ${location.pathname.startsWith('/indicadores-uso') ? 'nav-link-active' : ''}`}
+            to="/conf/indicadores-uso"
+            className={`nav-link nav-link-modern ${location.pathname.startsWith('/conf/indicadores-uso') ? 'nav-link-active' : ''}`}
             title={linkTitle('Indicadores de Uso')}
           >
             <span className="nav-icon">{icons.indicadores}</span>
             <span className="nav-text">Indicadores de Uso</span>
           </Link>
           <Link
-            to="/compliance-horas"
-            className={`nav-link nav-link-modern ${location.pathname.startsWith('/compliance-horas') ? 'nav-link-active' : ''}`}
+            to="/conf/compliance-horas"
+            className={`nav-link nav-link-modern ${location.pathname.startsWith('/conf/compliance-horas') ? 'nav-link-active' : ''}`}
             title={linkTitle('Compliance de Horas')}
           >
             <span className="nav-icon">{icons.horas}</span>
@@ -1190,12 +1144,20 @@ function Sidebar({ collapsed, onToggle, area }) {
         </>
       )}
       <Link
-        to="/quadro"
-        className={`nav-link nav-link-modern ${location.pathname.startsWith('/quadro') ? 'nav-link-active' : ''}`}
+        to="/conf/quadro"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/conf/quadro') ? 'nav-link-active' : ''}`}
         title={linkTitle('Quadro')}
       >
         <span className="nav-icon">{icons.whiteboard}</span>
         <span className="nav-text">Quadro</span>
+      </Link>
+      <Link
+        to="/conf/ddd"
+        className={`nav-link nav-link-modern ${location.pathname.startsWith('/conf/ddd') ? 'nav-link-active' : ''}`}
+        title={linkTitle('DDD')}
+      >
+        <span className="nav-icon">{icons.ddd}</span>
+        <span className="nav-text">DDD</span>
       </Link>
     </>
   );
@@ -1396,7 +1358,6 @@ function Sidebar({ collapsed, onToggle, area }) {
         {area === 'indicadores' && indicadoresIndLinks}
         {area === 'okrs' && okrsLinks}
         {area === 'workspace' && workspaceLinks}
-        {area === 'vista_cliente' && vistaClienteLinks}
       </nav>
       <button
         type="button"
@@ -1473,8 +1434,8 @@ function Sidebar({ collapsed, onToggle, area }) {
           </div>
           {(isAdmin || isDirector) && (
             <Link
-              to="/acessos"
-              className={`nav-logout-button nav-button-secondary ${location.pathname === '/acessos' ? 'nav-button-active' : ''} ${collapsed ? 'nav-icon-only' : ''}`}
+              to="/conf/acessos"
+              className={`nav-logout-button nav-button-secondary ${location.pathname === '/conf/acessos' ? 'nav-button-active' : ''} ${collapsed ? 'nav-icon-only' : ''}`}
               title={linkTitle('Configurações')}
             >
               <span className="nav-button-icon">{icons.settings}</span>
@@ -1630,17 +1591,10 @@ function AppContent() {
       const areaParam = new URLSearchParams(location.search).get('area');
       return areaParam || 'configuracoes';
     }
-    if (path.startsWith('/projetos') ||
-        path.startsWith('/cs') ||
-        path.startsWith('/contatos') ||
-        path.startsWith('/demandas-apoio') ||
-        path.startsWith('/agenda') ||
-        path.startsWith('/todos') ||
-        path.startsWith('/configuracoes-usuario') ||
-        path.startsWith('/minhas-horas')) {
+    if (path.startsWith('/proj')) {
       return 'projetos';
     }
-    if (path.startsWith('/acessos') || path.startsWith('/logs') || path.startsWith('/bug-reports') || path.startsWith('/gerenciar-feedbacks') || path.startsWith('/auditoria-custos') || path.startsWith('/quadro')) {
+    if (path.startsWith('/conf')) {
       return 'configuracoes';
     }
     if (path.startsWith('/ind')) {
@@ -1656,9 +1610,9 @@ function AppContent() {
   };
   
   const currentArea = getCurrentArea();
-  const showSidebar = !isHomeRoute && currentArea !== null;
+  const showSidebar = !isHomeRoute && currentArea !== null && currentArea !== 'vista_cliente';
   const showTopBar = !isHomeRoute;
-  const isWideContentRoute = location.pathname.startsWith('/projetos')
+  const isWideContentRoute = location.pathname.startsWith('/proj/projetos')
     || location.pathname.startsWith('/lideres-projeto')
     || location.pathname.startsWith('/vista-cliente');
 
@@ -1722,7 +1676,7 @@ function AppContent() {
             area={currentArea}
           />
         )}
-        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/agenda') && !location.pathname.startsWith('/quadro') && !location.pathname.startsWith('/todos') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/agenda') || location.pathname.startsWith('/todos') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
+        <main className={`main-content ${showSidebar && !location.pathname.startsWith('/proj/agenda') && !location.pathname.startsWith('/conf/quadro') && !location.pathname.startsWith('/conf/ddd') && !location.pathname.startsWith('/proj/todos') ? 'main-content-sidebar' : ''} ${location.pathname.startsWith('/proj/agenda') || location.pathname.startsWith('/proj/todos') ? 'main-content-fullbleed' : ''} ${isWideContentRoute ? 'main-content-wide' : ''} ${isOracleOpen ? 'oracle-adjusted' : ''}`}>
           <Routes>
             {/* Redirect antigo /indicadores-lideranca para nova área */}
             <Route
@@ -1745,6 +1699,11 @@ function AppContent() {
               <Route index element={<Navigate to="indicadores" replace />} />
               <Route path="indicadores" element={<IndicadoresView />} />
               <Route path="portfolio" element={<PortfolioView />} />
+              <Route path="projetos" element={
+                <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                  <SuperCardProjetoView />
+                </Suspense>
+              } />
               <Route path="curva-s" element={<CurvaSView />} />
               <Route path="baselines" element={<BaselinesView />} />
               <Route path="solicitacoes" element={<SolicitacoesView />} />
@@ -1883,23 +1842,13 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   {canAccessVistaClienteArea ? (
-                    <VistaClienteProvider>
-                      <Suspense fallback={<div className="loading-page">Carregando...</div>}>
-                        <Outlet />
-                      </Suspense>
-                    </VistaClienteProvider>
+                    <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                      <VistaClienteSelectView />
+                    </Suspense>
                   ) : <Navigate to="/home" replace />}
                 </ProtectedRoute>
               }
-            >
-              <Route index element={<VistaClienteSelectView />} />
-              <Route path="inicio" element={<VistaClienteInicioView />} />
-              <Route path="apontamentos" element={<VistaClienteApontamentosView />} />
-              <Route path="marcos" element={<VistaClienteMarcosView />} />
-              <Route path="relatos" element={<VistaClienteRelatosView />} />
-              <Route path="alteracoes" element={<VistaClienteAlteracoesView />} />
-              <Route path="feedbacks-nps" element={<NpsClienteView />} />
-            </Route>
+            />
             <Route
               path="/horas"
               element={<Navigate to="/lideres-projeto/horas" replace />}
@@ -1926,7 +1875,7 @@ function AppContent() {
               <Route path="historico" element={<HistoryOKRs />} />
             </Route>
             <Route
-              path="/projetos"
+              path="/proj/projetos"
               element={
                 <ProtectedRoute>
                   {canAccessProjetosArea ? (
@@ -1938,7 +1887,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/cs"
+              path="/proj/cs"
               element={
                 <ProtectedRoute>
                   {canAccessProjetosArea ? <CSView /> : <Navigate to="/ind" replace />}
@@ -1947,10 +1896,10 @@ function AppContent() {
             />
             <Route
               path="/estudo-de-custos"
-              element={<Navigate to="/cs" replace state={{ tab: 'estudo-custos' }} />}
+              element={<Navigate to="/proj/cs" replace state={{ tab: 'estudo-custos' }} />}
             />
             <Route
-              path="/contatos"
+              path="/proj/contatos"
               element={
                 <ProtectedRoute>
                   {canAccessProjetosArea ? <ContatosView /> : <Navigate to="/ind" replace />}
@@ -1973,7 +1922,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/demandas-apoio"
+              path="/proj/demandas-apoio"
               element={
                 <ProtectedRoute>
                   {canAccessProjetosArea ? (
@@ -1985,7 +1934,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/agenda"
+              path="/proj/agenda"
               element={
                 <ProtectedRoute>
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
@@ -1995,7 +1944,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/todos"
+              path="/proj/todos"
               element={
                 <ProtectedRoute>
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
@@ -2015,7 +1964,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/configuracoes-usuario"
+              path="/proj/configuracoes-usuario"
               element={
                 <ProtectedRoute>
                   <Suspense fallback={<div className="loading-page">Carregando...</div>}>
@@ -2025,7 +1974,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/minhas-horas"
+              path="/proj/minhas-horas"
               element={
                 <ProtectedRoute>
                   <MinhasHorasView />
@@ -2033,7 +1982,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/gerenciar-feedbacks"
+              path="/conf/gerenciar-feedbacks"
               element={
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? (
@@ -2063,7 +2012,7 @@ function AppContent() {
               <Route path="setor/:sectorId" element={<Navigate to="/workspace" replace />} />
             </Route>
             <Route
-              path="/acessos"
+              path="/conf/acessos"
               element={
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? <ConfiguracoesView /> : <Navigate to="/ind" replace />}
@@ -2071,7 +2020,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/logs"
+              path="/conf/logs"
               element={
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? <LogsView /> : <Navigate to="/ind" replace />}
@@ -2079,7 +2028,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/bug-reports"
+              path="/conf/bug-reports"
               element={
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? (
@@ -2091,7 +2040,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/auditoria-custos"
+              path="/conf/auditoria-custos"
               element={
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? <AuditoriaCustosView /> : <Navigate to="/ind" replace />}
@@ -2099,7 +2048,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/indicadores-uso"
+              path="/conf/indicadores-uso"
               element={
                 <ProtectedRoute>
                   {(hasFullAccess || isLeader) ? <UsageIndicatorsView /> : <Navigate to="/ind" replace />}
@@ -2107,7 +2056,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/compliance-horas"
+              path="/conf/compliance-horas"
               element={
                 <ProtectedRoute>
                   {(hasFullAccess || isLeader) ? <ComplianceHorasView /> : <Navigate to="/ind" replace />}
@@ -2115,7 +2064,7 @@ function AppContent() {
               }
             />
             <Route
-              path="/quadro"
+              path="/conf/quadro"
               element={
                 <ProtectedRoute>
                   {canAccessConfiguracoesArea ? (
@@ -2126,6 +2075,34 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/conf/ddd"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="loading-page">Carregando...</div>}>
+                    <WhiteboardView boardId="ddd" />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            {/* Redirects de compatibilidade - rotas flat antigas */}
+            <Route path="/acessos" element={<Navigate to="/conf/acessos" replace />} />
+            <Route path="/logs" element={<Navigate to="/conf/logs" replace />} />
+            <Route path="/bug-reports" element={<Navigate to="/conf/bug-reports" replace />} />
+            <Route path="/gerenciar-feedbacks" element={<Navigate to="/conf/gerenciar-feedbacks" replace />} />
+            <Route path="/auditoria-custos" element={<Navigate to="/conf/auditoria-custos" replace />} />
+            <Route path="/indicadores-uso" element={<Navigate to="/conf/indicadores-uso" replace />} />
+            <Route path="/compliance-horas" element={<Navigate to="/conf/compliance-horas" replace />} />
+            <Route path="/quadro" element={<Navigate to="/conf/quadro" replace />} />
+            <Route path="/ddd" element={<Navigate to="/conf/ddd" replace />} />
+            <Route path="/projetos" element={<Navigate to="/proj/projetos" replace />} />
+            <Route path="/cs" element={<Navigate to="/proj/cs" replace />} />
+            <Route path="/contatos" element={<Navigate to="/proj/contatos" replace />} />
+            <Route path="/demandas-apoio" element={<Navigate to="/proj/demandas-apoio" replace />} />
+            <Route path="/agenda" element={<Navigate to="/proj/agenda" replace />} />
+            <Route path="/todos" element={<Navigate to="/proj/todos" replace />} />
+            <Route path="/configuracoes-usuario" element={<Navigate to="/proj/configuracoes-usuario" replace />} />
+            <Route path="/minhas-horas" element={<Navigate to="/proj/minhas-horas" replace />} />
             {/* Área de Indicadores Individuais */}
             <Route
               path="/ind"
@@ -2155,9 +2132,9 @@ function AppContent() {
           {/* Oraculo - Assistente LMM (disponível em todas as páginas exceto Home) */}
           {showOracle && <OracleChat />}
           {/* ToDo Create FAB - disponível em todo o espaço Projetos */}
-          {(location.pathname.startsWith('/projetos') ||
-            location.pathname.startsWith('/todos') ||
-            location.pathname.startsWith('/agenda')) && <TodoCreateFAB />}
+          {(location.pathname.startsWith('/proj/projetos') ||
+            location.pathname.startsWith('/proj/todos') ||
+            location.pathname.startsWith('/proj/agenda')) && <TodoCreateFAB />}
           {/* Relato Create FAB - criar relatos rapidamente (não na Vista Cliente) */}
           {!isVistaClienteRoute && <RelatoCreateFAB />}
           {/* Bug Report FAB - disponível em todas as páginas exceto Home/Login */}

@@ -15,6 +15,7 @@ import {
   ManageProjectMappings,
   DiscoverAutodocProjects,
   GetDailyStats,
+  GetSyncDiagnostics,
 } from '../application/use-cases/acd/autodoc-entregas/index.js';
 
 const router = express.Router();
@@ -56,8 +57,9 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    */
   router.get('/recent', requireAuth, async (req, res) => {
     try {
-      const { days = 7, projectCode, classification, page = 1, limit = 50 } = req.query;
+      const { days = 7, projectCode, classification, page = 1, limit = 50, filterBy } = req.query;
       const dateRange = parseDateRange(req.query);
+      const validFilterBy = ['created', 'synced'].includes(filterBy) ? filterBy : 'created';
       const useCase = new ListRecentEntregas(getRepository());
       const result = await useCase.execute({
         days: Number(days),
@@ -66,6 +68,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
         classification: classification || undefined,
         page: Number(page),
         limit: Number(limit),
+        filterBy: validFilterBy,
       });
       res.json({ success: true, ...result });
     } catch (error) {

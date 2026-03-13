@@ -45,3 +45,14 @@ Thumbs.db
 # Temporary/debug artifacts
 cookies.txt
 nul
+
+# Screenshots e debug na raiz
+/*.png
+/*.txt
+!README.md
+
+# Diretórios temporários
+video/
+.playwright-mcp/
+.agent/
+supabase/.temp/

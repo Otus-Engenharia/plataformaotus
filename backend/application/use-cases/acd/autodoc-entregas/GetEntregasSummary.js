@@ -10,8 +10,8 @@ class GetEntregasSummary {
     this.#repository = repository;
   }
 
-  async execute({ days = 7, startDate, endDate }) {
-    return this.#repository.getSummary({ days, startDate, endDate });
+  async execute({ days = 7, startDate, endDate, filterBy = 'created' }) {
+    return this.#repository.getSummary({ days, startDate, endDate, filterBy });
   }
 }
 

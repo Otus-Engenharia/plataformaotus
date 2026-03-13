@@ -110,9 +110,8 @@ export function AuthProvider({ children }) {
     try {
       const response = await axios.post(`${API_URL}/api/auth/dev-login`, { role });
       if (response.data.success) {
-        setUser(response.data.user);
-        // Buscar vistas efetivas e áreas acessíveis após dev login
-        await Promise.all([fetchEffectiveViews(), fetchAccessibleAreas()]);
+        // checkAuth busca user completo via /api/auth/user (com permissões)
+        await checkAuth();
         return true;
       }
       return false;
