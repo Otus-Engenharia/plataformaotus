@@ -1246,7 +1246,8 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
       'dod_id', 'escopo_entregas_id', 'smartsheet_id', 'discord_id',
       'capa_email_url', 'gantt_email_url', 'disciplina_email_url',
       'construflow_disciplinasclientes',
-      'plataforma_comunicacao', 'plataforma_acd'
+      'plataforma_comunicacao', 'plataforma_acd',
+      'portal_cliente_status'
     ];
 
     if (!allowedToolFields.includes(field)) {

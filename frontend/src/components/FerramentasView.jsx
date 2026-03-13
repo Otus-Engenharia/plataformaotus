@@ -21,6 +21,7 @@ import '../styles/WeeklyReport.css';
 const TOGGLE_TOOLS = [
   { key: 'bot_whatsapp_status', name: 'WhatsApp' },
   { key: 'relatorio_semanal_status', name: 'Relatório Semanal' },
+  { key: 'portal_cliente_status', name: 'Portal do Cliente' },
 ];
 
 // Ferramentas em desenvolvimento (botões desabilitados)
@@ -112,6 +113,7 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
   const [wrReportId, setWrReportId] = useState(null);
   const [relatosDias, setRelatosDias] = useState(7);
   const [relatosCustomInput, setRelatosCustomInput] = useState('');
+  const [wrExistsForWeek, setWrExistsForWeek] = useState(false);
 
   // Prerequisites state
   const [prerequisites, setPrerequisites] = useState(null);
@@ -416,7 +418,7 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
     setWrReady(ready);
   }, []);
 
-  const handleGenerateReport = async () => {
+  const handleGenerateReport = async (forceRegenerate = false) => {
     const projectCode = getProjectCode();
     if (!projectCode || wrGenerating) return;
 
@@ -426,7 +428,7 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
     try {
       const response = await axios.post(
         `${API_URL}/api/weekly-reports/generate`,
-        { projectCode, options: { relatosDias } },
+        { projectCode, options: { relatosDias, force: forceRegenerate } },
         { withCredentials: true }
       );
       setWrReportId(response.data.data?.id || response.data.reportId);
@@ -456,6 +458,34 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
       setWrReady(res.data?.data?.ready === true || res.data?.ready === true);
     }).catch(() => {
       setWrReady(false);
+    });
+
+    // Check if report already exists for current week
+    axios.get(
+      `${API_URL}/api/weekly-reports/history/${projectCode}?limit=1`,
+      { withCredentials: true }
+    ).then(res => {
+      const reports = res.data?.data || res.data?.reports || [];
+      if (reports.length > 0) {
+        const latest = reports[0];
+        // Check if latest report is from current ISO week
+        const now = new Date();
+        const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const currentWeek = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        const currentYear = d.getUTCFullYear();
+        setWrExistsForWeek(
+          latest.week_number === currentWeek &&
+          latest.week_year === currentYear &&
+          latest.status === 'completed'
+        );
+      } else {
+        setWrExistsForWeek(false);
+      }
+    }).catch(() => {
+      setWrExistsForWeek(false);
     });
   }, [selectedProject, isRelatorioAtivo]);
 
@@ -688,6 +718,47 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                               <td className="wr-status-table-center">
                                 <span className={`wr-kpi-pill ${hasPranchas ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
                                   {hasPranchas ? 'Preenchido' : 'Não preenchido'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {/* Seção: Portal do Cliente */}
+              {activeProjects.length > 0 && (
+                <section className="ftv-section">
+                  <h4 className="ftv-section-title">Portal do Cliente <span className="ftv-bot-status-badge">{activeProjects.length}</span></h4>
+                  <div className="wr-status-table-wrapper">
+                    <table className="wr-status-table">
+                      <thead>
+                        <tr>
+                          <th>Projeto</th>
+                          <th className="wr-status-table-center">Portal do Cliente</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeProjects.map((project) => {
+                          const isSelected = project.project_code_norm === selectedProjectId;
+                          const portalAtivo = project.portal_cliente_status !== 'desativado';
+                          return (
+                            <tr
+                              key={project.project_code_norm}
+                              className={isSelected ? 'wr-status-row-current' : ''}
+                            >
+                              <td>
+                                <div className="wr-status-project-name">
+                                  {project.nome_comercial || project.project_name || project.project_code_norm}
+                                </div>
+                                <div className="wr-status-project-code">{project.project_code_norm}</div>
+                              </td>
+                              <td className="wr-status-table-center">
+                                <span className={`wr-kpi-pill ${portalAtivo ? 'wr-kpi-pill-green' : 'wr-kpi-pill-red'}`}>
+                                  {portalAtivo ? 'Ativo' : 'Desativado'}
                                 </span>
                               </td>
                             </tr>
@@ -1040,7 +1111,7 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                     <div className="wr-generate-area">
                       <button
                         className={`wr-generate-btn wr-generate-btn-primary ${wrGenerating ? 'wr-generate-btn-loading' : ''}`}
-                        onClick={handleGenerateReport}
+                        onClick={() => handleGenerateReport(wrExistsForWeek)}
                         disabled={wrGenerating}
                       >
                         {wrGenerating ? (
@@ -1049,6 +1120,14 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                             </svg>
                             Gerando...
+                          </>
+                        ) : wrExistsForWeek ? (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="1 4 1 10 7 10" />
+                              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                            </svg>
+                            Regerar Relatório Semanal
                           </>
                         ) : (
                           <>
@@ -1063,6 +1142,9 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                           </>
                         )}
                       </button>
+                      {wrExistsForWeek && !wrGenerating && (
+                        <p className="wr-regenerate-hint">Relatório anterior será mantido como histórico</p>
+                      )}
                     </div>
 
                     {/* Pipeline progress */}
