@@ -236,6 +236,76 @@ class SupabaseBaselineRepository extends BaselineRepository {
   }
 
   // =====================
+  // Batch queries (marcos enrichment)
+  // =====================
+
+  /**
+   * Busca data_termino da última baseline ativa para múltiplos projetos de uma vez.
+   * Retorna Map: projectCode → Map(row_number_string → data_termino_string)
+   */
+  async getLatestBaselineTaskDates(projectCodes) {
+    if (!projectCodes || projectCodes.length === 0) return new Map();
+
+    // 1. Buscar últimas baselines ativas por projeto (Supabase)
+    const { data, error } = await this.#supabase
+      .from(BASELINES_TABLE)
+      .select('id, project_code, revision_number')
+      .in('project_code', projectCodes)
+      .eq('is_active', true)
+      .order('revision_number', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar baselines para marcos:', error.message);
+      return new Map();
+    }
+
+    // Pegar o mais recente (maior revision_number) por project_code
+    const latestByProject = {};
+    for (const bl of (data || [])) {
+      if (!latestByProject[bl.project_code]) {
+        latestByProject[bl.project_code] = bl;
+      }
+    }
+
+    const baselines = Object.values(latestByProject);
+    if (baselines.length === 0) return new Map();
+
+    const baselineIds = baselines.map(b => b.id);
+
+    // 2. BigQuery: buscar row_number + data_termino dos snapshots (query única)
+    const idList = baselineIds.map(id => `'${id}'`).join(',');
+    const query = `
+      SELECT baseline_id, project_code, row_number, data_termino
+      FROM \`${BQ_PROJECT}.${BQ_DATASET}.${BQ_SNAPSHOTS_TABLE}\`
+      WHERE baseline_id IN (${idList})
+        AND row_number IS NOT NULL
+        AND data_termino IS NOT NULL
+    `;
+
+    try {
+      const [job] = await this.#bigquery.createQueryJob({
+        query,
+        location: BQ_LOCATION,
+      });
+      const [rows] = await job.getQueryResults();
+
+      // 3. Mapear: projectCode → Map(row_number → data_termino)
+      const result = new Map();
+      for (const row of rows) {
+        const pc = row.project_code;
+        if (!result.has(pc)) result.set(pc, new Map());
+        const rowNum = String(row.row_number);
+        const dt = row.data_termino?.value || row.data_termino;
+        result.get(pc).set(rowNum, dt);
+      }
+      return result;
+    } catch (err) {
+      console.error('Erro ao buscar snapshots para marcos:', err.message);
+      return new Map();
+    }
+  }
+
+  // =====================
   // Helpers
   // =====================
 

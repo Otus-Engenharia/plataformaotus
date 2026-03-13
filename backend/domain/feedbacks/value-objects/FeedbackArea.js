@@ -15,6 +15,7 @@ const VALID_AREAS = Object.freeze({
   INDICADORES: 'indicadores',
   OKRS: 'okrs',
   CONFIGURACOES: 'configuracoes',
+  PORTAL_CLIENTE: 'portal_cliente',
 });
 
 const AREA_LABELS = Object.freeze({
@@ -29,6 +30,7 @@ const AREA_LABELS = Object.freeze({
   [VALID_AREAS.INDICADORES]: 'Indicadores',
   [VALID_AREAS.OKRS]: 'OKRs',
   [VALID_AREAS.CONFIGURACOES]: 'Configurações',
+  [VALID_AREAS.PORTAL_CLIENTE]: 'Portal do Cliente',
 });
 
 class FeedbackArea {

@@ -478,6 +478,44 @@
   transition: background-color 1.5s ease;
 }
 
+/* ── Editable Cell (generic) ── */
+.area-pf-editable-cell {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+  transition: background-color 0.15s;
+}
+.area-pf-editable-cell:hover {
+  background-color: #f3f4f6;
+}
+
+/* ── Inline Input (text) ── */
+.area-pf-inline-input {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 0.82rem;
+  font-family: 'Inter', Verdana, sans-serif;
+  border: 1.5px solid #ffdd00;
+  border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.25);
+  background: #fff;
+  color: #1a1a1a;
+}
+
+/* ── Error state ── */
+.area-pf-has-error {
+  background-color: rgba(220, 38, 38, 0.08) !important;
+}
+
+.area-pf-error-tooltip {
+  display: block;
+  font-size: 0.7rem;
+  color: #dc2626;
+  margin-top: 2px;
+  animation: area-pf-fade-out 3s ease forwards;
+}
+
 /* ── Loading / Error / Empty ── */
 .area-pf-loading {
   display: flex;

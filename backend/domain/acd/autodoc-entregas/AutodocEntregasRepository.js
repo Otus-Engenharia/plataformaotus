@@ -16,6 +16,10 @@ class AutodocEntregasRepository {
     throw new Error('Metodo findByDocumentCode deve ser implementado');
   }
 
+  async findByDocumentCodes(documentCodes) {
+    throw new Error('Metodo findByDocumentCodes deve ser implementado');
+  }
+
   async upsertDocuments(documents) {
     throw new Error('Metodo upsertDocuments deve ser implementado');
   }

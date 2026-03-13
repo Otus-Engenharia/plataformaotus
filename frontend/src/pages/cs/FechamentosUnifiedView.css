@@ -1,0 +1,124 @@
+.fechamentos-unified {
+  padding: 24px;
+}
+
+.fechamentos-unified-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.fechamentos-unified-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 4px 0;
+}
+
+.fechamentos-unified-header .fechamentos-unified-subtitle {
+  color: #737373;
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Tab bar — follows alocacao-tabs pattern */
+.fechamentos-unified-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0;
+}
+
+.fechamentos-unified-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #737373;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -1px;
+}
+
+.fechamentos-unified-tab:hover {
+  color: #1a1a1a;
+}
+
+.fechamentos-unified-tab.active {
+  color: #d3af00;
+  border-bottom-color: #ffdd00;
+}
+
+.fechamentos-unified-tab .tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: #f3f4f6;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #737373;
+}
+
+.fechamentos-unified-tab.active .tab-count {
+  background: #fffbeb;
+  color: #d3af00;
+}
+
+/* Tab content containers with styled scrollbars */
+.fechamentos-unified-content {
+  overflow: auto;
+  max-height: calc(100vh - 260px);
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #d3af00 #f3f4f6;
+}
+
+/* Webkit scrollbar */
+.fechamentos-unified-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.fechamentos-unified-content::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.fechamentos-unified-content::-webkit-scrollbar-thumb {
+  background: #d3af00;
+  border-radius: 4px;
+}
+
+.fechamentos-unified-content::-webkit-scrollbar-thumb:hover {
+  background: #b89600;
+}
+
+/* Embedded overrides */
+.pesquisas-embedded {
+  padding: 0 !important;
+}
+
+.pesquisas-embedded .pesquisas-header {
+  display: none;
+}
+
+.fechamentos-embedded {
+  padding: 0 !important;
+}
+
+.fechamentos-embedded > h1,
+.fechamentos-embedded > .fechamentos-subtitle {
+  display: none;
+}
