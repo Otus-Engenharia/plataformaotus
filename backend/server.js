@@ -417,6 +417,23 @@ function getEffectiveUser(req) {
 }
 
 /**
+ * Verifica se o usuário pode editar o Super Card.
+ * Permite edição para quem tem canEditPortfolio OU acesso à área 'lideres' via módulos.
+ */
+async function canEditSuperCard(req) {
+  const effectiveUser = getEffectiveUser(req);
+  if (canEditPortfolio(effectiveUser)) return true;
+  try {
+    const userOtus = await getUserOtusByEmail(effectiveUser.email);
+    const accessLevel = getUserAccessLevel(getUserRole(effectiveUser));
+    const modules = await fetchModulesForUser(effectiveUser.email, accessLevel, userOtus?.setor_id);
+    return modules.some(m => m.area === 'lideres');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Middleware de logging
  * Registra ações dos usuários automaticamente
  */
@@ -1090,7 +1107,7 @@ app.get('/api/portfolio/summary', requireAuth, async (req, res) => {
  */
 app.get('/api/portfolio/edit-options', requireAuth, withBqCache(1800), async (req, res) => {
   try {
-    if (!canEditPortfolio(req.user)) {
+    if (!await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
     const data = await fetchPortfolioEditOptions();
@@ -1108,7 +1125,7 @@ app.get('/api/portfolio/edit-options', requireAuth, withBqCache(1800), async (re
  */
 app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
   try {
-    if (!canEditPortfolio(req.user)) {
+    if (!await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1192,7 +1209,7 @@ app.put('/api/portfolio/:projectCode', requireAuth, async (req, res) => {
  */
 app.put('/api/projetos/cs-responsavel', requireAuth, async (req, res) => {
   try {
-    if (!canEditPortfolio(req.user)) {
+    if (!await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1238,7 +1255,7 @@ app.put('/api/portfolio/:projectCode/tools', requireAuth, async (req, res) => {
 
     // Campos que qualquer usuario autenticado pode editar
     const publicToolFields = ['plataforma_comunicacao', 'plataforma_acd'];
-    if (!publicToolFields.includes(field) && !canEditPortfolio(req.user)) {
+    if (!publicToolFields.includes(field) && !await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -1301,7 +1318,7 @@ app.get('/api/portfolio/:projectCode/detail', requireAuth, async (req, res) => {
  */
 app.put('/api/portfolio/:projectCode/comercial', requireAuth, async (req, res) => {
   try {
-    if (!canEditPortfolio(req.user)) {
+    if (!await canEditSuperCard(req)) {
       return res.status(403).json({ success: false, error: 'Acesso negado' });
     }
 
@@ -2850,6 +2867,7 @@ app.get('/api/cs/fechamentos-fase', requireAuth, withBqCache(3600), async (req, 
         byProject[key] = {
           project_code: row.project_code_norm || null,
           project_name: row.project_name || row.NomeDaPlanilha,
+          smartsheet_id: row.ID_Projeto || null,
           fechamentos: [],
         };
       }

@@ -1,0 +1,960 @@
+/**
+ * Estilos do Super Card - Vista Completa do Projeto
+ * Rota: /lideres-projeto/projetos
+ * Hero card, KPI cards, editable fields, collapsible sections,
+ * toggles, multi-select, link fields
+ */
+
+/* ============================= */
+/* Page & Selector               */
+/* ============================= */
+
+.scv-page {
+  width: 100%;
+  min-height: 100%;
+}
+
+.scv-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.scv-selector-filters {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.scv-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scv-filter-group-project {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.scv-selector-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Inter', Verdana, sans-serif;
+  flex-shrink: 0;
+}
+
+.scv-filter-dropdown {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  background: #fff;
+  outline: none;
+  transition: border-color 200ms ease;
+  min-width: 140px;
+}
+
+.scv-filter-dropdown:focus {
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
+}
+
+.scv-selector-dropdown {
+  flex: 1;
+  max-width: 600px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  background: #fff;
+  outline: none;
+  transition: border-color 200ms ease;
+}
+
+.scv-selector-dropdown:focus {
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
+}
+
+/* ============================= */
+/* Container & Estados           */
+/* ============================= */
+
+.scv-container {
+  width: 100%;
+  padding: 1.5rem 2rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #ffdd00 transparent;
+}
+
+.scv-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scv-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scv-container::-webkit-scrollbar-thumb {
+  background: #ffdd00;
+  border-radius: 3px;
+}
+
+.scv-container::-webkit-scrollbar-thumb:hover {
+  background: #d3af00;
+}
+
+.scv-empty,
+.scv-error {
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #999;
+  font-family: 'Inter', Verdana, sans-serif;
+  font-size: 0.9rem;
+}
+
+.scv-error {
+  color: #ef4444;
+}
+
+/* ============================= */
+/* Hero Card                     */
+/* ============================= */
+
+.scv-hero {
+  position: relative;
+  background: linear-gradient(145deg, #fffef5 0%, #fffdf0 25%, #ffffff 70%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-left: 5px solid #ffdd00;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scv-hero:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+.scv-hero-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, #ffdd00, transparent);
+  opacity: 0.35;
+  transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scv-hero:hover .scv-hero-glow {
+  opacity: 1;
+}
+
+.scv-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.scv-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.scv-hero-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Inter', Verdana, sans-serif;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.scv-hero-editable-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+/* ============================= */
+/* Status Badge                  */
+/* ============================= */
+
+.scv-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'Inter', Verdana, sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.scv-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Active */
+.scv-status-active {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+.scv-status-active .scv-status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+/* Paused */
+.scv-status-paused {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+.scv-status-paused .scv-status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+/* Closed */
+.scv-status-closed {
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+.scv-status-closed .scv-status-dot {
+  background: #9ca3af;
+}
+
+/* Default */
+.scv-status-default {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+.scv-status-default .scv-status-dot {
+  background: #6366f1;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.3);
+}
+
+/* Editable badge */
+.scv-status-badge-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+.scv-status-editable {
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+.scv-status-editable:hover {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+  transform: scale(1.03);
+}
+.scv-status-edit-icon {
+  margin-left: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.scv-status-editable:hover .scv-status-edit-icon {
+  opacity: 0.6;
+}
+.scv-status-error {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: #ef4444;
+  white-space: nowrap;
+}
+
+/* ============================= */
+/* Hero Meta                     */
+/* ============================= */
+
+.scv-hero-meta {
+  font-size: 0.85rem;
+  color: #666;
+  font-family: 'Inter', Verdana, sans-serif;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.scv-hero-leaders {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.scv-hero-leader-tag {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #555;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.scv-tag-lider {
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.15);
+}
+
+.scv-tag-coord {
+  background: rgba(139, 92, 246, 0.08);
+  color: #7c3aed;
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+.scv-tag-disciplina {
+  background: rgba(20, 184, 166, 0.08);
+  color: #0d9488;
+  border-color: rgba(20, 184, 166, 0.15);
+}
+
+.scv-tag-cs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(236, 72, 153, 0.08);
+  color: #be185d;
+  border-color: rgba(236, 72, 153, 0.15);
+}
+.scv-tag-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* ============================= */
+/* Campos Editaveis              */
+/* ============================= */
+
+.scv-editable-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  border-left: 2px solid transparent;
+  border-radius: 8px;
+  transition: border-color 200ms ease, background-color 200ms ease, border-left-color 200ms ease;
+  cursor: default;
+}
+
+.scv-editable-field:hover:not(.scv-editable-active):not(.scv-toggle-row) {
+  border-color: rgba(0, 0, 0, 0.06);
+  border-left-color: #ffdd00;
+  background-color: rgba(255, 221, 0, 0.02);
+  cursor: pointer;
+}
+
+.scv-editable-field.scv-editable-active {
+  border-color: rgba(255, 221, 0, 0.3);
+  border-left: 3px solid #ffdd00;
+  background-color: rgba(255, 221, 0, 0.03);
+}
+
+.scv-editable-field.scv-editable-saved {
+  border-color: rgba(34, 197, 94, 0.2);
+  border-left-color: #22c55e;
+  background-color: rgba(34, 197, 94, 0.03);
+}
+
+.scv-editable-field.scv-editable-error {
+  border-color: rgba(239, 68, 68, 0.2);
+  border-left-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.03);
+}
+
+.scv-editable-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.scv-editable-value-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scv-editable-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.scv-editable-placeholder {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #bbb;
+  font-style: italic;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.scv-editable-icon {
+  color: #bbb;
+  opacity: 0;
+  transition: opacity 200ms ease, color 200ms ease;
+  display: flex;
+  align-items: center;
+}
+
+.scv-editable-field:hover .scv-editable-icon {
+  opacity: 1;
+  color: #888;
+}
+
+.scv-editable-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  background: #fff;
+  outline: none;
+  transition: border-color 200ms ease;
+}
+
+.scv-editable-input:focus {
+  border-color: #ffdd00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
+}
+
+.scv-editable-check {
+  color: #22c55e;
+  font-weight: 700;
+  font-size: 0.85rem;
+  animation: scv-fadeIn 200ms ease;
+}
+
+.scv-editable-error-msg {
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 500;
+  animation: scv-fadeIn 200ms ease;
+}
+
+@keyframes scv-fadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================= */
+/* Textarea                      */
+/* ============================= */
+
+.scv-textarea {
+  min-height: 80px;
+  resize: vertical;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* ============================= */
+/* Toggle Switch                 */
+/* ============================= */
+
+.scv-toggle-row {
+  cursor: default;
+}
+
+.scv-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: #d1d5db;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 200ms ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.scv-toggle.scv-toggle-on {
+  background: #22c55e;
+}
+
+.scv-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scv-toggle-knob {
+  display: block;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 200ms ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.scv-toggle.scv-toggle-on .scv-toggle-knob {
+  transform: translateX(16px);
+}
+
+.scv-toggle-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #666;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* ============================= */
+/* Link Field                    */
+/* ============================= */
+
+.scv-link-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.scv-link {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 150ms ease;
+}
+
+.scv-link:hover {
+  color: #0052a3;
+  text-decoration: underline;
+}
+
+/* ============================= */
+/* Multi-Select                  */
+/* ============================= */
+
+.scv-multi-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem 0;
+}
+
+.scv-multi-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #555;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.scv-multi-option:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.scv-multi-option.scv-multi-selected {
+  background: rgba(34, 197, 94, 0.06);
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.scv-multi-option input[type="checkbox"] {
+  accent-color: #22c55e;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+/* ============================= */
+/* Edit Grid (2 columns layout)  */
+/* ============================= */
+
+.scv-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+}
+
+.scv-edit-grid-links {
+  grid-template-columns: 1fr;
+  margin-top: 0.5rem;
+}
+
+.scv-edit-grid-toggles {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 0.5rem;
+}
+
+/* ============================= */
+/* Collapsible Sections          */
+/* ============================= */
+
+.scv-section {
+  margin-bottom: 1.75rem;
+}
+
+.scv-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-family: 'Inter', Verdana, sans-serif;
+  margin: 0 0 0.875rem 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid #ffdd00;
+}
+
+.scv-section-title.scv-section-collapsible {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: background-color 150ms ease;
+}
+
+.scv-section-title.scv-section-collapsible:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.scv-section-body {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 300ms ease, opacity 200ms ease;
+}
+
+.scv-section-body.scv-section-open {
+  max-height: 5000px;
+  opacity: 1;
+}
+
+/* ============================= */
+/* KPI Cards (Cronograma)        */
+/* ============================= */
+
+.scv-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.scv-kpi-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 3px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 1.125rem 1.25rem;
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  overflow: hidden;
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.scv-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.scv-kpi-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #ffdd00, transparent);
+  opacity: 0;
+  transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scv-kpi-card:hover .scv-kpi-glow {
+  opacity: 1;
+}
+
+.scv-kpi-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.scv-kpi-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* KPI color variants */
+.scv-kpi-success {
+  border-top: 3px solid #22c55e;
+}
+.scv-kpi-success .scv-kpi-glow {
+  background: linear-gradient(90deg, transparent, #22c55e, transparent);
+}
+.scv-kpi-value-success {
+  color: #16a34a;
+}
+
+.scv-kpi-warning {
+  border-top: 3px solid #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.03) 0%, #ffffff 100%);
+}
+.scv-kpi-warning .scv-kpi-glow {
+  background: linear-gradient(90deg, transparent, #f59e0b, transparent);
+  opacity: 0.3;
+}
+.scv-kpi-value-warning {
+  color: #d97706;
+}
+
+.scv-kpi-danger {
+  border-top: 3px solid #ef4444;
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, #ffffff 100%);
+}
+.scv-kpi-danger .scv-kpi-glow {
+  background: linear-gradient(90deg, transparent, #ef4444, transparent);
+  opacity: 0.5;
+}
+.scv-kpi-value-danger {
+  color: #dc2626;
+  font-weight: 800;
+  font-size: 1.35rem;
+}
+
+/* ============================= */
+/* Key-Value Lists               */
+/* ============================= */
+
+.scv-kv-list {
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 0.25rem 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.scv-kv-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  gap: 1.5rem;
+}
+
+.scv-kv-row:last-child {
+  border-bottom: none;
+}
+
+.scv-kv-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #888;
+  font-family: 'Inter', Verdana, sans-serif;
+  flex-shrink: 0;
+  min-width: 140px;
+}
+
+.scv-kv-value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* ============================= */
+/* Caracteristicas Grid          */
+/* ============================= */
+
+.scv-chars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.scv-char-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0.25rem;
+  border-radius: 6px;
+  transition: background-color 200ms ease;
+}
+
+.scv-char-item:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.scv-char-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.scv-char-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.scv-text-block {
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  color: #444444;
+  line-height: 1.6;
+  margin: 0;
+  padding: 1rem;
+  background: #fafafa;
+  border-radius: 8px;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+/* ============================= */
+/* Responsivo                    */
+/* ============================= */
+
+@media (max-width: 640px) {
+  .scv-selector {
+    padding: 0.75rem 1rem;
+  }
+
+  .scv-selector-filters {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .scv-filter-group {
+    width: 100%;
+  }
+
+  .scv-filter-dropdown {
+    flex: 1;
+  }
+
+  .scv-selector-dropdown {
+    max-width: 100%;
+  }
+
+  .scv-container {
+    padding: 1rem;
+  }
+
+  .scv-hero {
+    padding: 1.25rem;
+  }
+
+  .scv-hero-name {
+    font-size: 1.15rem;
+  }
+
+  .scv-hero-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .scv-hero-editable-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .scv-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scv-kv-row {
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: flex-start;
+  }
+
+  .scv-kv-value {
+    text-align: left;
+  }
+
+  .scv-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scv-edit-grid-toggles {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scv-chars-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
