@@ -1496,8 +1496,70 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
 
   const allExternalNormalized = new Set([...normalizedSmartsheet.keys(), ...normalizedConstruflow.keys()]);
   const sort = arr => arr.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+  // Reverse map: otusNormKey → { smartsheet: Set<normKey>, construflow: Set<normKey>, mappings: [] }
+  const otusTargetToSources = new Map();
+  for (const [mapKey, mapVal] of customMap) {
+    if (mapVal.isIgnored || mapVal.isClientOwned) continue;
+    const colonIdx = mapKey.indexOf(':');
+    const source = mapKey.substring(0, colonIdx);
+    const extNormKey = mapKey.substring(colonIdx + 1);
+
+    let otusTargetNorm = null;
+    if (mapVal.standardName) otusTargetNorm = normalize(mapVal.standardName);
+    else if (mapVal.targetName) otusTargetNorm = normalize(mapVal.targetName);
+    if (!otusTargetNorm || !normalizedOtus.has(otusTargetNorm)) continue;
+
+    if (!otusTargetToSources.has(otusTargetNorm))
+      otusTargetToSources.set(otusTargetNorm, { smartsheet: new Set(), construflow: new Set(), mappings: [] });
+    const grp = otusTargetToSources.get(otusTargetNorm);
+    if (grp[source]) grp[source].add(extNormKey);
+    grp.mappings.push(mapVal);
+  }
+
+  // Detect cross-source merges: Otus targets mapped from BOTH sources → REGULARIZADO
+  const mergedNormKeys = new Set();
+  const mergedOtusKeys = new Set();
+  const mergedEntries = [];
+
+  for (const [otusNormKey, grp] of otusTargetToSources) {
+    const smKeys = new Set(grp.smartsheet);
+    const cfKeys = new Set(grp.construflow);
+    // Include natural matches (external name === Otus name)
+    if (normalizedSmartsheet.has(otusNormKey)) smKeys.add(otusNormKey);
+    if (normalizedConstruflow.has(otusNormKey)) cfKeys.add(otusNormKey);
+
+    if (!(smKeys.size > 0 && cfKeys.size > 0)) continue;
+
+    // Skip if any single normKey already covers both sources naturally
+    let alreadyComplete = false;
+    for (const k of new Set([...smKeys, ...cfKeys])) {
+      if (normalizedSmartsheet.has(k) && normalizedConstruflow.has(k)) {
+        alreadyComplete = true;
+        break;
+      }
+    }
+    if (alreadyComplete) continue;
+
+    const allMappingIds = grp.mappings.map(m => m.mappingId).filter(Boolean);
+    mergedEntries.push({
+      name: normalizedOtus.get(otusNormKey),
+      normKey: otusNormKey,
+      inSmartsheet: true, inConstruflow: true, inOtus: true,
+      hasCustomMapping: true,
+      mappingId: allMappingIds[0] || null,
+      allMappingIds,
+      mappedToName: normalizedOtus.get(otusNormKey),
+      isFreeMapping: false,
+      isAutoOtus: false, isAutoClient: false, isClientOwned: false,
+    });
+
+    for (const k of [...smKeys, ...cfKeys]) mergedNormKeys.add(k);
+    mergedOtusKeys.add(otusNormKey);
+  }
+
   const groups = {
-    completeInAll3: [],
+    completeInAll3: [...mergedEntries],
     notInOtus: [],
     onlySmartsheet: [],
     onlyConstruflow: [],
@@ -1508,6 +1570,7 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
   };
 
   for (const normKey of allExternalNormalized) {
+    if (mergedNormKeys.has(normKey)) continue;
     const inSmartsheet = normalizedSmartsheet.has(normKey);
     const inConstruflow = normalizedConstruflow.has(normKey);
     const originalName = normalizedSmartsheet.get(normKey) || normalizedConstruflow.get(normKey);
@@ -1574,7 +1637,7 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
   }
 
   for (const [normKey, original] of normalizedOtus) {
-    if (!allExternalNormalized.has(normKey)) {
+    if (!allExternalNormalized.has(normKey) && !mergedOtusKeys.has(normKey)) {
       groups.onlyOtus.push({ name: original, normKey, inSmartsheet: false, inConstruflow: false, inOtus: true });
     }
   }
@@ -1582,7 +1645,9 @@ function classifyDisciplines(smartsheetNames, construflowNames, otusNames, custo
   Object.values(groups).forEach(sort);
 
   const ignoredCount = groups.ignored.length;
-  const totalAll = new Set([...allExternalNormalized, ...normalizedOtus.keys()]).size - ignoredCount;
+  const totalAll = Object.entries(groups)
+    .filter(([key]) => key !== 'ignored')
+    .reduce((sum, [, arr]) => sum + arr.length, 0);
   const pendingCount = totalAll - groups.completeInAll3.length;
   const completionPercentage = totalAll > 0
     ? Math.round((groups.completeInAll3.length / totalAll) * 1000) / 10
@@ -8304,6 +8369,7 @@ app.get('/api/projetos/equipe/disciplinas-cruzadas', requireAuth, withBqCache(90
     // 3. Busca mapeamentos personalizados do projeto
     const projId = await getProjectIdByConstruflow(construflowId);
     const customMappings = projId ? await fetchDisciplineMappings(projId) : [];
+    console.log(`[disciplinas-cruzadas] projId=${projId}, mappings=${customMappings.length}`);
 
     // 4. Classifica usando helper compartilhado
     const { groups, analysis } = classifyDisciplines(external.smartsheet, external.construflow, otusNames, customMappings);
