@@ -1315,7 +1315,7 @@ export function createAdminClientPortalRoutes(requireAuth) {
         // Create Supabase Auth user with default password
         const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
           email: contact.email,
-          password: '1234',
+          password: '123456',
           email_confirm: true,
         });
 
@@ -1390,6 +1390,51 @@ export function createAdminClientPortalRoutes(requireAuth) {
     } catch (err) {
       console.error('Toggle portal error:', err);
       res.status(500).json({ success: false, error: 'Erro ao alterar acesso ao portal' });
+    }
+  });
+
+  // POST /api/admin/client-portal/reset-password - Reset portal user password
+  router.post('/reset-password', requireAuth, async (req, res) => {
+    try {
+      const userRole = req.user?.role;
+      if (!['dev', 'director', 'admin'].includes(userRole)) {
+        return res.status(403).json({ success: false, error: 'Sem permissão' });
+      }
+
+      const { contactId } = req.body;
+      if (!contactId) {
+        return res.status(400).json({ success: false, error: 'contactId obrigatório' });
+      }
+
+      const contact = await repo.getContactById(contactId);
+      if (!contact) {
+        return res.status(404).json({ success: false, error: 'Contato não encontrado' });
+      }
+
+      if (!contact.supabase_auth_id) {
+        return res.status(400).json({ success: false, error: 'Contato não possui acesso ao portal' });
+      }
+
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
+        contact.supabase_auth_id,
+        { password: '123456' }
+      );
+
+      if (updateError) {
+        return res.status(400).json({ success: false, error: `Erro ao resetar senha: ${updateError.message}` });
+      }
+
+      await repo.logAuditAction({
+        contactId,
+        action: 'password_reset',
+        metadata: { reset_by: req.user.email },
+      });
+
+      res.json({ success: true, message: 'Senha resetada para 123456' });
+    } catch (err) {
+      console.error('Reset password error:', err);
+      res.status(500).json({ success: false, error: 'Erro ao resetar senha' });
     }
   });
 

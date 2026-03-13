@@ -201,7 +201,7 @@ class AutodocHttpClient {
    */
   async #ngCrawlDocuments(customerId, projectFolderId, statusMap) {
     const documents = [];
-    const NG_TIMEOUT_MS = 120_000; // 120s por projeto NG
+    const NG_TIMEOUT_MS = 300_000; // 5min por projeto NG
     const startTime = Date.now();
     let aborted = false;
 
@@ -394,7 +394,7 @@ class AutodocHttpClient {
     }
 
     const MAX_DEPTH = 10;
-    const TIMEOUT_MS = 180_000; // 3min por projeto Classic
+    const TIMEOUT_MS = 420_000; // 7min por projeto Classic
     const MAX_CONSECUTIVE_ERRORS = 5;
     const startTime = Date.now();
     let aborted = false;

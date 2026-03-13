@@ -54,4 +54,9 @@ export const autodocEntregasApi = {
       params,
       withCredentials: true,
     }),
+
+  getDiagnostics: () =>
+    axios.get(`${API_URL}/api/autodoc-entregas/diagnostics`, {
+      withCredentials: true,
+    }),
 };

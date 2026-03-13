@@ -269,6 +269,16 @@
   white-space: nowrap;
 }
 
+.pagamentos-fin-th-sortable:hover {
+  color: #1a1a1a;
+  background: #eef0f3;
+}
+
+.pagamentos-fin-sort-indicator {
+  font-size: 10px;
+  color: #444444;
+}
+
 .pagamentos-fin-table td {
   padding: 10px 14px;
   color: #1a1a1a;

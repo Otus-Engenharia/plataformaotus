@@ -84,10 +84,11 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    */
   router.get('/summary', requireAuth, async (req, res) => {
     try {
-      const { days = 7 } = req.query;
+      const { days = 7, filterBy } = req.query;
       const dateRange = parseDateRange(req.query);
+      const validFilterBy = ['created', 'synced'].includes(filterBy) ? filterBy : 'created';
       const useCase = new GetEntregasSummary(getRepository());
-      const result = await useCase.execute({ days: Number(days), ...dateRange });
+      const result = await useCase.execute({ days: Number(days), ...dateRange, filterBy: validFilterBy });
       res.json({ success: true, data: result });
     } catch (error) {
       console.error('Erro ao buscar resumo Autodoc:', error);
@@ -102,13 +103,33 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
    */
   router.get('/daily-stats', requireAuth, async (req, res) => {
     try {
-      const { days = 7 } = req.query;
+      const { days = 7, filterBy } = req.query;
       const dateRange = parseDateRange(req.query);
+      const validFilterBy = ['created', 'synced'].includes(filterBy) ? filterBy : 'created';
       const useCase = new GetDailyStats(getRepository());
-      const result = await useCase.execute({ days: Number(days), ...dateRange });
+      const result = await useCase.execute({ days: Number(days), ...dateRange, filterBy: validFilterBy });
       res.json({ success: true, data: result });
     } catch (error) {
       console.error('Erro ao buscar daily stats:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/autodoc-entregas/diagnostics
+   * Diagnostico de saude do sync: mappings com 0 docs, erros recentes, gaps. Privileged only.
+   */
+  router.get('/diagnostics', requireAuth, async (req, res) => {
+    try {
+      if (!isPrivileged(req.user)) {
+        return res.status(403).json({ success: false, error: 'Acesso negado' });
+      }
+
+      const useCase = new GetSyncDiagnostics(getRepository());
+      const result = await useCase.execute();
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Erro ao buscar diagnostics:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });

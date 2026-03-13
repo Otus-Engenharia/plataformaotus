@@ -287,3 +287,102 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Sub-tabs */
+.cpa-subtabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0;
+}
+
+.cpa-subtab-btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #737373;
+  cursor: pointer;
+  font-family: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s;
+}
+
+.cpa-subtab-btn:hover {
+  color: #1a1a1a;
+}
+
+.cpa-subtab-btn.active {
+  color: #1a1a1a;
+  font-weight: 600;
+  border-bottom-color: #ffdd00;
+}
+
+/* Access tab */
+.cpa-search-input {
+  flex: 1;
+  max-width: 400px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.cpa-search-input:focus {
+  border-color: #d3af00;
+}
+
+.cpa-count-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #737373;
+}
+
+.cpa-action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.cpa-btn {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  background: #fff;
+}
+
+.cpa-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cpa-btn-reset {
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.cpa-btn-reset:hover:not(:disabled) {
+  background: #e0f2fe;
+  border-color: #0369a1;
+}
+
+.cpa-btn-disable {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.cpa-btn-disable:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #dc2626;
+}

@@ -165,7 +165,7 @@ function EquipeClientePanel({
     const action = currentlyEnabled ? 'desativar' : 'ativar';
     const confirmMsg = currentlyEnabled
       ? `Desativar acesso ao portal para ${contact.name}?`
-      : `Criar login no portal para ${contact.email}?\nSenha padrão: 1234`;
+      : `Criar login no portal para ${contact.email}?\nSenha padrão: 123456`;
 
     if (!window.confirm(confirmMsg)) return;
 
