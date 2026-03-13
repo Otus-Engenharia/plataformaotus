@@ -218,7 +218,7 @@ function ProjetosView() {
 
   const handleSubviewChange = (subviewId) => {
     setActiveSubview(subviewId);
-    navigate(`/projetos#${subviewId}`, { replace: true });
+    navigate(`/proj/projetos#${subviewId}`, { replace: true });
   };
 
   const currentSubview = SUBVIEWS[activeSubview];
