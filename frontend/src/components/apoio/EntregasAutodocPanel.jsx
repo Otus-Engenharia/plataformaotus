@@ -34,24 +34,25 @@ const PALETTE = [
   '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
 ];
 
-function getBusinessDayDaysAgo(n) {
-  const now = new Date();
-  let count = 0;
-  let d = new Date(now);
-  while (count < n) {
-    d.setDate(d.getDate() - 1);
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) count++;
-  }
-  const diffMs = now.getTime() - d.getTime();
-  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+function toISODate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-const DAYS_OPTIONS = [
-  { value: 'biz1', label: '1 dia util' },
-  { value: 7, label: '7 dias' },
-  { value: 14, label: '14 dias' },
-  { value: 30, label: '30 dias' },
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+}
+
+const PRESETS = [
+  { key: 'today', label: 'Hoje', calc: () => [new Date(), new Date()] },
+  { key: 'yesterday', label: 'Ontem', calc: () => { const d = daysAgo(1); return [d, d]; } },
+  { key: '7d', label: '7 dias', calc: () => [daysAgo(7), new Date()] },
+  { key: '14d', label: '14 dias', calc: () => [daysAgo(14), new Date()] },
+  { key: '30d', label: '30 dias', calc: () => [daysAgo(30), new Date()] },
 ];
 
 function formatFileSize(bytes) {
@@ -392,8 +393,9 @@ export default function EntregasAutodocPanel() {
   const [error, setError] = useState(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [daysOption, setDaysOption] = useState(7);
-  const days = daysOption === 'biz1' ? getBusinessDayDaysAgo(1) : daysOption;
+  const [startDate, setStartDate] = useState(() => toISODate(daysAgo(7)));
+  const [endDate, setEndDate] = useState(() => toISODate(new Date()));
+  const [activePreset, setActivePreset] = useState('7d');
   const [classificationFilter, setClassificationFilter] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(null);
@@ -414,7 +416,7 @@ export default function EntregasAutodocPanel() {
     setLoading(true);
     setError(null);
     try {
-      const params = { page, limit, days };
+      const params = { page, limit, startDate, endDate };
       if (classificationFilter) params.classification = classificationFilter;
       const res = await autodocEntregasApi.getRecentEntregas(params);
       if (res.data?.success) {
@@ -429,12 +431,12 @@ export default function EntregasAutodocPanel() {
     } finally {
       setLoading(false);
     }
-  }, [page, days, classificationFilter]);
+  }, [page, startDate, endDate, classificationFilter]);
 
   const fetchSummary = useCallback(async () => {
     setSummaryLoading(true);
     try {
-      const res = await autodocEntregasApi.getSummary({ days });
+      const res = await autodocEntregasApi.getSummary({ startDate, endDate });
       if (res.data?.success) {
         setSummary(res.data.data);
       }
@@ -443,12 +445,12 @@ export default function EntregasAutodocPanel() {
     } finally {
       setSummaryLoading(false);
     }
-  }, [days]);
+  }, [startDate, endDate]);
 
   const fetchDailyStats = useCallback(async () => {
     setDailyStatsLoading(true);
     try {
-      const res = await autodocEntregasApi.getDailyStats({ days });
+      const res = await autodocEntregasApi.getDailyStats({ startDate, endDate });
       if (res.data?.success) {
         setDailyStats(res.data.data.dailyStats || []);
         setProjectNames(res.data.data.projectNames || {});
@@ -458,7 +460,7 @@ export default function EntregasAutodocPanel() {
     } finally {
       setDailyStatsLoading(false);
     }
-  }, [days]);
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchDocs();
@@ -643,37 +645,63 @@ export default function EntregasAutodocPanel() {
 
       {/* Filters */}
       <div className="adoc-filters">
-        <div className="adoc-filter-group">
-          <label>Periodo:</label>
-          <select
-            value={daysOption}
-            onChange={(e) => { const v = e.target.value; setDaysOption(v === 'biz1' ? v : Number(v)); setPage(1); }}
-            className="adoc-select"
-          >
-            {DAYS_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+        <div className="adoc-preset-chips">
+          {PRESETS.map(p => (
+            <button
+              key={p.key}
+              className={`adoc-chip ${activePreset === p.key ? 'adoc-chip--active' : ''}`}
+              onClick={() => {
+                const [s, e] = p.calc();
+                setStartDate(toISODate(s));
+                setEndDate(toISODate(e));
+                setActivePreset(p.key);
+                setPage(1);
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="adoc-filter-divider" />
+        <div className="adoc-date-range">
+          <label>De:</label>
+          <input
+            type="date"
+            className="adoc-date-input"
+            value={startDate}
+            max={endDate}
+            onChange={(e) => { setStartDate(e.target.value); setActivePreset(null); setPage(1); }}
+          />
+          <label>Ate:</label>
+          <input
+            type="date"
+            className="adoc-date-input"
+            value={endDate}
+            min={startDate}
+            max={toISODate(new Date())}
+            onChange={(e) => { setEndDate(e.target.value); setActivePreset(null); setPage(1); }}
+          />
         </div>
         {activeTab === 'tabela' && (
-          <div className="adoc-filter-group">
-            <label>Classificacao:</label>
-            <select
-              value={classificationFilter}
-              onChange={(e) => { setClassificationFilter(e.target.value); setPage(1); }}
-              className="adoc-select"
-            >
-              <option value="">Todas</option>
-              {Object.entries(CLASSIFICATION_CONFIG).map(([key, cfg]) => (
-                <option key={key} value={key}>{cfg.label}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        {activeTab === 'tabela' && (
-          <div className="adoc-filter-count">
-            <strong>{total}</strong> entrega{total !== 1 ? 's' : ''}
-          </div>
+          <>
+            <div className="adoc-filter-divider" />
+            <div className="adoc-filter-group">
+              <label>Classificacao:</label>
+              <select
+                value={classificationFilter}
+                onChange={(e) => { setClassificationFilter(e.target.value); setPage(1); }}
+                className="adoc-select"
+              >
+                <option value="">Todas</option>
+                {Object.entries(CLASSIFICATION_CONFIG).map(([key, cfg]) => (
+                  <option key={key} value={key}>{cfg.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="adoc-filter-count">
+              <strong>{total}</strong> entrega{total !== 1 ? 's' : ''}
+            </div>
+          </>
         )}
       </div>
 

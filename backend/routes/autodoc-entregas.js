@@ -31,18 +31,37 @@ function getAutodocClient() {
   return autodocClient;
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseDateRange(query) {
+  const { startDate, endDate } = query;
+  if (!startDate && !endDate) return {};
+  if ((startDate && !endDate) || (!startDate && endDate)) {
+    throw new Error('startDate e endDate devem ser fornecidos juntos');
+  }
+  if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate)) {
+    throw new Error('Formato de data invalido. Use YYYY-MM-DD');
+  }
+  if (startDate > endDate) {
+    throw new Error('startDate nao pode ser posterior a endDate');
+  }
+  return { startDate, endDate };
+}
+
 function createRoutes(requireAuth, isPrivileged, logAction) {
   /**
    * GET /api/autodoc-entregas/recent
    * Entregas recentes com filtros.
-   * Query: ?days=7&projectCode=X&classification=Y&page=1&limit=50
+   * Query: ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD (ou ?days=7 para compat)
    */
   router.get('/recent', requireAuth, async (req, res) => {
     try {
       const { days = 7, projectCode, classification, page = 1, limit = 50 } = req.query;
+      const dateRange = parseDateRange(req.query);
       const useCase = new ListRecentEntregas(getRepository());
       const result = await useCase.execute({
         days: Number(days),
+        ...dateRange,
         projectCode: projectCode || undefined,
         classification: classification || undefined,
         page: Number(page),
@@ -58,13 +77,14 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   /**
    * GET /api/autodoc-entregas/summary
    * Estatisticas agregadas.
-   * Query: ?days=7
+   * Query: ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD (ou ?days=7 para compat)
    */
   router.get('/summary', requireAuth, async (req, res) => {
     try {
       const { days = 7 } = req.query;
+      const dateRange = parseDateRange(req.query);
       const useCase = new GetEntregasSummary(getRepository());
-      const result = await useCase.execute({ days: Number(days) });
+      const result = await useCase.execute({ days: Number(days), ...dateRange });
       res.json({ success: true, data: result });
     } catch (error) {
       console.error('Erro ao buscar resumo Autodoc:', error);
@@ -75,13 +95,14 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
   /**
    * GET /api/autodoc-entregas/daily-stats
    * Estatísticas diárias de entregas por projeto.
-   * Query: ?days=7
+   * Query: ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD (ou ?days=7 para compat)
    */
   router.get('/daily-stats', requireAuth, async (req, res) => {
     try {
       const { days = 7 } = req.query;
+      const dateRange = parseDateRange(req.query);
       const useCase = new GetDailyStats(getRepository());
-      const result = await useCase.execute({ days: Number(days) });
+      const result = await useCase.execute({ days: Number(days), ...dateRange });
       res.json({ success: true, data: result });
     } catch (error) {
       console.error('Erro ao buscar daily stats:', error);

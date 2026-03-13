@@ -10,9 +10,9 @@ class ListRecentEntregas {
     this.#repository = repository;
   }
 
-  async execute({ days = 7, projectCode, classification, page = 1, limit = 50 }) {
+  async execute({ days = 7, startDate, endDate, projectCode, classification, page = 1, limit = 50 }) {
     const { data, total } = await this.#repository.findRecentDocuments({
-      days, projectCode, classification, page, limit,
+      days, startDate, endDate, projectCode, classification, page, limit,
     });
 
     const nameMap = await this.#repository.getProjectNameMap();

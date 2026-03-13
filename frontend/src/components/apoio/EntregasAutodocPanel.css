@@ -182,10 +182,88 @@
 /* -- Filters -- */
 .adoc-filters {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
   flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 16px;
+}
+
+.adoc-preset-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.adoc-chip {
+  padding: 5px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Inter', Verdana, sans-serif;
+}
+
+.adoc-chip:hover {
+  background: #fef9c3;
+  border-color: #fde68a;
+}
+
+.adoc-chip--active {
+  background: #ffdd00;
+  border-color: #d3af00;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.adoc-chip--active:hover {
+  background: #facc15;
+  border-color: #d3af00;
+}
+
+.adoc-filter-divider {
+  width: 1px;
+  height: 20px;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+.adoc-date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.adoc-date-range label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.adoc-date-input {
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 0.8rem;
+  color: #374151;
+  font-family: 'Inter', Verdana, sans-serif;
+  cursor: pointer;
+}
+
+.adoc-date-input:focus {
+  outline: none;
+  border-color: #d3af00;
+  box-shadow: 0 0 0 2px rgba(255, 221, 0, 0.2);
 }
 
 .adoc-filter-group {
@@ -300,6 +378,43 @@
 }
 
 @media (max-width: 768px) {
+  .adoc-filters {
+    gap: 8px;
+  }
+
+  .adoc-preset-chips {
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .adoc-chip {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+  }
+
+  .adoc-filter-divider {
+    display: none;
+  }
+
+  .adoc-date-range {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .adoc-date-range label {
+    display: none;
+  }
+
+  .adoc-date-input {
+    width: auto;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .adoc-filter-count {
+    margin-left: 0;
+  }
+
   .adoc-histogram-card {
     padding: 14px 16px 12px;
   }
