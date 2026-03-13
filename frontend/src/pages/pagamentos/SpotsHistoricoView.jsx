@@ -114,6 +114,36 @@ function groupByDate(entries) {
   return groups;
 }
 
+function groupByProject(entries, sortProjetos) {
+  const groups = {};
+  for (const entry of entries) {
+    const project = entry.parcelas_pagamento?.project_code || entry.project_code;
+    const key = project || '__sem_projeto__';
+    if (!groups[key]) {
+      groups[key] = {
+        code: project || null,
+        name: entry.project_name || '',
+        entries: [],
+      };
+    }
+    if (!groups[key].name && entry.project_name) {
+      groups[key].name = entry.project_name;
+    }
+    groups[key].entries.push(entry);
+  }
+
+  const sorted = Object.values(groups).sort((a, b) => {
+    if (!a.code) return 1;
+    if (!b.code) return -1;
+    if (sortProjetos === 'nome') {
+      return (a.name || a.code).localeCompare(b.name || b.code, 'pt-BR');
+    }
+    return a.code.localeCompare(b.code, 'pt-BR');
+  });
+
+  return sorted;
+}
+
 export default function SpotsHistoricoView() {
   const { user } = useAuth();
   const [entries, setEntries] = useState([]);
@@ -121,6 +151,8 @@ export default function SpotsHistoricoView() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filterAction, setFilterAction] = useState('todos');
+  const [viewMode, setViewMode] = useState('timeline');
+  const [sortProjetos, setSortProjetos] = useState('codigo');
   const [lastSeen] = useState(() => {
     if (!user?.id) return null;
     return localStorage.getItem(`spots_last_seen_${user.id}`) || null;
@@ -198,6 +230,85 @@ export default function SpotsHistoricoView() {
 
   const sanitizeValue = (v) => (!v || v === '[object Object]') ? null : v;
 
+  const renderEntry = (entry, showProject) => {
+    const project = getProjectInfo(entry);
+    const entryIsNew = isNew(entry);
+    return (
+      <div key={entry.id} className={`spots-hist-entry ${entryIsNew ? 'spots-hist-entry-new' : ''}`}>
+        <div
+          className="spots-hist-dot"
+          style={{ background: ACTION_COLORS[entry.action] || '#6b7280' }}
+        />
+        <div className="spots-hist-entry-content">
+          <div className="spots-hist-entry-header">
+            <span
+              className="spots-hist-action-badge"
+              style={{ background: ACTION_COLORS[entry.action] || '#6b7280' }}
+            >
+              {ACTION_LABELS[entry.action] || entry.action}
+            </span>
+            <span className="spots-hist-parcela-desc">
+              {getParcelaDesc(entry)}
+            </span>
+            {showProject && project.code && (
+              <span className="spots-hist-project">
+                {project.code}
+                {project.name && <span className="spots-hist-project-name"> {project.name}</span>}
+              </span>
+            )}
+            {entryIsNew && <span className="spots-hist-new-badge">Novo</span>}
+          </div>
+          {(() => {
+            const detailEntries = entry._batchEntries || (entry.field_changed ? [entry] : []);
+            if (detailEntries.length === 0) return null;
+            return (
+              <div className={detailEntries.length > 1 ? 'spots-hist-detail-group' : ''}>
+                {detailEntries.map((de, idx) => {
+                  const rawOld = sanitizeValue(de.old_value);
+                  const rawNew = sanitizeValue(de.new_value);
+                  const field = de.field_changed;
+                  if (!field) return null;
+                  const fieldLabel = FIELD_LABELS[field] || field;
+                  const oldFormatted = formatChangeValue(field, rawOld);
+                  const newFormatted = formatChangeValue(field, rawNew);
+                  if (oldFormatted && newFormatted && oldFormatted === newFormatted) return null;
+                  if ((de.action === 'smartsheet_change' || entry.action === 'smartsheet_change') && !oldFormatted) return null;
+                  if (!oldFormatted && !newFormatted) {
+                    return (
+                      <div key={idx} className="spots-hist-detail">
+                        <span className="spots-hist-field">{fieldLabel}</span>
+                        <span className="spots-hist-muted"> alterado(a)</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={idx} className="spots-hist-detail">
+                      <span className="spots-hist-field">{fieldLabel}:</span>
+                      {oldFormatted && <span className="spots-hist-old">{oldFormatted}</span>}
+                      {(oldFormatted || newFormatted) && <span className="spots-hist-arrow">&rarr;</span>}
+                      {newFormatted && <span className="spots-hist-new">{newFormatted}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          <div className="spots-hist-meta">
+            <span className={`spots-hist-author ${entry.action === 'smartsheet_change' ? 'spots-hist-author-auto' : ''}`}>
+              {entry.action === 'smartsheet_change' ? 'Smartsheet Sync' : (entry.edited_by_name || entry.edited_by_email)}
+            </span>
+            <span className="spots-hist-time">{formatTime(entry.created_at)}</span>
+            {!showProject && (
+              <span className="spots-hist-time">
+                {new Date(entry.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="spots-hist-container">
@@ -224,6 +335,38 @@ export default function SpotsHistoricoView() {
             {opt.label}
           </button>
         ))}
+
+        <span className="spots-hist-filter-separator" />
+
+        <button
+          className={`spots-hist-filter-btn ${viewMode === 'timeline' ? 'active' : ''}`}
+          onClick={() => setViewMode('timeline')}
+        >
+          Timeline
+        </button>
+        <button
+          className={`spots-hist-filter-btn ${viewMode === 'projetos' ? 'active' : ''}`}
+          onClick={() => setViewMode('projetos')}
+        >
+          Projetos
+        </button>
+
+        {viewMode === 'projetos' && (
+          <>
+            <button
+              className={`spots-hist-filter-btn spots-hist-sort-btn ${sortProjetos === 'codigo' ? 'active' : ''}`}
+              onClick={() => setSortProjetos('codigo')}
+            >
+              por Codigo
+            </button>
+            <button
+              className={`spots-hist-filter-btn spots-hist-sort-btn ${sortProjetos === 'nome' ? 'active' : ''}`}
+              onClick={() => setSortProjetos('nome')}
+            >
+              por Nome
+            </button>
+          </>
+        )}
       </div>
 
       {filteredEntries.length === 0 ? (
@@ -232,89 +375,26 @@ export default function SpotsHistoricoView() {
         </div>
       ) : (
         <div className="spots-hist-timeline">
-          {Object.entries(grouped).map(([dateLabel, dateEntries]) => (
-            <div key={dateLabel} className="spots-hist-date-group">
-              <div className="spots-hist-date-label">{dateLabel}</div>
-              <div className="spots-hist-entries">
-                {dateEntries.map(entry => {
-                  const project = getProjectInfo(entry);
-                  const entryIsNew = isNew(entry);
-                  return (
-                    <div key={entry.id} className={`spots-hist-entry ${entryIsNew ? 'spots-hist-entry-new' : ''}`}>
-                      <div
-                        className="spots-hist-dot"
-                        style={{ background: ACTION_COLORS[entry.action] || '#6b7280' }}
-                      />
-                      <div className="spots-hist-entry-content">
-                        <div className="spots-hist-entry-header">
-                          <span
-                            className="spots-hist-action-badge"
-                            style={{ background: ACTION_COLORS[entry.action] || '#6b7280' }}
-                          >
-                            {ACTION_LABELS[entry.action] || entry.action}
-                          </span>
-                          <span className="spots-hist-parcela-desc">
-                            {getParcelaDesc(entry)}
-                          </span>
-                          {project.code && (
-                            <span className="spots-hist-project">
-                              {project.code}
-                              {project.name && <span className="spots-hist-project-name"> {project.name}</span>}
-                            </span>
-                          )}
-                          {entryIsNew && <span className="spots-hist-new-badge">Novo</span>}
-                        </div>
-                        {(() => {
-                          const detailEntries = entry._batchEntries || (entry.field_changed ? [entry] : []);
-                          if (detailEntries.length === 0) return null;
-                          return (
-                            <div className={detailEntries.length > 1 ? 'spots-hist-detail-group' : ''}>
-                              {detailEntries.map((de, idx) => {
-                                const rawOld = sanitizeValue(de.old_value);
-                                const rawNew = sanitizeValue(de.new_value);
-                                const field = de.field_changed;
-                                if (!field) return null;
-                                const fieldLabel = FIELD_LABELS[field] || field;
-                                const oldFormatted = formatChangeValue(field, rawOld);
-                                const newFormatted = formatChangeValue(field, rawNew);
-                                // Skip entries where old and new are identical (no real change)
-                                if (oldFormatted && newFormatted && oldFormatted === newFormatted) return null;
-                                // Skip corrupted smartsheet_change entries without old_value (incomplete data)
-                                if ((de.action === 'smartsheet_change' || entry.action === 'smartsheet_change') && !oldFormatted) return null;
-                                if (!oldFormatted && !newFormatted) {
-                                  return (
-                                    <div key={idx} className="spots-hist-detail">
-                                      <span className="spots-hist-field">{fieldLabel}</span>
-                                      <span className="spots-hist-muted"> alterado(a)</span>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <div key={idx} className="spots-hist-detail">
-                                    <span className="spots-hist-field">{fieldLabel}:</span>
-                                    {oldFormatted && <span className="spots-hist-old">{oldFormatted}</span>}
-                                    {oldFormatted && newFormatted && <span className="spots-hist-arrow">&rarr;</span>}
-                                    {!oldFormatted && newFormatted && <span className="spots-hist-arrow">&rarr;</span>}
-                                    {newFormatted && <span className="spots-hist-new">{newFormatted}</span>}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          );
-                        })()}
-                        <div className="spots-hist-meta">
-                          <span className={`spots-hist-author ${entry.action === 'smartsheet_change' ? 'spots-hist-author-auto' : ''}`}>
-                            {entry.action === 'smartsheet_change' ? 'Smartsheet Sync' : (entry.edited_by_name || entry.edited_by_email)}
-                          </span>
-                          <span className="spots-hist-time">{formatTime(entry.created_at)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          {viewMode === 'timeline'
+            ? Object.entries(grouped).map(([dateLabel, dateEntries]) => (
+                <div key={dateLabel} className="spots-hist-date-group">
+                  <div className="spots-hist-date-label">{dateLabel}</div>
+                  <div className="spots-hist-entries">
+                    {dateEntries.map(entry => renderEntry(entry, true))}
+                  </div>
+                </div>
+              ))
+            : groupByProject(batchedEntries, sortProjetos).map(group => (
+                <div key={group.code || '__sem_projeto__'} className="spots-hist-date-group">
+                  <div className="spots-hist-date-label">
+                    {group.code ? `${group.code}${group.name ? ` - ${group.name}` : ''}` : 'Sem Projeto'}
+                  </div>
+                  <div className="spots-hist-entries">
+                    {group.entries.map(entry => renderEntry(entry, false))}
+                  </div>
+                </div>
+              ))
+          }
 
           {entries.length < total && (
             <div className="spots-hist-load-more">

@@ -45,9 +45,9 @@ class SyncAllCustomers {
 
     for (const [customerId, customerMappings] of byCustomer) {
       // Timeout escala com numero de projetos
-      // Classic: 10 min/projeto (HTML parse lento), NG: 3 min/projeto
+      // Classic: 10 min/projeto (HTML parse lento), NG: 6 min/projeto
       const hasClassic = customerMappings.some(m => m.use_classic_api === true);
-      const perProjectMs = hasClassic ? 600_000 : 180_000;
+      const perProjectMs = hasClassic ? 600_000 : 360_000;
       const CUSTOMER_TIMEOUT = perProjectMs * Math.max(1, customerMappings.length);
       const syncRun = await this.#repository.createSyncRun(customerId, batchId);
       const customerName = customerMappings[0]?.autodoc_customer_name || customerId;
@@ -71,9 +71,11 @@ class SyncAllCustomers {
           }
         };
 
+        // NG pode paralelizar (sessao stateless), Classic deve ser sequencial (sessao compartilhada)
+        const ngConcurrency = hasClassic ? 1 : 2;
         const syncUseCase = new SyncCustomerDocuments(this.#repository, this.#autodocClient);
         const result = await Promise.race([
-          syncUseCase.execute({ customerId, mappings: customerMappings, onProjectProgress }),
+          syncUseCase.execute({ customerId, mappings: customerMappings, onProjectProgress, projectConcurrency: ngConcurrency }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error(`Customer sync timeout (${CUSTOMER_TIMEOUT / 1000}s) para ${customerName}`)), CUSTOMER_TIMEOUT)
           ),

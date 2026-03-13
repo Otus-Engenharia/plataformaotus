@@ -397,6 +397,7 @@ export default function EntregasAutodocPanel() {
   const [endDate, setEndDate] = useState(() => toISODate(new Date()));
   const [activePreset, setActivePreset] = useState('7d');
   const [classificationFilter, setClassificationFilter] = useState('');
+  const [filterBy, setFilterBy] = useState('created');
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(null);
   const [syncResult, setSyncResult] = useState(null);
@@ -406,17 +407,34 @@ export default function EntregasAutodocPanel() {
   const [dailyStats, setDailyStats] = useState(null);
   const [projectNames, setProjectNames] = useState({});
   const [dailyStatsLoading, setDailyStatsLoading] = useState(false);
+  const [diagnostics, setDiagnostics] = useState(null);
+  const [diagExpanded, setDiagExpanded] = useState(false);
   const pollRef = useRef(null);
   const pollStartRef = useRef(null);
   const batchIdRef = useRef(null);
 
   const limit = 50;
 
+  // Fetch diagnostics on mount (privileged only)
+  useEffect(() => {
+    if (!isPrivileged) return;
+    (async () => {
+      try {
+        const res = await autodocEntregasApi.getDiagnostics();
+        if (res.data?.success) {
+          setDiagnostics(res.data.data);
+        }
+      } catch {
+        // silently ignore
+      }
+    })();
+  }, [isPrivileged]);
+
   const fetchDocs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = { page, limit, startDate, endDate };
+      const params = { page, limit, startDate, endDate, filterBy };
       if (classificationFilter) params.classification = classificationFilter;
       const res = await autodocEntregasApi.getRecentEntregas(params);
       if (res.data?.success) {
@@ -431,12 +449,12 @@ export default function EntregasAutodocPanel() {
     } finally {
       setLoading(false);
     }
-  }, [page, startDate, endDate, classificationFilter]);
+  }, [page, startDate, endDate, classificationFilter, filterBy]);
 
   const fetchSummary = useCallback(async () => {
     setSummaryLoading(true);
     try {
-      const res = await autodocEntregasApi.getSummary({ startDate, endDate });
+      const res = await autodocEntregasApi.getSummary({ startDate, endDate, filterBy });
       if (res.data?.success) {
         setSummary(res.data.data);
       }
@@ -445,12 +463,12 @@ export default function EntregasAutodocPanel() {
     } finally {
       setSummaryLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, filterBy]);
 
   const fetchDailyStats = useCallback(async () => {
     setDailyStatsLoading(true);
     try {
-      const res = await autodocEntregasApi.getDailyStats({ startDate, endDate });
+      const res = await autodocEntregasApi.getDailyStats({ startDate, endDate, filterBy });
       if (res.data?.success) {
         setDailyStats(res.data.data.dailyStats || []);
         setProjectNames(res.data.data.projectNames || {});
@@ -460,7 +478,7 @@ export default function EntregasAutodocPanel() {
     } finally {
       setDailyStatsLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, filterBy]);
 
   useEffect(() => {
     fetchDocs();
@@ -640,6 +658,51 @@ export default function EntregasAutodocPanel() {
         </div>
       )}
 
+      {/* Diagnostics Banner (privileged only) */}
+      {isPrivileged && diagnostics && diagnostics.totals?.suspectsCount > 0 && (
+        <div className="adoc-diag-banner">
+          <div className="adoc-diag-header" onClick={() => setDiagExpanded(p => !p)}>
+            <span className="adoc-diag-icon">!</span>
+            <span>
+              <strong>{diagnostics.totals.suspectsCount}</strong> projeto(s) mapeado(s) sem docs nos ultimos 7 dias
+              {' '}(de {diagnostics.totals.activeMappings} ativos)
+            </span>
+            <span className="adoc-diag-toggle">{diagExpanded ? '\u25B2' : '\u25BC'}</span>
+          </div>
+          {diagExpanded && (
+            <div className="adoc-diag-details">
+              <table className="adoc-diag-table">
+                <thead>
+                  <tr>
+                    <th>Projeto</th>
+                    <th>Conta</th>
+                    <th>By Created</th>
+                    <th>By Synced</th>
+                    <th>Erros Recentes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {diagnostics.suspects.map(s => (
+                    <tr key={s.id}>
+                      <td className="adoc-project-code">{s.portfolio_project_code}</td>
+                      <td>{s.autodoc_customer_name}</td>
+                      <td>{s.docsLast7dByCreated}</td>
+                      <td>{s.docsLast7dBySynced}</td>
+                      <td className="adoc-diag-error">
+                        {s.recentErrors.length > 0
+                          ? s.recentErrors[0].error?.slice(0, 80) + (s.recentErrors[0].error?.length > 80 ? '...' : '')
+                          : '-'
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Summary Cards */}
       <SummaryCards summary={summary} loading={summaryLoading} />
 
@@ -681,6 +744,18 @@ export default function EntregasAutodocPanel() {
             max={toISODate(new Date())}
             onChange={(e) => { setEndDate(e.target.value); setActivePreset(null); setPage(1); }}
           />
+        </div>
+        <div className="adoc-filter-divider" />
+        <div className="adoc-filter-group">
+          <label>Filtrar por:</label>
+          <select
+            value={filterBy}
+            onChange={(e) => { setFilterBy(e.target.value); setPage(1); }}
+            className="adoc-select"
+          >
+            <option value="created">Data Autodoc</option>
+            <option value="synced">Data Sync</option>
+          </select>
         </div>
         {activeTab === 'tabela' && (
           <>

@@ -66,6 +66,19 @@
   font-weight: 600;
 }
 
+.spots-hist-filter-separator {
+  width: 1px;
+  height: 24px;
+  background: #e5e7eb;
+  margin: 0 6px;
+  align-self: center;
+}
+
+.spots-hist-sort-btn {
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+}
+
 /* Timeline */
 .spots-hist-timeline {
   position: relative;
