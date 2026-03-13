@@ -104,7 +104,7 @@ const PesquisasCSView = forwardRef(function PesquisasCSView({ embedded = false }
 
   // Load portfolio projects for the form selects
   useEffect(() => {
-    axios.get(`${API_URL}/api/portfolio`, { withCredentials: true })
+    axios.get(`${API_URL}/api/projetos/list-simple`, { withCredentials: true })
       .then(res => {
         if (res.data?.success) {
           setPortfolioProjects(res.data.data || []);
@@ -217,9 +217,22 @@ const PesquisasCSView = forwardRef(function PesquisasCSView({ embedded = false }
   };
 
   useImperativeHandle(ref, () => ({
-    openForm: (projectCode) => {
+    openForm: (projectInfo = {}) => {
+      const { projectCode, projectName } = typeof projectInfo === 'string'
+        ? { projectCode: projectInfo, projectName: undefined }
+        : projectInfo;
       if (projectCode) {
         handleProjectSelect(projectCode);
+      } else if (projectName) {
+        // Normalizar como BigQuery: remover caracteres não-alfanuméricos e comparar lowercase
+        const normalize = (s) => s?.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || '';
+        const nameNorm = normalize(projectName);
+        const match = portfolioProjects.find(p =>
+          normalize(p.project_name) === nameNorm
+        );
+        if (match) {
+          handleProjectSelect(match.project_code_norm);
+        }
       }
       setShowForm(true);
     },

@@ -47,6 +47,36 @@ function createRoutes(requireAuth, canAccessFormularioPassagem, logAction, inval
   }
 
   /**
+   * GET /api/projetos/list-simple
+   * Lista leve de projetos (code, name, client) para dropdowns
+   */
+  router.get('/list-simple', requireAuth, async (req, res) => {
+    try {
+      const supabase = getSupabaseServiceClient();
+      const { data, error } = await supabase
+        .from('projects')
+        .select('project_code, name, companies:company_id(name)')
+        .not('project_code', 'is', null)
+        .order('name');
+
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      const projects = (data || []).map(p => ({
+        project_code_norm: p.project_code,
+        project_name: p.name,
+        client: p.companies?.name || '',
+      }));
+
+      res.json({ success: true, data: projects });
+    } catch (error) {
+      console.error('Erro ao buscar lista de projetos:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * GET /api/projetos/form/clients
    * Dropdown de clientes (companies com company_type='client')
    */
