@@ -135,6 +135,7 @@ const ClientRelatosView = lazy(() => import('./pages/portal/ClientRelatosView'))
 const ClientAlteracoesView = lazy(() => import('./pages/portal/ClientAlteracoesView'));
 const ClientFeedbacksNpsView = lazy(() => import('./pages/portal/ClientFeedbacksNpsView'));
 const ClientLayout = lazy(() => import('./layouts/ClientLayout'));
+const ClientResetPasswordView = lazy(() => import('./pages/portal/ClientResetPasswordView'));
 
 const icons = {
   indicadoresLideranca: (
@@ -1513,6 +1514,7 @@ function AppContent() {
       <ClientAuthProvider>
         <Suspense fallback={<div className="loading-page">Carregando...</div>}>
           <Routes>
+            <Route path="/portal/reset-password" element={<ClientResetPasswordView />} />
             <Route path="/portal" element={
               <ClientProtectedRoute>
                 <ClientLayout />
