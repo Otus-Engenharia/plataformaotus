@@ -59,11 +59,17 @@ class ApproveContactChangeRequest {
       await this.#contactService.updateContact(request.targetContactId, newValues);
       resultContactId = safeUuid(request.targetContactId);
     } else if (type === 'nova_empresa') {
-      const company = await this.#contactService.createCompany({
-        name: payload.name,
-        companyType: payload.company_type,
-      });
-      resultCompanyId = safeUuid(company.id);
+      if (request.targetCompanyId) {
+        await this.#contactService.updateCompanyStatus(request.targetCompanyId, 'ativa');
+        resultCompanyId = safeUuid(request.targetCompanyId);
+      } else {
+        const company = await this.#contactService.createCompany({
+          name: payload.name,
+          companyType: payload.company_type,
+          status: 'ativa',
+        });
+        resultCompanyId = safeUuid(company.id);
+      }
     } else if (type === 'nova_disciplina') {
       await this.#contactService.createStandardDiscipline({
         name: payload.name,

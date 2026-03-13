@@ -4951,7 +4951,7 @@ export async function fetchStandardDisciplines() {
  */
 export async function fetchDisciplineMappings(projectId) {
   if (!projectId) return [];
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
 
   const { data, error } = await supabase
     .from('discipline_mappings')
@@ -5468,7 +5468,7 @@ export async function updateContact(contactId, { name, email, phone, position })
 /**
  * Cria uma nova empresa no banco
  */
-export async function createCompany({ name, companyType }) {
+export async function createCompany({ name, companyType, status }) {
   const supabase = getSupabaseClient();
 
   const { data, error } = await supabase
@@ -5476,7 +5476,7 @@ export async function createCompany({ name, companyType }) {
     .insert({
       name,
       company_type: companyType || null,
-      status: 'pendente',
+      status: status || 'ativa',
     })
     .select('id, name, company_type, status')
     .single();
@@ -5486,6 +5486,18 @@ export async function createCompany({ name, companyType }) {
   }
 
   return data;
+}
+
+/**
+ * Atualiza o status de uma empresa existente
+ */
+export async function updateCompanyStatus(companyId, status) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('companies')
+    .update({ status })
+    .eq('id', companyId);
+  if (error) throw new Error(`Erro ao atualizar status da empresa: ${error.message}`);
 }
 
 /**
