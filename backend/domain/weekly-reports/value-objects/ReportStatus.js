@@ -7,12 +7,14 @@ const VALID_STATUSES = Object.freeze({
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   FAILED: 'failed',
+  REPLACED: 'replaced',
 });
 
 const STATUS_LABELS = Object.freeze({
   [VALID_STATUSES.IN_PROGRESS]: 'Em Progresso',
   [VALID_STATUSES.COMPLETED]: 'Concluído',
   [VALID_STATUSES.FAILED]: 'Falhou',
+  [VALID_STATUSES.REPLACED]: 'Substituído',
 });
 
 class ReportStatus {
@@ -51,8 +53,12 @@ class ReportStatus {
     return this.#value === VALID_STATUSES.IN_PROGRESS;
   }
 
+  get isReplaced() {
+    return this.#value === VALID_STATUSES.REPLACED;
+  }
+
   get isDone() {
-    return this.isCompleted || this.isFailed;
+    return this.isCompleted || this.isFailed || this.isReplaced;
   }
 
   equals(other) {
@@ -90,6 +96,10 @@ class ReportStatus {
 
   static failed() {
     return new ReportStatus(VALID_STATUSES.FAILED);
+  }
+
+  static replaced() {
+    return new ReportStatus(VALID_STATUSES.REPLACED);
   }
 }
 

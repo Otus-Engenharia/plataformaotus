@@ -189,9 +189,9 @@ function FechamentosFaseView({ embedded = false, onCardClick }) {
                         {items.map((f, j) => (
                           <div
                             key={j}
-                            className={`fechamentos-card ${getStatusClass(f.status)}${onCardClick && project.project_code ? ' clickable' : ''}`}
+                            className={`fechamentos-card ${getStatusClass(f.status)}${onCardClick ? ' clickable' : ''}`}
                             title={f.task_name}
-                            onClick={() => onCardClick && project.project_code && onCardClick(project.project_code)}
+                            onClick={() => onCardClick && onCardClick({ projectCode: project.project_code, projectName: project.project_name, smartsheetId: project.smartsheet_id })}
                           >
                             <span className="fechamentos-card-name">{f.task_name.replace(/fechamento\s*de?\s*fase\s*/i, 'Fase ')}</span>
                             <span className="fechamentos-card-date">{formatDateShort(f.end_date)}</span>

@@ -74,6 +74,17 @@ function FailedIcon() {
   );
 }
 
+function ReplacedIcon() {
+  return (
+    <div className="wr-history-status-icon wr-history-status-replaced" title="Substituído por versão mais recente">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="1 4 1 10 7 10" />
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+      </svg>
+    </div>
+  );
+}
+
 function ProcessingIcon() {
   return (
     <div className="wr-history-status-icon wr-history-status-processing">
@@ -151,6 +162,7 @@ function ReportHistory({ projectCode }) {
         const statusIcon =
           report.status === 'completed' ? <CompletedIcon /> :
           report.status === 'failed' ? <FailedIcon /> :
+          report.status === 'replaced' ? <ReplacedIcon /> :
           <ProcessingIcon />;
 
         return (
@@ -167,6 +179,14 @@ function ReportHistory({ projectCode }) {
             </div>
 
             <div className="wr-history-links">
+              {report.status === 'completed' && !report.client_draft_url && (
+                <span
+                  className="wr-history-no-draft"
+                  title="Rascunho do cliente não foi gerado — sem emails cadastrados"
+                >
+                  Sem email cliente
+                </span>
+              )}
               {report.drive_url && (
                 <a
                   href={report.drive_url}

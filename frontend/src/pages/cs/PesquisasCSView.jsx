@@ -110,7 +110,7 @@ const PesquisasCSView = forwardRef(function PesquisasCSView({ embedded = false }
           setPortfolioProjects(res.data.data || []);
         }
       })
-      .catch(() => {});
+      .catch(err => console.error('[PesquisasCS] Erro ao carregar projetos:', err));
   }, []);
 
   // Derive unique projects for filter
@@ -119,6 +119,51 @@ const PesquisasCSView = forwardRef(function PesquisasCSView({ embedded = false }
   // Derive unique clients from portfolio
   const clientOptions = useMemo(() => {
     return [...new Set(portfolioProjects.map(p => p.client).filter(Boolean))].sort();
+  }, [portfolioProjects]);
+
+  // Helper: tenta encontrar projeto no portfolioProjects usando múltiplas estratégias
+  const resolveProject = useCallback((projectCode, projectName, smartsheetId) => {
+    const normalize = (s) => s?.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || '';
+
+    // 0. Match por smartsheet_id (mais confiável — ID numérico único)
+    if (smartsheetId) {
+      const match = portfolioProjects.find(p => p.smartsheet_id && String(p.smartsheet_id) === String(smartsheetId));
+      if (match) return match;
+    }
+
+    if (projectCode) {
+      // 1. Match exato por código
+      let match = portfolioProjects.find(p => p.project_code_norm === projectCode);
+      if (match) return match;
+
+      // 2. Match case-insensitive por código
+      const codeNorm = String(projectCode).trim().toLowerCase();
+      match = portfolioProjects.find(p =>
+        String(p.project_code_norm || '').trim().toLowerCase() === codeNorm
+      );
+      if (match) return match;
+
+      // 3. Match normalizado por código (remove underscores, hífens, etc.)
+      const codeAlphaNum = normalize(projectCode);
+      match = portfolioProjects.find(p => normalize(p.project_code_norm) === codeAlphaNum);
+      if (match) return match;
+    }
+
+    if (projectName) {
+      // 4. Match normalizado por nome
+      const nameNorm = normalize(projectName);
+      const match = portfolioProjects.find(p => normalize(p.project_name) === nameNorm);
+      if (match) return match;
+
+      // 5. Match parcial — nome Supabase contido no nome SmartSheet ou vice-versa
+      const partialMatch = portfolioProjects.find(p => {
+        const pNorm = normalize(p.project_name);
+        return pNorm && nameNorm && (nameNorm.includes(pNorm) || pNorm.includes(nameNorm));
+      });
+      if (partialMatch) return partialMatch;
+    }
+
+    return null;
   }, [portfolioProjects]);
 
   const handleProjectSelect = async (projectCode) => {
@@ -218,21 +263,15 @@ const PesquisasCSView = forwardRef(function PesquisasCSView({ embedded = false }
 
   useImperativeHandle(ref, () => ({
     openForm: (projectInfo = {}) => {
-      const { projectCode, projectName } = typeof projectInfo === 'string'
-        ? { projectCode: projectInfo, projectName: undefined }
+      const { projectCode, projectName, smartsheetId } = typeof projectInfo === 'string'
+        ? { projectCode: projectInfo, projectName: undefined, smartsheetId: undefined }
         : projectInfo;
-      if (projectCode) {
-        handleProjectSelect(projectCode);
-      } else if (projectName) {
-        // Normalizar como BigQuery: remover caracteres não-alfanuméricos e comparar lowercase
-        const normalize = (s) => s?.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || '';
-        const nameNorm = normalize(projectName);
-        const match = portfolioProjects.find(p =>
-          normalize(p.project_name) === nameNorm
-        );
-        if (match) {
-          handleProjectSelect(match.project_code_norm);
-        }
+
+      const match = resolveProject(projectCode, projectName, smartsheetId);
+      if (match) {
+        handleProjectSelect(match.project_code_norm);
+      } else if (projectCode || projectName) {
+        console.warn('[PesquisasCS] Projeto não encontrado:', { projectCode, projectName });
       }
       setShowForm(true);
     },

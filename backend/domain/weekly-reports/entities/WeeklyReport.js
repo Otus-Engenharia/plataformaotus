@@ -93,6 +93,7 @@ class WeeklyReport {
   get isCompleted() { return this.#status.isCompleted; }
   get isFailed() { return this.#status.isFailed; }
   get isInProgress() { return this.#status.isInProgress; }
+  get isReplaced() { return this.#status.isReplaced; }
 
   get weekKey() {
     return `${this.#weekYear}-W${String(this.#weekNumber).padStart(2, '0')}`;
@@ -149,6 +150,17 @@ class WeeklyReport {
   fail(errorMessage) {
     this.#status = ReportStatus.failed();
     this.#errorMessage = errorMessage;
+  }
+
+  /**
+   * Marca o relatório como substituído (quando uma nova geração é forçada)
+   * Só funciona em relatórios já concluídos.
+   */
+  markReplaced() {
+    if (!this.#status.isCompleted) {
+      throw new Error('Apenas relatórios concluídos podem ser marcados como substituídos');
+    }
+    this.#status = ReportStatus.replaced();
   }
 
   /**

@@ -787,7 +787,9 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                 <div className="ftv-status-grid">
                   {TOGGLE_TOOLS.map((tool) => {
                     const value = projectData[tool.key];
-                    const isActive = value === 'ativo';
+                    const isPortalDefault = tool.key === 'portal_cliente_status' && value == null
+                      && ACTIVE_STATUSES.includes((projectData.status || '').toLowerCase());
+                    const isActive = isPortalDefault || value === 'ativo';
                     const isRelatorioToggle = tool.key === 'relatorio_semanal_status';
                     const showWarning = isRelatorioToggle && !isActive && missingFields.length > 0;
                     const toggleDisabled = !canEditPortfolio || saving[tool.key] ||
@@ -838,7 +840,7 @@ function FerramentasView({ selectedProjectId, portfolio = [], onToolUpdate }) {
                                 <input
                                   type="checkbox"
                                   checked={isActive}
-                                  onChange={() => handleToggle(tool.key, value || 'desativado')}
+                                  onChange={() => handleToggle(tool.key, isPortalDefault ? 'ativo' : (value || 'desativado'))}
                                   disabled={toggleDisabled}
                                 />
                                 <span className="ftv-toggle-track">

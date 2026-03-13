@@ -287,6 +287,7 @@ function createRoutes(requireAuth, isPrivileged, logAction, bigqueryClient, repo
         smartsheetId: project.smartsheet_id,
         generatedBy: req.user.email || req.user.id,
         userId: req.user.id,
+        force: !!options.force,
         options: {
           scheduleDays: options.scheduleDays || 15,
           hideDashboard: options.hideDashboard || false,
