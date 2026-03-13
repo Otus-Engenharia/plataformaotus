@@ -1,8 +1,18 @@
 /**
- * Script one-shot: Cria contact_change_requests para empresas pendentes
- * que foram criadas sem uma solicitação correspondente.
+ * Script one-shot: Ativa empresas pendentes no banco.
  *
- * Uso: node backend/scripts/create-requests-for-pending-companies.js
+ * Contexto: o fluxo antigo de createCompany() hardcodeava status='pendente',
+ * mas essas empresas foram criadas como resultado de requests aprovadas
+ * (ou foram criadas antes do fluxo de aprovação existir).
+ * O commit c198c93 corrigiu createCompany para usar status='validado'.
+ * Este script ativa as empresas já existentes que ficaram como 'pendente'.
+ *
+ * Nota: target_company_id/result_company_id em contact_change_requests são UUID,
+ * mas companies.id é integer — não há como linkar via FK. Como nenhuma request
+ * existente tem esses campos preenchidos, todas as 124 empresas são órfãs.
+ * Em vez de criar requests que falhariam por type mismatch, ativamos todas.
+ *
+ * Uso: node backend/scripts/create-requests-for-pending-companies.js [--dry-run]
  */
 
 import 'dotenv/config';
@@ -13,7 +23,11 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
+const dryRun = process.argv.includes('--dry-run');
+
 async function main() {
+  if (dryRun) console.log('*** DRY RUN — nenhuma alteração será feita ***\n');
+
   // 1. Buscar empresas pendentes
   const { data: pendingCompanies, error: fetchError } = await supabase
     .from('companies')
@@ -30,58 +44,34 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`Encontradas ${pendingCompanies.length} empresa(s) pendente(s).`);
+  console.log(`Encontradas ${pendingCompanies.length} empresa(s) pendente(s).\n`);
 
-  // 2. Buscar requests existentes que já apontam para essas empresas
-  const companyIds = pendingCompanies.map(c => c.id);
-  const { data: existingRequests, error: reqError } = await supabase
-    .from('contact_change_requests')
-    .select('target_company_id')
-    .in('target_company_id', companyIds);
-
-  if (reqError) {
-    console.error('Erro ao buscar requests existentes:', reqError.message);
-    process.exit(1);
-  }
-
-  const alreadyHasRequest = new Set(
-    (existingRequests || []).map(r => r.target_company_id)
-  );
-
-  // 3. Criar requests para as que não têm
-  let created = 0;
-  let skipped = 0;
+  // 2. Ativar todas
+  let activated = 0;
+  let errors = 0;
 
   for (const company of pendingCompanies) {
-    if (alreadyHasRequest.has(company.id)) {
-      console.log(`  SKIP: "${company.name}" (id=${company.id}) — já tem request`);
-      skipped++;
+    if (dryRun) {
+      console.log(`  [DRY] Ativaria: "${company.name}" (id=${company.id}, tipo=${company.company_type})`);
+      activated++;
       continue;
     }
 
-    const { error: insertError } = await supabase
-      .from('contact_change_requests')
-      .insert({
-        request_type: 'nova_empresa',
-        status: 'pendente',
-        payload: {
-          name: company.name,
-          company_type: company.company_type,
-        },
-        target_company_id: company.id,
-        requested_by_email: 'sistema@otusengenharia.com',
-        requested_by_name: 'Sistema (migração)',
-      });
+    const { error: updateError } = await supabase
+      .from('companies')
+      .update({ status: 'validado' })
+      .eq('id', company.id);
 
-    if (insertError) {
-      console.error(`  ERRO: "${company.name}" — ${insertError.message}`);
+    if (updateError) {
+      console.error(`  ERRO: "${company.name}" (id=${company.id}) — ${updateError.message}`);
+      errors++;
     } else {
-      console.log(`  OK: "${company.name}" (id=${company.id}) — request criada`);
-      created++;
+      console.log(`  ATIVADA: "${company.name}" (id=${company.id})`);
+      activated++;
     }
   }
 
-  console.log(`\nResultado: ${created} criada(s), ${skipped} já existiam.`);
+  console.log(`\nResultado: ${activated} ativada(s), ${errors} erro(s).`);
 }
 
 main().catch(err => {

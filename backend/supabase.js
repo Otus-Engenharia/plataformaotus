@@ -5476,7 +5476,7 @@ export async function createCompany({ name, companyType, status }) {
     .insert({
       name,
       company_type: companyType || null,
-      status: status || 'ativa',
+      status: status || 'validado',
     })
     .select('id, name, company_type, status')
     .single();

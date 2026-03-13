@@ -60,13 +60,13 @@ class ApproveContactChangeRequest {
       resultContactId = safeUuid(request.targetContactId);
     } else if (type === 'nova_empresa') {
       if (request.targetCompanyId) {
-        await this.#contactService.updateCompanyStatus(request.targetCompanyId, 'ativa');
+        await this.#contactService.updateCompanyStatus(request.targetCompanyId, 'validado');
         resultCompanyId = safeUuid(request.targetCompanyId);
       } else {
         const company = await this.#contactService.createCompany({
           name: payload.name,
           companyType: payload.company_type,
-          status: 'ativa',
+          status: 'validado',
         });
         resultCompanyId = safeUuid(company.id);
       }
