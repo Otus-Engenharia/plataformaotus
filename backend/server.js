@@ -8780,7 +8780,7 @@ app.post('/api/projetos/equipe-cliente/assign', requireAuth, async (req, res) =>
     }
 
     const data = await assignClientContactToProject({ projectCode, contactId, role });
-    res.json({ success: true, data });
+    res.json({ success: true, data, portalAccess: data.portalAccess ?? null });
   } catch (error) {
     console.error('❌ Erro ao atribuir contato:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -8793,8 +8793,8 @@ app.post('/api/projetos/equipe-cliente/assign', requireAuth, async (req, res) =>
  */
 app.delete('/api/projetos/equipe-cliente/assign/:id', requireAuth, async (req, res) => {
   try {
-    await removeClientContactFromProject(req.params.id);
-    res.json({ success: true, message: 'Contato removido do projeto' });
+    const result = await removeClientContactFromProject(req.params.id);
+    res.json({ success: true, message: 'Contato removido do projeto', portalAccess: result.portalAccess ?? null });
   } catch (error) {
     console.error('❌ Erro ao remover contato:', error);
     res.status(500).json({ success: false, error: error.message });

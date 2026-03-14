@@ -5253,7 +5253,65 @@ export async function assignClientContactToProject({ projectCode, contactId, rol
     throw new Error(`Erro ao atribuir contato: ${error.message}`);
   }
 
-  return data;
+  // Auto-enable portal if contact has email and no portal access yet
+  let portalAccess = null;
+  try {
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('id, email, has_portal_access, supabase_auth_id')
+      .eq('id', contactId)
+      .single();
+
+    if (contact) {
+      portalAccess = contact.has_portal_access || false;
+
+      if (!contact.has_portal_access && contact.email) {
+        const adminClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+        // Create Supabase Auth user
+        const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+          email: contact.email,
+          password: '123456',
+          email_confirm: true,
+        });
+
+        let authId = authUser?.user?.id;
+
+        // If user already exists, find by email
+        if (authError && authError.message?.includes('already been registered')) {
+          let page = 1;
+          while (true) {
+            const { data: pageData } = await adminClient.auth.admin.listUsers({ page, perPage: 100 });
+            if (!pageData?.users?.length) break;
+            const found = pageData.users.find(u => u.email === contact.email);
+            if (found) { authId = found.id; break; }
+            if (pageData.users.length < 100) break;
+            page++;
+          }
+        }
+
+        if (authId) {
+          await supabase
+            .from('contacts')
+            .update({ has_portal_access: true, supabase_auth_id: authId })
+            .eq('id', contactId);
+
+          portalAccess = true;
+
+          // Audit log
+          await supabase.from('client_portal_audit_log').insert({
+            contact_id: contactId,
+            action: 'portal_enabled',
+            metadata: { reason: 'auto_assign_project', project_code: projectCode },
+          });
+        }
+      }
+    }
+  } catch (portalErr) {
+    console.error('Auto-enable portal error (non-blocking):', portalErr);
+  }
+
+  return { ...data, portalAccess };
 }
 
 /**
@@ -5263,6 +5321,13 @@ export async function assignClientContactToProject({ projectCode, contactId, rol
 export async function removeClientContactFromProject(assignmentId) {
   const supabase = getSupabaseServiceClient();
 
+  // Fetch the contact_id before deleting the assignment
+  const { data: assignment } = await supabase
+    .from('project_client_contacts')
+    .select('contact_id')
+    .eq('id', assignmentId)
+    .single();
+
   const { error } = await supabase
     .from('project_client_contacts')
     .delete()
@@ -5271,6 +5336,58 @@ export async function removeClientContactFromProject(assignmentId) {
   if (error) {
     throw new Error(`Erro ao remover contato do projeto: ${error.message}`);
   }
+
+  // Auto-disable portal if contact has no remaining project assignments
+  let portalAccess = null;
+  if (assignment?.contact_id) {
+    try {
+      const contactId = assignment.contact_id;
+
+      const { count } = await supabase
+        .from('project_client_contacts')
+        .select('id', { count: 'exact', head: true })
+        .eq('contact_id', contactId)
+        .eq('is_active', true);
+
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('id, has_portal_access, supabase_auth_id')
+        .eq('id', contactId)
+        .single();
+
+      if (contact) {
+        portalAccess = contact.has_portal_access || false;
+
+        if (count === 0 && contact.has_portal_access && contact.supabase_auth_id) {
+          const adminClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          try {
+            await adminClient.auth.admin.deleteUser(contact.supabase_auth_id);
+          } catch (deleteErr) {
+            console.error('Error deleting Supabase auth user:', deleteErr);
+          }
+
+          await supabase
+            .from('contacts')
+            .update({ has_portal_access: false, supabase_auth_id: null })
+            .eq('id', contactId);
+
+          portalAccess = false;
+
+          // Audit log
+          await supabase.from('client_portal_audit_log').insert({
+            contact_id: contactId,
+            action: 'portal_disabled',
+            metadata: { reason: 'auto_no_projects' },
+          });
+        }
+      }
+    } catch (portalErr) {
+      console.error('Auto-disable portal error (non-blocking):', portalErr);
+    }
+  }
+
+  return { portalAccess };
 }
 
 // ============================================
