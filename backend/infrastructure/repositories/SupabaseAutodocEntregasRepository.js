@@ -157,11 +157,14 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
   async upsertDocuments(documents) {
     if (!documents.length) return;
 
-    const rows = documents.map(doc => {
+    const rowMap = new Map();
+    for (const doc of documents) {
       const p = doc.toPersistence();
       delete p.id;
-      return p;
-    });
+      // Deduplica por autodoc_doc_id (último vence)
+      rowMap.set(p.autodoc_doc_id, p);
+    }
+    const rows = [...rowMap.values()];
 
     const { error } = await this.#supabase
       .from(DOCUMENTS_TABLE)
@@ -229,6 +232,25 @@ class SupabaseAutodocEntregasRepository extends AutodocEntregasRepository {
 
     if (error) {
       throw new Error(`Erro ao deletar mapeamento: ${error.message}`);
+    }
+  }
+
+  async updateMappingSyncMetadata(mappingId, { lastSyncAt, lastSyncStatus, lastDocCount, lastDocFingerprint, lastSyncDurationMs }) {
+    const update = {
+      last_sync_at: lastSyncAt || new Date().toISOString(),
+      last_sync_status: lastSyncStatus || 'success',
+    };
+    if (lastDocCount !== undefined) update.last_doc_count = lastDocCount;
+    if (lastDocFingerprint !== undefined) update.last_doc_fingerprint = lastDocFingerprint;
+    if (lastSyncDurationMs !== undefined) update.last_sync_duration_ms = lastSyncDurationMs;
+
+    const { error } = await this.#supabase
+      .from(MAPPINGS_TABLE)
+      .update(update)
+      .eq('id', mappingId);
+
+    if (error) {
+      throw new Error(`Erro ao atualizar metadata do mapping: ${error.message}`);
     }
   }
 

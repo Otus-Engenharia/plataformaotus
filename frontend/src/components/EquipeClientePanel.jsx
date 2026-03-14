@@ -195,15 +195,23 @@ function EquipeClientePanel({
       if (isAssigned) {
         const record = clientData.assignedRecords?.find(r => r.contact_id === contact.id);
         if (record) {
-          await axios.delete(`${API_URL}/api/projetos/equipe-cliente/assign/${record.id}`, {
+          const res = await axios.delete(`${API_URL}/api/projetos/equipe-cliente/assign/${record.id}`, {
             withCredentials: true
           });
+          // Auto-sync portal status from backend response
+          if (res.data?.portalAccess !== null && res.data?.portalAccess !== undefined) {
+            setPortalStatus(prev => ({ ...prev, [contact.id]: res.data.portalAccess }));
+          }
         }
       } else {
-        await axios.post(`${API_URL}/api/projetos/equipe-cliente/assign`, {
+        const res = await axios.post(`${API_URL}/api/projetos/equipe-cliente/assign`, {
           projectCode,
           contactId: contact.id
         }, { withCredentials: true });
+        // Auto-sync portal status from backend response
+        if (res.data?.portalAccess !== null && res.data?.portalAccess !== undefined) {
+          setPortalStatus(prev => ({ ...prev, [contact.id]: res.data.portalAccess }));
+        }
       }
       fetchClientContacts();
     } catch (err) {
