@@ -42,6 +42,10 @@ class AutodocEntregasRepository {
     throw new Error('Metodo deleteProjectMapping deve ser implementado');
   }
 
+  async updateMappingSyncMetadata(mappingId, metadata) {
+    throw new Error('Metodo updateMappingSyncMetadata deve ser implementado');
+  }
+
   // --- Resumo ---
 
   async getSummary(options = {}) {

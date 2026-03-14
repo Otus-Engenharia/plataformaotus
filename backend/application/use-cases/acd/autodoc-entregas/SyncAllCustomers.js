@@ -15,7 +15,7 @@ class SyncAllCustomers {
     this.#autodocClient = autodocClient;
   }
 
-  async execute({ batchId } = {}) {
+  async execute({ batchId, force = false } = {}) {
     // Limpar runs órfãos (running > 30 min) antes de iniciar
     try {
       const timedOut = await this.#repository.timeoutStaleRuns(30);
@@ -75,7 +75,7 @@ class SyncAllCustomers {
         const ngConcurrency = hasClassic ? 1 : 2;
         const syncUseCase = new SyncCustomerDocuments(this.#repository, this.#autodocClient);
         const result = await Promise.race([
-          syncUseCase.execute({ customerId, mappings: customerMappings, onProjectProgress, projectConcurrency: ngConcurrency }),
+          syncUseCase.execute({ customerId, mappings: customerMappings, onProjectProgress, projectConcurrency: ngConcurrency, force }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error(`Customer sync timeout (${CUSTOMER_TIMEOUT / 1000}s) para ${customerName}`)), CUSTOMER_TIMEOUT)
           ),

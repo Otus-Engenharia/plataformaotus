@@ -146,9 +146,10 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
 
       const useCase = new SyncAllCustomers(getRepository(), getAutodocClient());
       const batchId = crypto.randomUUID();
+      const force = req.query.force === 'true';
 
       // Fire-and-forget: iniciar sync sem aguardar
-      useCase.execute({ batchId })
+      useCase.execute({ batchId, force })
         .then((result) => {
           if (logAction) {
             logAction(req, 'sync-all', 'autodoc-entregas', null, 'Sync all Autodoc customers', {
@@ -162,7 +163,7 @@ function createRoutes(requireAuth, isPrivileged, logAction) {
           console.error('[autodoc-entregas] Erro no sync fire-and-forget:', err);
         });
 
-      res.json({ success: true, message: 'Sync iniciado', batchId });
+      res.json({ success: true, message: force ? 'Full sync iniciado (force=true)' : 'Incremental sync iniciado', batchId });
     } catch (error) {
       console.error('Erro ao iniciar sync Autodoc:', error);
       res.status(500).json({ success: false, error: error.message });

@@ -171,6 +171,21 @@ class AutodocHttpClient {
   }
 
   /**
+   * Retorna contagem rapida de documentos de um projeto NG (1 API call).
+   * Soma `amount` de todas disciplinas via getSubfoldersSize.
+   * Retorna null em caso de erro (caller faz full crawl).
+   */
+  async getProjectDocCount(customerId, projectFolderId) {
+    try {
+      const sizes = await this.getSubfoldersSize(customerId, projectFolderId);
+      if (!Array.isArray(sizes)) return null;
+      return sizes.reduce((sum, s) => sum + (s.amount || 0), 0);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Crawl recursivo de documentos de um projeto Autodoc.
    * Despacha para NG API ou Classic API conforme options.useClassicApi.
    *
