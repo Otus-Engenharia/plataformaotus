@@ -8,6 +8,7 @@
  * - Retry com backoff exponencial em crawls
  */
 
+import { createHash } from 'node:crypto';
 import { DocumentClassifier } from '../../../../domain/acd/autodoc-entregas/services/DocumentClassifier.js';
 import { AutodocDocument } from '../../../../domain/acd/autodoc-entregas/entities/AutodocDocument.js';
 
@@ -20,7 +21,7 @@ class SyncCustomerDocuments {
     this.#autodocClient = autodocClient;
   }
 
-  async execute({ customerId, mappings, onProjectProgress, projectConcurrency = 1 }) {
+  async execute({ customerId, mappings, onProjectProgress, projectConcurrency = 1, force = false }) {
     let totalDocuments = 0;
     let newDocuments = 0;
     const projectResults = [];
@@ -48,7 +49,7 @@ class SyncCustomerDocuments {
         const startMs = Date.now();
         const projectCode = mapping.portfolio_project_code;
         try {
-          const result = await this.#syncOneProject({ customerId, mapping, statusMap, anyClassic });
+          const result = await this.#syncOneProject({ customerId, mapping, statusMap, anyClassic, force });
           completedCount++;
 
           if (onProjectProgress) {
@@ -61,9 +62,10 @@ class SyncCustomerDocuments {
 
           projectResults.push({
             projectCode,
-            status: 'success',
-            totalDocuments: result.totalDocuments,
-            newDocuments: result.newDocuments,
+            status: result.skipped ? 'skipped' : 'success',
+            skipReason: result.skipReason || null,
+            totalDocuments: result.totalDocuments || 0,
+            newDocuments: result.newDocuments || 0,
             durationMs: Date.now() - startMs,
           });
 
@@ -106,12 +108,36 @@ class SyncCustomerDocuments {
     return { totalDocuments, newDocuments, projectResults };
   }
 
-  async #syncOneProject({ customerId, mapping, statusMap, anyClassic }) {
+  async #syncOneProject({ customerId, mapping, statusMap, anyClassic, force = false }) {
+    const projectCode = mapping.portfolio_project_code;
+    const useClassicApi = mapping.use_classic_api === true;
+    const syncStartMs = Date.now();
+
+    // --- Camada 1 & 2: Pre-crawl skip check ---
+    if (!force && mapping.last_sync_at) {
+      const hoursSinceSync = (Date.now() - new Date(mapping.last_sync_at).getTime()) / (1000 * 60 * 60);
+
+      if (!useClassicApi) {
+        // Camada 1: NG Quick Count Check — skip se count igual e < 6h
+        if (hoursSinceSync < 6 && mapping.last_sync_status === 'success') {
+          const quickCount = await this.#autodocClient.getProjectDocCount(customerId, mapping.autodoc_project_folder_id);
+          if (quickCount !== null && quickCount === mapping.last_doc_count) {
+            console.log(`[SyncCustomerDocuments] SKIP ${projectCode}: NG count unchanged (${quickCount} docs, last sync ${hoursSinceSync.toFixed(1)}h ago)`);
+            return { skipped: true, skipReason: `NG count unchanged (${quickCount} docs)`, totalDocuments: 0, newDocuments: 0 };
+          }
+        }
+      } else {
+        // Camada 2: Classic Time-based Skip — skip se < 12h e ultimo sync OK
+        if (hoursSinceSync < 12 && mapping.last_sync_status === 'success') {
+          console.log(`[SyncCustomerDocuments] SKIP ${projectCode}: Classic, last sync ${hoursSinceSync.toFixed(1)}h ago`);
+          return { skipped: true, skipReason: `Classic, last sync ${hoursSinceSync.toFixed(1)}h ago`, totalDocuments: 0, newDocuments: 0 };
+        }
+      }
+    }
+
+    // --- Crawl ---
     let projectDocs = 0;
     let projectNew = 0;
-
-    // Crawl documentos do projeto com retry (timeout interno do AutodocHttpClient já faz soft abort e retorna parcial)
-    const useClassicApi = mapping.use_classic_api === true;
 
     const crawlFn = () => this.#autodocClient.crawlProjectDocuments(
       customerId,
@@ -124,12 +150,49 @@ class SyncCustomerDocuments {
       }
     );
 
-    const rawDocs = await withRetry(
-      () => crawlFn(),
-      { retries: 2, baseDelay: 2000, label: `crawl ${mapping.portfolio_project_code}` }
-    );
+    let rawDocs;
+    try {
+      rawDocs = await withRetry(
+        () => crawlFn(),
+        { retries: 2, baseDelay: 2000, label: `crawl ${projectCode}` }
+      );
+    } catch (err) {
+      // Atualizar metadata com erro
+      try {
+        await this.#repository.updateMappingSyncMetadata(mapping.id, {
+          lastSyncAt: new Date().toISOString(),
+          lastSyncStatus: 'error',
+          lastSyncDurationMs: Date.now() - syncStartMs,
+        });
+      } catch { /* metadata failure should not mask crawl error */ }
+      throw err;
+    }
 
     projectDocs = rawDocs.length;
+
+    // --- Camada 3: Post-crawl Fingerprint Check ---
+    const fingerprint = computeDocFingerprint(rawDocs);
+    const quickCount = rawDocs.length;
+
+    if (!force && fingerprint === mapping.last_doc_fingerprint) {
+      console.log(`[SyncCustomerDocuments] SKIP upsert ${projectCode}: fingerprint unchanged (${quickCount} docs)`);
+      // Atualizar metadata (sync OK, sem mudancas)
+      try {
+        await this.#repository.updateMappingSyncMetadata(mapping.id, {
+          lastSyncAt: new Date().toISOString(),
+          lastSyncStatus: 'success',
+          lastDocCount: quickCount,
+          lastDocFingerprint: fingerprint,
+          lastSyncDurationMs: Date.now() - syncStartMs,
+        });
+      } catch (err) {
+        console.warn(`[SyncCustomerDocuments] Erro ao atualizar metadata ${projectCode}:`, err.message);
+      }
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return { totalDocuments: projectDocs, newDocuments: 0 };
+    }
+
+    // --- Classificacao + Upsert (fingerprint diferente ou force) ---
 
     // Buscar datas existentes para preservar autodoc_created_at de docs ja sincronizados
     const docIds = rawDocs.map(d => String(d.id));
@@ -199,7 +262,20 @@ class SyncCustomerDocuments {
       projectNew = entities.filter(e => e.classification === 'novo_arquivo').length;
     }
 
-    console.log(`[SyncCustomerDocuments] Projeto ${mapping.portfolio_project_code}: ${rawDocs.length} docs`);
+    console.log(`[SyncCustomerDocuments] Projeto ${projectCode}: ${rawDocs.length} docs (${projectNew} novos)`);
+
+    // Atualizar metadata de sync
+    try {
+      await this.#repository.updateMappingSyncMetadata(mapping.id, {
+        lastSyncAt: new Date().toISOString(),
+        lastSyncStatus: 'success',
+        lastDocCount: quickCount,
+        lastDocFingerprint: fingerprint,
+        lastSyncDurationMs: Date.now() - syncStartMs,
+      });
+    } catch (err) {
+      console.warn(`[SyncCustomerDocuments] Erro ao atualizar metadata ${projectCode}:`, err.message);
+    }
 
     // Rate limit entre projetos
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -209,6 +285,16 @@ class SyncCustomerDocuments {
 }
 
 // --- Utilitários inline (sem dependências externas) ---
+
+/**
+ * Computa fingerprint SHA-256 (truncado 16 chars) dos documentos crawlados.
+ * Usado para detectar se houve mudanca real entre syncs.
+ */
+function computeDocFingerprint(rawDocs) {
+  if (!rawDocs || rawDocs.length === 0) return 'empty';
+  const sorted = rawDocs.map(d => `${d.id}:${d.revision || ''}:${d.status || ''}`).sort();
+  return createHash('sha256').update(sorted.join('\n')).digest('hex').substring(0, 16);
+}
 
 /**
  * Limita concorrência de promises (substituto leve de p-limit).
